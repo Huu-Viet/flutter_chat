@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "685901186377",
+    "firebase_url": "https://momo-9bb17-default-rtdb.firebaseio.com",
+    "project_id": "momo-9bb17",
+    "storage_bucket": "momo-9bb17.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:685901186377:android:9747c65141967421870698",
+        "android_client_info": {
+          "package_name": "com.example.flutter_chat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCZNzI-4n5ujqjQujK3BxxeNUDUaeSml6c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
