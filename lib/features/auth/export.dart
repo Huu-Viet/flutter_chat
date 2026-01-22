@@ -1,7 +1,7 @@
 //datasource
-export '../auth/data/datasources/auth_pref_datasource.dart';
-export '../auth/data/datasources/auth_remote_datasource.dart';
-export '../auth/data/datasources/user_remote_datasource.dart';
+export 'data/datasources/local/auth_pref_datasource.dart';
+export 'data/datasources/api/auth_remote_datasource.dart';
+export 'data/datasources/api/user_remote_datasource.dart';
 
 //dto
 export '../auth/data/dtos/user_dto.dart';
@@ -29,3 +29,4 @@ export '../auth/domain/repositories/auth_repository.dart';
 export '../auth/domain/usecases/get_current_user_usecase.dart';
 export '../auth/domain/usecases/send_otp_usecase.dart';
 export '../auth/domain/usecases/verify_phone_otp_usecase.dart';
+export '../auth/domain/usecases/get_current_user_info_usecase.dart';

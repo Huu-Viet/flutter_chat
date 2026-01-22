@@ -10,4 +10,5 @@ abstract class AuthRepository {
   Future<Either<Failure, MyUser>> registerWithPhone(String phoneNumber, String firstName, String lastName);
   Future<Either<Failure, MyUser>> getCurrentUser();
   Future<Either<Failure, void>> setUserDataToRemote(MyUser user);
+  Stream<Either<Failure, MyUser>> getUserData(String userId);
 }

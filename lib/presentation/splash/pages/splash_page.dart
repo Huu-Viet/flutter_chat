@@ -83,10 +83,12 @@ class _SplashPageState extends ConsumerState<SplashPage>
       value: splashBloc,
       child: BlocListener<SplashBloc, SplashState>(
           listener: (context, state) {
-            if (state is SplashAuthenticated) {
+            if (state is SplashInfoSetupComplete) {
               context.go("/home");
             } else if (state is SplashUnauthenticated) {
               context.go("/phone-auth");
+            } else if (state is SplashNotSetupInfo) {
+              context.go("/set-profile");
             }
           },
           child: Scaffold(

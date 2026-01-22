@@ -56,4 +56,20 @@ class UserDto {
       'updated_at': updatedAt.toIso8601String(),
     };
   }
+
+  /// Factory from Firestore Document data
+  factory UserDto.fromDocument(Map<String, dynamic> doc) {
+    return UserDto(
+      id: doc['uid'] as String,
+      keycloakId: doc['keycloakId'] as String,
+      email: doc['email'] as String,
+      username: doc['username'] as String,
+      firstName: doc['firstName'] as String?,
+      lastName: doc['lastName'] as String?,
+      phone: doc['phone'] as String?,
+      avatarUrl: doc['photoURL'] as String?,
+      createdAt: DateTime.parse(doc['createAt'] as String),
+      updatedAt: DateTime.parse(doc['updateAt'] as String),
+    );
+  }
 }

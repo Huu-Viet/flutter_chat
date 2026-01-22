@@ -1,5 +1,5 @@
+import 'package:flutter_chat/core/database/app_database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../entities/user_entity.dart';
 import 'dart:convert';
 
 abstract class AuthPrefDataSource {

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:developer';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/auth_result.dart';
+import '../../models/auth_result.dart';
 
 abstract class AuthRemoteDataSource {
   Future<String> sendPhoneVerification(String phoneNumber);

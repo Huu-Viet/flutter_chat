@@ -34,6 +34,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
     authRemoteDataSource: ref.watch(authRemoteDataSourceProvider),
     authLocalDataSource: ref.watch(authLocalDataSourceProvider),
     userRemoteDataSource: ref.watch(userRemoteDataSourceProvider),
+    userDao: ref.watch(userDaoProvider),
     apiMapper: ref.watch(apiUserMapperProvider),
     localMapper: ref.watch(localUserMapperProvider),
   );

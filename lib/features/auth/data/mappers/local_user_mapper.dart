@@ -1,6 +1,6 @@
+import 'package:flutter_chat/core/database/app_database.dart';
 import '../../../../core/mappers/local_mapper.dart';
 import '../../domain/entities/user.dart';
-import '../entities/user_entity.dart';
 
 /// Local User Mapper - Maps between UserEntity (Database) and User (Domain)
 class LocalUserMapper extends LocalMapper<UserEntity, MyUser> {
@@ -16,8 +16,8 @@ class LocalUserMapper extends LocalMapper<UserEntity, MyUser> {
       lastName: entity.lastName,
       phone: entity.phone,
       avatarUrl: entity.avatarUrl,
-      createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
+      createdAt: DateTime.parse(entity.createdAt),
+      updatedAt: DateTime.parse(entity.updatedAt),
     );
   }
   
@@ -32,8 +32,8 @@ class LocalUserMapper extends LocalMapper<UserEntity, MyUser> {
       lastName: domain.lastName,
       phone: domain.phone,
       avatarUrl: domain.avatarUrl,
-      createdAt: domain.createdAt,
-      updatedAt: domain.updatedAt,
+      createdAt: domain.createdAt.toString(),
+      updatedAt: domain.updatedAt.toString(),
     );
   }
 }

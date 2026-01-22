@@ -12,6 +12,10 @@ dependencies:
   flutter:
     sdk: flutter
 
+  rxdart: ^0.28.0
+  drift: ^2.30.1
+  drift_flutter: ^0.2.8
+
   #image picker
   image_picker: ^1.2.1
 
@@ -36,7 +40,6 @@ dependencies:
   
   # Local Storage
   shared_preferences: ^2.3.3
-  sqflite: ^2.4.1
   path: ^1.9.0
   
   # JSON Serialization
@@ -46,13 +49,14 @@ dependencies:
   dartz: ^0.10.1
   
   # Code Generation
-  freezed_annotation: ^2.4.4
+  freezed_annotation: ^3.1.0
   
   # Utils
   equatable: ^2.0.7
   connectivity_plus: ^7.0.0
   http: ^1.6.0
   intl: ^0.19.0
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
@@ -63,8 +67,7 @@ dev_dependencies:
   # Code Generation
   build_runner: ^2.4.12
   json_serializable: ^6.8.0
-  freezed: ^2.5.7
-  riverpod_generator: ^2.6.0
+  drift_dev: ^2.30.1
 
 flutter:
   uses-material-design: true

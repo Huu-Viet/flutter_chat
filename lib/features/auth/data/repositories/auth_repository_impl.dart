@@ -1,11 +1,12 @@
 import 'package:dartz/dartz.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_chat/features/auth/data/datasources/user_remote_datasource.dart';
+import 'package:flutter_chat/features/auth/data/datasources/local/user_dao.dart';
+import 'package:flutter_chat/features/auth/data/datasources/api/user_remote_datasource.dart';
 import '../../../../core/errors/failure.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
-import '../datasources/auth_remote_datasource.dart';
-import '../datasources/auth_pref_datasource.dart';
+import '../datasources/api/auth_remote_datasource.dart';
+import '../datasources/local/auth_pref_datasource.dart';
 import '../mappers/api_user_mapper.dart';
 import '../mappers/local_user_mapper.dart';
 import '../models/auth_result.dart';
@@ -14,6 +15,7 @@ class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSource authRemoteDataSource;
   final AuthPrefDataSource authLocalDataSource;
   final UserRemoteDataSource userRemoteDataSource;
+  final UserDao userDao;
   final APIUserMapper apiMapper;
   final LocalUserMapper localMapper;
 
@@ -21,6 +23,7 @@ class AuthRepositoryImpl implements AuthRepository {
     required this.authRemoteDataSource,
     required this.authLocalDataSource,
     required this.userRemoteDataSource,
+    required this.userDao,
     required this.apiMapper,
     required this.localMapper,
   });
@@ -111,7 +114,19 @@ class AuthRepositoryImpl implements AuthRepository {
       await userRemoteDataSource.setUserData(myUser);
       return Right(null);
     } catch (e) {
-      return Left(ServerFailure('Unexpected error occurred'));
+      return Left(ServerFailure('(set user data to remote)_Unexpected error occurred'));
+    }
+  }
+
+  @override
+  Stream<Either<Failure, MyUser>> getUserData(String userId) async* {
+    await for (final userEntity in userDao.watchUserById(userId)) {
+      if (userEntity != null) {
+        final myUser = localMapper.toDomain(userEntity);
+        yield Right(myUser);
+      } else {
+        yield Left(ServerFailure('User not found'));
+      }
     }
   }
 }

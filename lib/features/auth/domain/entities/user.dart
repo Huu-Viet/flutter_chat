@@ -25,7 +25,19 @@ class MyUser extends Equatable {
     required this.updatedAt,
   });
 
-  /// Get display name with priority: fullName > username
+  static final empty = MyUser(
+    id: '',
+    keycloakId: '',
+    email: '',
+    username: '',
+    firstName: null,
+    lastName: null,
+    phone: null,
+    avatarUrl: null,
+    createdAt: DateTime.fromMillisecondsSinceEpoch(0),
+    updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
+  );
+
   String get displayName {
     if (firstName != null || lastName != null) {
       return '${firstName ?? ''} ${lastName ?? ''}'.trim();
@@ -33,7 +45,6 @@ class MyUser extends Equatable {
     return username;
   }
 
-  /// Get full name like server domain method
   String get fullName {
     if (firstName != null && lastName != null) {
       return '$firstName $lastName';
@@ -41,18 +52,14 @@ class MyUser extends Equatable {
     return username;
   }
 
-  /// Check if profile is complete (like server domain method)
   bool get isProfileComplete {
     return firstName != null && lastName != null && phone != null;
   }
 
-  /// Check if user has avatar
   bool get hasAvatar => avatarUrl != null && avatarUrl!.isNotEmpty;
 
-  /// Check if email is phone placeholder (phone-only registration)
   bool get isPhoneOnlyUser => email.endsWith('@phone.local');
 
-  /// Get actual email or null if phone-only user
   String? get actualEmail => isPhoneOnlyUser ? null : email;
 
   @override

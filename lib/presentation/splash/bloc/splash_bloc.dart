@@ -7,9 +7,14 @@ part 'splash_state.dart';
 
 class SplashBloc extends Bloc<SplashEvent, SplashState> {
   final GetCurrentUserUseCase getCurrentUserUseCase;
+  final GetCurrentUserInfo getCurrentUserInfo;
 
-  SplashBloc({required this.getCurrentUserUseCase}) : super(SplashInitial()) {
+  SplashBloc({
+    required this.getCurrentUserUseCase,
+    required this.getCurrentUserInfo,
+  }) : super(SplashInitial()) {
     on<CheckAuthEvent>(_checkAuth);
+    on<AuthChecked>(_checkCurrentUserInfo);
   }
 
   Future<void> _checkAuth(CheckAuthEvent event, Emitter<SplashState> emit) async {
@@ -19,10 +24,23 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
       final result = await getCurrentUserUseCase();
       result.fold(
             (failure) {emit(SplashUnauthenticated());},
-            (myUser) {emit(SplashAuthenticated(myUser));},
+            (myUser) {add(AuthChecked(myUser.id));},
       );
     } catch (e) {
       emit(SplashUnauthenticated());
     }
+  }
+
+  Future<void> _checkCurrentUserInfo(AuthChecked event, Emitter<SplashState> emit) async {
+    emit(SplashLoading());
+    await emit.forEach(
+      getCurrentUserInfo(event.userId).take(1), //splash only needs one event then close
+      onData: (data) {
+        return data.fold((failure) => SplashNotSetupInfo(),
+            (myUser) => SplashInfoSetupComplete(myUser)
+        );
+      },
+      onError: (_, __) => SplashNotSetupInfo(),
+    );
   }
 }

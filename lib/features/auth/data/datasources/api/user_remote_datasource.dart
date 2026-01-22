@@ -2,11 +2,12 @@ import 'dart:developer';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_chat/features/auth/domain/entities/user.dart';
+import 'package:flutter_chat/features/auth/export.dart';
+import 'package:rxdart/rxdart.dart';
 
 abstract class UserRemoteDataSource {
   Future<void> setUserData(MyUser user);
-  Stream<MyUser?> get user;
+  Stream<UserDto?> get user;
 }
 
 class FirebaseUserDataSourceImpl implements UserRemoteDataSource {
@@ -45,28 +46,19 @@ class FirebaseUserDataSourceImpl implements UserRemoteDataSource {
   }
 
   @override
-  Stream<MyUser?> get user {
-    //Todo: implement user stream
-    throw UnimplementedError();
-    // final currentUser = _firebaseAuth.currentUser;
-    // if (currentUser == null) {
-    //   return Stream.value(null);
-    // }
-    //
-    // return usersCollection.doc(currentUser.uid).snapshots().map((doc) {
-    //   if (doc.exists) {
-    //     final data = doc.data() as Map<String, dynamic>;
-    //     return MyUser(
-    //       uid: data['uid'] ?? '',
-    //       phone: data['phone'],
-    //       firstName: data['firstName'],
-    //       lastName: data['lastName'],
-    //       displayName: data['displayName'],
-    //       photoURL: data['photoURL'],
-    //     );
-    //   }
-    //   return null;
-    // });
+  Stream<UserDto?> get user {
+    return _firebaseAuth.authStateChanges().flatMap((firebaseUser) async* {
+      if(firebaseUser == null) {
+        yield null;
+      } else {
+        yield await usersCollection
+            .doc(firebaseUser.uid)
+            .get()
+            .then((value) =>
+              UserDto.fromDocument(value.data() as Map<String, dynamic>)
+            );
+      }
+    });
   }
   
 }
