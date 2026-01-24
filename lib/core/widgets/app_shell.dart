@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../native_services/mobile_data_warning_service.dart';
 import 'network_banner.dart';
-import '../services/mobile_data_warning_service.dart';
 
 class AppShell extends ConsumerWidget {
   final Widget child;

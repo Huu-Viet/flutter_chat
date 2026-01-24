@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../network/network_service.dart';
+import '../native_services/network_service.dart';
 
 class NetworkBanner extends ConsumerWidget {
   final Widget child;

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_chat/app/e_app_route.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/network/network_service.dart';
+import '../../../core/native_services/network_service.dart';
 import 'widgets/chat_list_tile.dart';
 
 class HomePage extends ConsumerWidget {

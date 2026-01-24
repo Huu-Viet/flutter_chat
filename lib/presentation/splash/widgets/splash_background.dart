@@ -28,8 +28,8 @@ class SplashBackground extends StatelessWidget {
                 ]
               : [
                   theme.primaryColor,
-                  theme.primaryColor.withOpacity(0.8),
-                  theme.primaryColor.withOpacity(0.9),
+                  theme.primaryColor.withValues(alpha: 0.8),
+                  theme.primaryColor.withValues(alpha: 0.9),
                 ],
         ),
       ),

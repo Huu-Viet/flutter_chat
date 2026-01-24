@@ -1,6 +1,5 @@
 import 'dart:developer';
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/app/media_providers.dart';
 import 'package:flutter_chat/core/utils/file_utils.dart';
