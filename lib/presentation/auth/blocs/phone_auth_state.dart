@@ -11,11 +11,11 @@ final class PhoneAuthInitial extends PhoneAuthState {
   const PhoneAuthInitial();
 }
 
-class PhoneAuthLoading extends PhoneAuthState {
+final class PhoneAuthLoading extends PhoneAuthState {
   const PhoneAuthLoading();
 }
 
-class OTPSent extends PhoneAuthState {
+final class OTPSent extends PhoneAuthState {
   final String verificationId;
   final String phoneNumber;
 
@@ -25,7 +25,7 @@ class OTPSent extends PhoneAuthState {
   List<Object> get props => [verificationId, phoneNumber];
 }
 
-class PhoneAuthSuccess extends PhoneAuthState {
+final class PhoneAuthSuccess extends PhoneAuthState {
   final bool isNewUser;
 
   const PhoneAuthSuccess(this.isNewUser);
@@ -34,7 +34,7 @@ class PhoneAuthSuccess extends PhoneAuthState {
   List<Object> get props => [isNewUser];
 }
 
-class PhoneAuthError extends PhoneAuthState {
+final class PhoneAuthError extends PhoneAuthState {
   final String message;
   final String? phoneNumber;
   final String? verificationId;
@@ -49,7 +49,7 @@ class PhoneAuthError extends PhoneAuthState {
   List<Object?> get props => [message, phoneNumber, verificationId];
 }
 
-class OTPResent extends PhoneAuthState {
+final class OTPResent extends PhoneAuthState {
   final String verificationId;
   final String phoneNumber;
 

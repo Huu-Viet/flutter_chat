@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_chat/app/app_providers.dart';
 import 'package:flutter_chat/features/auth/data/datasources/local/user_dao.dart';
+import 'package:flutter_chat/features/auth/domain/usecases/get_local_current_user_data_usecase.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'auth_providers.dart'; // Import để sử dụng firebaseAuthProvider
@@ -30,8 +31,26 @@ final userDaoProvider = Provider<UserDao>((ref) {
 });
 
 // Use Cases
-final getCurrentUserInfoUseCase = Provider<GetCurrentUserInfo>((ref) {
-  return GetCurrentUserInfo(
-    ref.watch(authRepositoryProvider),
+final getCurrentRemoteUserInfoUseCaseProvider = Provider<GetRemoteCurrentUserDataUseCase>((ref) {
+  return GetRemoteCurrentUserDataUseCase(
+    ref.watch(authRemoteRepoProvider),
+  );
+});
+
+final getCurrentLocalUserInfoUseCaseProvider = Provider<GetLocalCurrentUserDataUseCase>((ref) {
+  return GetLocalCurrentUserDataUseCase(
+    ref.watch(authLocalRepoProvider),
+  );
+});
+
+final setUserInfoUseCaseProvider = Provider<SetUserInfoUseCase>((ref) {
+  return SetUserInfoUseCase(
+    ref.watch(authRemoteRepoProvider),
+  );
+});
+
+final writeUserInfoUseCaseProvider = Provider<WriteUserInfoUseCase>((ref) {
+  return WriteUserInfoUseCase(
+    ref.watch(authLocalRepoProvider),
   );
 });

@@ -1,6 +1,5 @@
 import 'package:dartz/dartz.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_chat/features/auth/data/datasources/local/user_dao.dart';
 import 'package:flutter_chat/features/auth/data/datasources/api/user_remote_datasource.dart';
 import '../../../../core/errors/failure.dart';
 import '../../domain/entities/user.dart';
@@ -11,19 +10,17 @@ import '../mappers/api_user_mapper.dart';
 import '../mappers/local_user_mapper.dart';
 import '../models/auth_result.dart';
 
-class AuthRepositoryImpl implements AuthRepository {
+class AuthRemoteRepoImpl implements AuthRemoteRepository {
   final AuthRemoteDataSource authRemoteDataSource;
   final AuthPrefDataSource authLocalDataSource;
   final UserRemoteDataSource userRemoteDataSource;
-  final UserDao userDao;
   final APIUserMapper apiMapper;
   final LocalUserMapper localMapper;
 
-  AuthRepositoryImpl({
+  AuthRemoteRepoImpl({
     required this.authRemoteDataSource,
     required this.authLocalDataSource,
     required this.userRemoteDataSource,
-    required this.userDao,
     required this.apiMapper,
     required this.localMapper,
   });
@@ -119,10 +116,10 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Stream<Either<Failure, MyUser>> getUserData(String userId) async* {
-    await for (final userEntity in userDao.watchUserById(userId)) {
-      if (userEntity != null) {
-        final myUser = localMapper.toDomain(userEntity);
+  Stream<Either<Failure, MyUser>> getUserData() async* {
+    await for (final userDto in userRemoteDataSource.user) {
+      if (userDto != null) {
+        final myUser = apiMapper.toDomain(userDto);
         yield Right(myUser);
       } else {
         yield Left(ServerFailure('User not found'));

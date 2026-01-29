@@ -68,8 +68,8 @@ class UserDto {
       lastName: doc['lastName'] as String?,
       phone: doc['phone'] as String?,
       avatarUrl: doc['photoURL'] as String?,
-      createdAt: DateTime.parse(doc['createAt'] as String),
-      updatedAt: DateTime.parse(doc['updateAt'] as String),
+      createdAt: (doc['createdAt'] as dynamic).toDate() as DateTime,
+      updatedAt: (doc['updatedAt'] as dynamic).toDate() as DateTime,
     );
   }
 }

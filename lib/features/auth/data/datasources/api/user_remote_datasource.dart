@@ -1,7 +1,6 @@
-import 'dart:developer';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -40,7 +39,7 @@ class FirebaseUserDataSourceImpl implements UserRemoteDataSource {
         });
       }
     } catch(e) {
-      log(e.toString());
+      debugPrint(e.toString());
       rethrow;
     }
   }
@@ -51,14 +50,26 @@ class FirebaseUserDataSourceImpl implements UserRemoteDataSource {
       if(firebaseUser == null) {
         yield null;
       } else {
-        yield await usersCollection
-            .doc(firebaseUser.uid)
-            .get()
-            .then((value) =>
-              UserDto.fromDocument(value.data() as Map<String, dynamic>)
-            );
+        debugPrint("Firebase user authenticated: ${firebaseUser.uid}");
+        debugPrint("Fetching user data from Firestore...");
+        
+        try {
+          final docSnapshot = await usersCollection.doc(firebaseUser.uid).get();
+          
+          if (docSnapshot.exists) {
+            debugPrint("Firestore document exists for user ${firebaseUser.uid}");
+            final data = docSnapshot.data() as Map<String, dynamic>;
+            debugPrint("Document data: $data");
+            yield UserDto.fromDocument(data);
+          } else {
+            debugPrint("Firestore document does NOT exist for user ${firebaseUser.uid}");
+            yield null;
+          }
+        } catch (e) {
+          debugPrint("Error fetching user from Firestore: $e");
+          yield null;
+        }
       }
     });
   }
-  
 }

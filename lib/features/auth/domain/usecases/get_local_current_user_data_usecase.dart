@@ -2,12 +2,12 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 
-class GetCurrentUserInfo {
-  final AuthRepository authRepository;
+class GetLocalCurrentUserDataUseCase {
+  final AuthLocalRepo _authLocalRepo;
 
-  GetCurrentUserInfo(this.authRepository);
+  GetLocalCurrentUserDataUseCase(this._authLocalRepo);
 
   Stream<Either<Failure, MyUser>> call(String userId) {
-    return authRepository.getUserData(userId);
+    return _authLocalRepo.getUserData(userId);
   }
 }

@@ -3,11 +3,11 @@ import 'package:flutter_chat/core/errors/failure.dart';
 import 'package:flutter_chat/features/auth/domain/repositories/auth_repository.dart';
 
 class SendPhoneOTPUseCase {
-  final AuthRepository repository;
+  final AuthRemoteRepository _authRemoteRepo;
 
-  SendPhoneOTPUseCase(this.repository);
+  SendPhoneOTPUseCase(this._authRemoteRepo);
 
   Future<Either<Failure, String>> call(String phoneNumber) {
-    return repository.sendOtp(phoneNumber);
+    return _authRemoteRepo.sendOtp(phoneNumber);
   }
 }

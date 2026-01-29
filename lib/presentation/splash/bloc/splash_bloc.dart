@@ -1,17 +1,24 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter_chat/features/auth/domain/usecases/get_local_current_user_data_usecase.dart';
 import 'package:flutter_chat/features/auth/export.dart';
+import 'package:rxdart/rxdart.dart';
 
 part 'splash_event.dart';
 part 'splash_state.dart';
 
 class SplashBloc extends Bloc<SplashEvent, SplashState> {
   final GetCurrentUserUseCase getCurrentUserUseCase;
-  final GetCurrentUserInfo getCurrentUserInfo;
+  final GetRemoteCurrentUserDataUseCase getRemoteCurrentUserDataUseCase;
+  final GetLocalCurrentUserDataUseCase getLocalCurrentUserDataUseCase;
+  final WriteUserInfoUseCase writeUserInfoUseCase;
 
   SplashBloc({
     required this.getCurrentUserUseCase,
-    required this.getCurrentUserInfo,
+    required this.getRemoteCurrentUserDataUseCase,
+    required this.getLocalCurrentUserDataUseCase,
+    required this.writeUserInfoUseCase,
   }) : super(SplashInitial()) {
     on<CheckAuthEvent>(_checkAuth);
     on<AuthChecked>(_checkCurrentUserInfo);
@@ -33,14 +40,34 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
 
   Future<void> _checkCurrentUserInfo(AuthChecked event, Emitter<SplashState> emit) async {
     emit(SplashLoading());
+
     await emit.forEach(
-      getCurrentUserInfo(event.userId).take(1), //splash only needs one event then close
-      onData: (data) {
-        return data.fold((failure) => SplashNotSetupInfo(),
-            (myUser) => SplashInfoSetupComplete(myUser)
-        );
-      },
-      onError: (_, __) => SplashNotSetupInfo(),
+      Rx.combineLatest2(
+          getLocalCurrentUserDataUseCase(event.userId),
+          getRemoteCurrentUserDataUseCase(),
+          (localResult, remoteResult) {
+            return localResult.fold(
+                  (failure) {
+                    debugPrint("SplashBloc: localFail");
+                    return remoteResult.fold(
+                          (failure) {
+                            debugPrint("remoteError from firebaseAuth: $failure.message");
+                            return SplashNotSetupInfo();
+                          },
+                          (remoteUser) {
+                            writeUserInfoUseCase(remoteUser);
+                            return SplashInfoSetupComplete(remoteUser);
+                          },
+                    );
+                  },
+                  (localUser) {
+                    debugPrint("SplashBloc: localSuccess");
+                    return SplashInfoSetupComplete(localUser);
+                  },
+            );
+          }
+      ),
+      onData: (state) => state,
     );
   }
 }

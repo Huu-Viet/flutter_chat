@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_chat/features/auth/data/repositories/auth_local_repo_impl.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/features/auth/user_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,26 +30,32 @@ final localUserMapperProvider = Provider<LocalUserMapper>((ref) {
 });
 
 // Repository
-final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return AuthRepositoryImpl(
+final authRemoteRepoProvider = Provider<AuthRemoteRepository>((ref) {
+  return AuthRemoteRepoImpl(
     authRemoteDataSource: ref.watch(authRemoteDataSourceProvider),
     authLocalDataSource: ref.watch(authLocalDataSourceProvider),
     userRemoteDataSource: ref.watch(userRemoteDataSourceProvider),
-    userDao: ref.watch(userDaoProvider),
     apiMapper: ref.watch(apiUserMapperProvider),
     localMapper: ref.watch(localUserMapperProvider),
   );
 });
 
+final authLocalRepoProvider = Provider<AuthLocalRepo>((ref) {
+  return AuthLocalRepoImpl(
+      userDao: ref.watch(userDaoProvider),
+      localMapper: ref.watch(localUserMapperProvider)
+  );
+});
+
 // UseCase
 final sendPhoneOTPUseCaseProvider = Provider<SendPhoneOTPUseCase>((ref) {
-  return SendPhoneOTPUseCase(ref.watch(authRepositoryProvider));
+  return SendPhoneOTPUseCase(ref.watch(authRemoteRepoProvider));
 });
 
 final verifyPhoneOTPUseCaseProvider = Provider<VerifyPhoneOTPUseCase>((ref) {
-  return VerifyPhoneOTPUseCase(ref.watch(authRepositoryProvider));
+  return VerifyPhoneOTPUseCase(ref.watch(authRemoteRepoProvider));
 });
 
 final getCurrentUserUseCaseProvider = Provider<GetCurrentUserUseCase>((ref) {
-  return GetCurrentUserUseCase(ref.watch(authRepositoryProvider));
+  return GetCurrentUserUseCase(ref.watch(authRemoteRepoProvider));
 });
