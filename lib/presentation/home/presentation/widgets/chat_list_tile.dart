@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class ChatListTile extends StatelessWidget {
   final String name;
@@ -70,10 +71,7 @@ class ChatListTile extends StatelessWidget {
         ],
       ),
       onTap: () {
-        // Navigate to chat screen
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Opening chat with $name')),
-        );
+        context.push('/chat/$name', extra: {'friendName': name});
       },
     );
   }
