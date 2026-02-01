@@ -60,6 +60,9 @@ dependencies:
   path_provider_android: ^2.2.22
   nsfw_detector_flutter: ^1.0.5
 
+  #emoji
+  emoji_picker_flutter: ^3.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

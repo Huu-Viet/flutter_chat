@@ -7,6 +7,8 @@ import 'package:flutter_chat/presentation/splash/pages/splash_page.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../presentation/chat/presentation/chat_page.dart';
+
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/splash',
@@ -51,6 +53,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/profile',
         name: 'profile',
         builder: (context, state) => const ProfilePage(),
+      ),
+      GoRoute(
+        path: '/chat/:friendName',
+        name: 'chat',
+        builder: (context, state) {
+          final friendName = state.pathParameters['friendName'] ?? 'Unknown';
+          return ChatPage(friendName: friendName);
+        },
       ),
     ],
   );
