@@ -66,16 +66,36 @@ class MessageInput extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Colors.blueAccent,
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.3),
-              blurRadius: 4,
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
               offset: const Offset(0, -2),
             ),
           ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            _buildInputContainer(context),
+            const SizedBox(width: 8),
+            _buildSendButton(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputContainer(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white70,
+          borderRadius: BorderRadius.circular(24),
         ),
         child: Row(
           children: [
@@ -84,20 +104,29 @@ class MessageInput extends StatelessWidget {
               onPressed: () => _showEmojiPicker(context),
             ),
             _buildIconButton(
-              icon: Icons.image,
+              icon: Icons.image_outlined,
               onPressed: () => _showImagePickerOptions(context),
             ),
             Expanded(child: _buildTextField()),
-            _buildIconButton(
-              icon: Icons.send,
-              onPressed: onSendMessage,
-              color: Colors.blue,
-            ),
           ],
         ),
       ),
     );
   }
+
+  Widget _buildSendButton() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.blueAccent,
+        shape: BoxShape.circle,
+      ),
+      child: IconButton(
+        icon: const Icon(Icons.send, color: Colors.white),
+        onPressed: onSendMessage,
+      ),
+    );
+  }
+
 
   Widget _buildIconButton({
     required IconData icon,
@@ -116,10 +145,12 @@ class MessageInput extends StatelessWidget {
       decoration: const InputDecoration(
         hintText: 'Type a message...',
         border: InputBorder.none,
-        contentPadding: EdgeInsets.symmetric(horizontal: 12),
+        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       ),
-      maxLines: null,
+      minLines: 1,
+      maxLines: 5,
       textCapitalization: TextCapitalization.sentences,
     );
   }
+
 }

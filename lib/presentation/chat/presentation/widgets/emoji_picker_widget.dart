@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:flutter/foundation.dart' as foundation;
 
 class EmojiPickerWidget extends StatelessWidget {
   final Function(String) onEmojiSelected;
@@ -8,67 +10,40 @@ class EmojiPickerWidget extends StatelessWidget {
     required this.onEmojiSelected,
   });
 
-  static const List<String> _emojis = [
-    '😊', '😂', '❤️', '👍', '🎉', '😍', '🔥', '👏',
-    '😎', '🙏', '💯', '😢', '😮', '😡', '🤔', '👋',
-    '💪', '✨', '🌟', '💕', '😘', '😁', '🤗', '😇',
-  ];
-
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 250,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          _buildHandle(),
-          const SizedBox(height: 8),
-          Expanded(
-            child: _buildEmojiGrid(),
+    return SizedBox(
+      height: 300,
+      child: EmojiPicker(
+        onEmojiSelected: (Category? category, Emoji emoji) {
+          onEmojiSelected(emoji.emoji);
+        },
+        config: Config(
+          height: 256,
+          checkPlatformCompatibility: true,
+          emojiViewConfig: EmojiViewConfig(
+            emojiSizeMax: 28 *
+                (foundation.defaultTargetPlatform == TargetPlatform.iOS
+                    ? 1.20
+                    : 1.0),
+            backgroundColor: const Color(0xFFF2F2F2),
+            columns: 7,
+            verticalSpacing: 0,
+            horizontalSpacing: 0,
+            gridPadding: EdgeInsets.zero,
+            recentsLimit: 28,
+            replaceEmojiOnLimitExceed: false,
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHandle() {
-    return Container(
-      width: 40,
-      height: 4,
-      decoration: BoxDecoration(
-        color: Colors.grey[300],
-        borderRadius: BorderRadius.circular(2),
-      ),
-    );
-  }
-
-  Widget _buildEmojiGrid() {
-    return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 8,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-      ),
-      itemCount: _emojis.length,
-      itemBuilder: (context, index) {
-        final emoji = _emojis[index];
-        return InkWell(
-          onTap: () => onEmojiSelected(emoji),
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Center(
-              child: Text(
-                emoji,
-                style: const TextStyle(fontSize: 24),
-              ),
-            ),
+          skinToneConfig: const SkinToneConfig(),
+          categoryViewConfig: const CategoryViewConfig(),
+          bottomActionBarConfig: const BottomActionBarConfig(
+            enabled: false,
           ),
-        );
-      },
+          searchViewConfig: const SearchViewConfig(
+            backgroundColor: Color(0xFFF2F2F2),
+          ),
+        ),
+      ),
     );
   }
 }
-
