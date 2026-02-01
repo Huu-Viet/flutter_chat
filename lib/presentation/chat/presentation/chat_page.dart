@@ -9,7 +9,7 @@ import '../../../core/native_services/media/media_service.dart';
 class ChatPage extends StatefulWidget {
   final String friendName;
 
-  const ChatPage({Key? key, required this.friendName}) : super(key: key);
+  const ChatPage({super.key, required this.friendName});
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -19,7 +19,7 @@ class _ChatPageState extends State<ChatPage> {
   final TextEditingController _messageController = TextEditingController();
   final List<ChatMessage> _messages = [];
   final MediaService _mediaService = MediaService();
-  bool _showEmojiKeyboard = false;
+  // bool _showEmojiKeyboard = false;
 
 
   @override
@@ -60,9 +60,11 @@ class _ChatPageState extends State<ChatPage> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to pick image: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick image: $e')),
+        );
+      }
     }
   }
 
