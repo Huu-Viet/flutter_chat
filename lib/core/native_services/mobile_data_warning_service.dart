@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'network_service.dart';
 
-// Simple service cho mobile data warning - không cần use case pattern
 class MobileDataWarningService {
   static const String _hasShownWarningKey = 'has_shown_mobile_data_warning';
 

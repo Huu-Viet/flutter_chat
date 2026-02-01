@@ -1,5 +1,3 @@
-/// User Data Transfer Object - Maps directly from API responses
-/// Matches server user.entity.ts structure exactly
 class UserDto {
   final String id;
   final String keycloakId;
