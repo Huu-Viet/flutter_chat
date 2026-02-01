@@ -22,7 +22,7 @@ class _PhoneInputFormState extends State<PhoneInputForm> {
   @override
   void initState() {
     super.initState();
-    // Đảm bảo controller rỗng ban đầu
+    // Ensure the phoneController is cleared on init
     _phoneController.clear();
   }
 

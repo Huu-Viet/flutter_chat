@@ -38,6 +38,32 @@ class MyUser extends Equatable {
     updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
   );
 
+  MyUser copyWith({
+    String? id,
+    String? keycloakId,
+    String? email,
+    String? username,
+    String? firstName,
+    String? lastName,
+    String? phone,
+    String? avatarUrl,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return MyUser(
+      id: id ?? this.id,
+      keycloakId: keycloakId ?? this.keycloakId,
+      email: email ?? this.email,
+      username: username ?? this.username,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
+      phone: phone ?? this.phone,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
   String get displayName {
     if (firstName != null || lastName != null) {
       return '${firstName ?? ''} ${lastName ?? ''}'.trim();

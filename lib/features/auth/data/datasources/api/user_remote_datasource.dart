@@ -51,14 +51,19 @@ class FirebaseUserDataSourceImpl implements UserRemoteDataSource {
       if(firebaseUser == null) {
         yield null;
       } else {
-        yield await usersCollection
-            .doc(firebaseUser.uid)
-            .get()
-            .then((value) =>
-              UserDto.fromDocument(value.data() as Map<String, dynamic>)
-            );
+        try {
+          final docSnapshot = await usersCollection.doc(firebaseUser.uid).get();
+          
+          if (docSnapshot.exists) {
+            final data = docSnapshot.data() as Map<String, dynamic>;
+            yield UserDto.fromDocument(data);
+          } else {
+            yield null;
+          }
+        } catch (e) {
+          yield null;
+        }
       }
     });
   }
-  
 }

@@ -1,8 +1,8 @@
 import 'package:flutter_chat/presentation/main_scaffold.dart';
 import 'package:flutter_chat/presentation/auth/pages/otp_verification_page.dart';
 import 'package:flutter_chat/presentation/auth/pages/phone_input_page.dart';
-import 'package:flutter_chat/presentation/profile/presentation/profile_page.dart';
-import 'package:flutter_chat/presentation/profile/presentation/set_profile_page.dart';
+import 'package:flutter_chat/presentation/profile/pages/profile_page.dart';
+import 'package:flutter_chat/presentation/profile/pages/set_profile_page.dart';
 import 'package:flutter_chat/presentation/splash/pages/splash_page.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';

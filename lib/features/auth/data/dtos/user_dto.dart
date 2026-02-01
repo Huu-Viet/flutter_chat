@@ -1,5 +1,3 @@
-/// User Data Transfer Object - Maps directly from API responses
-/// Matches server user.entity.ts structure exactly
 class UserDto {
   final String id;
   final String keycloakId;
@@ -68,8 +66,8 @@ class UserDto {
       lastName: doc['lastName'] as String?,
       phone: doc['phone'] as String?,
       avatarUrl: doc['photoURL'] as String?,
-      createdAt: DateTime.parse(doc['createAt'] as String),
-      updatedAt: DateTime.parse(doc['updateAt'] as String),
+      createdAt: (doc['createdAt'] as dynamic).toDate() as DateTime,
+      updatedAt: (doc['updatedAt'] as dynamic).toDate() as DateTime,
     );
   }
 }

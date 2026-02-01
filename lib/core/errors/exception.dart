@@ -48,3 +48,12 @@ class AuthException extends AppException {
   @override
   String toString() => 'AuthException: $message';
 }
+
+class LocalModuleException extends AppException {
+  const LocalModuleException({
+    required super.message,
+  });
+
+  @override
+  String toString() => 'LocalModuleException: $message';
+}

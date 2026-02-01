@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/presentation/call/presentation/call_page.dart';
-import 'package:flutter_chat/presentation/contact/presentation/contact_page.dart';
+import 'package:flutter_chat/presentation/contact/pages/contact_page.dart';
 import 'package:flutter_chat/presentation/home/presentation/home_page.dart';
-import 'package:flutter_chat/presentation/profile/presentation/profile_page.dart';
+import 'package:flutter_chat/presentation/profile/pages/profile_page.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final selectedTabProvider = StateProvider<int>((ref) => 0);

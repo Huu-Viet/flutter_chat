@@ -4,11 +4,11 @@ import 'package:flutter_chat/features/auth/domain/repositories/auth_repository.d
 import '../../data/models/auth_result.dart';
 
 class VerifyPhoneOTPUseCase {
-  final AuthRepository repository;
+  final AuthRemoteRepository _authRemoteRepo;
 
-  VerifyPhoneOTPUseCase(this.repository);
+  VerifyPhoneOTPUseCase(this._authRemoteRepo);
 
   Future<Either<Failure, AuthResult>> call(String verificationId, String otpCode) {
-    return repository.verifyPhoneOTP(verificationId, otpCode);
+    return _authRemoteRepo.verifyPhoneOTP(verificationId, otpCode);
   }
 }

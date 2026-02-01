@@ -6,6 +6,8 @@ import 'package:riverpod/riverpod.dart';
 final splashBlocProvider = Provider<SplashBloc>((ref) {
   return SplashBloc(
     getCurrentUserUseCase: ref.read(getCurrentUserUseCaseProvider),
-    getCurrentUserInfo: ref.read(getCurrentUserInfoUseCase),
+    getRemoteCurrentUserDataUseCase: ref.read(getCurrentRemoteUserInfoUseCaseProvider),
+    getLocalCurrentUserDataUseCase: ref.read(getCurrentLocalUserInfoUseCaseProvider),
+    writeUserInfoUseCase: ref.read(writeUserInfoUseCaseProvider),
   );
 });
