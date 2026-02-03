@@ -33,10 +33,7 @@ class DefaultFirebaseOptions {
           'you can reconfigure this by running the FlutterFire CLI again.',
         );
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -67,4 +64,16 @@ class DefaultFirebaseOptions {
     storageBucket: 'momo-9bb17.firebasestorage.app',
     iosBundleId: 'com.example.flutterChat',
   );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyDYV2exnpYree6qvfsutNxINXNGuYiow3Q',
+    appId: '1:685901186377:web:2b8f6b54af4be8d7870698',
+    messagingSenderId: '685901186377',
+    projectId: 'momo-9bb17',
+    authDomain: 'momo-9bb17.firebaseapp.com',
+    databaseURL: 'https://momo-9bb17-default-rtdb.firebaseio.com',
+    storageBucket: 'momo-9bb17.firebasestorage.app',
+    measurementId: 'G-2VZ0BVWBYN',
+  );
+
 }
