@@ -12,12 +12,14 @@ class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
+    final locale = ref.watch(localeProvider);
     ref.read(databaseProvider);
 
     return MaterialApp.router(
       title: 'Flutter Chat',
       debugShowCheckedModeBanner: false,
       routerConfig: router,
+      locale: locale,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
