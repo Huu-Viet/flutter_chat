@@ -1,3 +1,4 @@
+import 'package:flutter_chat/presentation/auth/pages/login_page.dart';
 import 'package:flutter_chat/presentation/main_scaffold.dart';
 import 'package:flutter_chat/presentation/auth/pages/otp_verification_page.dart';
 import 'package:flutter_chat/presentation/auth/pages/phone_input_page.dart';
@@ -11,12 +12,17 @@ import '../presentation/chat/presentation/chat_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/splash',
+    initialLocation: '/login',
     routes: [
       GoRoute(
         path: '/splash',
         name: 'splash',
         builder: (context, state) => const SplashPage(),
+      ),
+      GoRoute(
+          path: '/login',
+          name: 'login',
+          builder: (context, state) => const LoginPage()
       ),
       GoRoute(
         path: '/phone-auth',
