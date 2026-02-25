@@ -1,4 +1,8 @@
 {
   "app_name": "Busy Talks",
-  "welcome_login": "Welcome back! Please login to your account."
+  "welcome_login": "Welcome back! Please login to your account.",
+  "forget_password": "Forget password?",
+  "login": "Login",
+  "or": "OR",
+  "login_with_phone": "Continue with phone"
 }

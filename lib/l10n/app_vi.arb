@@ -1,4 +1,8 @@
 {
   "app_name": "Busy Talks",
-  "welcome_login": "Chào mừng bạn trở lại! Vui lòng đăng nhập vào tài khoản của bạn."
+  "welcome_login": "Chào mừng bạn trở lại! Vui lòng đăng nhập vào tài khoản của bạn.",
+  "forget_password": "Quên mật khẩu?",
+  "login": "Đăng nhập",
+  "or": "HOẶC",
+  "login_with_phone": "Tiếp tục với số điện thoại"
 }
