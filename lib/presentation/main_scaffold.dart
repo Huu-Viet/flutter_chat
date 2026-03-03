@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_chat/l10n/app_localizations.dart';
 import 'package:flutter_chat/presentation/call/presentation/call_page.dart';
 import 'package:flutter_chat/presentation/contact/pages/contact_page.dart';
 import 'package:flutter_chat/presentation/home/presentation/home_page.dart';
@@ -13,6 +15,7 @@ class MainScaffold extends ConsumerWidget{
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedIndex = ref.watch(selectedTabProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     const pages = [
       HomePage(),
@@ -21,35 +24,51 @@ class MainScaffold extends ConsumerWidget{
       ProfilePage(),
     ];
 
-    return Scaffold(
-      body: IndexedStack(
-        index: selectedIndex,
-        children: pages,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        systemNavigationBarColor: Theme.of(context).colorScheme.surfaceBright
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: selectedIndex,
-        onTap: (index) {
-          ref.read(selectedTabProvider.notifier).state = index;
-        },
-        items: [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat),
-            label: 'Messages',
+      child: Scaffold(
+        body: IndexedStack(
+          index: selectedIndex,
+          children: pages,
+        ),
+        bottomNavigationBar: Container(
+          decoration: const BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                color: Colors.grey,
+                width: 0.4,
+              ),
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.contacts),
-            label: 'Contacts',
+          child: BottomNavigationBar(
+            backgroundColor: Theme.of(context).colorScheme.surfaceBright,
+            type: BottomNavigationBarType.fixed,
+            currentIndex: selectedIndex,
+            onTap: (index) {
+              ref.read(selectedTabProvider.notifier).state = index;
+            },
+            items: [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.chat),
+                label: l10n.messages,
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.contacts),
+                label: l10n.contacts,
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.call),
+                label: l10n.call,
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.settings),
+                label: l10n.settings,
+              ),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.call),
-            label: 'Calls',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
+        ),
       ),
     );
   }

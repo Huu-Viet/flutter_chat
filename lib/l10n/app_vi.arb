@@ -5,5 +5,16 @@
   "login": "Đăng nhập",
   "or": "HOẶC",
   "login_with_phone": "Tiếp tục với số điện thoại",
-  "fill_in_input_notify": "Vui lòng điền vào tất cả các ô nhập"
+  "fill_in_input_notify": "Vui lòng điền vào tất cả các ô nhập",
+  "profile_setup": "Thiết lập hồ sơ",
+  "user_name_label": "Tên người dùng",
+  "first_name_label": "Tên",
+  "last_name_label": "Họ",
+  "fill_in_info_notify": "Vui lòng điền vào thông tin",
+  "submit": "Xác nhận",
+  "messages": "Tin nhắn",
+  "contacts": "Danh bạ",
+  "settings": "Cài đặt",
+  "call": "Gọi",
+  "search": "Tìm kiếm"
 }

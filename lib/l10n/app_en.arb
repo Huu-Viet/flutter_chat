@@ -5,5 +5,16 @@
   "login": "Login",
   "or": "OR",
   "login_with_phone": "Continue with phone",
-  "fill_in_input_notify": "Please fill in all the fields"
+  "fill_in_input_notify": "Please fill in all the fields",
+  "profile_setup": "Profile Setup",
+  "user_name_label": "User Name",
+  "first_name_label": "First Name",
+  "last_name_label": "Last Name",
+  "fill_in_info_notify": "Please fill in the information",
+  "submit": "Submit",
+  "messages": "Messages",
+  "contacts": "Contacts",
+  "settings": "Settings",
+  "call": "Call",
+  "search": "Search"
 }

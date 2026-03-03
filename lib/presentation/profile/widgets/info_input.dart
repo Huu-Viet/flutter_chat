@@ -19,9 +19,10 @@ class InfoInput extends StatelessWidget {
     return TextFormField(
       controller: textController,
       decoration: InputDecoration(
+        filled: true,
+        fillColor: Theme.of(context).colorScheme.surfaceBright,
         labelText: label,
         border: const OutlineInputBorder(),
-        prefixIcon: const Icon(Icons.person_outline),
       ),
       validator: validator,
       keyboardType: keyboardType,

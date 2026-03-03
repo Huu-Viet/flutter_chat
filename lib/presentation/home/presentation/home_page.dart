@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/app/e_app_route.dart';
+import 'package:flutter_chat/features/auth/export.dart';
+import 'package:flutter_chat/l10n/app_localizations.dart';
+import 'package:flutter_chat/presentation/home/presentation/widgets/friend_status_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/native_services/network_service.dart';
@@ -10,9 +13,15 @@ class HomePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Flutter Chat'),
+        title: Text(
+          l10n.app_name,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         actions: [
           IconButton(
             onPressed: () {
@@ -25,12 +34,12 @@ class HomePage extends ConsumerWidget {
       body: const HomePageContent(),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Navigate to new chat or add functionality
+          //Todo: Navigate to new chat or add functionality
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('New chat feature coming soon!')),
           );
         },
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add, color: Colors.white,),
       ),
     );
   }
@@ -42,7 +51,22 @@ class HomePageContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final networkStatusAsync = ref.watch(networkStatusProvider);
-    
+    final l10n = AppLocalizations.of(context)!;
+    // fake data for online friends
+    final onlineFriends = [
+      MyUser(
+        id: "1",
+        keycloakId: "keycloak-1",
+        email: "test@gmail.com",
+        username: "friend1",
+        firstName: "Friend",
+        lastName: "One",
+        phone: "1234567890",
+        avatarUrl: null,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+    ];
     return Column(
       children: [
         // Network Status Info - only show for mobile data or no network
@@ -55,16 +79,21 @@ class HomePageContent extends ConsumerWidget {
           loading: () => const SizedBox.shrink(),
           error: (_, __) => const SizedBox.shrink(),
         ),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+          child: FriendStatusBar(onlineFriends: onlineFriends),
+        ),
         
         // Search Bar
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: TextField(
             decoration: InputDecoration(
-              hintText: 'Search chats...',
+              hintText: l10n.search,
               prefixIcon: const Icon(Icons.search),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(16),
               ),
               filled: true,
               fillColor: Theme.of(context).colorScheme.surfaceBright,
@@ -72,6 +101,22 @@ class HomePageContent extends ConsumerWidget {
           ),
         ),
       
+
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18.0),
+            child: Text(
+              l10n.messages,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
         // Chat List - always show even when offline
         Expanded(
           child: ListView.builder(

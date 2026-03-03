@@ -11,12 +11,6 @@ class ProfilePage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
-        leading: IconButton(
-          onPressed: () {
-            context.push(AppRoute.main.path);
-          },
-          icon: const Icon(Icons.arrow_back),
-        ),
       ),
       body: const ProfilePageContent(),
     );

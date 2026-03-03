@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_chat/app/media_providers.dart';
 import 'package:flutter_chat/core/utils/file_utils.dart';
 import 'package:flutter_chat/features/auth/domain/entities/user.dart';
+import 'package:flutter_chat/l10n/app_localizations.dart';
 import 'package:flutter_chat/presentation/profile/blocs/set_profile_bloc/set_profile_bloc.dart';
 import 'package:flutter_chat/presentation/profile/widgets/info_input.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,7 +25,6 @@ class _SetProfilePageState extends ConsumerState<SetProfilePage> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _userNameController = TextEditingController();
-  final _emailController = TextEditingController();
   File? _avatarImage;
 
   MyUser currentUser = MyUser.empty;
@@ -118,7 +118,6 @@ class _SetProfilePageState extends ConsumerState<SetProfilePage> {
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
         username: _userNameController.text.trim(),
-        email: _emailController.text.trim(),
       );
       setProfileBloc.add(SetProfileSubmitted(myUser: updatedUser));
     }
@@ -127,6 +126,7 @@ class _SetProfilePageState extends ConsumerState<SetProfilePage> {
   @override
   Widget build(BuildContext context) {
     final setProfileBloc = ref.read(setProfileBlocProvider);
+    final l10n = AppLocalizations.of(context)!;
     return BlocProvider<SetProfileBloc>.value(
       value: setProfileBloc,
       child: BlocListener<SetProfileBloc, SetProfileState>(
@@ -153,19 +153,9 @@ class _SetProfilePageState extends ConsumerState<SetProfilePage> {
                     const SizedBox(height: 40),
 
                     Text(
-                      'Complete Your Profile',
+                      l10n.profile_setup,
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    Text(
-                      'Please finish setting up your profile to complete the registration process.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey[600],
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -222,10 +212,10 @@ class _SetProfilePageState extends ConsumerState<SetProfilePage> {
 
                     InfoInput(
                       textController: _userNameController,
-                      label: 'User Name',
+                      label: l10n.user_name_label,
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'Please enter your user name';
+                          return l10n.fill_in_input_notify;
                         }
                         return null;
                       },
@@ -235,10 +225,10 @@ class _SetProfilePageState extends ConsumerState<SetProfilePage> {
 
                     InfoInput(
                       textController: _firstNameController,
-                      label: 'First Name',
+                      label: l10n.first_name_label,
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'Please enter your first name';
+                          return l10n.fill_in_input_notify;
                         }
                         return null;
                       },
@@ -248,23 +238,10 @@ class _SetProfilePageState extends ConsumerState<SetProfilePage> {
 
                     InfoInput(
                       textController: _lastNameController,
-                      label: 'Last Name',
+                      label: l10n.last_name_label,
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'Please enter your last name';
-                        }
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    InfoInput(
-                      textController: _emailController,
-                      label: 'Email',
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter your email address';
+                          return l10n.fill_in_input_notify;
                         }
                         return null;
                       },
@@ -275,16 +252,18 @@ class _SetProfilePageState extends ConsumerState<SetProfilePage> {
                     ElevatedButton(
                       onPressed: () => _onSaveProfile(setProfileBloc),
                       style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'Hoàn thành',
+                      child: Text(
+                        l10n.submit,
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
+                          color: Colors.white
                         ),
                       ),
                     ),

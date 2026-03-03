@@ -86,7 +86,7 @@ class _SplashPageState extends ConsumerState<SplashPage>
             if (state is SplashInfoSetupComplete) {
               context.go("/home");
             } else if (state is SplashUnauthenticated) {
-              context.go("/phone-auth");
+              context.go("/login");
             } else if (state is SplashNotSetupInfo) {
               context.go("/set-profile");
             }
