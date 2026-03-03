@@ -73,10 +73,36 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository {
       await authLocalDataSource.cacheUser(userEntity);
 
       return Right(authResult);
-        } on FirebaseAuthException catch (e) {
+    } on FirebaseAuthException catch (e) {
       return Left(ServerFailure(e.message ?? 'Phone verification failed'));
     } catch (e) {
       return Left(ServerFailure('Unexpected error occurred'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> signInWithEmailAndPassword(String email, String password) async {
+    try {
+      await authRemoteDataSource.signInWithEmailAndPassword(email, password);
+      return Right(null);
+    } on FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'user-not-found':
+          return Left(ServerFailure('No user found with this email'));
+        case 'wrong-password':
+          return Left(ServerFailure('Incorrect password'));
+        case 'invalid-email':
+          return Left(ServerFailure('Invalid email format'));
+        case 'user-disabled':
+          return Left(ServerFailure('This account has been disabled'));
+        case 'too-many-requests':
+          return Left(ServerFailure('Too many failed attempts. Try again later'));
+        default:
+          return Left(ServerFailure(e.message ?? 'Authentication failed'));
+      }
+    }
+    catch (e) {
+      return Future.value(Left(ServerFailure('Unexpected error occurred: $e')));
     }
   }
 

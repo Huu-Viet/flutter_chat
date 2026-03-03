@@ -4,5 +4,6 @@
   "forget_password": "Quên mật khẩu?",
   "login": "Đăng nhập",
   "or": "HOẶC",
-  "login_with_phone": "Tiếp tục với số điện thoại"
+  "login_with_phone": "Tiếp tục với số điện thoại",
+  "fill_in_input_notify": "Vui lòng điền vào tất cả các ô nhập"
 }

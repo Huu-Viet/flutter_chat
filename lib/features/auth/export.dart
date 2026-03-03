@@ -34,3 +34,4 @@ export '../auth/domain/usecases/get_remote_current_user_data_usecase.dart';
 export '../auth/domain/usecases/set_user_info_usecase.dart';
 export '../auth/domain/usecases/get_local_current_user_data_usecase.dart';
 export '../auth/domain/usecases/write_user_info_usecase.dart';
+export '../auth/domain/usecases/email_password_sign_in_usecase.dart';

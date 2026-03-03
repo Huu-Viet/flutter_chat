@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_chat/presentation/auth/providers/auth_bloc_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../blocs/phone_auth_bloc.dart';
+import '../blocs/phone_auth_bloc/phone_auth_bloc.dart';
 import '../widgets/otp_input.dart';
 import '../widgets/resend_otp_widget.dart';
 

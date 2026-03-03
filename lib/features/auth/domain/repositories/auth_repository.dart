@@ -8,6 +8,7 @@ abstract class AuthRemoteRepository {
   Future<Either<Failure, String>> sendOtp(String phoneNumber);
   Future<Either<Failure, AuthResult>> verifyPhoneOTP(String verificationId, String otpCode);
   Future<Either<Failure, MyUser>> registerWithPhone(String phoneNumber, String firstName, String lastName);
+  Future<Either<Failure, void>> signInWithEmailAndPassword(String email, String password);
   Future<Either<Failure, MyUser>> getCurrentUser();
   Future<Either<Failure, void>> setUserDataToRemote(MyUser user);
   Stream<Either<Failure, MyUser>> getUserData();

@@ -4,5 +4,6 @@
   "forget_password": "Forget password?",
   "login": "Login",
   "or": "OR",
-  "login_with_phone": "Continue with phone"
+  "login_with_phone": "Continue with phone",
+  "fill_in_input_notify": "Please fill in all the fields"
 }

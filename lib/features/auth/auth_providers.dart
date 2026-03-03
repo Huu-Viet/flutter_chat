@@ -59,3 +59,7 @@ final verifyPhoneOTPUseCaseProvider = Provider<VerifyPhoneOTPUseCase>((ref) {
 final getCurrentUserUseCaseProvider = Provider<GetCurrentUserUseCase>((ref) {
   return GetCurrentUserUseCase(ref.watch(authRemoteRepoProvider));
 });
+
+final signInWithEmailAndPasswordUseCaseProvider = Provider<SignInWithEmailAndPasswordUseCase>((ref) {
+  return SignInWithEmailAndPasswordUseCase(ref.watch(authRemoteRepoProvider));
+});

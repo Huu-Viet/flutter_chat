@@ -7,7 +7,7 @@ abstract class AuthRemoteDataSource {
   Future<String> sendPhoneVerification(String phoneNumber);
   Future<AuthResult> verifyPhoneOTP(String verificationId, String otpCode);
   Future<User?> getCurrentFirebaseUser();
-  // Future<void> signInWithEmailAndPassword(String email, String password);
+  Future<void> signInWithEmailAndPassword(String email, String password);
 }
 
 class FirebaseAuthDataSourceImpl implements AuthRemoteDataSource {
@@ -72,13 +72,13 @@ class FirebaseAuthDataSourceImpl implements AuthRemoteDataSource {
     );
   }
 
-  // @override
-  // Future<void> signInWithEmailAndPassword(String email, String password) {
-  //   return _firebaseAuth.signInWithEmailAndPassword(
-  //       email: email,
-  //       password: password
-  //   );
-  // }
+  @override
+  Future<void> signInWithEmailAndPassword(String email, String password) {
+    return _firebaseAuth.signInWithEmailAndPassword(
+        email: email,
+        password: password
+    );
+  }
 
   @override
   Future<User?> getCurrentFirebaseUser() async {
