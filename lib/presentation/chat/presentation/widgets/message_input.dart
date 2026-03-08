@@ -17,21 +17,6 @@ class MessageInput extends StatelessWidget {
     required this.onEmojiSelected,
   });
 
-  void _showEmojiPicker(BuildContext context) {
-    FocusScope.of(context).unfocus();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => EmojiPickerWidget(
-        onEmojiSelected: (emoji) {
-          onEmojiSelected(emoji);
-          Navigator.pop(context);
-        },
-      ),
-    );
-  }
-
   void _showImagePickerOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -99,58 +84,66 @@ class MessageInput extends StatelessWidget {
         ),
         child: Row(
           children: [
-            _buildIconButton(
-              icon: Icons.emoji_emotions_outlined,
-              onPressed: () => _showEmojiPicker(context),
-            ),
-            _buildIconButton(
-              icon: Icons.image_outlined,
+            // 📎 Attach icon (ngoài input)
+            IconButton(
+              icon: const Icon(Icons.attach_file, color: Colors.white70),
               onPressed: () => _showImagePickerOptions(context),
             ),
-            Expanded(child: _buildTextField()),
+
+            // Camera
+            IconButton(
+              icon: const Icon(Icons.camera_alt_outlined,
+                  color: Colors.grey),
+              onPressed: onPickImage,
+            ),
+
+            // Mic
+            IconButton(
+              icon: const Icon(Icons.mic_none_outlined,
+                  color: Colors.grey),
+              onPressed: () {},
+            ),
+            // Ô input
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: Row(
+                  children: [
+                    // TextField
+                    Expanded(
+                      child: TextField(
+                        controller: controller,
+                        minLines: 1,
+                        maxLines: 5,
+                        decoration: const InputDecoration(
+                          hintText: "Nhập tin nhắn",
+                          hintStyle: TextStyle(color: Colors.black),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 6),
+
+            // Send icon
+            IconButton(
+              icon: const Icon(Icons.send, color: Colors.white),
+              onPressed: onSendMessage,
+            ),
           ],
         ),
       ),
     );
   }
-
-  Widget _buildSendButton() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.blueAccent,
-        shape: BoxShape.circle,
-      ),
-      child: IconButton(
-        icon: const Icon(Icons.send, color: Colors.white),
-        onPressed: onSendMessage,
-      ),
-    );
-  }
-
-
-  Widget _buildIconButton({
-    required IconData icon,
-    required VoidCallback onPressed,
-    Color? color,
-  }) {
-    return IconButton(
-      icon: Icon(icon, color: color ?? Colors.grey),
-      onPressed: onPressed,
-    );
-  }
-
-  Widget _buildTextField() {
-    return TextField(
-      controller: controller,
-      decoration: const InputDecoration(
-        hintText: 'Type a message...',
-        border: InputBorder.none,
-        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-      ),
-      minLines: 1,
-      maxLines: 5,
-      textCapitalization: TextCapitalization.sentences,
-    );
-  }
-
 }

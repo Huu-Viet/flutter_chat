@@ -92,16 +92,14 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.friendName),
-        backgroundColor: Colors.blue,
-      ),
+      backgroundColor: const Color(0xFF0F1B2B),
+      appBar: _buildAppBar(),
       body: Column(
         children: [
           Expanded(
             child: ListView.builder(
               reverse: true,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               itemCount: _messages.length,
               itemBuilder: (context, index) {
                 final message = _messages[_messages.length - 1 - index];
@@ -123,8 +121,46 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: const Color(0xFF162336),
+      elevation: 0,
+      leading: const BackButton(color: Colors.white),
+      title: Row(
+        children: [
+          const CircleAvatar(
+            radius: 18,
+            backgroundColor: Colors.grey,
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.friendName,
+                style: const TextStyle(fontSize: 16),
+              ),
+              const Text(
+                "Online",
+                style: TextStyle(fontSize: 12, color: Colors.greenAccent),
+              ),
+            ],
+          ),
+        ],
+      ),
+      actions: const [
+        Icon(Icons.videocam_outlined),
+        SizedBox(width: 14),
+        Icon(Icons.call_outlined),
+        SizedBox(width: 14),
+        Icon(Icons.more_vert_outlined),
+        SizedBox(width: 12),
+      ],
+    );
+  }
 }
+
+
 
 class ChatMessage {
   final String? text;
