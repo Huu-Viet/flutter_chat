@@ -84,10 +84,12 @@ class _SplashPageState extends ConsumerState<SplashPage>
       child: BlocListener<SplashBloc, SplashState>(
           listener: (context, state) {
             if (state is SplashInfoSetupComplete) {
+              splashBloc.add(SendDeviceTokenEvent());
               context.go("/home");
             } else if (state is SplashUnauthenticated) {
               context.go("/login");
             } else if (state is SplashNotSetupInfo) {
+              splashBloc.add(SendDeviceTokenEvent());
               context.go("/set-profile");
             }
           },

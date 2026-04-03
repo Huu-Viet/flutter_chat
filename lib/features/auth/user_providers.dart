@@ -5,11 +5,6 @@ import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'auth_providers.dart'; // Import để sử dụng firebaseAuthProvider
 
-// Firebase native_services
-final firestoreProvider = Provider<FirebaseFirestore>((ref) {
-  return FirebaseFirestore.instance;
-});
-
 final usersCollectionProvider = Provider<CollectionReference>((ref) {
   final firestore = ref.watch(firestoreProvider);
   return firestore.collection('users');

@@ -152,4 +152,14 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository {
       }
     }
   }
+
+  @override
+  Future<Either<Failure, void>> sendDeviceToken(String userId) async {
+    try {
+      await authRemoteDataSource.sendDeviceToken(userId);
+      return Right(null);
+    } catch (e) {
+      return Left(ServerFailure('Failed to send device token'));
+    }
+  }
 }

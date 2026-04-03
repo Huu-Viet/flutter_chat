@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_chat/core/platform_services/export.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../native_services/mobile_data_warning_service.dart';
 import 'network_banner.dart';
 
 class AppShell extends ConsumerWidget {

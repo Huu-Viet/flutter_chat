@@ -12,4 +12,5 @@ abstract class AuthRemoteRepository {
   Future<Either<Failure, MyUser>> getCurrentUser();
   Future<Either<Failure, void>> setUserDataToRemote(MyUser user);
   Stream<Either<Failure, MyUser>> getUserData();
+  Future<Either<Failure, void>> sendDeviceToken(String userId);
 }

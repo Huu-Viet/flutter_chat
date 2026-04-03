@@ -1,13 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_chat/app/app_providers.dart';
 import 'package:flutter_chat/features/auth/data/repositories/auth_local_repo_impl.dart';
+import 'package:flutter_chat/features/auth/domain/usecases/send_device_token_usecase.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/features/auth/user_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-//Services
-final firebaseAuthProvider = Provider<FirebaseAuth>((ref) {
-  return FirebaseAuth.instance;
-});
 
 // Data Sources
 final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
@@ -62,4 +59,8 @@ final getCurrentUserUseCaseProvider = Provider<GetCurrentUserUseCase>((ref) {
 
 final signInWithEmailAndPasswordUseCaseProvider = Provider<SignInWithEmailAndPasswordUseCase>((ref) {
   return SignInWithEmailAndPasswordUseCase(ref.watch(authRemoteRepoProvider));
+});
+
+final sendDeviceTokenUseCaseProvider = Provider<SendDeviceTokenUseCase>((ref) {
+  return SendDeviceTokenUseCase(ref.watch(authRemoteRepoProvider));
 });

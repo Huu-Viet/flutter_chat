@@ -12,15 +12,19 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
   final GetRemoteCurrentUserDataUseCase getRemoteCurrentUserDataUseCase;
   final GetLocalCurrentUserDataUseCase getLocalCurrentUserDataUseCase;
   final WriteUserInfoUseCase writeUserInfoUseCase;
+  final SendDeviceTokenUseCase sendDeviceTokenUseCase;
+  late MyUser currentUser;
 
   SplashBloc({
     required this.getCurrentUserUseCase,
     required this.getRemoteCurrentUserDataUseCase,
     required this.getLocalCurrentUserDataUseCase,
     required this.writeUserInfoUseCase,
+    required this.sendDeviceTokenUseCase,
   }) : super(SplashInitial()) {
     on<CheckAuthEvent>(_checkAuth);
     on<AuthChecked>(_checkCurrentUserInfo);
+    on<SendDeviceTokenEvent>(_sendDeviceToken);
   }
 
   Future<void> _checkAuth(CheckAuthEvent event, Emitter<SplashState> emit) async {
@@ -30,7 +34,10 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
       final result = await getCurrentUserUseCase();
       result.fold(
             (failure) {emit(SplashUnauthenticated());},
-            (myUser) {add(AuthChecked(myUser.id));},
+            (myUser) {
+              add(AuthChecked(myUser.id));
+              currentUser = myUser;
+            },
       );
     } catch (e) {
       emit(SplashUnauthenticated());
@@ -68,5 +75,13 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
       ),
       onData: (state) => state,
     );
+  }
+
+  Future<void> _sendDeviceToken(SendDeviceTokenEvent event, Emitter<SplashState> emit) async {
+    try {
+      await sendDeviceTokenUseCase(currentUser.id);
+    } catch (e) {
+      debugPrint("Failed to send device token: $e");
+    }
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/app/app_providers.dart';
+import 'package:flutter_chat/core/platform_services/platform_service_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/app_theme.dart';
 import 'router.dart';
@@ -14,6 +15,7 @@ class MyApp extends ConsumerWidget {
     final router = ref.watch(routerProvider);
     final locale = ref.watch(localeProvider);
     ref.read(databaseProvider);
+    ref.read(fcmServiceProvider);
 
     return MaterialApp.router(
       title: 'Flutter Chat',

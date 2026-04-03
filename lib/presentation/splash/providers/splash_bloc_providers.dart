@@ -9,5 +9,6 @@ final splashBlocProvider = Provider<SplashBloc>((ref) {
     getRemoteCurrentUserDataUseCase: ref.read(getCurrentRemoteUserInfoUseCaseProvider),
     getLocalCurrentUserDataUseCase: ref.read(getCurrentLocalUserInfoUseCaseProvider),
     writeUserInfoUseCase: ref.read(writeUserInfoUseCaseProvider),
+    sendDeviceTokenUseCase: ref.read(sendDeviceTokenUseCaseProvider),
   );
 });

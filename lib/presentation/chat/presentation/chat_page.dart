@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_chat/core/platform_services/export.dart';
 import 'package:flutter_chat/presentation/chat/presentation/widgets/message_bubble.dart';
 import 'package:flutter_chat/presentation/chat/presentation/widgets/message_input.dart';
 import 'package:image_picker/image_picker.dart';
 // import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import '../../../core/native_services/media/media_service.dart';
 
 class ChatPage extends StatefulWidget {
   final String friendName;

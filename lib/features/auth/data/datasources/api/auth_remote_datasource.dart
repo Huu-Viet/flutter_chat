@@ -1,6 +1,10 @@
 import 'dart:async';
 import 'dart:developer';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter_chat/core/constants/app_constants.dart';
 import '../../models/auth_result.dart';
 
 abstract class AuthRemoteDataSource {
@@ -8,13 +12,17 @@ abstract class AuthRemoteDataSource {
   Future<AuthResult> verifyPhoneOTP(String verificationId, String otpCode);
   Future<User?> getCurrentFirebaseUser();
   Future<void> signInWithEmailAndPassword(String email, String password);
+  Future<void> sendDeviceToken(String userId);
 }
 
 class FirebaseAuthDataSourceImpl implements AuthRemoteDataSource {
+  static const String _tag = "FirebaseAuthDataSourceImpl";
   final FirebaseAuth _firebaseAuth;
+  final FirebaseFirestore _firestore;
 
-  FirebaseAuthDataSourceImpl({FirebaseAuth? firebaseAuth})
-      : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
+  FirebaseAuthDataSourceImpl({FirebaseAuth? firebaseAuth, FirebaseFirestore? firestore})
+      : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
+        _firestore = firestore ?? FirebaseFirestore.instance;
 
   @override
   Future<String> sendPhoneVerification(String phoneNumber) async {
@@ -73,11 +81,30 @@ class FirebaseAuthDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<void> signInWithEmailAndPassword(String email, String password) {
-    return _firebaseAuth.signInWithEmailAndPassword(
+  Future<void> signInWithEmailAndPassword(String email, String password) async {
+    return await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
         password: password
-    );
+    ).then((userCredential) {
+      sendDeviceToken(userCredential.user?.uid);
+    });
+  }
+
+  @override
+  Future<void> sendDeviceToken(String? userId) async {
+    String? token = await FirebaseMessaging.instance.getToken();
+    if(token != null) {
+      debugPrint('$_tag: Device token: $token');
+      if(userId != null) {
+        await _firestore
+            .collection(AppConstants.deviceTokensCollection)
+            .doc(userId)
+            .set({
+              'deviceToken': token,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+      }
+    }
   }
 
   @override

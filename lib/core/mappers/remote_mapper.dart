@@ -1,4 +1,3 @@
-
 abstract class RemoteMapper<TDto, TDomain> {
   TDomain toDomain(TDto dto);
 

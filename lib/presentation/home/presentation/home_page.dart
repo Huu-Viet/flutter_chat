@@ -1,18 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_chat/app/app_permission.dart';
 import 'package:flutter_chat/app/e_app_route.dart';
+import 'package:flutter_chat/core/platform_services/export.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
 import 'package:flutter_chat/presentation/home/presentation/widgets/friend_status_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/native_services/network_service.dart';
 import 'widgets/chat_list_tile.dart';
 
-class HomePage extends ConsumerWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ConsumerStatefulWidget> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage> {
+  @override
+  void initState() {
+    AppPermission.requestNotificationPermission();
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(

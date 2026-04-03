@@ -18,3 +18,10 @@ class AuthChecked extends SplashEvent {
   @override
   List<Object?> get props => [userId];
 }
+
+class SendDeviceTokenEvent extends SplashEvent {
+  const SendDeviceTokenEvent();
+
+  @override
+  List<Object?> get props => [];
+}
