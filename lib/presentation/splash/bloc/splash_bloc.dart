@@ -1,87 +1,62 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat/features/auth/export.dart';
-import 'package:rxdart/rxdart.dart';
 
 part 'splash_event.dart';
 part 'splash_state.dart';
 
 class SplashBloc extends Bloc<SplashEvent, SplashState> {
-  final GetCurrentUserUseCase getCurrentUserUseCase;
-  final GetRemoteCurrentUserDataUseCase getRemoteCurrentUserDataUseCase;
-  final GetLocalCurrentUserDataUseCase getLocalCurrentUserDataUseCase;
-  final WriteUserInfoUseCase writeUserInfoUseCase;
-  final SendDeviceTokenUseCase sendDeviceTokenUseCase;
-  late MyUser currentUser;
+  final CheckAccessTokenUseCase checkAccessTokenUseCase;
+  final CheckRefreshTokenUseCase checkRefreshTokenUseCase;
+  final GetRefreshTokenUseCase getRefreshTokenUseCase;
+  final RefreshTokenUseCase refreshTokenUseCase;
 
   SplashBloc({
-    required this.getCurrentUserUseCase,
-    required this.getRemoteCurrentUserDataUseCase,
-    required this.getLocalCurrentUserDataUseCase,
-    required this.writeUserInfoUseCase,
-    required this.sendDeviceTokenUseCase,
+    required this.checkAccessTokenUseCase,
+    required this.checkRefreshTokenUseCase,
+    required this.getRefreshTokenUseCase,
+    required this.refreshTokenUseCase,
   }) : super(SplashInitial()) {
     on<CheckAuthEvent>(_checkAuth);
-    on<AuthChecked>(_checkCurrentUserInfo);
-    on<SendDeviceTokenEvent>(_sendDeviceToken);
   }
 
   Future<void> _checkAuth(CheckAuthEvent event, Emitter<SplashState> emit) async {
     emit(SplashLoading());
 
-    try{
-      final result = await getCurrentUserUseCase();
-      result.fold(
-            (failure) {emit(SplashUnauthenticated());},
-            (myUser) {
-              add(AuthChecked(myUser.id));
-              currentUser = myUser;
-            },
-      );
+    try {
+      final accessValidResult = await checkAccessTokenUseCase();
+      final isAccessTokenValid = accessValidResult.fold((_) => false, (valid) => valid);
+
+      var authenticated = isAccessTokenValid;
+      if (!authenticated) {
+        authenticated = await _tryRefreshAccessToken();
+      }
+
+      if (!authenticated) {
+        emit(SplashUnauthenticated());
+        return;
+      }
+
+      emit(SplashAuthenticated());
     } catch (e) {
       emit(SplashUnauthenticated());
     }
   }
 
-  Future<void> _checkCurrentUserInfo(AuthChecked event, Emitter<SplashState> emit) async {
-    emit(SplashLoading());
-
-    await emit.forEach(
-      Rx.combineLatest2(
-          getLocalCurrentUserDataUseCase(event.userId),
-          getRemoteCurrentUserDataUseCase(),
-          (localResult, remoteResult) {
-            return localResult.fold(
-                  (failure) {
-                    debugPrint("SplashBloc: localFail");
-                    return remoteResult.fold(
-                          (failure) {
-                            debugPrint("remoteError from firebaseAuth: $failure.message");
-                            return SplashNotSetupInfo();
-                          },
-                          (remoteUser) {
-                            writeUserInfoUseCase(remoteUser);
-                            return SplashInfoSetupComplete(remoteUser);
-                          },
-                    );
-                  },
-                  (localUser) {
-                    debugPrint("SplashBloc: localSuccess");
-                    return SplashInfoSetupComplete(localUser);
-                  },
-            );
-          }
-      ),
-      onData: (state) => state,
-    );
-  }
-
-  Future<void> _sendDeviceToken(SendDeviceTokenEvent event, Emitter<SplashState> emit) async {
-    try {
-      await sendDeviceTokenUseCase(currentUser.id);
-    } catch (e) {
-      debugPrint("Failed to send device token: $e");
+  Future<bool> _tryRefreshAccessToken() async {
+    final refreshValidResult = await checkRefreshTokenUseCase();
+    final isRefreshTokenValid = refreshValidResult.fold((_) => false, (valid) => valid);
+    if (!isRefreshTokenValid) {
+      return false;
     }
+
+    final refreshTokenResult = await getRefreshTokenUseCase();
+    return refreshTokenResult.fold(
+      (failure) => false,
+      (refreshToken) async {
+        final refreshedResult = await refreshTokenUseCase(refreshToken);
+        return refreshedResult.fold((_) => false, (_) => true);
+      },
+    );
   }
 }

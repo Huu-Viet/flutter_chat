@@ -5,4 +5,8 @@ import 'package:flutter_chat/features/auth/export.dart';
 abstract class AuthLocalRepo {
   Stream<Either<Failure, MyUser>> getUserData(String userId);
   Future<void> writeUserDataToLocal(MyUser userInfo);
+  Future<Either<Failure, String>> getAccessToken();
+  Future<Either<Failure, String>> getRefreshToken();
+  Future<Either<Failure, bool>> isTokenValid();
+  Future<Either<Failure, bool>> isRefreshTokenValid();
 }

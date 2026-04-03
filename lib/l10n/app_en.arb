@@ -1,6 +1,9 @@
 {
   "app_name": "Busy Talks",
   "welcome_login": "Welcome back! Please login to your account.",
+  "password_label": "Password",
+  "username_hint": "Enter your username",
+  "password_hint": "Enter your password",
   "forget_password": "Forget password?",
   "login": "Login",
   "or": "OR",

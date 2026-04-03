@@ -6,14 +6,16 @@ abstract class AuthPrefDataSource {
   Future<void> cacheUser(UserEntity user);
   Future<UserEntity?> getCachedUser();
   Future<void> clearCache();
-  Future<void> saveToken(String token);
+  Future<void> saveToken(String token, String refreshToken);
   Future<String?> getToken();
+  Future<String?> getRefreshToken();
   Future<void> clearToken();
 }
 
 class AuthPrefDataSourceImpl implements AuthPrefDataSource {
   static const String _userKey = 'cached_user';
   static const String _tokenKey = 'auth_token';
+  static const String _refreshTokenKey = 'auth_refresh_token';
 
   @override
   Future<void> cacheUser(UserEntity user) async {
@@ -38,9 +40,12 @@ class AuthPrefDataSourceImpl implements AuthPrefDataSource {
   }
 
   @override
-  Future<void> saveToken(String token) async {
+  Future<void> saveToken(String token, String refreshToken) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_tokenKey, token);
+    await Future.wait([
+      prefs.setString(_tokenKey, token),
+      prefs.setString(_refreshTokenKey, refreshToken),
+    ]);
   }
 
   @override
@@ -50,8 +55,17 @@ class AuthPrefDataSourceImpl implements AuthPrefDataSource {
   }
 
   @override
+  Future<String?> getRefreshToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_refreshTokenKey);
+  }
+
+  @override
   Future<void> clearToken() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
+    await Future.wait([
+      prefs.remove(_tokenKey),
+      prefs.remove(_refreshTokenKey),
+    ]);
   }
 }

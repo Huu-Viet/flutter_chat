@@ -19,14 +19,6 @@ class SplashUnauthenticated extends SplashState {
   const SplashUnauthenticated();
 }
 
-class SplashNotSetupInfo extends SplashState {
-  const SplashNotSetupInfo();
-}
-
-class SplashInfoSetupComplete extends SplashState {
-  final MyUser myUser;
-  const SplashInfoSetupComplete(this.myUser);
-
-  @override
-  List<Object> get props => [myUser];
+class SplashAuthenticated extends SplashState {
+  const SplashAuthenticated();
 }

@@ -26,7 +26,11 @@ class _SplashPageState extends ConsumerState<SplashPage>
   void initState() {
     super.initState();
     _setupAnimations();
-    _initializeApp();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(splashBlocProvider).add(CheckAuthEvent());
+      }
+    });
   }
 
   void _setupAnimations() {
@@ -54,22 +58,6 @@ class _SplashPageState extends ConsumerState<SplashPage>
     _controller.forward();
   }
 
-  Future<void> _initializeApp() async {
-    try {
-      // await Future.wait([
-      //   Future.delayed(const Duration(milliseconds: 500)),
-      //   _controller.forward()
-      // ]);
-
-      if (mounted) {
-        ref.read(splashBlocProvider).add(CheckAuthEvent());
-      }
-    } catch (e) {
-      if (mounted) context.go('/phone-auth');
-    }
-  }
-
-
   @override
   void dispose() {
     _controller.dispose();
@@ -78,19 +66,15 @@ class _SplashPageState extends ConsumerState<SplashPage>
 
   @override
   Widget build(BuildContext context) {
-    final splashBloc = ref.read(splashBlocProvider);
+    final splashBloc = ref.watch(splashBlocProvider);
     return BlocProvider<SplashBloc>.value(
       value: splashBloc,
       child: BlocListener<SplashBloc, SplashState>(
           listener: (context, state) {
-            if (state is SplashInfoSetupComplete) {
-              splashBloc.add(SendDeviceTokenEvent());
+            if (state is SplashAuthenticated) {
               context.go("/home");
             } else if (state is SplashUnauthenticated) {
               context.go("/login");
-            } else if (state is SplashNotSetupInfo) {
-              splashBloc.add(SendDeviceTokenEvent());
-              context.go("/set-profile");
             }
           },
           child: Scaffold(

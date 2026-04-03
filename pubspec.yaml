@@ -51,6 +51,7 @@ dependencies:
   
   # Network & HTTP
   dio: ^5.7.0
+  flutter_dotenv: ^5.2.1
 
   #OAuth google
   googleapis_auth: ^2.0.0
@@ -96,4 +97,5 @@ flutter:
     - assets/avatar.png
     - assets/audio/ringtone.mp3
     - assets/momo-9bb17-firebase-adminsdk-ykor4-b67ec5b044.json
+    - .env.local
 

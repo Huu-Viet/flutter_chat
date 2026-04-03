@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
-import 'package:flutter_chat/presentation/auth/blocs/email_password_bloc/email_password_bloc.dart';
+import 'package:flutter_chat/presentation/auth/blocs/account_bloc/account_bloc.dart';
 import 'package:flutter_chat/presentation/auth/providers/auth_bloc_providers.dart';
 import 'package:flutter_chat/presentation/auth/widgets/login_custom_input.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,48 +10,47 @@ import 'package:go_router/go_router.dart';
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
-
   @override
   ConsumerState createState() => _LoginPageState();
 }
 
 class _LoginPageState extends ConsumerState<LoginPage> {
-  late final TextEditingController emailController;
+  late final TextEditingController userNameController;
   late final TextEditingController passwordController;
   bool showLoading = false;
 
   @override
   void initState() {
     super.initState();
-    emailController = TextEditingController();
+    userNameController = TextEditingController();
     passwordController = TextEditingController();
   }
 
   @override
   void dispose() {
-    emailController.dispose();
+    userNameController.dispose();
     passwordController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final emailPasswordBloc = ref.watch(emailAndPasswordAuthBlocProvider);
+    final grantedAccountProvider = ref.watch(grantedAccountAuthBlocProvider);
     final l10n = AppLocalizations.of(context)!;
-    return BlocProvider<EmailPasswordBloc>.value(
-      value: emailPasswordBloc,
-      child: BlocListener<EmailPasswordBloc, EmailPasswordState>(
+    return BlocProvider<AccountBloc>.value(
+      value: grantedAccountProvider,
+      child: BlocListener<AccountBloc, AccountState>(
         listener: (context, state) {
-            if(state is EmailPasswordLoading) {
+            if(state is AccountLoading) {
               setState(() {
                 showLoading = true;
               });
-            } else if (state is EmailPasswordSuccess) {
+            } else if (state is AccountSuccess) {
               setState(() {
                 showLoading = false;
               });
               context.go("/home");
-            } else if (state is EmailPasswordError) {
+            } else if (state is AccountError) {
               setState(() {
                 showLoading = false;
               });
@@ -88,15 +87,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     const SizedBox(height: 24),
 
                     LoginCustomInput(
-                      hintText: "Enter your email",
-                      label: "Email Address",
-                      controller: emailController,
-                      icon: Icons.email_outlined,
+                      hintText: l10n.username_hint,
+                      label: l10n.user_name_label,
+                      controller: userNameController,
+                      icon: Icons.person,
                     ),
 
                     LoginCustomInput(
-                      hintText: "Enter your password",
-                      label: "Password",
+                      hintText: l10n.password_hint,
+                      label: l10n.password_label,
                       controller: passwordController,
                       isPassword: true,
                       icon: Icons.lock_outline,
@@ -116,14 +115,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                     ElevatedButton(
                       onPressed: () {
-                        if (emailController.text.isEmpty || passwordController.text.isEmpty) {
+                        if (userNameController.text.isEmpty || passwordController.text.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text(l10n.fill_in_input_notify)),
                           );
                           return;
                         }
-                        emailPasswordBloc.add(SignInWithEmailPasswordEvent(
-                          emailController.text,
+                        grantedAccountProvider.add(LoginWithGrantedAccountEvent(
+                          userNameController.text,
                           passwordController.text,
                         ));
                       },

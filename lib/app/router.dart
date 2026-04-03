@@ -1,7 +1,5 @@
 import 'package:flutter_chat/presentation/auth/pages/login_page.dart';
 import 'package:flutter_chat/presentation/main_scaffold.dart';
-import 'package:flutter_chat/presentation/auth/pages/otp_verification_page.dart';
-import 'package:flutter_chat/presentation/auth/pages/phone_input_page.dart';
 import 'package:flutter_chat/presentation/profile/pages/profile_page.dart';
 import 'package:flutter_chat/presentation/profile/pages/set_profile_page.dart';
 import 'package:flutter_chat/presentation/splash/pages/splash_page.dart';
@@ -23,22 +21,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: '/login',
           name: 'login',
           builder: (context, state) => const LoginPage()
-      ),
-      GoRoute(
-        path: '/phone-auth',
-        name: 'phone-auth',
-        builder: (context, state) => const PhoneInputPage(),
-      ),
-      GoRoute(
-        path: '/otp-verify',
-        name: 'otp-verify',
-        builder: (context, state) {
-          final extra = state.extra as Map<String, String>;
-          return OTPVerificationPage(
-            verificationId: extra['verificationId']!,
-            phoneNumber: extra['phoneNumber']!,
-          );
-        },
       ),
       GoRoute(
         path: '/set-profile',
