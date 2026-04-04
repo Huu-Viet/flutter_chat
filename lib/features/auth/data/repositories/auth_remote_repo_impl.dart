@@ -47,6 +47,9 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository {
         return Future.value(Left(CacheFailure('Failed to save token: $e')));
       }
     } catch (e) {
+      if (e.toString().contains('401')) {
+        return Future.value(Left(ServerFailure('Invalid username or password')));
+      }
       return Future.value(Left(ServerFailure('Unexpected error occurred: $e')));
     }
   }
@@ -78,50 +81,27 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository {
   }
 
   @override
-  Future<Either<Failure, MyUser>> getCurrentUser() async {
+  Future<Either<Failure, MyUser>> getFullCurrentUser() async {
     try {
-      final firebaseUser = await authRemoteDataSource.getCurrentUser();
-      if (firebaseUser == null) {
-        return Left(ServerFailure('No user is currently signed in'));
+      final accessToken = await authLocalDataSource.getToken();
+      if(accessToken == null) {
+        return Left(ServerFailure('No access token found'));
       }
-      final user = MyUser(
-        id: firebaseUser.uid,
-        keycloakId: firebaseUser.uid, // update later
-        email: '${firebaseUser.phoneNumber}@phone.local', // Placeholder email
-        username: firebaseUser.phoneNumber ?? '',
-        firstName: null,
-        lastName: null,
-        phone: firebaseUser.phoneNumber,
-        avatarUrl: null,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-      return Right(user);
+      final userDto = await userRemoteDataSource.getFullCurrentUser(accessToken);
+      if (userDto != null) {
+        final myUser = apiMapper.toDomain(userDto);
+        return Right(myUser);
+      } else {
+        return Left(ServerFailure('User not found'));
+      }
     } catch (e) {
-      return Left(ServerFailure('Unexpected error occurred'));
+      return Left(ServerFailure('Failed to fetch user data: $e'));
     }
   }
 
   @override
   Future<Either<Failure, void>> setUserDataToRemote(MyUser myUser) async {
-    try {
-      await userRemoteDataSource.setUserData(myUser);
-      return Right(null);
-    } catch (e) {
-      return Left(ServerFailure('(set user data to remote)_Unexpected error occurred'));
-    }
-  }
-
-  @override
-  Stream<Either<Failure, MyUser>> getUserData() async* {
-    await for (final userDto in userRemoteDataSource.user) {
-      if (userDto != null) {
-        final myUser = apiMapper.toDomain(userDto);
-        yield Right(myUser);
-      } else {
-        yield Left(ServerFailure('User not found'));
-      }
-    }
+    throw UnimplementedError();
   }
 
   @override

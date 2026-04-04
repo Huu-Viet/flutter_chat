@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_chat/app/app_providers.dart';
+import 'package:flutter_chat/features/auth/data/datasources/api/user_remote_dts_impl.dart';
 import 'package:flutter_chat/features/auth/data/datasources/local/user_dao.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,10 +13,7 @@ final usersCollectionProvider = Provider<CollectionReference>((ref) {
 
 // Data Sources
 final userRemoteDataSourceProvider = Provider<UserRemoteDataSource>((ref) {
-  return FirebaseUserDataSourceImpl(
-    firebaseAuth: ref.watch(firebaseAuthProvider), // Sử dụng từ auth_providers
-    usersCollection: ref.watch(usersCollectionProvider),
-  );
+  return UserRemoteDtsImpl();
 });
 
 final userDaoProvider = Provider<UserDao>((ref) {
@@ -25,8 +23,8 @@ final userDaoProvider = Provider<UserDao>((ref) {
 });
 
 // Use Cases
-final getCurrentRemoteUserInfoUseCaseProvider = Provider<GetRemoteCurrentUserDataUseCase>((ref) {
-  return GetRemoteCurrentUserDataUseCase(
+final getFullCurrentUserUseCaseProvider = Provider<GetFullCurrentUserUseCase>((ref) {
+  return GetFullCurrentUserUseCase(
     ref.watch(authRemoteRepoProvider),
   );
 });

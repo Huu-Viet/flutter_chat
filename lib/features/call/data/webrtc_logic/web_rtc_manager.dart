@@ -1,7 +1,6 @@
 import 'package:flutter_chat/features/call/data/dtos/peer_connection_params.dart';
 import 'package:flutter_chat/features/call/export.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'dart:convert';
 
 class WebRtcManager implements IWebRtcManager {
   final String _roomId;

@@ -6,8 +6,7 @@ abstract class AuthRemoteRepository {
   Future<Either<Failure, void>> refreshToken(String refreshToken);
   Future<Either<Failure, void>> loginWithGrantedAccount(String username, String password);
   Future<Either<Failure, void>> signInWithEmailAndPassword(String email, String password);
-  Future<Either<Failure, MyUser>> getCurrentUser();
+  Future<Either<Failure, MyUser>> getFullCurrentUser();
   Future<Either<Failure, void>> setUserDataToRemote(MyUser user);
-  Stream<Either<Failure, MyUser>> getUserData();
   Future<Either<Failure, void>> sendDeviceToken(String userId);
 }

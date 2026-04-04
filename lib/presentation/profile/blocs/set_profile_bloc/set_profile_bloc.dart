@@ -7,7 +7,7 @@ part 'set_profile_state.dart';
 
 class SetProfileBloc extends Bloc<SetProfileEvent, SetProfileState> {
   final SetUserInfoUseCase setUserInfoUseCase;
-  final GetCurrentUserUseCase getCurrentUserUseCase;
+  final GetFullCurrentUserUseCase getCurrentUserUseCase;
 
   SetProfileBloc(
       this.setUserInfoUseCase,

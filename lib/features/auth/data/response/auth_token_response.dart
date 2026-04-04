@@ -1,5 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
-
 class AuthTokenResponse {
   final String accessToken;
   final int expiresIn;

@@ -1,15 +1,13 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/core/platform_services/export.dart';
 import 'package:flutter_chat/features/auth/export.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FCMService {
   static const String _tag = "FCMService";
   final NotificationRouter _notiRouter;
-  final GetCurrentUserUseCase _getCurrentUserUseCase;
+  final GetFullCurrentUserUseCase _getCurrentUserUseCase;
   final SendDeviceTokenUseCase _sendDeviceTokenUseCase;
 
   const FCMService(

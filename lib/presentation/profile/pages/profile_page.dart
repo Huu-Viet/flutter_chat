@@ -1,27 +1,102 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_chat/app/e_app_route.dart';
+import 'package:flutter_chat/features/auth/export.dart';
+import 'package:flutter_chat/presentation/profile/blocs/profile_bloc/profile_bloc.dart';
+import 'package:flutter_chat/presentation/profile/providers/set_profile_bloc_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class ProfilePage extends ConsumerWidget {
+class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends ConsumerState<ProfilePage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(profileBlocProvider).add(const LoadProfileEvent());
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final profileBloc = ref.read(profileBlocProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
       ),
-      body: const ProfilePageContent(),
+      body: BlocProvider<ProfileBloc>.value(
+        value: profileBloc,
+        child: const ProfilePageContent(),
+      ),
     );
   }
 }
 
-class ProfilePageContent extends StatelessWidget {
+class ProfilePageContent extends ConsumerWidget {
   const ProfilePageContent({super.key});
 
   @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return BlocBuilder<ProfileBloc, ProfileState>(
+      builder: (context, state) {
+        if (state is ProfileLoading || state is ProfileInitial) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (state is ProfileError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    state.message,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      ref.read(profileBlocProvider).add(const LoadProfileEvent());
+                    },
+                    child: const Text('Thử lại'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        if (state is! ProfileLoaded) {
+          return const SizedBox.shrink();
+        }
+
+        return _ProfileLoadedView(myUser: state.myUser);
+      },
+    );
+  }
+}
+
+class _ProfileLoadedView extends StatelessWidget {
+  final MyUser myUser;
+
+  const _ProfileLoadedView({required this.myUser});
+
+  @override
   Widget build(BuildContext context) {
+    final fullName = [myUser.firstName, myUser.lastName]
+        .where((part) => part != null && part.trim().isNotEmpty)
+        .map((part) => part!.trim())
+        .join(' ');
+    final displayName = fullName.isNotEmpty ? fullName : myUser.username;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -38,7 +113,7 @@ class ProfilePageContent extends StatelessWidget {
           
           // User Name
           Text(
-            'Demo User', // This would come from user state
+            displayName,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.bold,
             ),
@@ -47,7 +122,7 @@ class ProfilePageContent extends StatelessWidget {
           
           // User Email  
           Text(
-            'demo@example.com', // This would come from user state
+            myUser.email,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
               color: Colors.grey.shade600,
             ),

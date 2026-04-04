@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_chat/core/database/app_database.dart';
 import '../../../../core/mappers/local_mapper.dart';
 import '../../domain/entities/user.dart';
@@ -9,13 +11,23 @@ class LocalUserMapper extends LocalMapper<UserEntity, MyUser> {
   MyUser toDomain(UserEntity entity) {
     return MyUser(
       id: entity.id,
-      keycloakId: entity.keycloakId,
       email: entity.email,
       username: entity.username,
       firstName: entity.firstName,
       lastName: entity.lastName,
       phone: entity.phone,
+      cccdNumber: entity.cccdNumber,
       avatarUrl: entity.avatarUrl,
+      avatarMediaId: entity.avatarMediaId,
+      settings: entity.settings != null
+          ? jsonDecode(entity.settings!) as Map<String, dynamic>
+          : null,
+      orgId: entity.orgId,
+      orgRole: entity.orgRole,
+      title: entity.title,
+      departmentId: entity.departmentId,
+      accountStatus: entity.accountStatus,
+      isActive: entity.isActive,
       createdAt: DateTime.parse(entity.createdAt),
       updatedAt: DateTime.parse(entity.updatedAt),
     );
@@ -25,13 +37,21 @@ class LocalUserMapper extends LocalMapper<UserEntity, MyUser> {
   UserEntity toEntity(MyUser domain) {
     return UserEntity(
       id: domain.id,
-      keycloakId: domain.keycloakId,
       email: domain.email,
       username: domain.username,
       firstName: domain.firstName,
       lastName: domain.lastName,
       phone: domain.phone,
+      cccdNumber: domain.cccdNumber,
       avatarUrl: domain.avatarUrl,
+      avatarMediaId: domain.avatarMediaId,
+      settings: domain.settings != null ? jsonEncode(domain.settings) : null,
+      orgId: domain.orgId,
+      orgRole: domain.orgRole,
+      title: domain.title,
+      departmentId: domain.departmentId,
+      accountStatus: domain.accountStatus,
+      isActive: domain.isActive,
       createdAt: domain.createdAt.toString(),
       updatedAt: domain.updatedAt.toString(),
     );

@@ -1,73 +1,142 @@
 class UserDto {
-  final String id;
-  final String keycloakId;
-  final String email;
-  final String username;
+  final String? id;
+  final String? email;
+  final String? username;
   final String? firstName;
   final String? lastName;
   final String? phone;
+  final String? cccdNumber;
   final String? avatarUrl;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  
+  final String? avatarMediaId;
+  final Map<String, dynamic>? settings;
+  final String? orgId;
+  final String? orgRole;
+  final String? title;
+  final String? departmentId;
+  final String? accountStatus;
+  final bool? isActive;
+  final String? createdAt;
+  final String? updatedAt;
+
   const UserDto({
-    required this.id,
-    required this.keycloakId,
-    required this.email,
-    required this.username,
+    this.id,
+    this.email,
+    this.username,
     this.firstName,
     this.lastName,
     this.phone,
+    this.cccdNumber,
     this.avatarUrl,
-    required this.createdAt,
-    required this.updatedAt,
+    this.avatarMediaId,
+    this.settings,
+    this.orgId,
+    this.orgRole,
+    this.title,
+    this.departmentId,
+    this.accountStatus,
+    this.isActive,
+    this.createdAt,
+    this.updatedAt,
   });
-  
+
   /// Factory from JSON API response
   factory UserDto.fromJson(Map<String, dynamic> json) {
     return UserDto(
-      id: json['id'] as String,
-      keycloakId: json['keycloak_id'] as String,
-      email: json['email'] as String,
-      username: json['username'] as String,
-      firstName: json['first_name'] as String?,
-      lastName: json['last_name'] as String?,
-      phone: json['phone'] as String?,
-      avatarUrl: json['avatar_url'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      id: _asString(json['id']),
+      email: _asString(json['email']),
+      username: _asString(json['username']),
+      firstName: _asString(json['firstName']),
+      lastName: _asString(json['lastName']),
+      phone: _asString(json['phone']),
+      cccdNumber: _asString(json['cccdNumber']),
+      avatarUrl: _asString(json['avatarUrl']),
+      avatarMediaId: _asString(json['avatarMediaId']),
+      settings: _asMap(json['settings']),
+      orgId: _asString(json['orgId']),
+      orgRole: _asString(json['orgRole']),
+      title: _asString(json['title']),
+      departmentId: _asString(json['departmentId']),
+      accountStatus: _asString(json['accountStatus']),
+      isActive: _asBool(json['isActive']),
+      createdAt: _asString(json['createdAt']),
+      updatedAt: _asString(json['updatedAt']),
     );
   }
-  
+
   /// Convert to JSON for API requests
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'keycloak_id': keycloakId,
       'email': email,
       'username': username,
-      'first_name': firstName,
-      'last_name': lastName,
+      'firstName': firstName,
+      'lastName': lastName,
       'phone': phone,
-      'avatar_url': avatarUrl,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'cccdNumber': cccdNumber,
+      'avatarUrl': avatarUrl,
+      'avatarMediaId': avatarMediaId,
+      'settings': settings,
+      'orgId': orgId,
+      'orgRole': orgRole,
+      'title': title,
+      'departmentId': departmentId,
+      'accountStatus': accountStatus,
+      'isActive': isActive,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
     };
   }
 
   /// Factory from Firestore Document data
   factory UserDto.fromDocument(Map<String, dynamic> doc) {
     return UserDto(
-      id: doc['uid'] as String,
-      keycloakId: doc['keycloakId'] as String,
-      email: doc['email'] as String,
-      username: doc['username'] as String,
-      firstName: doc['firstName'] as String?,
-      lastName: doc['lastName'] as String?,
-      phone: doc['phone'] as String?,
-      avatarUrl: doc['photoURL'] as String?,
-      createdAt: (doc['createdAt'] as dynamic).toDate() as DateTime,
-      updatedAt: (doc['updatedAt'] as dynamic).toDate() as DateTime,
+      id: _asString(doc['uid'] ?? doc['id']),
+      email: _asString(doc['email']),
+      username: _asString(doc['username']),
+      firstName: _asString(doc['firstName']),
+      lastName: _asString(doc['lastName']),
+      phone: _asString(doc['phone']),
+      cccdNumber: _asString(doc['cccdNumber']),
+      avatarUrl: _asString(doc['photoURL'] ?? doc['avatarUrl']),
+      avatarMediaId: _asString(doc['avatarMediaId']),
+      settings: _asMap(doc['settings']),
+      orgId: _asString(doc['orgId']),
+      orgRole: _asString(doc['orgRole']),
+      title: _asString(doc['title']),
+      departmentId: _asString(doc['departmentId']),
+      accountStatus: _asString(doc['accountStatus']),
+      isActive: _asBool(doc['isActive']),
+      createdAt: _asString(doc['createdAt']),
+      updatedAt: _asString(doc['updatedAt']),
     );
+  }
+
+  static String? _asString(dynamic value) {
+    if (value == null) return null;
+    if (value is String) return value;
+    return value.toString();
+  }
+
+  static bool? _asBool(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is int) return value != 0;
+    if (value is String) {
+      final lower = value.toLowerCase();
+      if (lower == 'true' || lower == '1') return true;
+      if (lower == 'false' || lower == '0') return false;
+    }
+    return null;
+  }
+
+  static Map<String, dynamic>? _asMap(dynamic value) {
+    if (value == null) return null;
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      return value.map(
+        (key, val) => MapEntry(key.toString(), val),
+      );
+    }
+    return null;
   }
 }

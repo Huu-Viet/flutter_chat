@@ -65,16 +65,20 @@ class HomePageContent extends ConsumerWidget {
     final networkStatusAsync = ref.watch(networkStatusProvider);
     final l10n = AppLocalizations.of(context)!;
     // fake data for online friends
+
     final onlineFriends = [
       MyUser(
-        id: "1",
-        keycloakId: "keycloak-1",
-        email: "test@gmail.com",
-        username: "friend1",
-        firstName: "Friend",
-        lastName: "One",
-        phone: "1234567890",
+        id: 'user-001',
+        email: 'john.doe@example.com',
+        username: 'john_doe',
+        firstName: 'John',
+        lastName: 'Doe',
+        phone: '0901234567',
         avatarUrl: null,
+        orgId: 'org-default',
+        orgRole: 'ORG_MEMBER',
+        accountStatus: 'ACTIVE',
+        isActive: true,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       ),

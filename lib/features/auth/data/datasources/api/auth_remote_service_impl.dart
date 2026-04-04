@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 
@@ -36,7 +35,7 @@ class AuthRemoteServiceImpl implements AuthRemoteService {
       if (response.statusCode == 200) {
         return AuthTokenResponse.fromJson(response.data);
       } else {
-        throw Exception('Login failed: ${response.statusCode}');
+        throw Exception(response.statusCode);
       }
     } on DioException catch (e) {
       throw Exception('Login error: ${e.message}');
@@ -69,12 +68,6 @@ class AuthRemoteServiceImpl implements AuthRemoteService {
     } on DioException catch (e) {
       throw Exception('Login error: ${e.message}');
     }
-  }
-
-  @override
-  Future<User?> getCurrentUser() {
-    // TODO: implement getCurrentUser
-    throw UnimplementedError();
   }
 
   @override
