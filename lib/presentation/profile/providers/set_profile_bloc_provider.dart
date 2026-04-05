@@ -13,6 +13,8 @@ final setProfileBlocProvider = Provider<SetProfileBloc>((ref) {
 
 final profileBlocProvider = Provider<ProfileBloc>((ref) {
   return ProfileBloc(
-    ref.read(getFullCurrentUserUseCaseProvider)
+    ref.read(getCurrentUserIdUseCaseProvider),
+    ref.read(getCurrentLocalUserInfoUseCaseProvider),
+    ref.read(syncCurrentUserFromRemoteUseCaseProvider),
   );
 });

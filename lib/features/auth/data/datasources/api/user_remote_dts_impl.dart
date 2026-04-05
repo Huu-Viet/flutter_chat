@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -7,8 +8,7 @@ class UserRemoteDtsImpl extends UserRemoteDataSource {
 
   final Dio dio;
 
-  UserRemoteDtsImpl({Dio? dio})
-      : dio = dio ?? Dio();
+  UserRemoteDtsImpl(this.dio);
 
   @override
   Future<UserDto?> getFullCurrentUser(String accessToken) async {
@@ -37,9 +37,11 @@ class UserRemoteDtsImpl extends UserRemoteDataSource {
       if (data is! Map<String, dynamic>) {
         throw Exception('Invalid user payload format');
       }
+      debugPrint('[UserRemoteDtsImpl] Fetched user data: $data');
       return UserDto.fromJson(data);
     } on DioException catch (e) {
-      throw Exception('Get user error: ${e.message}');
+      debugPrint('Error fetching user data: ${e.message}');
+      throw Exception('[UserRemoteDtsImpl] Get user error: ${e.message}');
     }
   }
 

@@ -13,7 +13,9 @@ final usersCollectionProvider = Provider<CollectionReference>((ref) {
 
 // Data Sources
 final userRemoteDataSourceProvider = Provider<UserRemoteDataSource>((ref) {
-  return UserRemoteDtsImpl();
+  return UserRemoteDtsImpl(
+    ref.watch(authDioProvider),
+  );
 });
 
 final userDaoProvider = Provider<UserDao>((ref) {

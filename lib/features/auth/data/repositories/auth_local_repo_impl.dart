@@ -37,7 +37,7 @@ class AuthLocalRepoImpl extends AuthLocalRepo {
   @override
   Future<Either<Failure, String>> getAccessToken() async {
     try {
-      final String? accessToken = await authPrefDataSource.getToken();
+      final String? accessToken = await authPrefDataSource.getAccessToken();
       if (accessToken != null) {
         return Right(accessToken);
       } else {
@@ -63,9 +63,22 @@ class AuthLocalRepoImpl extends AuthLocalRepo {
   }
 
   @override
+  Future<Either<Failure, String>> getCurrentUserId() async {
+    try {
+      final userId = await authPrefDataSource.getCurrentUserId();
+      if (userId != null && userId.trim().isNotEmpty) {
+        return Right(userId);
+      }
+      return Left(CacheFailure('No current user id found'));
+    } catch (e) {
+      return Left(CacheFailure('Failed to retrieve current user id: $e'));
+    }
+  }
+
+  @override
   Future<Either<Failure, bool>> isTokenValid() async {
     try  {
-      final String? accessToken = await authPrefDataSource.getToken();
+      final String? accessToken = await authPrefDataSource.getAccessToken();
       bool result = TokenUtils.isTokenValid(accessToken);
       return Right(result);
     } catch (e) {

@@ -10,3 +10,28 @@ final class LoadProfileEvent extends ProfileEvent {
   @override
   List<Object?> get props => [];
 }
+
+final class RefreshProfileEvent extends ProfileEvent {
+  const RefreshProfileEvent();
+
+  @override
+  List<Object?> get props => [];
+}
+
+final class ProfileUserUpdatedEvent extends ProfileEvent {
+  final MyUser myUser;
+
+  const ProfileUserUpdatedEvent(this.myUser);
+
+  @override
+  List<Object?> get props => [myUser];
+}
+
+final class ProfileUserStreamErrorEvent extends ProfileEvent {
+  final String message;
+
+  const ProfileUserStreamErrorEvent(this.message);
+
+  @override
+  List<Object?> get props => [message];
+}

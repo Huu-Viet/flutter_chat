@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/cupertino.dart';
@@ -7,24 +9,76 @@ part 'profile_event.dart';
 part 'profile_state.dart';
 
 class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
-  final GetFullCurrentUserUseCase getCurrentUserUseCase;
+  final GetCurrentUserIdUseCase getCurrentUserIdUseCase;
+  final GetLocalCurrentUserDataUseCase getLocalCurrentUserDataUseCase;
+  final SyncCurrentUserFromRemoteUseCase syncCurrentUserFromRemoteUseCase;
+  StreamSubscription? _userSubscription;
 
   ProfileBloc(
-    this.getCurrentUserUseCase
+    this.getCurrentUserIdUseCase,
+    this.getLocalCurrentUserDataUseCase,
+    this.syncCurrentUserFromRemoteUseCase,
   ) : super(ProfileInitial()) {
     on<LoadProfileEvent>(_onLoadProfile);
+    on<RefreshProfileEvent>(_onRefreshProfile);
+    on<ProfileUserUpdatedEvent>(_onProfileUserUpdated);
+    on<ProfileUserStreamErrorEvent>(_onProfileUserStreamError);
   }
 
   Future<void> _onLoadProfile(LoadProfileEvent event, Emitter<ProfileState> emit) async {
     emit(ProfileLoading());
-    try {
-      final result = await getCurrentUserUseCase();
-      result.fold(
-        (failure) => emit(ProfileError(failure.message)),
-        (myUser) => emit(ProfileLoaded(myUser)),
-      );
-    } catch (e) {
-      emit(ProfileError(e.toString()));
+
+    await _userSubscription?.cancel();
+
+    final currentUserIdResult = await getCurrentUserIdUseCase();
+    var currentUserId = currentUserIdResult.fold((_) => null, (id) => id);
+    var bootstrappedFromRemote = false;
+
+    if (currentUserId == null || currentUserId.isEmpty) {
+      await syncCurrentUserFromRemoteUseCase();
+      bootstrappedFromRemote = true;
+      final refreshedUserIdResult = await getCurrentUserIdUseCase();
+      currentUserId = refreshedUserIdResult.fold((_) => null, (id) => id);
     }
+
+    if (currentUserId != null && currentUserId.isNotEmpty) {
+      _userSubscription = getLocalCurrentUserDataUseCase(currentUserId).listen((result) {
+        result.fold(
+          (failure) => add(ProfileUserStreamErrorEvent(failure.message)),
+          (myUser) => add(ProfileUserUpdatedEvent(myUser)),
+        );
+      });
+    }
+
+    if (!bootstrappedFromRemote) {
+      await syncCurrentUserFromRemoteUseCase();
+    }
+  }
+
+  Future<void> _onRefreshProfile(RefreshProfileEvent event, Emitter<ProfileState> emit) async {
+    emit(ProfileLoading());
+    await syncCurrentUserFromRemoteUseCase();
+  }
+
+  void _onProfileUserUpdated(
+    ProfileUserUpdatedEvent event,
+    Emitter<ProfileState> emit,
+  ) {
+    emit(ProfileLoaded(event.myUser));
+  }
+
+  void _onProfileUserStreamError(
+    ProfileUserStreamErrorEvent event,
+    Emitter<ProfileState> emit,
+  ) {
+    if (state is! ProfileLoaded) {
+      emit(ProfileError(event.message));
+    }
+  }
+
+  @override
+  Future<void> close() async {
+    await _userSubscription?.cancel();
+    return super.close();
   }
 }

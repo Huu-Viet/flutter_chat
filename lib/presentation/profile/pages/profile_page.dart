@@ -78,7 +78,15 @@ class ProfilePageContent extends ConsumerWidget {
           return const SizedBox.shrink();
         }
 
-        return _ProfileLoadedView(myUser: state.myUser);
+        return RefreshIndicator(
+            onRefresh: () async {
+              ref.read(profileBlocProvider).add(const RefreshProfileEvent());
+            },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: _ProfileLoadedView(myUser: state.myUser),
+            ),
+        );
       },
     );
   }

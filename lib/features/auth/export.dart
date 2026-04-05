@@ -38,5 +38,7 @@ export '../auth/domain/usecases/send_device_token_usecase.dart';
 export '../auth/domain/usecases/check_access_token_usecase.dart';
 export '../auth/domain/usecases/check_refresh_token_usecase.dart';
 export '../auth/domain/usecases/get_access_token_usecase.dart';
+export '../auth/domain/usecases/get_current_user_id_usecase.dart';
 export '../auth/domain/usecases/get_refresh_token_usecase.dart';
 export '../auth/domain/usecases/refresh_token_usecase.dart';
+export '../auth/domain/usecases/sync_current_user_from_remote_usecase.dart';

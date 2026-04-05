@@ -1,4 +1,5 @@
-import 'package:flutter_chat/features/auth/data/repositories/auth_local_repo_impl.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter_chat/features/auth/data/datasources/api/auth_interceptor.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/features/auth/user_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,8 +9,28 @@ final authRemoteServiceProvider = Provider<AuthRemoteService>((ref) {
   return AuthRemoteServiceImpl();
 });
 
-final authLocalDataSourceProvider = Provider<AuthPrefDataSource>((ref) {
+final authPrefsDtsProvider = Provider<AuthPrefDataSource>((ref) {
   return AuthPrefDataSourceImpl();
+});
+
+//Auth dio interceptor
+final authDioProvider = Provider<Dio>((ref) {
+  final dio = Dio(BaseOptions(
+      connectTimeout: Duration(seconds: 10),
+  ));
+
+  final tokenDts = ref.watch(authPrefsDtsProvider);
+  final authApi = ref.watch(authRemoteServiceProvider);
+
+  dio.interceptors.add(
+    AuthInterceptor(
+        dio: dio,
+        authPrefDataSource: tokenDts,
+        authApi: authApi
+    )
+  );
+
+  return dio;
 });
 
 // Mappers
@@ -22,22 +43,23 @@ final localUserMapperProvider = Provider<LocalUserMapper>((ref) {
 });
 
 // Repository
-final authRemoteRepoProvider = Provider<AuthRemoteRepository>((ref) {
+final authRepositoryProvider = Provider<AuthRemoteRepoImpl>((ref) {
   return AuthRemoteRepoImpl(
     authRemoteDataSource: ref.watch(authRemoteServiceProvider),
-    authLocalDataSource: ref.watch(authLocalDataSourceProvider),
+    authLocalDataSource: ref.watch(authPrefsDtsProvider),
     userRemoteDataSource: ref.watch(userRemoteDataSourceProvider),
+    userDao: ref.watch(userDaoProvider),
     apiMapper: ref.watch(apiUserMapperProvider),
     localMapper: ref.watch(localUserMapperProvider),
   );
 });
 
+final authRemoteRepoProvider = Provider<AuthRemoteRepository>((ref) {
+  return ref.watch(authRepositoryProvider);
+});
+
 final authLocalRepoProvider = Provider<AuthLocalRepo>((ref) {
-  return AuthLocalRepoImpl(
-      authPrefDataSource: ref.watch(authLocalDataSourceProvider),
-      userDao: ref.watch(userDaoProvider),
-      localMapper: ref.watch(localUserMapperProvider)
-  );
+  return ref.watch(authRepositoryProvider);
 });
 
 // UseCase
@@ -67,6 +89,14 @@ final checkRefreshTokenUseCaseProvider = Provider<CheckRefreshTokenUseCase>((ref
 
 final getRefreshTokenUseCaseProvider = Provider<GetRefreshTokenUseCase>((ref) {
   return GetRefreshTokenUseCase(ref.watch(authLocalRepoProvider));
+});
+
+final getCurrentUserIdUseCaseProvider = Provider<GetCurrentUserIdUseCase>((ref) {
+  return GetCurrentUserIdUseCase(ref.watch(authLocalRepoProvider));
+});
+
+final syncCurrentUserFromRemoteUseCaseProvider = Provider<SyncCurrentUserFromRemoteUseCase>((ref) {
+  return SyncCurrentUserFromRemoteUseCase(ref.watch(authRemoteRepoProvider));
 });
 
 final refreshTokenUseCaseProvider = Provider<RefreshTokenUseCase>((ref) {
