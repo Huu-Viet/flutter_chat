@@ -42,3 +42,7 @@ export '../auth/domain/usecases/get_current_user_id_usecase.dart';
 export '../auth/domain/usecases/get_refresh_token_usecase.dart';
 export '../auth/domain/usecases/refresh_token_usecase.dart';
 export '../auth/domain/usecases/sync_current_user_from_remote_usecase.dart';
+export '../auth/domain/usecases/forgot_password_usecase.dart';
+export '../auth/domain/usecases/verify_reset_pass_usecase.dart';
+export '../auth/domain/usecases/reset_password_usecase.dart';
+export '../auth/domain/usecases/sign_out_usecase.dart';

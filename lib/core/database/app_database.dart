@@ -27,6 +27,10 @@ class AppDatabase extends _$AppDatabase {
     return (delete(users)..where((u) => u.id.equals(userId))).go().then((count) => count > 0);
   }
 
+  Future<bool> clearAllUsers() async {
+    return delete(users).go().then((count) => count > 0);
+  }
+
   Future<UserEntity?> getUserById(String userId) async {
     return (select(users)..where((u) => u.id.equals(userId))).getSingleOrNull();
   }

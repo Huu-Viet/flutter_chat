@@ -11,7 +11,6 @@ abstract class AuthPrefDataSource {
   Future<String?> getRefreshToken();
   Future<void> saveCurrentUserId(String userId);
   Future<String?> getCurrentUserId();
-  Future<void> clearCurrentUserId();
   Future<void> clearToken();
 }
 
@@ -76,11 +75,6 @@ class AuthPrefDataSourceImpl implements AuthPrefDataSource {
     return prefs.getString(_currentUserIdKey);
   }
 
-  @override
-  Future<void> clearCurrentUserId() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_currentUserIdKey);
-  }
 
   @override
   Future<void> clearToken() async {

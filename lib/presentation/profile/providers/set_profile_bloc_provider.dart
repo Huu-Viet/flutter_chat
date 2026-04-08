@@ -16,5 +16,6 @@ final profileBlocProvider = Provider<ProfileBloc>((ref) {
     ref.read(getCurrentUserIdUseCaseProvider),
     ref.read(getCurrentLocalUserInfoUseCaseProvider),
     ref.read(syncCurrentUserFromRemoteUseCaseProvider),
+    ref.read(logoutUseCaseProvider),
   );
 });

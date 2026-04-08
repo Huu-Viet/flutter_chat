@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_chat/app/e_app_route.dart';
 import 'package:flutter_chat/features/auth/export.dart';
+import 'package:flutter_chat/l10n/app_localizations.dart';
 import 'package:flutter_chat/presentation/profile/blocs/profile_bloc/profile_bloc.dart';
 import 'package:flutter_chat/presentation/profile/providers/set_profile_bloc_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -84,7 +85,10 @@ class ProfilePageContent extends ConsumerWidget {
             },
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              child: _ProfileLoadedView(myUser: state.myUser),
+              child: _ProfileLoadedView(
+                myUser: state.myUser,
+                profileBloc: ref.read(profileBlocProvider),
+              ),
             ),
         );
       },
@@ -93,17 +97,23 @@ class ProfilePageContent extends ConsumerWidget {
 }
 
 class _ProfileLoadedView extends StatelessWidget {
+  final ProfileBloc profileBloc;
   final MyUser myUser;
 
-  const _ProfileLoadedView({required this.myUser});
+  const _ProfileLoadedView({
+    required this.myUser,
+    required this.profileBloc,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final fullName = [myUser.firstName, myUser.lastName]
         .where((part) => part != null && part.trim().isNotEmpty)
         .map((part) => part!.trim())
         .join(' ');
     final displayName = fullName.isNotEmpty ? fullName : myUser.username;
+
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
@@ -209,7 +219,7 @@ class _ProfileLoadedView extends StatelessWidget {
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text('Logout'),
+                    title: Text(l10n.logout),
                     content: const Text('Are you sure you want to logout?'),
                     actions: [
                       TextButton(
@@ -219,20 +229,20 @@ class _ProfileLoadedView extends StatelessWidget {
                       ElevatedButton(
                         onPressed: () {
                           Navigator.of(context).pop();
-                          // TODO: Implement logout
-                          context.push(AppRoute.login.path);
+                          profileBloc.add(SignOutEvent());
+                          context.go(AppRoute.login.path);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red,
                         ),
-                        child: const Text('Logout'),
+                        child: Text(l10n.logout),
                       ),
                     ],
                   ),
                 );
               },
               icon: const Icon(Icons.logout),
-              label: const Text('Logout'),
+              label: Text(l10n.logout),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,

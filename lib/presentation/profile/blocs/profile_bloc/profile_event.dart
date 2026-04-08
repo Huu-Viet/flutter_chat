@@ -35,3 +35,10 @@ final class ProfileUserStreamErrorEvent extends ProfileEvent {
   @override
   List<Object?> get props => [message];
 }
+
+final class SignOutEvent extends ProfileEvent {
+  const SignOutEvent();
+
+  @override
+  List<Object?> get props => [];
+}

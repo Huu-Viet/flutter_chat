@@ -102,3 +102,19 @@ final syncCurrentUserFromRemoteUseCaseProvider = Provider<SyncCurrentUserFromRem
 final refreshTokenUseCaseProvider = Provider<RefreshTokenUseCase>((ref) {
   return RefreshTokenUseCase(ref.watch(authRemoteRepoProvider));
 });
+
+final forgotPasswordUseCaseProvider = Provider<ForgotPasswordUseCase>((ref) {
+  return ForgotPasswordUseCase(ref.watch(authRemoteRepoProvider));
+});
+
+final verifyOtpUseCaseProvider = Provider<VerifyResetPassUseCase>((ref) {
+  return VerifyResetPassUseCase(ref.watch(authRemoteRepoProvider));
+});
+
+final resetPasswordUseCaseProvider = Provider<ResetPasswordUseCase>((ref) {
+  return ResetPasswordUseCase(ref.watch(authRemoteRepoProvider));
+});
+
+final logoutUseCaseProvider = Provider<SignOutUseCase>((ref) {
+  return SignOutUseCase(ref.watch(authRemoteRepoProvider));
+});

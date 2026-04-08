@@ -13,5 +13,8 @@ final emailAndPasswordAuthBlocProvider = Provider<EmailPasswordBloc>((ref) {
 final grantedAccountAuthBlocProvider = Provider<AccountBloc>((ref) {
   return AccountBloc(
     logInWithGrantedAccountUseCase: ref.read(loginWithGrantedAccountUseCaseProvider),
+    forgotPasswordUseCase: ref.read(forgotPasswordUseCaseProvider),
+    verifyOtpUseCase: ref.read(verifyOtpUseCaseProvider),
+    resetPasswordUseCase: ref.read(resetPasswordUseCaseProvider)
   );
 });

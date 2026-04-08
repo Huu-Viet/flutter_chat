@@ -1,8 +1,9 @@
 enum AppRoute {
-  login('/blocs'),
+  login('/login'),
   main('/'),
   profile('/profile'),
-  chat('/chat');
+  chat('/chat'),
+  forgotPass('/forgot-password');
 
   const AppRoute(this.path);
   final String path;

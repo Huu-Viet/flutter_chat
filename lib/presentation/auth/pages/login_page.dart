@@ -103,10 +103,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                     Align(
                       alignment: Alignment.centerRight,
-                      child: Text(
-                        l10n.forget_password,
-                        style: const TextStyle(
-                            color: Colors.blueAccent
+                      child: GestureDetector(
+                        onTap: () {
+                          context.go("/forgot-password");
+                        },
+                        child: Text(
+                          l10n.forget_password,
+                          style: const TextStyle(
+                              color: Colors.blueAccent
+                          ),
                         ),
                       ),
                     ),

@@ -28,3 +28,5 @@ final class ProfileError extends ProfileState {
   @override
   List<Object> get props => [message];
 }
+
+final class ProfileSignOutComplete extends ProfileState {}

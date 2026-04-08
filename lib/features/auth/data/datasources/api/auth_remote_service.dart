@@ -7,4 +7,7 @@ abstract class AuthRemoteService {
   Future<AuthTokenResponse> signInWithGrantedAccount(String username, String password);
   Future<AuthTokenResponse> refreshToken(String refreshToken);
   Future<void> sendDeviceToken(String userId);
+  Future<void> forgotPassword(String email);
+  Future<String> verifyOtp(String email, String otp);
+  Future<void> resetPassword(String resetToken, String newPassword);
 }

@@ -7,6 +7,7 @@ abstract class UserDao {
   Future<void> deleteUser(String userId);
   Future<UserEntity?> getUserById(String userId);
   Future<List<UserEntity>> getAllUsers();
+  Future<void> clearAllUsers();
   
   // Stream methods for real-time updates
   Stream<List<UserEntity>> watchAllUsers();
@@ -76,5 +77,15 @@ class DriftUserDaoImpl implements UserDao {
   @override
   Stream<UserEntity?> watchUserById(String userId) {
     return _database.watchUserById(userId);
+  }
+
+  @override
+  Future<void> clearAllUsers() {
+    try {
+      return _database.clearAllUsers();
+    } catch (e) {
+      log(e.toString());
+      rethrow;
+    }
   }
 }

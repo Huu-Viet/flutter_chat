@@ -12,17 +12,20 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   final GetCurrentUserIdUseCase getCurrentUserIdUseCase;
   final GetLocalCurrentUserDataUseCase getLocalCurrentUserDataUseCase;
   final SyncCurrentUserFromRemoteUseCase syncCurrentUserFromRemoteUseCase;
+  final SignOutUseCase signOutUseCase;
   StreamSubscription? _userSubscription;
 
   ProfileBloc(
     this.getCurrentUserIdUseCase,
     this.getLocalCurrentUserDataUseCase,
     this.syncCurrentUserFromRemoteUseCase,
+    this.signOutUseCase,
   ) : super(ProfileInitial()) {
     on<LoadProfileEvent>(_onLoadProfile);
     on<RefreshProfileEvent>(_onRefreshProfile);
     on<ProfileUserUpdatedEvent>(_onProfileUserUpdated);
     on<ProfileUserStreamErrorEvent>(_onProfileUserStreamError);
+    on<SignOutEvent>(_onSignOut);
   }
 
   Future<void> _onLoadProfile(LoadProfileEvent event, Emitter<ProfileState> emit) async {
@@ -74,6 +77,12 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     if (state is! ProfileLoaded) {
       emit(ProfileError(event.message));
     }
+  }
+
+  Future<void> _onSignOut(SignOutEvent event, Emitter<ProfileState> emit) async {
+    emit (ProfileLoading());
+    await signOutUseCase();
+    emit (ProfileSignOutComplete());
   }
 
   @override

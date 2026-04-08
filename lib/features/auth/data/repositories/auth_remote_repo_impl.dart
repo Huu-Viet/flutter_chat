@@ -217,4 +217,46 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
       return Left(CacheFailure('Failed to retrieve token: $e'));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> forgotPassword(String email) async {
+    try {
+      await authRemoteDataSource.forgotPassword(email);
+      return Right(null);
+    } catch (e) {
+      return Future.value(Left(ServerFailure('Failed to send password reset email: $e')));
+    }
+  }
+
+  @override
+  Future<Either<Failure, String>> verifyOtp(String email, String otp) async {
+    try {
+      final resetToken = await authRemoteDataSource.verifyOtp(email, otp);
+      return Right(resetToken);
+    } catch (e) {
+      return Future.value(Left(ServerFailure('Unexpected error occurred: $e')));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> resetPassword(String resetToken, String newPassword) async {
+    try {
+      await authRemoteDataSource.resetPassword(resetToken, newPassword);
+      return Right(null);
+    } catch (e) {
+      return Future.value(Left(ServerFailure('Failed to reset password: $e')));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> signOut() async {
+    try {
+      await authLocalDataSource.clearToken();
+      await authLocalDataSource.clearCache();
+      await userDao.clearAllUsers();
+      return Right(null);
+    } catch (e) {
+      return Future.value(Left(CacheFailure('Failed to clear local cache: $e')));
+    }
+  }
 }

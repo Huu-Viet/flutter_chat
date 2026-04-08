@@ -1,3 +1,4 @@
+import 'package:flutter_chat/presentation/auth/pages/forgot_pass_page.dart';
 import 'package:flutter_chat/presentation/auth/pages/login_page.dart';
 import 'package:flutter_chat/presentation/main_scaffold.dart';
 import 'package:flutter_chat/presentation/profile/pages/profile_page.dart';
@@ -21,6 +22,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: '/login',
           name: 'login',
           builder: (context, state) => const LoginPage()
+      ),
+      GoRoute(
+          path: '/forgot-password',
+          name: 'forgot-password',
+          builder: (context, state) => const ForgotPasswordPage()
       ),
       GoRoute(
         path: '/set-profile',
