@@ -129,7 +129,43 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
 
   @override
   Future<Either<Failure, void>> setUserDataToRemote(MyUser myUser) async {
-    throw UnimplementedError();
+    try {
+      final updatedDto = await userRemoteDataSource.updateProfile(
+        firstName: myUser.firstName,
+        lastName: myUser.lastName,
+        phone: myUser.phone,
+        title: myUser.title,
+        avatarMediaId: myUser.avatarMediaId,
+        avatarVariant: myUser.avatarMediaId != null && myUser.avatarMediaId!.isNotEmpty
+            ? 'thumb'
+            : null,
+      );
+
+      if (updatedDto == null) {
+        return Left(ServerFailure('Failed to update user profile'));
+      }
+
+      final updatedUser = apiMapper.toDomain(updatedDto);
+
+      await _upsertUserToLocal(updatedUser);
+
+      return Right(null);
+    } catch (e) {
+      return Left(ServerFailure('Failed to update user profile: $e'));
+    }
+  }
+
+  Future<void> _upsertUserToLocal(MyUser user) async {
+    final userEntity = localMapper.toEntity(user);
+    final updatedRows = await userDao.updateUser(userEntity);
+
+    if (updatedRows == 0) {
+      await userDao.saveUser(userEntity);
+    }
+
+    if (user.id.isNotEmpty) {
+      await authLocalDataSource.saveCurrentUserId(user.id);
+    }
   }
 
   @override

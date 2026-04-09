@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_chat/core/utils/date_utils.dart';
 
 class ChatListTile extends StatelessWidget {
   final String name;
   final String lastMessage;
-  final String time;
+  final DateTime time;
   final int unreadCount;
   final String? avatarUrl;
 
@@ -19,13 +20,16 @@ class ChatListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final displayName = name.trim().isEmpty ? 'Unknown' : name;
+    final avatarText = displayName[0].toUpperCase();
+
     return ListTile(
       leading: CircleAvatar(
         backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl!) : null,
-        child: avatarUrl == null ? Text(name[0].toUpperCase()) : null,
+        child: avatarUrl == null ? Text(avatarText) : null,
       ),
       title: Text(
-        name,
+        displayName,
         style: TextStyle(
           fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.normal,
         ),
@@ -44,7 +48,7 @@ class ChatListTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text(
-            time,
+            AppDateUtils.formatDateTime(time),
             style: TextStyle(
               fontSize: 12,
               color: unreadCount > 0 ? Colors.blue : Colors.grey,
@@ -71,7 +75,7 @@ class ChatListTile extends StatelessWidget {
         ],
       ),
       onTap: () {
-        context.push('/chat/$name', extra: {'friendName': name});
+        context.push('/chat/$displayName', extra: {'friendName': displayName});
       },
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter_chat/presentation/auth/pages/forgot_pass_page.dart';
 import 'package:flutter_chat/presentation/auth/pages/login_page.dart';
 import 'package:flutter_chat/presentation/main_scaffold.dart';
+import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/presentation/profile/pages/profile_page.dart';
 import 'package:flutter_chat/presentation/profile/pages/set_profile_page.dart';
 import 'package:flutter_chat/presentation/splash/pages/splash_page.dart';
@@ -31,7 +32,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/set-profile',
         name: 'set-profile',
-        builder: (context, state) => const SetProfilePage(),
+        builder: (context, state) {
+          final initialUser = state.extra is MyUser ? state.extra as MyUser : null;
+          return SetProfilePage(initialUser: initialUser);
+        },
       ),
       GoRoute(
         path: '/',

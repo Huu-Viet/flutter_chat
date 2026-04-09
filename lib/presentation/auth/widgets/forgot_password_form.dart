@@ -86,7 +86,7 @@ class _ForgotPasswordFormState extends State<ForgotPasswordForm> {
                     )),
                   ),
 
-                  onPressed: widget.isLoading ? () {
+                  onPressed: () {
                       if (emailController.text.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(l10n.fill_in_input_notify)),
@@ -94,7 +94,7 @@ class _ForgotPasswordFormState extends State<ForgotPasswordForm> {
                         return;
                       }
                       widget.onSubmit(emailController.text);
-                  } : null,
+                  },
                   child: widget.isLoading
                       ? CircularProgressIndicator()
                       : Text(l10n.submit, style: TextStyle(color: Colors.white)),

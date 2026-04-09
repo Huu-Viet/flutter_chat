@@ -1,3 +1,4 @@
+import 'package:flutter_chat/core/errors/failure.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 
 class SignOutUseCase {

@@ -21,6 +21,8 @@ class _FriendStatusBarState extends State<FriendStatusBar> {
         itemCount: widget.onlineFriends.length,
         itemBuilder: (context, index) {
           final friend = widget.onlineFriends[index];
+          final displayName = friend.username.trim().isEmpty ? 'Unknown' : friend.username;
+          final avatarText = displayName[0].toUpperCase();
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: Column(
@@ -32,12 +34,12 @@ class _FriendStatusBarState extends State<FriendStatusBar> {
                       ? NetworkImage(friend.avatarUrl!)
                       : null,
                   child: friend.avatarUrl == null
-                      ? Text(friend.username[0].toUpperCase())
+                      ? Text(avatarText)
                       : null,
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  friend.username,
+                  displayName,
                   style: const TextStyle(fontSize: 12),
                 ),
               ],

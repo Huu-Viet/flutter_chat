@@ -5,13 +5,15 @@ class InfoInput extends StatelessWidget {
   final String label;
   final String? Function(String?)? validator;
   final TextInputType? keyboardType;
+  final ValueChanged<String>? onChanged;
 
   const InfoInput({
     super.key,
     required this.textController,
     required this.label,
     required this.validator,
-    this.keyboardType
+    this.keyboardType,
+    this.onChanged,
   });
 
   @override
@@ -26,6 +28,7 @@ class InfoInput extends StatelessWidget {
       ),
       validator: validator,
       keyboardType: keyboardType,
+      onChanged: onChanged,
     );
   }
 }

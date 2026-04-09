@@ -4,10 +4,12 @@ import 'package:flutter_chat/app/e_app_route.dart';
 import 'package:flutter_chat/core/platform_services/export.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
-import 'package:flutter_chat/presentation/home/presentation/widgets/friend_status_bar.dart';
+import 'package:flutter_chat/presentation/home/blocs/home_bloc.dart';
+import 'package:flutter_chat/presentation/home/home_provider.dart';
+import 'package:flutter_chat/presentation/home/widgets/friend_status_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'widgets/chat_list_tile.dart';
+import '../widgets/chat_list_tile.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -64,8 +66,10 @@ class HomePageContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final networkStatusAsync = ref.watch(networkStatusProvider);
     final l10n = AppLocalizations.of(context)!;
-    // fake data for online friends
 
+    final homeBloc = ref.watch(homeBlocProvider);
+
+    // fake data for online friends (TODO: wire real friends later)
     final onlineFriends = [
       MyUser(
         id: 'user-001',
@@ -83,13 +87,14 @@ class HomePageContent extends ConsumerWidget {
         updatedAt: DateTime.now(),
       ),
     ];
+
     return Column(
       children: [
         // Network Status Info - only show for mobile data or no network
         networkStatusAsync.when(
           data: (networkStatus) {
-            final shouldShowCard = !networkStatus.isConnected || 
-                networkStatus.connectionType == NetworkConnectionType.mobile;
+            final shouldShowCard =
+                !networkStatus.isConnected || networkStatus.connectionType == NetworkConnectionType.mobile;
             return shouldShowCard ? _NetworkStatusCard() : const SizedBox.shrink();
           },
           loading: () => const SizedBox.shrink(),
@@ -100,7 +105,7 @@ class HomePageContent extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
           child: FriendStatusBar(onlineFriends: onlineFriends),
         ),
-        
+
         // Search Bar
         Padding(
           padding: const EdgeInsets.all(16.0),
@@ -116,7 +121,6 @@ class HomePageContent extends ConsumerWidget {
             ),
           ),
         ),
-      
 
         Align(
           alignment: Alignment.centerLeft,
@@ -124,27 +128,50 @@ class HomePageContent extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 18.0),
             child: Text(
               l10n.messages,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
         ),
 
         const SizedBox(height: 8),
 
-        // Chat List - always show even when offline
+        // Chat List - backed by HomeBloc
         Expanded(
-          child: ListView.builder(
-            itemCount: 10, // Mock data
-            itemBuilder: (context, index) {
-              return ChatListTile(
-                name: 'User ${index + 1}',
-                lastMessage: 'This is the last message from user ${index + 1}',
-                time: '${10 + index}:${30 + index}',
-                unreadCount: index % 3 == 0 ? index + 1 : 0,
-                avatarUrl: null,
-              );
+          child: StreamBuilder<HomeState>(
+            stream: homeBloc.stream,
+            initialData: homeBloc.state,
+            builder: (context, snapshot) {
+              final state = snapshot.data;
+
+              if (state is HomeLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (state is HomeFailure) {
+                return Center(child: Text(state.failure.message));
+              }
+
+              if (state is HomeLoaded) {
+                if (state.conversations.isEmpty) {
+                  return Center(child: Text("There are no conversations yet!"));
+                }
+
+                return ListView.builder(
+                  itemCount: state.conversations.length,
+                  itemBuilder: (context, index) {
+                    final c = state.conversations[index];
+                    return ChatListTile(
+                      name: c.name,
+                      lastMessage: '',
+                      time: c.updatedAt,
+                      unreadCount: 0,
+                      avatarUrl: c.avatarUrl.isEmpty ? null : c.avatarUrl,
+                    );
+                  },
+                );
+              }
+
+              return const SizedBox.shrink();
             },
           ),
         ),

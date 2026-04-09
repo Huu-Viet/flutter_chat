@@ -1,3 +1,5 @@
+import 'package:dartz/dartz.dart';
+import 'package:flutter_chat/core/errors/failure.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 
 class SetUserInfoUseCase {
@@ -5,7 +7,7 @@ class SetUserInfoUseCase {
 
   SetUserInfoUseCase(this._authRemoteRepo);
 
-  Future<void> call(MyUser userInfo) {
+  Future<Either<Failure, void>> call(MyUser userInfo) {
     return _authRemoteRepo.setUserDataToRemote(userInfo);
   }
 }
