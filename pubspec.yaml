@@ -51,6 +51,7 @@ dependencies:
   
   # Network & HTTP
   dio: ^5.7.0
+  socket_io_client: ^3.1.4
   flutter_dotenv: ^5.2.1
 
   #OAuth google

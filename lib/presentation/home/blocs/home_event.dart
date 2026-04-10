@@ -13,3 +13,10 @@ final class LoadHomeEvent extends HomeEvent {
   @override
   List<Object> get props => [page, limit];
 }
+
+final class LoadMoreHomeEvent extends HomeEvent {
+  const LoadMoreHomeEvent();
+
+  @override
+  List<Object> get props => const [];
+}

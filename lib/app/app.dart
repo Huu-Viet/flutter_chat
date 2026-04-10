@@ -16,6 +16,7 @@ class MyApp extends ConsumerWidget {
     final locale = ref.watch(localeProvider);
     ref.read(databaseProvider);
     ref.read(fcmServiceProvider);
+    ref.read(realtimeGatewayServiceProvider);
 
     return MaterialApp.router(
       title: 'Flutter Chat',
