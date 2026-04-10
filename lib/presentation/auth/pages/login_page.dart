@@ -175,7 +175,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                     ElevatedButton(
                       onPressed: () {
-                        context.go("/phone-auth");
+                        context.go("/register");
                       },
                       style: ButtonStyle(
                         backgroundColor: WidgetStatePropertyAll(Theme.of(context).colorScheme.surfaceBright),
@@ -190,10 +190,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.phone, color: Theme.of(context).colorScheme.onSurface,),
+                          Icon(Icons.email, color: Theme.of(context).colorScheme.onSurface,),
                           const SizedBox(width: 10,),
                           Text(
-                            l10n.login_with_phone,
+                            l10n.registry,
                             textAlign: TextAlign.center,
                             style: Theme.of(context).textTheme.bodyMedium
                           )
