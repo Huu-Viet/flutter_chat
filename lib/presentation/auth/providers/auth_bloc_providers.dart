@@ -1,20 +1,22 @@
 // Bloc provider
 import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/presentation/auth/blocs/account_bloc/account_bloc.dart';
-import 'package:flutter_chat/presentation/auth/blocs/email_password_bloc/email_password_bloc.dart';
+import 'package:flutter_chat/presentation/auth/blocs/registry_bloc/registry_bloc.dart';
 import 'package:riverpod/riverpod.dart';
-
-final emailAndPasswordAuthBlocProvider = Provider<EmailPasswordBloc>((ref) {
-  return EmailPasswordBloc(
-    signInWithEmailPassword: ref.read(signInWithEmailAndPasswordUseCaseProvider),
-  );
-});
 
 final grantedAccountAuthBlocProvider = Provider<AccountBloc>((ref) {
   return AccountBloc(
-    logInWithGrantedAccountUseCase: ref.read(loginWithGrantedAccountUseCaseProvider),
+    logInWithEmailUseCase: ref.read(loginWithGrantedAccountUseCaseProvider),
     forgotPasswordUseCase: ref.read(forgotPasswordUseCaseProvider),
     verifyOtpUseCase: ref.read(verifyOtpUseCaseProvider),
     resetPasswordUseCase: ref.read(resetPasswordUseCaseProvider)
+  );
+});
+
+final registryBlocProvider = Provider<RegistryBloc>((ref) {
+  return RegistryBloc(
+    registerInitUseCase: ref.read(registerInitUseCaseProvider),
+    registerVerifyOtpUseCase: ref.read(registerVerifyOtpUseCaseProvider),
+    registerCompleteUseCase: ref.read(registerCompleteUseCaseProvider),
   );
 });

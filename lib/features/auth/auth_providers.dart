@@ -67,12 +67,8 @@ final getCurrentUserUseCaseProvider = Provider<GetFullCurrentUserUseCase>((ref) 
   return GetFullCurrentUserUseCase(ref.watch(authRemoteRepoProvider));
 });
 
-final signInWithEmailAndPasswordUseCaseProvider = Provider<SignInWithEmailAndPasswordUseCase>((ref) {
-  return SignInWithEmailAndPasswordUseCase(ref.watch(authRemoteRepoProvider));
-});
-
-final loginWithGrantedAccountUseCaseProvider = Provider<LogInWithGrantedAccountUseCase>((ref) {
-  return LogInWithGrantedAccountUseCase(ref.watch(authRemoteRepoProvider));
+final loginWithGrantedAccountUseCaseProvider = Provider<LogInWithEmailUseCase>((ref) {
+  return LogInWithEmailUseCase(ref.watch(authRemoteRepoProvider));
 });
 
 final sendDeviceTokenUseCaseProvider = Provider<SendDeviceTokenUseCase>((ref) {
@@ -105,6 +101,18 @@ final refreshTokenUseCaseProvider = Provider<RefreshTokenUseCase>((ref) {
 
 final forgotPasswordUseCaseProvider = Provider<ForgotPasswordUseCase>((ref) {
   return ForgotPasswordUseCase(ref.watch(authRemoteRepoProvider));
+});
+
+final registerInitUseCaseProvider = Provider<RegisterInitUseCase>((ref) {
+  return RegisterInitUseCase(ref.watch(authRemoteRepoProvider));
+});
+
+final registerCompleteUseCaseProvider = Provider<RegisterCompleteUseCase>((ref) {
+  return RegisterCompleteUseCase(ref.watch(authRemoteRepoProvider));
+});
+
+final registerVerifyOtpUseCaseProvider = Provider<RegisterVerifyOtpUseCase>((ref) {
+  return RegisterVerifyOtpUseCase(ref.watch(authRemoteRepoProvider));
 });
 
 final verifyOtpUseCaseProvider = Provider<VerifyResetPassUseCase>((ref) {

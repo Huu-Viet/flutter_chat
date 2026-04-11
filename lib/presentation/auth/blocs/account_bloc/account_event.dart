@@ -4,14 +4,14 @@ sealed class AccountEvent extends Equatable {
   const AccountEvent();
 }
 
-final class LoginWithGrantedAccountEvent extends AccountEvent {
-  final String username;
+final class LoginWithEmailEvent extends AccountEvent {
+  final String email;
   final String password;
 
-  const LoginWithGrantedAccountEvent(this.username, this.password);
+  const LoginWithEmailEvent(this.email, this.password);
 
   @override
-  List<Object> get props => [username, password];
+  List<Object> get props => [email, password];
 }
 
 

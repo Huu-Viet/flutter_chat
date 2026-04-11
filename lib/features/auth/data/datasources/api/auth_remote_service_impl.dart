@@ -16,31 +16,134 @@ class AuthRemoteServiceImpl implements AuthRemoteService {
       : _dio = dio ?? Dio();
 
   @override
-  Future<AuthTokenResponse> signInWithGrantedAccount(String username, String password) async {
-    final url = '$_baseAuthUrl/realms/$_realm/protocol/openid-connect/token';
+  Future<void> registerInit(String email, String firstName, String lastName) async {
+    try {
+      await _dio.post(
+        '$_baseApiUrl/auth/register/init',
+        options: Options(
+          contentType: Headers.jsonContentType,
+          headers: {'X-Client-Platform': 'mobile'},
+        ),
+        data: {
+          'email': email,
+          'firstName': firstName,
+          'lastName': lastName,
+        },
+      );
+    } on DioException catch (e) {
+      throw Exception(e.response?.statusCode);
+    }
+  }
+
+  @override
+  Future<String> verifyRegisterOtp(String email, String otp) async {
+    try {
+      final response = await _dio.post(
+        '$_baseApiUrl/auth/register/verify-otp',
+        options: Options(
+          contentType: Headers.jsonContentType,
+          headers: {'X-Client-Platform': 'mobile'},
+        ),
+        data: {
+          'email': email,
+          'otp': otp,
+        },
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception(response.statusCode);
+      }
+
+      final responseBody = response.data;
+      if (responseBody is! Map<String, dynamic>) {
+        throw Exception(response.statusCode);
+      }
+
+      final data = responseBody['data'];
+      if (data is! Map<String, dynamic>) {
+        throw Exception(response.statusCode);
+      }
+
+      final registrationToken = data['registrationToken'];
+      if (registrationToken is! String || registrationToken.isEmpty) {
+        throw Exception(response.statusCode);
+      }
+
+      final tokenPreview = registrationToken.length > 8
+          ? '${registrationToken.substring(0, 4)}...${registrationToken.substring(registrationToken.length - 4)}'
+          : registrationToken;
+      debugPrint('[AuthRemoteServiceImpl] Verify token=$tokenPreview');
+      return registrationToken;
+    } catch (e) {
+      debugPrint('Verify register OTP error: $e');
+      throw Exception(e is DioException ? e.response?.statusCode : e);
+    }
+  }
+
+  @override
+  Future<void> registerComplete(String registerToken, String pass, String platform, String? deviceName) async {
+    try {
+      final response = await _dio.request(
+        '$_baseApiUrl/auth/register/complete',
+        options: Options(
+          method: 'POST',
+          contentType: Headers.jsonContentType,
+          headers: {'X-Client-Platform': 'mobile'},
+          validateStatus: (status) => status != null && status < 600,
+        ),
+        data: {
+          'registrationToken': registerToken,
+          'password': pass,
+          'platform': platform
+        },
+      );
+
+      final statusCode = response.statusCode ?? 500;
+      if (statusCode == 200 || statusCode == 201) {
+        return;
+      }
+
+      debugPrint('Register complete failed: status=$statusCode, body=${response.data}');
+
+      if (response.data is Map<String, dynamic>) {
+        final message = (response.data as Map<String, dynamic>)['message'];
+        if (message is String && message.trim().isNotEmpty) {
+          throw Exception('$statusCode: $message');
+        }
+      }
+
+      throw Exception(statusCode);
+    } catch (e) {
+      debugPrint('Register complete error: $e');
+      throw Exception(e is DioException ? e.response?.statusCode : e);
+    }
+  }
+
+  @override
+  Future<AuthTokenResponse> signInWithEmail(String email, String password) async {
+    final url = '$_baseApiUrl/auth/login';
 
     try {
       final response = await _dio.post(
         url,
         options: Options(
-          contentType: Headers.formUrlEncodedContentType,
+          contentType: Headers.jsonContentType,
+          headers: {'X-Client-Platform': 'mobile'},
         ),
         data: {
-          'client_id': _clientId,
-          'client_secret': _clientSecret,
-          'grant_type': 'password',
-          'username': username,
-          'password': password,
+          "email": email,
+          "password": password,
+          "platform": "mobile",
         },
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         return AuthTokenResponse.fromJson(response.data);
       } else {
         throw Exception(response.statusCode);
       }
     } on DioException catch (e) {
-      throw Exception('Login error: ${e.message}');
+      throw Exception(e.response?.statusCode);
     }
   }
 
@@ -53,6 +156,7 @@ class AuthRemoteServiceImpl implements AuthRemoteService {
         url,
         options: Options(
           contentType: Headers.formUrlEncodedContentType,
+          headers: {'X-Client-Platform': 'mobile'},
         ),
         data: {
           'client_id': _clientId,
@@ -65,10 +169,10 @@ class AuthRemoteServiceImpl implements AuthRemoteService {
       if (response.statusCode == 200) {
         return AuthTokenResponse.fromJson(response.data);
       } else {
-        throw Exception('Login failed: ${response.statusCode}');
+        throw Exception(response.statusCode);
       }
     } on DioException catch (e) {
-      throw Exception('Login error: ${e.message}');
+      throw Exception(e.response?.statusCode);
     }
   }
 
@@ -79,35 +183,24 @@ class AuthRemoteServiceImpl implements AuthRemoteService {
   }
 
   @override
-  Future<String> sendPhoneVerification(String phoneNumber) {
-    // TODO: implement sendPhoneVerification
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> signInWithEmailAndPassword(String email, String password) {
-    // TODO: implement signInWithEmailAndPassword
-    throw UnimplementedError();
-  }
-
-  @override
   Future<void> forgotPassword(String email) async {
     try {
       final response = await _dio.post(
         '$_baseApiUrl/auth/forgot-password',
         options: Options(
           contentType: Headers.jsonContentType,
+          headers: {'X-Client-Platform': 'mobile'},
         ),
         data: {
           'email': email,
         },
       );
       if (response.statusCode != 201) {
-        throw Exception('Failed to send forgot password email');
+        throw Exception(response.statusCode);
       }
     } catch (e) {
       debugPrint('Forgot password error: $e');
-      throw Exception('Failed to send forgot password email: $e');
+      throw Exception(e is DioException ? e.response?.statusCode : e);
     }
   }
 
@@ -118,6 +211,7 @@ class AuthRemoteServiceImpl implements AuthRemoteService {
         '$_baseApiUrl/auth/verify-otp',
         options: Options(
           contentType: Headers.jsonContentType,
+          headers: {'X-Client-Platform': 'mobile'},
         ),
         data: {
           'email': email,
@@ -125,20 +219,20 @@ class AuthRemoteServiceImpl implements AuthRemoteService {
         },
       );
       if (response.statusCode != 201) {
-        throw Exception('Failed to verify OTP');
+        throw Exception(response.statusCode);
       }
       final responseBody = response.data;
       if (responseBody is! Map<String, dynamic>) {
-        throw Exception('Invalid response body format');
+        throw Exception(response.statusCode);
       }
       final data = responseBody['data']['resetToken'];
       if (data is! String) {
-        throw Exception('Invalid reset token format');
+        throw Exception(response.statusCode);
       }
       return data;
     } catch (e) {
       debugPrint('Verify OTP error: $e');
-      throw Exception('Failed to verify OTP: $e');
+      throw Exception(e is DioException ? e.response?.statusCode : e);
     }
   }
 
@@ -149,6 +243,7 @@ class AuthRemoteServiceImpl implements AuthRemoteService {
         '$_baseApiUrl/auth/reset-password',
         options: Options(
           contentType: Headers.jsonContentType,
+          headers: {'X-Client-Platform': 'mobile'},
         ),
         data: {
           'resetToken': resetToken,
@@ -156,11 +251,11 @@ class AuthRemoteServiceImpl implements AuthRemoteService {
         },
       );
       if (response.statusCode != 201) {
-        throw Exception('Failed to reset password');
+        throw Exception(response.statusCode);
       }
     } catch (e) {
       debugPrint('Reset password error: $e');
-      throw Exception('Failed to reset password: $e');
+      throw Exception(e is DioException ? e.response?.statusCode : e);
     }
   }
 }

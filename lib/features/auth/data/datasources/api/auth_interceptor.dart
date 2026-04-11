@@ -21,6 +21,7 @@ class AuthInterceptor extends Interceptor {
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
     }
+    options.headers['X-Client-Platform'] = 'mobile';
     super.onRequest(options, handler);
   }
 

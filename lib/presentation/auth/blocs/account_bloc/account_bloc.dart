@@ -6,31 +6,31 @@ part 'account_event.dart';
 part 'account_state.dart';
 
 class AccountBloc extends Bloc<AccountEvent, AccountState> {
-  final LogInWithGrantedAccountUseCase logInWithGrantedAccountUseCase;
+  final LogInWithEmailUseCase logInWithEmailUseCase;
   final ForgotPasswordUseCase forgotPasswordUseCase;
   final VerifyResetPassUseCase verifyOtpUseCase;
   final ResetPasswordUseCase resetPasswordUseCase;
 
   AccountBloc({
-    required this.logInWithGrantedAccountUseCase,
+    required this.logInWithEmailUseCase,
     required this.forgotPasswordUseCase,
     required this.verifyOtpUseCase,
     required this.resetPasswordUseCase,
   }) : super(AccountInitial()) {
-    on<LoginWithGrantedAccountEvent>(_loginWithGrantedAccount);
+    on<LoginWithEmailEvent>(_loginWithEmailAccount);
     on<ForgotPasswordEvent>(_onForgetPassword);
     on<VerifyOtpEvent>(_onVerifyOtp);
     on<ResetPasswordEvent>(_onResetPassword);
   }
 
-  Future<void> _loginWithGrantedAccount(
-      LoginWithGrantedAccountEvent event,
+  Future<void> _loginWithEmailAccount(
+      LoginWithEmailEvent event,
       Emitter<AccountState> emit,
   ) async {
     emit(AccountLoading());
 
     try {
-      final result = await logInWithGrantedAccountUseCase(event.username, event.password);
+      final result = await logInWithEmailUseCase(event.email, event.password);
       result.fold(
               (failure) => emit(AccountError(failure.message)),
               (authResult) => emit(AccountSuccess())

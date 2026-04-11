@@ -1,5 +1,5 @@
 {
-  "app_name": "Busy Talks",
+  "app_name": "Zolo",
   "welcome_login": "Chào mừng bạn trở lại! Vui lòng đăng nhập vào tài khoản của bạn.",
   "password_rule_length": "Mật khẩu phải có ít nhất 8 ký tự",
   "password_rule_uppercase": "Mật khẩu phải chứa ít nhất một chữ cái viết hoa",
@@ -7,7 +7,6 @@
   "password_rule_special": "Mật khẩu phải chứa ít nhất một ký tự đặc biệt",
   "email_label": "Địa chỉ email",
   "password_label": "Mật khẩu",
-  "username_hint": "Nhập tên người dùng của bạn",
   "password_hint": "Nhập mật khẩu của bạn",
   "new_password_label": "Mật khẩu mới",
   "new_password_hint": "Nhập mật khẩu mới",
@@ -28,9 +27,10 @@
   "registry": "Đăng ký",
   "fill_in_input_notify": "Vui lòng điền vào tất cả các ô nhập",
   "profile_setup": "Thiết lập hồ sơ",
-  "user_name_label": "Tên người dùng",
   "first_name_label": "Tên",
+  "first_name_hint": "Nhập tên của bạn",
   "last_name_label": "Họ",
+  "last_name_hint": "Nhập họ của bạn",
   "fill_in_info_notify": "Vui lòng điền vào thông tin",
   "submit": "Xác nhận",
   "messages": "Tin nhắn",
@@ -39,6 +39,13 @@
   "call": "Gọi",
   "search": "Tìm kiếm",
   "success_password_reset": "Đặt lại mật khẩu thành công",
+  "success_registry": "Đăng ký thành công",
+  "error_email_exist": "Email đã tồn tại",
   "error_email_not_found": "Không tìm thấy email",
-  "error_password_not_match": "Password does not match"
+  "error_too_many_attempts": "Quá nhiều lần thử. Vui lòng thử lại sau.",
+  "error_info_invalid": "Thông tin không hợp lệ",
+  "error_password_not_match": "Password does not match",
+  "error_otp_invalid": "Mã OTP không hợp lệ hoặc đã hết hạn",
+  "error_registry_token": "Mã đăng ký không hợp lệ hoặc đã hết hạn",
+  "error_unknown": "Đã xảy ra lỗi không xác định. Vui lòng thử lại sau."
 }

@@ -19,16 +19,26 @@ class AuthTokenResponse {
     required this.scope,
   });
 
+  static int _toInt(dynamic value, {int defaultValue = 0}) {
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value) ?? defaultValue;
+    return defaultValue;
+  }
+
   factory AuthTokenResponse.fromJson(Map<String, dynamic> json) {
+    final payload = (json['data'] is Map<String, dynamic>)
+        ? json['data'] as Map<String, dynamic>
+        : json;
+
     return AuthTokenResponse(
-      accessToken: json['access_token'] ?? '',
-      expiresIn: json['expires_in'] ?? 0,
-      refreshExpiresIn: json['refresh_expires_in'] ?? 0,
-      refreshToken: json['refresh_token'] ?? '',
-      tokenType: json['token_type'] ?? 'Bearer',
-      notBeforePolicy: json['not-before-policy'] ?? 0,
-      sessionState: json['session_state'] ?? '',
-      scope: json['scope'] ?? '',
+      accessToken: (payload['accessToken'] ?? payload['access_token'] ?? '').toString(),
+      expiresIn: _toInt(payload['expiresIn'] ?? payload['expires_in']),
+      refreshExpiresIn: _toInt(payload['refreshExpiresIn'] ?? payload['refresh_expires_in']),
+      refreshToken: (payload['refreshToken'] ?? payload['refresh_token'] ?? '').toString(),
+      tokenType: (payload['tokenType'] ?? payload['token_type'] ?? 'Bearer').toString(),
+      notBeforePolicy: _toInt(payload['notBeforePolicy'] ?? payload['not-before-policy']),
+      sessionState: (payload['sessionState'] ?? payload['session_state'] ?? '').toString(),
+      scope: (payload['scope'] ?? '').toString(),
     );
   }
 

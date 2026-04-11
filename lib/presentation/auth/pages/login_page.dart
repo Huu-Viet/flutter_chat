@@ -15,20 +15,20 @@ class LoginPage extends ConsumerStatefulWidget {
 }
 
 class _LoginPageState extends ConsumerState<LoginPage> {
-  late final TextEditingController userNameController;
+  late final TextEditingController emailController;
   late final TextEditingController passwordController;
   bool showLoading = false;
 
   @override
   void initState() {
     super.initState();
-    userNameController = TextEditingController();
+    emailController = TextEditingController();
     passwordController = TextEditingController();
   }
 
   @override
   void dispose() {
-    userNameController.dispose();
+    emailController.dispose();
     passwordController.dispose();
     super.dispose();
   }
@@ -87,10 +87,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     const SizedBox(height: 24),
 
                     LoginCustomInput(
-                      hintText: l10n.username_hint,
-                      label: l10n.user_name_label,
-                      controller: userNameController,
-                      icon: Icons.person,
+                      hintText: l10n.email_hint,
+                      label: l10n.email_label,
+                      controller: emailController,
+                      icon: Icons.email_outlined,
                     ),
 
                     LoginCustomInput(
@@ -120,14 +120,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                     ElevatedButton(
                       onPressed: () {
-                        if (userNameController.text.isEmpty || passwordController.text.isEmpty) {
+                        if (emailController.text.isEmpty || passwordController.text.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text(l10n.fill_in_input_notify)),
                           );
                           return;
                         }
-                        grantedAccountProvider.add(LoginWithGrantedAccountEvent(
-                          userNameController.text,
+                        grantedAccountProvider.add(LoginWithEmailEvent(
+                          emailController.text,
                           passwordController.text,
                         ));
                       },

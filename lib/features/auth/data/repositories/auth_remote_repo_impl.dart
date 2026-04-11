@@ -39,10 +39,51 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
   }
 
   @override
-  Future<Either<Failure, void>> loginWithGrantedAccount(String username, String password) async {
+  Future<Either<Failure, void>> registerInit(
+      String email,
+      String firstName,
+      String lastName,
+      ) async {
+    try {
+      await authRemoteDataSource.registerInit(email, firstName, lastName);
+      return Right(null);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, String>> verifyRegisterOtp(String email, String otp) async {
+    try {
+      final registrationToken = await authRemoteDataSource.verifyRegisterOtp(email, otp);
+      return Right(registrationToken);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> registerWithEmail(
+      String registryToken, String password, String platform, String? deviceName
+  ) async {
+    try {
+      await authRemoteDataSource.registerComplete(
+        registryToken,
+        password,
+        platform,
+        deviceName,
+      );
+      return Right(null);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> loginWithEmail(String email, String password) async {
     try {
       AuthTokenResponse authRes = await authRemoteDataSource
-          .signInWithGrantedAccount(username, password);
+          .signInWithEmail(email, password);
 
       try {
         await authLocalDataSource.saveToken(authRes.accessToken, authRes.refreshToken);
@@ -67,32 +108,6 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
       if (e.toString().contains('401')) {
         return Future.value(Left(ServerFailure('Invalid username or password')));
       }
-      return Future.value(Left(ServerFailure('Unexpected error occurred: $e')));
-    }
-  }
-
-  @override
-  Future<Either<Failure, void>> signInWithEmailAndPassword(String email, String password) async {
-    try {
-      await authRemoteDataSource.signInWithEmailAndPassword(email, password);
-      return Right(null);
-    } on FirebaseAuthException catch (e) {
-      switch (e.code) {
-        case 'user-not-found':
-          return Left(ServerFailure('No user found with this email'));
-        case 'wrong-password':
-          return Left(ServerFailure('Incorrect password'));
-        case 'invalid-email':
-          return Left(ServerFailure('Invalid email format'));
-        case 'user-disabled':
-          return Left(ServerFailure('This account has been disabled'));
-        case 'too-many-requests':
-          return Left(ServerFailure('Too many failed attempts. Try again later'));
-        default:
-          return Left(ServerFailure(e.message ?? 'Authentication failed'));
-      }
-    }
-    catch (e) {
       return Future.value(Left(ServerFailure('Unexpected error occurred: $e')));
     }
   }

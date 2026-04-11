@@ -1,5 +1,5 @@
 {
-  "app_name": "Busy Talks",
+  "app_name": "Zolo",
   "welcome_login": "Welcome back! Please login to your account.",
   "password_rule_length": "Password must be at least 8 characters",
   "password_rule_uppercase": "Password must contain uppercase letter",
@@ -7,7 +7,6 @@
   "password_rule_special": "Password must contain special character",
   "email_label": "Email Address",
   "password_label": "Password",
-  "username_hint": "Enter your username",
   "password_hint": "Enter your password",
   "new_password_label": "New password",
   "new_password_hint": "Enter new password",
@@ -28,9 +27,10 @@
   "registry": "Registry",
   "fill_in_input_notify": "Please fill in all the fields",
   "profile_setup": "Profile Setup",
-  "user_name_label": "User Name",
   "first_name_label": "First Name",
+  "first_name_hint": "Enter your first name",
   "last_name_label": "Last Name",
+  "last_name_hint": "Enter your last name",
   "fill_in_info_notify": "Please fill in the information",
   "submit": "Submit",
   "messages": "Messages",
@@ -39,6 +39,13 @@
   "call": "Call",
   "search": "Search",
   "success_password_reset": "Password reset successful",
+  "success_registry": "Registry successful",
+  "error_email_exist": "Email already exists",
   "error_email_not_found": "Email not found",
-  "error_password_not_match": "Password does not match"
+  "error_too_many_attempts": "Too many attempts. Please try again later.",
+  "error_info_invalid": "Information is invalid",
+  "error_password_not_match": "Password does not match",
+  "error_otp_invalid": "OTP code is invalid or expired",
+  "error_registry_token": "Registry token is invalid or expired",
+  "error_unknown": "An unknown error occurred. Please try again later."
 }

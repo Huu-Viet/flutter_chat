@@ -29,6 +29,8 @@ class _ResetPasswordFormState extends State<ResetPasswordForm> {
   bool hasNum = false;
   bool hasSpecial = false;
 
+  bool get _canSubmit => has8Chars && hasUpper && hasNum && hasSpecial;
+
   @override
   void initState() {
     super.initState();
@@ -148,20 +150,34 @@ class _ResetPasswordFormState extends State<ResetPasswordForm> {
                   const SizedBox(height: 20),
 
                   ElevatedButton(
-                    style: const ButtonStyle(
-                      backgroundColor: WidgetStatePropertyAll(Colors.blueAccent),
+                    style: ButtonStyle(
+                      backgroundColor: WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.disabled)) {
+                          return Colors.grey;
+                        }
+                        return Colors.blueAccent;
+                      }),
                       minimumSize: WidgetStatePropertyAll(Size(double.infinity, 48)),
                       shape: WidgetStatePropertyAll(RoundedRectangleBorder(
                         borderRadius: BorderRadius.all(Radius.circular(12)),
                       )),
                     ),
-                    onPressed: (has8Chars && hasUpper && hasNum) ? () {
-                      if(!_checkConfirmPassword()) return;
+                    onPressed: () {
+                      if (!_canSubmit) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Mat khau chua dat yeu cau toi thieu'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      if (!_checkConfirmPassword()) return;
                       widget.onResetPassword(newPasswordController.text);
-                    } : null,
+                    },
                     child: Text(
                       l10n.submit,
-                      style: TextStyle(color: Colors.white),
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ),
                 ],

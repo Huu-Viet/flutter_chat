@@ -26,7 +26,7 @@ class _SetProfilePageState extends ConsumerState<SetProfilePage> {
   final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
-  final _userNameController = TextEditingController();
+  final _emailController = TextEditingController();
   late final MyUser _initialUser;
 
 
@@ -36,14 +36,14 @@ class _SetProfilePageState extends ConsumerState<SetProfilePage> {
     _initialUser = widget.initialUser ?? MyUser.empty;
     _firstNameController.text = _initialUser.firstName ?? '';
     _lastNameController.text = _initialUser.lastName ?? '';
-    _userNameController.text = _initialUser.username;
+    _emailController.text = _initialUser.username;
   }
 
   @override
   void dispose() {
     _firstNameController.dispose();
     _lastNameController.dispose();
-    _userNameController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
@@ -208,8 +208,8 @@ class _SetProfilePageState extends ConsumerState<SetProfilePage> {
                         const SizedBox(height: 32),
 
                         InfoInput(
-                          textController: _userNameController,
-                          label: l10n.user_name_label,
+                          textController: _emailController,
+                          label: l10n.email_label,
                           onChanged: (value) {
                             setProfileBloc.add(SetProfileUserNameChanged(value));
                           },
