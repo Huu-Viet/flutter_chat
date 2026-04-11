@@ -14,6 +14,7 @@ class MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isMe = message.isSentByMe;
+    final theme = Theme.of(context);
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -24,7 +25,7 @@ class MessageBubble extends StatelessWidget {
           maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
         decoration: BoxDecoration(
-          color: isMe ? const Color(0xFF2B5278) : const Color(0xFF1E2C3A),
+          color: isMe ? theme.colorScheme.primary : theme.colorScheme.surfaceBright,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(18),
             topRight: const Radius.circular(18),

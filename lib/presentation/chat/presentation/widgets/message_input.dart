@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'emoji_picker_widget.dart';
 
 class MessageInput extends StatelessWidget {
   final TextEditingController controller;
@@ -48,12 +47,13 @@ class MessageInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return SafeArea(
       top: false,
       child: Container(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
         decoration: BoxDecoration(
-          color: Colors.blueAccent,
+          color: theme.colorScheme.surfaceBright,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -74,32 +74,33 @@ class MessageInput extends StatelessWidget {
   }
 
   Widget _buildInputContainer(BuildContext context) {
+    final theme = Theme.of(context);
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
-          color: Colors.white70,
+          color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(24),
         ),
         child: Row(
           children: [
             // 📎 Attach icon (ngoài input)
             IconButton(
-              icon: const Icon(Icons.attach_file, color: Colors.white70),
+              icon: Icon(Icons.attach_file, color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
               onPressed: () => _showImagePickerOptions(context),
             ),
 
             // Camera
             IconButton(
-              icon: const Icon(Icons.camera_alt_outlined,
-                  color: Colors.grey),
+              icon: Icon(Icons.camera_alt_outlined,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
               onPressed: onPickImage,
             ),
 
             // Mic
             IconButton(
-              icon: const Icon(Icons.mic_none_outlined,
-                  color: Colors.grey),
+              icon: Icon(Icons.mic_none_outlined,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
               onPressed: () {},
             ),
             // Ô input
@@ -107,7 +108,7 @@ class MessageInput extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: theme.colorScheme.surfaceBright,
                   borderRadius: BorderRadius.circular(25),
                 ),
                 child: Row(
@@ -118,11 +119,12 @@ class MessageInput extends StatelessWidget {
                         controller: controller,
                         minLines: 1,
                         maxLines: 5,
-                        decoration: const InputDecoration(
+                        style: TextStyle(color: theme.colorScheme.onSurface),
+                        decoration: InputDecoration(
                           hintText: "Nhập tin nhắn",
-                          hintStyle: TextStyle(color: Colors.black),
+                          hintStyle: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
+                          contentPadding: const EdgeInsets.symmetric(
                             vertical: 12,
                           ),
                         ),
@@ -137,7 +139,7 @@ class MessageInput extends StatelessWidget {
 
             // Send icon
             IconButton(
-              icon: const Icon(Icons.send, color: Colors.white),
+              icon: Icon(Icons.send, color: theme.colorScheme.primary),
               onPressed: onSendMessage,
             ),
           ],

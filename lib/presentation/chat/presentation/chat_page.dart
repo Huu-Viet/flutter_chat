@@ -91,9 +91,10 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFF0F1B2B),
-      appBar: _buildAppBar(),
+      backgroundColor: theme.colorScheme.surface,
+      appBar: _buildAppBar(theme),
       body: Column(
         children: [
           Expanded(
@@ -121,9 +122,9 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  PreferredSizeWidget _buildAppBar(ThemeData theme) {
     return AppBar(
-      backgroundColor: const Color(0xFF162336),
+      backgroundColor: theme.colorScheme.surfaceBright,
       elevation: 0,
       leading: const BackButton(color: Colors.white),
       title: Row(
