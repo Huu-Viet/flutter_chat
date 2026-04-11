@@ -126,12 +126,12 @@ class _ChatPageState extends State<ChatPage> {
     return AppBar(
       backgroundColor: theme.colorScheme.surfaceBright,
       elevation: 0,
-      leading: const BackButton(color: Colors.white),
+      leading: BackButton(color: theme.colorScheme.onSurface),
       title: Row(
         children: [
-          const CircleAvatar(
+          CircleAvatar(
             radius: 18,
-            backgroundColor: Colors.grey,
+            backgroundColor: theme.colorScheme.onSurface.withValues(alpha: 0.2),
           ),
           const SizedBox(width: 10),
           Column(
@@ -139,29 +139,27 @@ class _ChatPageState extends State<ChatPage> {
             children: [
               Text(
                 widget.friendName,
-                style: const TextStyle(fontSize: 16),
+                style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface),
               ),
-              const Text(
+              Text(
                 "Online",
-                style: TextStyle(fontSize: 12, color: Colors.greenAccent),
+                style: TextStyle(fontSize: 12, color: theme.colorScheme.primary),
               ),
             ],
           ),
         ],
       ),
-      actions: const [
-        Icon(Icons.videocam_outlined),
-        SizedBox(width: 14),
-        Icon(Icons.call_outlined),
-        SizedBox(width: 14),
-        Icon(Icons.more_vert_outlined),
-        SizedBox(width: 12),
+      actions: [
+        Icon(Icons.videocam_outlined, color: theme.colorScheme.onSurface),
+        const SizedBox(width: 14),
+        Icon(Icons.call_outlined, color: theme.colorScheme.onSurface),
+        const SizedBox(width: 14),
+        Icon(Icons.more_vert_outlined, color: theme.colorScheme.onSurface),
+        const SizedBox(width: 12),
       ],
     );
   }
 }
-
-
 
 class ChatMessage {
   final String? text;

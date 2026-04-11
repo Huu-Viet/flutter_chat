@@ -12,6 +12,7 @@ class EmojiPickerWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return SizedBox(
       height: 300,
       child: EmojiPicker(
@@ -26,7 +27,7 @@ class EmojiPickerWidget extends StatelessWidget {
                 (foundation.defaultTargetPlatform == TargetPlatform.iOS
                     ? 1.20
                     : 1.0),
-            backgroundColor: const Color(0xFFF2F2F2),
+            backgroundColor: theme.colorScheme.surfaceBright,
             columns: 7,
             verticalSpacing: 0,
             horizontalSpacing: 0,
@@ -39,8 +40,8 @@ class EmojiPickerWidget extends StatelessWidget {
           bottomActionBarConfig: const BottomActionBarConfig(
             enabled: false,
           ),
-          searchViewConfig: const SearchViewConfig(
-            backgroundColor: Color(0xFFF2F2F2),
+          searchViewConfig: SearchViewConfig(
+            backgroundColor: theme.colorScheme.surfaceBright,
           ),
         ),
       ),
