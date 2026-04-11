@@ -50,3 +50,4 @@ app.*.map.json
 secrets.local
 .env.local
 .env.*
+scripts/REST_PLAN.md
