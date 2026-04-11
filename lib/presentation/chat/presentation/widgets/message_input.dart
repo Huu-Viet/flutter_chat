@@ -51,9 +51,9 @@ class MessageInput extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceBright,
+          color: theme.colorScheme.surface,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -65,53 +65,33 @@ class MessageInput extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            _buildInputContainer(context),
-            const SizedBox(width: 8),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInputContainer(BuildContext context) {
-    final theme = Theme.of(context);
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Row(
-          children: [
-            // 📎 Attach icon (ngoài input)
-            IconButton(
-              icon: Icon(Icons.attach_file, color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
-              onPressed: () => _showImagePickerOptions(context),
+            // Attach Button
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: IconButton(
+                icon: Icon(
+                  Icons.add_circle_outline,
+                  color: theme.colorScheme.primary,
+                  size: 28,
+                ),
+                onPressed: () => _showImagePickerOptions(context),
+              ),
             ),
 
-            // Camera
-            IconButton(
-              icon: Icon(Icons.camera_alt_outlined,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
-              onPressed: onPickImage,
-            ),
-
-            // Mic
-            IconButton(
-              icon: Icon(Icons.mic_none_outlined,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
-              onPressed: () {},
-            ),
-            // Ô input
+            // Input Field
             Expanded(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                margin: const EdgeInsets.only(bottom: 4),
+                padding: const EdgeInsets.only(left: 16, right: 4),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceBright,
-                  borderRadius: BorderRadius.circular(25),
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: theme.colorScheme.outline.withValues(alpha: 0.1),
+                  ),
                 ),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     // TextField
                     Expanded(
@@ -121,13 +101,43 @@ class MessageInput extends StatelessWidget {
                         maxLines: 5,
                         style: TextStyle(color: theme.colorScheme.onSurface),
                         decoration: InputDecoration(
-                          hintText: "Nhập tin nhắn",
-                          hintStyle: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 12,
+                          hintText: "Message...",
+                          hintStyle: TextStyle(
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                           ),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 12),
                         ),
+                      ),
+                    ),
+
+                    // Inside input actions
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            constraints: const BoxConstraints(),
+                            padding: const EdgeInsets.all(8),
+                            icon: Icon(
+                              Icons.camera_alt_outlined,
+                              color: theme.colorScheme.onSurfaceVariant,
+                              size: 22,
+                            ),
+                            onPressed: onPickImage,
+                          ),
+                          IconButton(
+                            constraints: const BoxConstraints(),
+                            padding: const EdgeInsets.all(8),
+                            icon: Icon(
+                              Icons.mic_none_outlined,
+                              color: theme.colorScheme.onSurfaceVariant,
+                              size: 22,
+                            ),
+                            onPressed: () {},
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -135,12 +145,23 @@ class MessageInput extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
 
-            // Send icon
-            IconButton(
-              icon: Icon(Icons.send, color: theme.colorScheme.primary),
-              onPressed: onSendMessage,
+            // Send Button
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: CircleAvatar(
+                radius: 24,
+                backgroundColor: theme.colorScheme.primary,
+                child: IconButton(
+                  icon: Icon(
+                    Icons.send,
+                    color: theme.colorScheme.onPrimary,
+                    size: 20,
+                  ),
+                  onPressed: onSendMessage,
+                ),
+              ),
             ),
           ],
         ),
