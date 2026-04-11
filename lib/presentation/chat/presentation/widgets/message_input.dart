@@ -67,7 +67,6 @@ class MessageInput extends StatelessWidget {
           children: [
             _buildInputContainer(context),
             const SizedBox(width: 8),
-            _buildSendButton(),
           ],
         ),
       ),
