@@ -37,16 +37,16 @@ class MessageBubble extends StatelessWidget {
           crossAxisAlignment:
           isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
-            _buildContent(),
+            _buildContent(theme, isMe),
             const SizedBox(height: 4),
-            _buildTime(isMe),
+            _buildTime(theme, isMe),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildContent(ThemeData theme, bool isMe) {
     if (message.imagePath != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -60,29 +60,32 @@ class MessageBubble extends StatelessWidget {
 
     return Text(
       message.text ?? '',
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(
+        color: isMe ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface,
+      ),
     );
   }
 
-  Widget _buildTime(bool isMe) {
+  Widget _buildTime(ThemeData theme, bool isMe) {
     final time = DateFormat('HH:mm').format(message.timestamp);
+    final textColor = isMe ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           time,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
-            color: Colors.white54,
+            color: textColor.withValues(alpha: 0.6),
           ),
         ),
         if (isMe) ...[
           const SizedBox(width: 4),
-          const Icon(
+          Icon(
             Icons.done_all,
             size: 14,
-            color: Colors.lightBlueAccent,
+            color: theme.colorScheme.secondary,
           ),
         ]
       ],
