@@ -1,5 +1,8 @@
 {
   "app_name": "Zolo",
+  "i_accept_the": "Tôi đồng ý với ",
+  "terms_of_service": "Điều khoản dịch vụ",
+  "privacy_policy": "Chính sách bảo mật",
   "welcome_login": "Chào mừng bạn trở lại! Vui lòng đăng nhập vào tài khoản của bạn.",
   "password_rule_length": "Mật khẩu phải có ít nhất 8 ký tự",
   "password_rule_uppercase": "Mật khẩu phải chứa ít nhất một chữ cái viết hoa",

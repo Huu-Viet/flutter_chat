@@ -130,7 +130,7 @@ class _RegistryInitFormState extends State<RegistryInitForm> {
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             Text(
-                              'I accept the ',
+                              l10n.i_accept_the,
                               style: Theme.of(context).textTheme.bodyMedium,
                             ),
                             TextButton(
@@ -141,10 +141,10 @@ class _RegistryInitFormState extends State<RegistryInitForm> {
                                 minimumSize: Size.zero,
                                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
-                              child: const Text('Terms of Service'),
+                              child: Text(l10n.terms_of_service),
                             ),
                             Text(
-                              ' and ',
+                              ' & ',
                               style: Theme.of(context).textTheme.bodyMedium,
                             ),
                             TextButton(
@@ -155,7 +155,7 @@ class _RegistryInitFormState extends State<RegistryInitForm> {
                                 minimumSize: Size.zero,
                                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
-                              child: const Text('Privacy Policy'),
+                              child: Text(l10n.privacy_policy),
                             ),
                           ],
                         ),

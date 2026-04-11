@@ -161,15 +161,15 @@ class _PolicyDialogState extends State<PolicyDialog> {
                     padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
                     child: Row(
                       children: [
-                        Expanded(
-                          child: Text(
-                            'Policy',
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                          ),
-                        ),
+                        // Expanded(
+                        //   child: Text(
+                        //     'Policy',
+                        //     style: theme.textTheme.titleLarge?.copyWith(
+                        //       fontWeight: FontWeight.w700,
+                        //       color: theme.colorScheme.onSurface,
+                        //     ),
+                        //   ),
+                        // ),
                         IconButton(
                           onPressed: () => Navigator.of(context).pop(),
                           icon: Icon(
@@ -181,6 +181,7 @@ class _PolicyDialogState extends State<PolicyDialog> {
                     ),
                   ),
                   TabBar(
+                    isScrollable: true,
                     labelColor: theme.colorScheme.primary,
                     unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
                     indicatorColor: theme.colorScheme.primary,

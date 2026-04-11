@@ -1,61 +1,61 @@
-# Dieu Khoan Dich Vu va Chinh Sach Quyen Rieng Tu Zolo
+# Điều Khoản Dịch Vụ và Chính Sách Quyền Riêng Tư Zolo
 
-## Dieu Khoan Dich Vu
+## Điều Khoản Dịch Vụ
 
-### Chao mung den voi Zolo
-Chao mung den voi Zolo. Bang viec dang ky, truy cap va su dung ung dung nhan tin Zolo, ban xac nhan rang ban da doc, hieu va dong y bi rang buoc boi cac Dieu Khoan Dich Vu duoi day.
+### Chào mừng đến với Zolo
+Chào mừng đến với Zolo. Bằng việc đăng ký, truy cập và sử dụng ứng dụng nhắn tin Zolo, bạn xác nhận rằng bạn đã đọc, hiểu và đồng ý bị ràng buộc bởi các Điều Khoản Dịch Vụ dưới đây.
 
-### 1. Tai khoan cua ban
-De su dung Zolo, ban phai dang ky tai khoan voi thong tin ca nhan chinh xac, bao gom dia chi email, so dien thoai va ten hien thi.
+### 1. Tài khoản của bạn
+Để sử dụng Zolo, bạn phải đăng ký tài khoản với thông tin cá nhân chính xác, bao gồm địa chỉ email, số điện thoại và tên hiển thị.
 
-Ban hoan toan chiu trach nhiem ve viec bao mat mat khau va quan ly cac phien dang nhap tren thiet bi cua minh. Moi hoat dong duoc thuc hien thong qua tai khoan cua ban deu thuoc trach nhiem phap ly cua ban.
+Bạn hoàn toàn chịu trách nhiệm về việc bảo mật mật khẩu và quản lý các phiên đăng nhập trên thiết bị của mình. Mọi hoạt động được thực hiện thông qua tài khoản của bạn đều thuộc trách nhiệm pháp lý của bạn.
 
-### 2. Quy tac ung xu va noi dung do nguoi dung tao
-Zolo la nen tang giao tiep thoi gian thuc. De bao ve cong dong, ban khong duoc su dung Zolo de dang, chia se hoac phan phoi noi dung bat hop phap, doi truy, bao luc, cuc doan hoac xam pham ban quyen.
+### 2. Quy tắc ứng xử và nội dung do người dùng tạo
+Zolo là nền tảng giao tiếp thời gian thực. Để bảo vệ cộng đồng, bạn không được sử dụng Zolo để đăng, chia sẻ hoặc phân phối nội dung bất hợp pháp, đồi trụy, bạo lực, cực đoan hoặc xâm phạm bản quyền.
 
-Ban khong duoc phat tan ma doc, virus, spam, hoac co gang gay gian doan tai nguyen he thong, bao gom viec co y mo qua nhieu ket noi WebSocket hoac tan cong tu choi dich vu.
+Bạn không được phát tán mã độc, virus, spam, hoặc cố gắng gây gián đoạn tài nguyên hệ thống, bao gồm việc cố ý mở quá nhiều kết nối WebSocket hoặc tấn công từ chối dịch vụ.
 
-Ban khong duoc su dung Zolo cho hanh vi lua dao, chiem doat tai san, quay roi hoac lam dung nguoi dung khac.
+Bạn không được sử dụng Zolo cho hành vi lừa đảo, chiếm đoạt tài sản, quấy rối hoặc lạm dụng người dùng khác.
 
-Ban khong duoc thu thap, crawl hoac scrape du lieu ca nhan cua nguoi dung khac tren nen tang khi chua duoc cho phep.
+Bạn không được thu thập, crawl hoặc scrape dữ liệu cá nhân của người dùng khác trên nền tảng khi chưa được cho phép.
 
-### 3. Tam khoa va cham dut tai khoan
-Zolo van hanh he thong giam sat va bao luu quyen can thiep vao tai khoan cua ban. Chung toi co the vo hieu hoa hoac xoa vinh vien tai khoan ma khong can bao truoc neu xac dinh ban vi pham cac quy tac ung xu neu tren hoac nhan duoc yeu cau hop phap tu co quan co tham quyen.
+### 3. Tạm khóa và chấm dứt tài khoản
+Zolo vận hành hệ thống giám sát và bảo lưu quyền can thiệp vào tài khoản của bạn. Chúng tôi có thể vô hiệu hóa hoặc xóa vĩnh viễn tài khoản mà không cần báo trước nếu xác định bạn vi phạm các quy tắc ứng xử nêu trên hoặc nhận được yêu cầu hợp pháp từ cơ quan có thẩm quyền.
 
-### 4. Gioi han trach nhiem
-Zolo cung cap dich vu tren co so "nguyen trang". Chung toi no luc duy tri gui nhan tin nhan thoi gian thuc va giam gian doan, nhung khong dam bao dich vu lien tuc hoac khong loi trong moi truong hop.
+### 4. Giới hạn trách nhiệm
+Zolo cung cấp dịch vụ trên cơ sở "nguyên trạng". Chúng tôi nỗ lực duy trì gửi nhận tin nhắn thời gian thực và giảm gián đoạn, nhưng không đảm bảo dịch vụ liên tục hoặc không lỗi trong mọi trường hợp.
 
-Chung toi khong chiu trach nhiem ve tinh xac thuc, tinh chinh xac hoac tinh hop phap cua noi dung do nguoi dung gui qua he thong chat.
+Chúng tôi không chịu trách nhiệm về tính xác thực, tính chính xác hoặc tính hợp pháp của nội dung do người dùng gửi qua hệ thống chat.
 
-### 5. Thay doi dieu khoan
-Chung toi co the cap nhat Dieu Khoan Dich Vu bat ky luc nao. Cac thay doi quan trong co the duoc thong bao qua ung dung hoac email.
+### 5. Thay đổi điều khoản
+Chúng tôi có thể cập nhật Điều Khoản Dịch Vụ bất kỳ lúc nào. Các thay đổi quan trọng có thể được thông báo qua ứng dụng hoặc email.
 
-## Chinh Sach Quyen Rieng Tu
+## Chính Sách Quyền Riêng Tư
 
-### Cap nhat lan cuoi: April 11, 2026
-Quyen rieng tu cua ban la uu tien hang dau tai Zolo. Chinh sach nay giai thich cach chung toi thu thap, su dung, luu tru va bao ve du lieu ca nhan cua ban khi su dung nen tang nhan tin thoi gian thuc.
+### Cập nhật lần cuối: 11 tháng 4, 2026
+Quyền riêng tư của bạn là ưu tiên hàng đầu tại Zolo. Chính sách này giải thích cách chúng tôi thu thập, sử dụng, lưu trữ và bảo vệ dữ liệu cá nhân của bạn khi sử dụng nền tảng nhắn tin thời gian thực.
 
-### 1. Du lieu chung toi thu thap
-De van hanh Zolo on dinh, chung toi thu thap thong tin nhan dien nhu email, ten hien thi, avatar va mat khau da bam.
+### 1. Dữ liệu chúng tôi thu thập
+Để vận hành Zolo ổn định, chúng tôi thu thập thông tin nhận diện như email, tên hiển thị, avatar và mật khẩu đã băm.
 
-Chung toi cung xu ly du lieu giao tiep, bao gom tin nhan van ban, tep media, lich su hoi thoai va trang thai gui/doc.
+Chúng tôi cũng xử lý dữ liệu giao tiếp, bao gồm tin nhắn văn bản, tệp media, lịch sử hội thoại và trạng thái gửi/đọc.
 
-De quan ly thiet bi va phien dang nhap, chung toi thu thap du lieu nhu dia chi IP, thong tin trinh duyet hoac user-agent, he dieu hanh, dinh danh thiet bi va trang thai online/offline.
+Để quản lý thiết bị và phiên đăng nhập, chúng tôi thu thập dữ liệu như địa chỉ IP, thông tin trình duyệt hoặc user-agent, hệ điều hành, định danh thiết bị và trạng thái online/offline.
 
-### 2. Cach chung toi su dung du lieu
-Du lieu cua ban chi duoc su dung de cung cap nhan tin thoi gian thuc den thiet bi cua ban, gui thong bao day cho tin nhan moi hoac su kien quan trong, quan ly bao mat va thu hoi phien, cai thien hieu nang he thong va ngan chan spam hoac lam dung.
+### 2. Cách chúng tôi sử dụng dữ liệu
+Dữ liệu của bạn chỉ được sử dụng để cung cấp nhắn tin thời gian thực đến thiết bị của bạn, gửi thông báo đẩy cho tin nhắn mới hoặc sự kiện quan trọng, quản lý bảo mật và thu hồi phiên, cải thiện hiệu năng hệ thống và ngăn chặn spam hoặc lạm dụng.
 
-### 3. Chia se du lieu voi ben thu ba
-Chung toi khong ban du lieu ca nhan cua ban cho nha quang cao. Zolo chi chia se du lieu can thiet voi cac nha cung cap ha tang ho tro van hanh dich vu.
+### 3. Chia sẻ dữ liệu với bên thứ ba
+Chúng tôi không bán dữ liệu cá nhân của bạn cho nhà quảng cáo. Zolo chỉ chia sẻ dữ liệu cần thiết với các nhà cung cấp hạ tầng hỗ trợ vận hành dịch vụ.
 
-Dieu nay co the bao gom Google Firebase hoac Apple APNs cho thong bao day, nha cung cap dam may de luu tru co so du lieu va tep da tai len, va co quan nha nuoc khi phap luat yeu cau cong bo.
+Điều này có thể bao gồm Google Firebase hoặc Apple APNs cho thông báo đẩy, nhà cung cấp đám mây để lưu trữ cơ sở dữ liệu và tệp đã tải lên, và cơ quan nhà nước khi pháp luật yêu cầu công bố.
 
-### 4. Luu tru va bao mat
-Tin nhan va du lieu ca nhan duoc truyen qua cac ket noi HTTPS va WSS da ma hoa.
+### 4. Lưu trữ và bảo mật
+Tin nhắn và dữ liệu cá nhân được truyền qua các kết nối HTTPS và WSS đã mã hóa.
 
-Cac phien duoc bao ve bang co che xac thuc token va duoc quan ly chu dong. He thong co the tu dong vo hieu hoa cac phien het han hoac dang ngo.
+Các phiên được bảo vệ bằng cơ chế xác thực token và được quản lý chủ động. Hệ thống có thể tự động vô hiệu hóa các phiên hết hạn hoặc đáng ngờ.
 
-Tin nhan va du lieu tai khoan co the duoc luu tru trong thoi gian can thiet de cung cap dich vu, dap ung nghia vu phap ly va ho tro dieu tra bao mat hoac lam dung.
+Tin nhắn và dữ liệu tài khoản có thể được lưu trữ trong thời gian cần thiết để cung cấp dịch vụ, đáp ứng nghĩa vụ pháp lý và hỗ trợ điều tra bảo mật hoặc lạm dụng.
 
-### 5. Quyen cua nguoi dung
-Ban co the yeu cau xuat du lieu ca nhan hoac yeu cau xoa tai khoan va du lieu lien quan khoi Zolo bang cach lien he qua cac kenh ho tro ma chung toi cung cap.
+### 5. Quyền của người dùng
+Bạn có thể yêu cầu xuất dữ liệu cá nhân hoặc yêu cầu xóa tài khoản và dữ liệu liên quan khỏi Zolo bằng cách liên hệ qua các kênh hỗ trợ mà chúng tôi cung cấp.
