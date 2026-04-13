@@ -51,3 +51,8 @@ secrets.local
 .env.local
 .env.*
 scripts/REST_PLAN.md
+scripts/socket_plan.md
+/scripts
+/scripts
+scripts/SESSION_REVOKE.md
+scripts/SESSION_REVOKE.md

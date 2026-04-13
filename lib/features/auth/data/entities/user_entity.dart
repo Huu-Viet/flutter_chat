@@ -12,12 +12,16 @@ class Users extends Table {
   TextColumn? get cccdNumber => text().named('cccd_number').nullable()();
   TextColumn? get avatarUrl => text().named('avatar_url').nullable()();
   TextColumn? get avatarMediaId => text().named('avatar_media_id').nullable()();
-  TextColumn? get settings => text().nullable()();
-  TextColumn get orgId => text().named('org_id')();
-  TextColumn get orgRole => text().named('org_role')();
-  TextColumn? get title => text().nullable()();
-  TextColumn? get departmentId => text().named('department_id').nullable()();
-  TextColumn get accountStatus => text().named('account_status')();
+    TextColumn? get statusMessage => text().named('status_message').nullable()();
+    TextColumn? get theme => text().nullable()();
+    TextColumn? get messageDensity => text().named('message_density').nullable()();
+    BoolColumn get enterToSend => boolean().named('enter_to_send').withDefault(const Constant(true))();
+    BoolColumn get notificationsDesktopEnabled =>
+      boolean().named('notifications_desktop_enabled').withDefault(const Constant(true))();
+    BoolColumn get notificationsMobileEnabled =>
+      boolean().named('notifications_mobile_enabled').withDefault(const Constant(true))();
+    TextColumn? get notificationsNotifyFor => text().named('notifications_notify_for').nullable()();
+    TextColumn? get notificationsMuteUntil => text().named('notifications_mute_until').nullable()();
   BoolColumn get isActive => boolean().named('is_active')();
   TextColumn get createdAt => text().named('created_at')();
   TextColumn get updatedAt => text().named('updated_at')();

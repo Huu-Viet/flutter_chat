@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_chat/core/network/realtime_gateway.dart';
 import 'package:flutter_chat/core/utils/token_utils.dart';
 import 'package:flutter_chat/features/auth/data/datasources/local/auth_pref_datasource.dart';
 import 'package:flutter_chat/features/auth/domain/usecases/get_refresh_token_usecase.dart';
@@ -9,22 +10,8 @@ import 'package:flutter_chat/features/auth/domain/usecases/refresh_token_usecase
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
-class RealtimeGatewayEvent {
-  final String namespace;
-  final String event;
-  final dynamic payload;
-  final DateTime timestamp;
-
-  const RealtimeGatewayEvent({
-    required this.namespace,
-    required this.event,
-    required this.payload,
-    required this.timestamp,
-  });
-}
-
-class RealtimeGatewayService {
-  static String get _wsBaseUrl => dotenv.get('WS_BASE_URL', fallback: 'ws://localhost:3002');
+class RealtimeGatewayService implements RealtimeGateway {
+  static String get _wsBaseUrl => dotenv.get('WS_BASE_URL');
   static const Duration _connectTimeout = Duration(seconds: 30);
 
   final AuthPrefDataSource _authPrefDataSource;
@@ -41,6 +28,7 @@ class RealtimeGatewayService {
   bool _chatAuthenticated = false;
   bool _callAuthenticated = false;
   Timer? _reconnectTimer;
+  Timer? _heartbeatTimer;
 
   final StreamController<RealtimeGatewayEvent> _eventsController =
       StreamController<RealtimeGatewayEvent>.broadcast();
@@ -55,23 +43,37 @@ class RealtimeGatewayService {
         _getRefreshTokenUseCase = getRefreshTokenUseCase,
         _refreshTokenUseCase = refreshTokenUseCase;
 
+  @override
   Stream<RealtimeGatewayEvent> get events => _eventsController.stream;
 
+  @override
   bool get isConnected => _chatAuthenticated || _callAuthenticated;
 
+  @override
+  Future<void> emitChatEvent(String event, Map<String, dynamic> payload) async {
+    if (_chatSocket == null || !_chatAuthenticated) {
+      throw Exception('Chat socket is not connected');
+    }
+
+    debugPrint('[RealtimeGatewayService] emit /chat $event: $payload');
+    _chatSocket.emit(event, payload);
+  }
+
+  @override
   Future<void> initialize() async {
     if (_isInitialized || _isConnecting) return;
     _isInitialized = true;
-    await reconnect();
-
-    // Keep trying in background so service can connect after login/token availability.
     _reconnectTimer ??= Timer.periodic(const Duration(seconds: 15), (_) {
       if (!_isConnecting && !isConnected) {
         unawaited(reconnect());
       }
     });
+
+    // Initial attempt should never crash startup flow.
+    unawaited(reconnect());
   }
 
+  @override
   Future<void> reconnect() async {
     if (_isConnecting || isConnected) return;
     _isConnecting = true;
@@ -93,6 +95,8 @@ class RealtimeGatewayService {
 
       await _connectChatNamespace(accessToken: accessToken, deviceToken: deviceToken);
       await _connectCallNamespace(accessToken: accessToken);
+    } catch (e) {
+      debugPrint('[RealtimeGatewayService] reconnect failed: $e');
     } finally {
       _isConnecting = false;
     }
@@ -115,19 +119,25 @@ class RealtimeGatewayService {
     _chatSocket = socket;
     _attachBaseListeners(socket: socket, namespace: '/chat', onDisconnected: () {
       _chatAuthenticated = false;
+      _stopHeartbeat();
     });
 
     await _waitForConnected(socket, '/chat');
+    debugPrint('[RealtimeGatewayService] /chat connected');
 
     await _waitForAuthenticated(
       socket: socket,
       namespace: '/chat',
       payload: {
-        'token': accessToken,
+        'token': 'Bearer $accessToken',
         'deviceId': deviceToken,
         'deviceType': 'mobile',
       },
-      onAuthenticated: () => _chatAuthenticated = true,
+      onAuthenticated: () {
+        _chatAuthenticated = true;
+        _startHeartbeat();
+        debugPrint('[RealtimeGatewayService] /chat authenticated');
+      },
     );
 
     _attachChatEventListeners(socket);
@@ -152,12 +162,16 @@ class RealtimeGatewayService {
     });
 
     await _waitForConnected(socket, '/call');
+    debugPrint('[RealtimeGatewayService] /call connected');
 
     await _waitForAuthenticated(
       socket: socket,
       namespace: '/call',
-      payload: {'token': accessToken},
-      onAuthenticated: () => _callAuthenticated = true,
+      payload: {'token': 'Bearer $accessToken'},
+      onAuthenticated: () {
+        _callAuthenticated = true;
+        debugPrint('[RealtimeGatewayService] /call authenticated');
+      },
     );
 
     _attachCallEventListeners(socket);
@@ -187,6 +201,10 @@ class RealtimeGatewayService {
   }
 
   Future<void> _waitForConnected(dynamic socket, String namespace) {
+    if (socket.connected == true) {
+      return Future.value();
+    }
+
     final completer = Completer<void>();
     late Timer timeout;
 
@@ -196,7 +214,7 @@ class RealtimeGatewayService {
       }
     });
 
-    socket.onConnect((_) {
+    socket.on('connect', (_) {
       if (!completer.isCompleted) {
         timeout.cancel();
         completer.complete();
@@ -258,10 +276,14 @@ class RealtimeGatewayService {
       'cursor:seen_updated',
       'cursor:delivered_updated',
       'heartbeat:ack',
+      'session_revoked',
     ];
 
     for (final event in events) {
       socket.on(event, (payload) {
+        if (event == 'session_revoked') {
+          debugPrint('[RealtimeGatewayService] ⚠️ SERVER SENT session_revoked: $payload');
+        }
         _publishEvent(namespace: '/chat', event: event, payload: payload);
       });
     }
@@ -280,6 +302,8 @@ class RealtimeGatewayService {
       'meeting:recording_state',
       'meeting:participant_moderated',
       'meeting:kicked',
+      'meeting:throttled',
+      'webrtc:rejected',
     ];
 
     for (final event in events) {
@@ -294,6 +318,9 @@ class RealtimeGatewayService {
     required String event,
     required dynamic payload,
   }) {
+    if (event == 'session_revoked') {
+      debugPrint('[RealtimeGatewayService] 📤 PUBLISHING session_revoked to event bus: $payload');
+    }
     if (_eventsController.isClosed) return;
     _eventsController.add(
       RealtimeGatewayEvent(
@@ -371,21 +398,48 @@ class RealtimeGatewayService {
     }
   }
 
+  @override
   Future<void> dispose() async {
+    debugPrint('[RealtimeGatewayService] dispose start');
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
+    _stopHeartbeat();
     _disposeSockets();
     await _eventsController.close();
     _chatAuthenticated = false;
     _callAuthenticated = false;
     _isInitialized = false;
+    debugPrint('[RealtimeGatewayService] dispose done');
+  }
+
+  void _startHeartbeat() {
+    _stopHeartbeat();
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 25), (_) {
+      if (!_chatAuthenticated || _chatSocket == null) {
+        return;
+      }
+      _chatSocket.emit('heartbeat');
+    });
+  }
+
+  void _stopHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
   }
 
   void _disposeSockets() {
+    _stopHeartbeat();
+
+    if (_chatSocket != null) {
+      debugPrint('[RealtimeGatewayService] closing /chat socket');
+    }
     _chatSocket?.disconnect();
     _chatSocket?.dispose();
     _chatSocket = null;
 
+    if (_callSocket != null) {
+      debugPrint('[RealtimeGatewayService] closing /call socket');
+    }
     _callSocket?.disconnect();
     _callSocket?.dispose();
     _callSocket = null;

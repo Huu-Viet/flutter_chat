@@ -1,17 +1,14 @@
 import 'package:dio/dio.dart';
-import 'package:flutter_chat/features/auth/export.dart';
+import 'package:flutter_chat/features/auth/data/datasources/local/auth_pref_datasource.dart';
 
 class AuthInterceptor extends Interceptor {
-  final Dio dio;
   final AuthPrefDataSource authPrefDataSource;
-  final AuthRemoteService authApi;
-
-  bool _isRefreshing = false;
+  final Future<void> Function() onUnauthorized;
+  bool _isHandlingUnauthorized = false;
 
   AuthInterceptor({
-    required this.dio,
     required this.authPrefDataSource,
-    required this.authApi
+    required this.onUnauthorized,
   });
 
   @override
@@ -27,52 +24,20 @@ class AuthInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    // if not 401 error → bypass
     if (err.response?.statusCode != 401) {
       return handler.next(err);
     }
 
-    // avoid infinite loop
-    if (err.requestOptions.extra['retried'] == true) {
-      return handler.next(err);
-    }
-
     try {
-      // if already refreshing → reject
-      if (_isRefreshing) {
-        return handler.next(err);
+      if (!_isHandlingUnauthorized) {
+        _isHandlingUnauthorized = true;
+        await onUnauthorized();
+        _isHandlingUnauthorized = false;
       }
-
-      _isRefreshing = true;
-
-      final refreshToken = await authPrefDataSource.getRefreshToken();
-
-      if (refreshToken == null) {
-        return handler.next(err);
-      }
-
-      // CALL REFRESH TOKEN
-      final newToken = await authApi.refreshToken(refreshToken);
-
-      // SAVE NEW TOKEN
-      authPrefDataSource.saveToken(newToken.accessToken, newToken.refreshToken);
-
-      _isRefreshing = false;
-
-      // RETRY PREVIOUS REQUEST
-      final options = err.requestOptions;
-
-      options.headers['Authorization'] =
-      'Bearer ${newToken.accessToken}';
-
-      options.extra['retried'] = true;
-
-      final response = await dio.fetch(options);
-
-      return handler.resolve(response);
     } catch (e) {
-      _isRefreshing = false;
-      return handler.next(err);
+      _isHandlingUnauthorized = false;
     }
+
+    return handler.next(err);
   }
 }

@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_chat/features/auth/data/datasources/api/auth_interceptor.dart';
+import 'package:flutter_chat/features/auth/auth_session_providers.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/features/auth/user_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,13 +21,15 @@ final authDioProvider = Provider<Dio>((ref) {
   ));
 
   final tokenDts = ref.watch(authPrefsDtsProvider);
-  final authApi = ref.watch(authRemoteServiceProvider);
 
   dio.interceptors.add(
     AuthInterceptor(
-        dio: dio,
         authPrefDataSource: tokenDts,
-        authApi: authApi
+        onUnauthorized: () async {
+          await tokenDts.clearToken();
+          await tokenDts.clearCache();
+          ref.read(forceLogoutTickProvider.notifier).state++;
+        },
     )
   );
 
@@ -65,6 +68,10 @@ final authLocalRepoProvider = Provider<AuthLocalRepo>((ref) {
 // UseCase
 final getCurrentUserUseCaseProvider = Provider<GetFullCurrentUserUseCase>((ref) {
   return GetFullCurrentUserUseCase(ref.watch(authRemoteRepoProvider));
+});
+
+final searchUsersByUsernameUseCaseProvider = Provider<SearchUsersByUsernameUseCase>((ref) {
+  return SearchUsersByUsernameUseCase(ref.watch(authRemoteRepoProvider));
 });
 
 final loginWithGrantedAccountUseCaseProvider = Provider<LogInWithEmailUseCase>((ref) {

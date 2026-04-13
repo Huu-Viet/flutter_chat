@@ -4,15 +4,34 @@ import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import '../../features/auth/data/entities/user_entity.dart';
+import '../../features/chat/data/entities/conversation_entity.dart';
+import '../../features/chat/data/entities/message_entity.dart';
+import '../../features/friendship/data/entities/friendship_entity.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: [Users])
+@DriftDatabase(tables: [Users, ChatConversations, ChatMessages, Friendships])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 4;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          // We do not preserve old local data, so any schema upgrade recreates all tables.
+          await m.deleteTable('chat_messages');
+          await m.deleteTable('chat_conversations');
+          await m.deleteTable('friendships');
+          await m.deleteTable('users');
+
+          await m.createTable(users);
+          await m.createTable(chatConversations);
+          await m.createTable(chatMessages);
+          await m.createTable(friendships);
+        },
+      );
 
   // Query methods for Users table
   Future<void> insertUser(UserEntity user) async {
@@ -46,6 +65,74 @@ class AppDatabase extends _$AppDatabase {
 
   Stream<UserEntity?> watchUserById(String userId) {
     return (select(users)..where((u) => u.id.equals(userId))).watchSingleOrNull();
+  }
+
+  // Chat conversation queries
+  Future<void> insertConversation(ChatConversationEntity item) async {
+    await into(chatConversations).insert(item, mode: InsertMode.replace);
+  }
+
+  Future<void> insertConversations(List<ChatConversationEntity> items) async {
+    if (items.isEmpty) return;
+    await batch((b) {
+      b.insertAllOnConflictUpdate(chatConversations, items);
+    });
+  }
+
+  Future<List<ChatConversationEntity>> getAllChatConversations() {
+    return (select(chatConversations)
+          ..orderBy([
+            (tbl) => OrderingTerm.desc(tbl.updatedAt),
+          ]))
+        .get();
+  }
+
+  Stream<List<ChatConversationEntity>> watchAllChatConversations() {
+    return (select(chatConversations)
+          ..orderBy([
+            (tbl) => OrderingTerm.desc(tbl.updatedAt),
+          ]))
+        .watch();
+  }
+
+  Future<void> clearChatConversations() async {
+    await delete(chatConversations).go();
+  }
+
+  // Chat message queries
+  Future<void> insertMessage(ChatMessageEntity item) async {
+    await into(chatMessages).insert(item, mode: InsertMode.replace);
+  }
+
+  Future<void> insertMessages(List<ChatMessageEntity> items) async {
+    if (items.isEmpty) return;
+    await batch((b) {
+      b.insertAllOnConflictUpdate(chatMessages, items);
+    });
+  }
+
+  Future<List<ChatMessageEntity>> getMessagesByConversationId(String conversationId) {
+    return (select(chatMessages)
+          ..where((tbl) => tbl.conversationId.equals(conversationId))
+          ..orderBy([
+            (tbl) => OrderingTerm.asc(tbl.offset),
+            (tbl) => OrderingTerm.asc(tbl.createdAt),
+          ]))
+        .get();
+  }
+
+  Stream<List<ChatMessageEntity>> watchMessagesByConversationId(String conversationId) {
+    return (select(chatMessages)
+          ..where((tbl) => tbl.conversationId.equals(conversationId))
+          ..orderBy([
+            (tbl) => OrderingTerm.asc(tbl.offset),
+            (tbl) => OrderingTerm.asc(tbl.createdAt),
+          ]))
+        .watch();
+  }
+
+  Future<void> clearMessagesByConversationId(String conversationId) async {
+    await (delete(chatMessages)..where((tbl) => tbl.conversationId.equals(conversationId))).go();
   }
 }
 

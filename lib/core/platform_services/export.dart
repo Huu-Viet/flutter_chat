@@ -13,4 +13,4 @@ export 'network_service.dart';
 export 'fcm/fcm_service.dart';
 
 //realtime gateway
-export 'realtime/realtime_gateway_service.dart';
+export '../network/realtime_gateway_service.dart';

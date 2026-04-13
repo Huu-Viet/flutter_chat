@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/app/app_providers.dart';
+import 'package:flutter_chat/features/auth/auth_session_providers.dart';
 import 'package:flutter_chat/core/platform_services/platform_service_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/app_theme.dart';
@@ -16,7 +17,13 @@ class MyApp extends ConsumerWidget {
     final locale = ref.watch(localeProvider);
     ref.read(databaseProvider);
     ref.read(fcmServiceProvider);
-    ref.read(realtimeGatewayServiceProvider);
+
+    ref.listen<int>(forceLogoutTickProvider, (previous, next) {
+      if (previous == next) {
+        return;
+      }
+      router.go('/login');
+    });
 
     return MaterialApp.router(
       title: 'Flutter Chat',

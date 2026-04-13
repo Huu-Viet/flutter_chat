@@ -8,13 +8,15 @@ class UserDto {
   final String? cccdNumber;
   final String? avatarUrl;
   final String? avatarMediaId;
-  final Map<String, dynamic>? settings;
-  final String? orgId;
-  final String? orgRole;
-  final String? title;
-  final String? departmentId;
-  final String? accountStatus;
   final bool? isActive;
+  final String? statusMessage;
+  final String? theme;
+  final String? messageDensity;
+  final bool? enterToSend;
+  final bool? notificationsDesktopEnabled;
+  final bool? notificationsMobileEnabled;
+  final String? notificationsNotifyFor;
+  final String? notificationsMuteUntil;
   final String? createdAt;
   final String? updatedAt;
 
@@ -28,19 +30,24 @@ class UserDto {
     this.cccdNumber,
     this.avatarUrl,
     this.avatarMediaId,
-    this.settings,
-    this.orgId,
-    this.orgRole,
-    this.title,
-    this.departmentId,
-    this.accountStatus,
     this.isActive,
+    this.statusMessage,
+    this.theme,
+    this.messageDensity,
+    this.enterToSend,
+    this.notificationsDesktopEnabled,
+    this.notificationsMobileEnabled,
+    this.notificationsNotifyFor,
+    this.notificationsMuteUntil,
     this.createdAt,
     this.updatedAt,
   });
 
   /// Factory from JSON API response
   factory UserDto.fromJson(Map<String, dynamic> json) {
+    final settings = _asMap(json['settings']);
+    final notifications = settings != null ? _asMap(settings['notifications']) : null;
+
     return UserDto(
       id: _asString(json['id']),
       email: _asString(json['email']),
@@ -51,13 +58,19 @@ class UserDto {
       cccdNumber: _asString(json['cccdNumber']),
       avatarUrl: _asString(json['avatarUrl']),
       avatarMediaId: _asString(json['avatarMediaId']),
-      settings: _asMap(json['settings']),
-      orgId: _asString(json['orgId']),
-      orgRole: _asString(json['orgRole']),
-      title: _asString(json['title']),
-      departmentId: _asString(json['departmentId']),
-      accountStatus: _asString(json['accountStatus']),
       isActive: _asBool(json['isActive']),
+        statusMessage: settings != null ? _asString(settings['statusMessage']) : null,
+        theme: settings != null ? _asString(settings['theme']) : null,
+        messageDensity: settings != null ? _asString(settings['messageDensity']) : null,
+        enterToSend: settings != null ? _asBool(settings['enterToSend']) : null,
+        notificationsDesktopEnabled:
+          notifications != null ? _asBool(notifications['desktopEnabled']) : null,
+        notificationsMobileEnabled:
+          notifications != null ? _asBool(notifications['mobileEnabled']) : null,
+        notificationsNotifyFor:
+          notifications != null ? _asString(notifications['notifyFor']) : null,
+        notificationsMuteUntil:
+          notifications != null ? _asString(notifications['muteUntil']) : null,
       createdAt: _asString(json['createdAt']),
       updatedAt: _asString(json['updatedAt']),
     );
@@ -75,13 +88,15 @@ class UserDto {
       'cccdNumber': cccdNumber,
       'avatarUrl': avatarUrl,
       'avatarMediaId': avatarMediaId,
-      'settings': settings,
-      'orgId': orgId,
-      'orgRole': orgRole,
-      'title': title,
-      'departmentId': departmentId,
-      'accountStatus': accountStatus,
       'isActive': isActive,
+      'statusMessage': statusMessage,
+      'theme': theme,
+      'messageDensity': messageDensity,
+      'enterToSend': enterToSend,
+      'notificationsDesktopEnabled': notificationsDesktopEnabled,
+      'notificationsMobileEnabled': notificationsMobileEnabled,
+      'notificationsNotifyFor': notificationsNotifyFor,
+      'notificationsMuteUntil': notificationsMuteUntil,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
     };
@@ -99,13 +114,15 @@ class UserDto {
       cccdNumber: _asString(doc['cccdNumber']),
       avatarUrl: _asString(doc['photoURL'] ?? doc['avatarUrl']),
       avatarMediaId: _asString(doc['avatarMediaId']),
-      settings: _asMap(doc['settings']),
-      orgId: _asString(doc['orgId']),
-      orgRole: _asString(doc['orgRole']),
-      title: _asString(doc['title']),
-      departmentId: _asString(doc['departmentId']),
-      accountStatus: _asString(doc['accountStatus']),
       isActive: _asBool(doc['isActive']),
+      statusMessage: _asString(doc['statusMessage']),
+      theme: _asString(doc['theme']),
+      messageDensity: _asString(doc['messageDensity']),
+      enterToSend: _asBool(doc['enterToSend']),
+      notificationsDesktopEnabled: _asBool(doc['notificationsDesktopEnabled']),
+      notificationsMobileEnabled: _asBool(doc['notificationsMobileEnabled']),
+      notificationsNotifyFor: _asString(doc['notificationsNotifyFor']),
+      notificationsMuteUntil: _asString(doc['notificationsMuteUntil']),
       createdAt: _asString(doc['createdAt']),
       updatedAt: _asString(doc['updatedAt']),
     );

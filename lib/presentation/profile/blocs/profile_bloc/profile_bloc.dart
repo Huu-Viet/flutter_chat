@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:flutter_chat/application/realtime/orchestrator.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 
 part 'profile_event.dart';
@@ -12,6 +13,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   final GetLocalCurrentUserDataUseCase getLocalCurrentUserDataUseCase;
   final SyncCurrentUserFromRemoteUseCase syncCurrentUserFromRemoteUseCase;
   final SignOutUseCase signOutUseCase;
+  final DisconnectRealtimeGatewayUseCase disconnectRealtimeGatewayUseCase;
   StreamSubscription? _userSubscription;
 
   ProfileBloc(
@@ -19,6 +21,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     this.getLocalCurrentUserDataUseCase,
     this.syncCurrentUserFromRemoteUseCase,
     this.signOutUseCase,
+    this.disconnectRealtimeGatewayUseCase,
   ) : super(ProfileInitial()) {
     on<LoadProfileEvent>(_onLoadProfile);
     on<RefreshProfileEvent>(_onRefreshProfile);
@@ -80,6 +83,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
 
   Future<void> _onSignOut(SignOutEvent event, Emitter<ProfileState> emit) async {
     emit (ProfileLoading());
+    await disconnectRealtimeGatewayUseCase();
     await signOutUseCase();
     emit (ProfileSignOutComplete());
   }

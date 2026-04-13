@@ -46,19 +46,116 @@ class UserRemoteDtsImpl extends UserRemoteDataSource {
   }
 
   @override
+  Future<List<UserDto>> searchUsersByUsername(
+    String query, {
+    int page = 1,
+    int limit = 10,
+  }) async {
+    final q = query.trim();
+    if (q.isEmpty) {
+      return const <UserDto>[];
+    }
+
+    try {
+      final response = await dio.request(
+        '$_baseUrl/users/search',
+        options: Options(
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+          validateStatus: (status) => status != null && status < 600,
+        ),
+        queryParameters: {
+          'q': q,
+          'page': page,
+          'limit': limit,
+        },
+      );
+
+      debugPrint('[UserRemoteDtsImpl] Search users response: status=${response.statusCode}, body=${response.data}');
+
+      if (response.statusCode != 200 || response.data == null) {
+        final responseBody = response.data;
+        final message = responseBody is Map
+            ? (responseBody['message']?.toString() ?? responseBody['error']?.toString())
+            : null;
+        throw Exception(
+          message == null || message.trim().isEmpty
+              ? 'Search users failed with status ${response.statusCode}'
+              : 'Search users failed with status ${response.statusCode}: $message',
+        );
+      }
+
+      final responseBody = response.data;
+      final dynamic data = responseBody is Map<String, dynamic>
+          ? responseBody['data']
+          : responseBody;
+
+      if (data is! List) {
+        debugPrint('[UserRemoteDtsImpl] Search users returned unexpected payload: ${response.data}');
+        return const <UserDto>[];
+      }
+
+      return data
+          .whereType<Map>()
+          .map((e) => UserDto.fromJson(e.map((k, v) => MapEntry(k.toString(), v))))
+          .toList(growable: false);
+    } on DioException catch (e) {
+      debugPrint('Error searching users by username: ${e.message}, response=${e.response?.data}');
+      throw Exception('[UserRemoteDtsImpl] Search users error: ${e.message}');
+    }
+  }
+
+  @override
+  Future<UserDto?> getUserById(String userId) async {
+    final id = userId.trim();
+    if (id.isEmpty) {
+      throw Exception('User id is required');
+    }
+
+    try {
+      debugPrint('[UserRemoteDtsImpl] GET $_baseUrl/users/$id');
+      final response = await dio.get('$_baseUrl/users/$id');
+
+      if (response.statusCode != 200 || response.data == null) {
+        debugPrint('[UserRemoteDtsImpl] Get user by id failed: status=${response.statusCode}, body=${response.data}');
+        throw Exception(response.statusCode);
+      }
+
+      final responseBody = response.data;
+      if (responseBody is! Map<String, dynamic>) {
+        throw Exception('Invalid response body format');
+      }
+
+      final data = responseBody['data'];
+      if (data is! Map<String, dynamic>) {
+        throw Exception('Invalid user payload format');
+      }
+
+      return UserDto.fromJson(data);
+    } on DioException catch (e) {
+      debugPrint('Error fetching user by id: ${e.message}');
+      throw Exception('[UserRemoteDtsImpl] Get user by id error: ${e.message}');
+    }
+  }
+
+  @override
   Future<UserDto?> updateProfile({
+    String? username,
     String? firstName,
     String? lastName,
     String? phone,
-    String? title,
+    String? cccdNumber,
     String? avatarMediaId,
     String? avatarVariant,
   }) async {
     final requestBody = <String, dynamic>{
+      'username': username,
       'firstName': firstName,
       'lastName': lastName,
       'phone': phone,
-      'title': title,
+      'cccdNumber': cccdNumber,
       'avatarMediaId': avatarMediaId,
     }..removeWhere((key, value) => value == null);
 
@@ -111,10 +208,11 @@ class UserRemoteDtsImpl extends UserRemoteDataSource {
   @override
   Future<void> setUserData(UserDto user) async {
     await updateProfile(
+      username: user.username,
       firstName: user.firstName,
       lastName: user.lastName,
       phone: user.phone,
-      title: user.title,
+      cccdNumber: user.cccdNumber,
       avatarMediaId: user.avatarMediaId,
     );
   }

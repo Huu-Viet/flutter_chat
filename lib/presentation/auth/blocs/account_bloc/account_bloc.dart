@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_chat/application/realtime/orchestrator.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 
 part 'account_event.dart';
@@ -7,12 +11,14 @@ part 'account_state.dart';
 
 class AccountBloc extends Bloc<AccountEvent, AccountState> {
   final LogInWithEmailUseCase logInWithEmailUseCase;
+  final ConnectRealtimeGatewayUseCase connectRealtimeGatewayUseCase;
   final ForgotPasswordUseCase forgotPasswordUseCase;
   final VerifyResetPassUseCase verifyOtpUseCase;
   final ResetPasswordUseCase resetPasswordUseCase;
 
   AccountBloc({
     required this.logInWithEmailUseCase,
+    required this.connectRealtimeGatewayUseCase,
     required this.forgotPasswordUseCase,
     required this.verifyOtpUseCase,
     required this.resetPasswordUseCase,
@@ -31,12 +37,28 @@ class AccountBloc extends Bloc<AccountEvent, AccountState> {
 
     try {
       final result = await logInWithEmailUseCase(event.email, event.password);
-      result.fold(
-              (failure) => emit(AccountError(failure.message)),
-              (authResult) => emit(AccountSuccess())
+      final failure = result.fold((l) => l, (_) => null);
+
+      if (failure != null) {
+        if (!emit.isDone) {
+          emit(AccountError(failure.message));
+        }
+        return;
+      }
+
+      unawaited(
+        connectRealtimeGatewayUseCase().catchError((e) {
+          debugPrint('[AccountBloc] Realtime connect failed after login: $e');
+        }),
       );
+
+      if (!emit.isDone) {
+        emit(AccountSuccess());
+      }
     } catch (e) {
-      emit(AccountError('Có lỗi xảy ra: $e'));
+      if (!emit.isDone) {
+        emit(AccountError('Có lỗi xảy ra: $e'));
+      }
     }
   }
 

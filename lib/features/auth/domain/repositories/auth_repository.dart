@@ -16,5 +16,11 @@ abstract class AuthRemoteRepository {
   Future<Either<Failure, void>> forgotPassword(String email);
   Future<Either<Failure, String>> verifyOtp(String email, String otp);
   Future<Either<Failure, void>> resetPassword(String resetToken, String newPassword);
+  Future<Either<Failure, List<MyUser>>> searchUsersByUsername(
+    String query, {
+    int page,
+    int limit,
+  });
+  Future<Either<Failure, MyUser>> getUserById(String userId);
   Future<Either<Failure, void>> signOut();
 }

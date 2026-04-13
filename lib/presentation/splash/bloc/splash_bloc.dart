@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_chat/application/realtime/orchestrator.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 
 part 'splash_event.dart';
@@ -10,12 +14,14 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
   final CheckRefreshTokenUseCase checkRefreshTokenUseCase;
   final GetRefreshTokenUseCase getRefreshTokenUseCase;
   final RefreshTokenUseCase refreshTokenUseCase;
+  final ConnectRealtimeGatewayUseCase connectRealtimeGatewayUseCase;
 
   SplashBloc({
     required this.checkAccessTokenUseCase,
     required this.checkRefreshTokenUseCase,
     required this.getRefreshTokenUseCase,
     required this.refreshTokenUseCase,
+    required this.connectRealtimeGatewayUseCase,
   }) : super(SplashInitial()) {
     on<CheckAuthEvent>(_checkAuth);
   }
@@ -37,6 +43,11 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
         return;
       }
 
+      unawaited(
+        connectRealtimeGatewayUseCase().catchError((e) {
+          debugPrint('[SplashBloc] Realtime connect failed after auth check: $e');
+        }),
+      );
       emit(SplashAuthenticated());
     } catch (e) {
       emit(SplashUnauthenticated());

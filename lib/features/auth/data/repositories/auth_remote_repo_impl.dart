@@ -146,10 +146,11 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
   Future<Either<Failure, void>> setUserDataToRemote(MyUser myUser) async {
     try {
       final updatedDto = await userRemoteDataSource.updateProfile(
+        username: myUser.username,
         firstName: myUser.firstName,
         lastName: myUser.lastName,
         phone: myUser.phone,
-        title: myUser.title,
+        cccdNumber: myUser.cccdNumber,
         avatarMediaId: myUser.avatarMediaId,
         avatarVariant: myUser.avatarMediaId != null && myUser.avatarMediaId!.isNotEmpty
             ? 'thumb'
@@ -296,6 +297,37 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
       return Right(null);
     } catch (e) {
       return Future.value(Left(ServerFailure('Failed to reset password: $e')));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<MyUser>>> searchUsersByUsername(
+    String query, {
+    int page = 1,
+    int limit = 10,
+  }) async {
+    try {
+      final users = await userRemoteDataSource.searchUsersByUsername(
+        query,
+        page: page,
+        limit: limit,
+      );
+      return Right(users.map(apiMapper.toDomain).toList(growable: false));
+    } catch (e) {
+      return Left(ServerFailure('Failed to search users: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, MyUser>> getUserById(String userId) async {
+    try {
+      final dto = await userRemoteDataSource.getUserById(userId);
+      if (dto == null) {
+        return Left(ServerFailure('User not found'));
+      }
+      return Right(apiMapper.toDomain(dto));
+    } catch (e) {
+      return Left(ServerFailure('Failed to get user by id: $e'));
     }
   }
 

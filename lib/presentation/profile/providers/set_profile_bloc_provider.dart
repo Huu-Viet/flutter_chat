@@ -1,3 +1,4 @@
+import 'package:flutter_chat/app/app_providers.dart';
 import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/auth/user_providers.dart';
 import 'package:flutter_chat/features/auth/domain/entities/user.dart';
@@ -23,6 +24,7 @@ final profileBlocProvider = Provider.autoDispose<ProfileBloc>((ref) {
     ref.read(getCurrentLocalUserInfoUseCaseProvider),
     ref.read(syncCurrentUserFromRemoteUseCaseProvider),
     ref.read(logoutUseCaseProvider),
+    ref.read(disconnectRealtimeGatewayUseCaseProvider),
   );
 
   ref.onDispose(bloc.close);

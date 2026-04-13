@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_chat/app/app_permission.dart';
-import 'package:flutter_chat/app/e_app_route.dart';
 import 'package:flutter_chat/core/platform_services/export.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
+import 'package:flutter_chat/presentation/home/blocs/add_friend_blocs/add_friend_bloc.dart';
 import 'package:flutter_chat/presentation/home/blocs/home_bloc.dart';
 import 'package:flutter_chat/presentation/home/home_provider.dart';
 import 'package:flutter_chat/presentation/home/widgets/friend_status_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../widgets/chat_list_tile.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -25,6 +25,121 @@ class _HomePageState extends ConsumerState<HomePage> {
     super.initState();
   }
 
+  Future<void> _showAddFriendDialog(BuildContext context, AppLocalizations l10n) async {
+    final addFriendBloc = ref.read(addFriendBlocProvider);
+    addFriendBloc.add(const AddFriendResetRequested());
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return BlocProvider<AddFriendBloc>.value(
+          value: addFriendBloc,
+          child: AlertDialog(
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            title: Text(l10n.add_friend),
+            scrollable: true,
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    autofocus: true,
+                    textInputAction: TextInputAction.search,
+                    decoration: InputDecoration(
+                      hintText: l10n.add_friend_hint,
+                      prefixIcon: const Icon(Icons.search),
+                    ),
+                    onChanged: (value) {
+                      addFriendBloc.add(AddFriendQueryChanged(value));
+                    },
+                    onSubmitted: (_) {
+                      addFriendBloc.add(const AddFriendSearchRequested());
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 220,
+                    child: BlocBuilder<AddFriendBloc, AddFriendState>(
+                      builder: (context, state) {
+                        if (state is AddFriendLoading) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+
+                        if (state is AddFriendFailure) {
+                          return Center(
+                            child: Text(
+                              state.message,
+                              textAlign: TextAlign.center,
+                            ),
+                          );
+                        }
+
+                        if (!state.hasSearched) {
+                          return Center(
+                            child: Text(
+                              l10n.add_friend_guide,
+                              textAlign: TextAlign.center,
+                            ),
+                          );
+                        }
+
+                        if (state.users.isEmpty) {
+                          return const Center(
+                            child: Text('Không tìm thấy người dùng phù hợp'),
+                          );
+                        }
+
+                        return ListView.separated(
+                          itemCount: state.users.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final user = state.users[index];
+                            return ListTile(
+                              dense: true,
+                              leading: CircleAvatar(
+                                child: Text(
+                                  (user.username.isNotEmpty ? user.username[0] : '?')
+                                      .toUpperCase(),
+                                ),
+                              ),
+                              title: Text(user.username),
+                              subtitle: Text(user.email),
+                              trailing: const Icon(Icons.person_add_alt_1_outlined),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              BlocBuilder<AddFriendBloc, AddFriendState>(
+                builder: (context, state) {
+                  return FilledButton.icon(
+                    onPressed: state.query.trim().isEmpty || state is AddFriendLoading
+                        ? null
+                        : () {
+                            addFriendBloc.add(const AddFriendSearchRequested());
+                          },
+                    icon: const Icon(Icons.search),
+                    label: const Text('Search'),
+                  );
+                },
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: Text(l10n.close),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -39,9 +154,10 @@ class _HomePageState extends ConsumerState<HomePage> {
         actions: [
           IconButton(
             onPressed: () {
-              context.push(AppRoute.profile.path);
+              _showAddFriendDialog(context, l10n);
             },
-            icon: const Icon(Icons.person),
+            tooltip: 'Kết bạn',
+            icon: const Icon(Icons.person_add_alt_1),
           ),
         ],
       ),
@@ -108,9 +224,7 @@ class _HomePageContentState extends ConsumerState<HomePageContent> {
         lastName: 'Doe',
         phone: '0901234567',
         avatarUrl: null,
-        orgId: 'org-default',
-        orgRole: 'ORG_MEMBER',
-        accountStatus: 'ACTIVE',
+        settings: const UserSettings(),
         isActive: true,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),

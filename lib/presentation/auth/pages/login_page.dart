@@ -4,6 +4,7 @@ import 'package:flutter_chat/l10n/app_localizations.dart';
 import 'package:flutter_chat/presentation/auth/blocs/account_bloc/account_bloc.dart';
 import 'package:flutter_chat/presentation/auth/providers/auth_bloc_providers.dart';
 import 'package:flutter_chat/presentation/auth/widgets/login_custom_input.dart';
+import 'package:flutter_chat/presentation/main_scaffold.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -49,6 +50,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               setState(() {
                 showLoading = false;
               });
+              ref.read(selectedTabProvider.notifier).state = 0;
               context.go("/home");
             } else if (state is AccountError) {
               setState(() {

@@ -1,5 +1,91 @@
 import 'package:equatable/equatable.dart';
 
+enum UserThemeMode {
+  light,
+  dark,
+  system,
+  unknown,
+}
+
+enum MessageDensity {
+  comfortable,
+  compact,
+  unknown,
+}
+
+enum NotifyFor {
+  all,
+  mentionsOnly,
+  nothing,
+  unknown,
+}
+
+class UserNotifications extends Equatable {
+  final bool desktopEnabled;
+  final bool mobileEnabled;
+  final NotifyFor notifyFor;
+  final DateTime? muteUntil;
+
+  const UserNotifications({
+    this.desktopEnabled = true,
+    this.mobileEnabled = true,
+    this.notifyFor = NotifyFor.all,
+    this.muteUntil,
+  });
+
+  UserNotifications copyWith({
+    bool? desktopEnabled,
+    bool? mobileEnabled,
+    NotifyFor? notifyFor,
+    DateTime? muteUntil,
+  }) {
+    return UserNotifications(
+      desktopEnabled: desktopEnabled ?? this.desktopEnabled,
+      mobileEnabled: mobileEnabled ?? this.mobileEnabled,
+      notifyFor: notifyFor ?? this.notifyFor,
+      muteUntil: muteUntil ?? this.muteUntil,
+    );
+  }
+
+  @override
+  List<Object?> get props => [desktopEnabled, mobileEnabled, notifyFor, muteUntil];
+}
+
+class UserSettings extends Equatable {
+  final String? statusMessage;
+  final UserThemeMode theme;
+  final MessageDensity messageDensity;
+  final bool enterToSend;
+  final UserNotifications notifications;
+
+  const UserSettings({
+    this.statusMessage,
+    this.theme = UserThemeMode.system,
+    this.messageDensity = MessageDensity.comfortable,
+    this.enterToSend = true,
+    this.notifications = const UserNotifications(),
+  });
+
+  UserSettings copyWith({
+    String? statusMessage,
+    UserThemeMode? theme,
+    MessageDensity? messageDensity,
+    bool? enterToSend,
+    UserNotifications? notifications,
+  }) {
+    return UserSettings(
+      statusMessage: statusMessage ?? this.statusMessage,
+      theme: theme ?? this.theme,
+      messageDensity: messageDensity ?? this.messageDensity,
+      enterToSend: enterToSend ?? this.enterToSend,
+      notifications: notifications ?? this.notifications,
+    );
+  }
+
+  @override
+  List<Object?> get props => [statusMessage, theme, messageDensity, enterToSend, notifications];
+}
+
 class MyUser extends Equatable {
   final String id;
   final String email;
@@ -10,12 +96,7 @@ class MyUser extends Equatable {
   final String? cccdNumber;
   final String? avatarUrl;
   final String? avatarMediaId;
-  final Map<String, dynamic>? settings;
-  final String orgId;
-  final String orgRole;
-  final String? title;
-  final String? departmentId;
-  final String accountStatus;
+  final UserSettings settings;
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -30,12 +111,7 @@ class MyUser extends Equatable {
     this.cccdNumber,
     this.avatarUrl,
     this.avatarMediaId,
-    this.settings,
-    required this.orgId,
-    required this.orgRole,
-    this.title,
-    this.departmentId,
-    required this.accountStatus,
+    this.settings = const UserSettings(),
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
@@ -51,12 +127,7 @@ class MyUser extends Equatable {
     cccdNumber: null,
     avatarUrl: null,
     avatarMediaId: null,
-    settings: null,
-    orgId: '',
-    orgRole: '',
-    title: null,
-    departmentId: null,
-    accountStatus: '',
+    settings: UserSettings(),
     isActive: false,
     createdAt: DateTime.fromMillisecondsSinceEpoch(0),
     updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
@@ -72,12 +143,7 @@ class MyUser extends Equatable {
     String? cccdNumber,
     String? avatarUrl,
     String? avatarMediaId,
-    Map<String, dynamic>? settings,
-    String? orgId,
-    String? orgRole,
-    String? title,
-    String? departmentId,
-    String? accountStatus,
+    UserSettings? settings,
     bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -93,11 +159,6 @@ class MyUser extends Equatable {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       avatarMediaId: avatarMediaId ?? this.avatarMediaId,
       settings: settings ?? this.settings,
-      orgId: orgId ?? this.orgId,
-      orgRole: orgRole ?? this.orgRole,
-      title: title ?? this.title,
-      departmentId: departmentId ?? this.departmentId,
-      accountStatus: accountStatus ?? this.accountStatus,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -136,11 +197,6 @@ class MyUser extends Equatable {
         avatarUrl,
         avatarMediaId,
         settings,
-        orgId,
-        orgRole,
-        title,
-        departmentId,
-        accountStatus,
         isActive,
         createdAt,
         updatedAt,
