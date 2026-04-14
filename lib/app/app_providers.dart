@@ -18,6 +18,7 @@ import 'package:flutter_chat/core/network/realtime_gateway.dart';
 import 'package:flutter_chat/core/network/realtime_gateway_service.dart';
 import 'package:flutter_chat/features/auth/auth_session_providers.dart';
 import 'package:flutter_chat/features/auth/auth_providers.dart';
+import 'package:flutter_chat/features/chat/chat_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -50,7 +51,9 @@ final realtimeGatewayServiceProvider = Provider<RealtimeGateway>((ref) {
 });
 
 final chatAppEventSubscriberProvider = Provider<AppEventSubscriber>((ref) {
-  return const ChatAppEventSubscriber();
+  return ChatAppEventSubscriber(
+    fetchConversationUseCase: ref.watch(fetchConversationUseCaseProvider),
+  );
 });
 
 final callAppEventSubscriberProvider = Provider<AppEventSubscriber>((ref) {

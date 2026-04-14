@@ -321,11 +321,24 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
   @override
   Future<Either<Failure, MyUser>> getUserById(String userId) async {
     try {
-      final dto = await userRemoteDataSource.getUserById(userId);
+      final normalizedUserId = userId.trim();
+      if (normalizedUserId.isEmpty) {
+        return Left(ValidationFailure('User id is required'));
+      }
+
+      final cachedUser = await userDao.getUserById(normalizedUserId);
+      if (cachedUser != null) {
+        return Right(localMapper.toDomain(cachedUser));
+      }
+
+      final dto = await userRemoteDataSource.getUserById(normalizedUserId);
       if (dto == null) {
         return Left(ServerFailure('User not found'));
       }
-      return Right(apiMapper.toDomain(dto));
+
+      final user = apiMapper.toDomain(dto);
+      await _upsertUserToLocal(user);
+      return Right(user);
     } catch (e) {
       return Left(ServerFailure('Failed to get user by id: $e'));
     }

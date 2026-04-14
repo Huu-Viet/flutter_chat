@@ -46,6 +46,17 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       },
       (conversations) {
         _hasMore = conversations.length == event.limit && conversations.isNotEmpty;
+        if (state is HomeLoading || state is HomeInitial) {
+          emit(HomeLoaded(
+            conversations: conversations,
+            page: _currentPage,
+            limit: _limit,
+            hasMore: _hasMore,
+            isLoadingMore: false,
+          ));
+          return;
+        }
+
         if (state is HomeLoaded) {
           emit((state as HomeLoaded).copyWith(
             page: _currentPage,

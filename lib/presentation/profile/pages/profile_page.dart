@@ -70,7 +70,10 @@ class _ProfilePageContentState extends ConsumerState<ProfilePageContent> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Profile'),
+          title: Text(
+            l10n.profile,
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
         ),
         body: showLoading
             ? const Center(child: CircularProgressIndicator())

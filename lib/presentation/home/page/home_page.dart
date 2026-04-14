@@ -85,8 +85,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                         }
 
                         if (state.users.isEmpty) {
-                          return const Center(
-                            child: Text('Không tìm thấy người dùng phù hợp'),
+                          return Center(
+                            child: Text(l10n.error_user_not_found),
                           );
                         }
 
@@ -105,7 +105,20 @@ class _HomePageState extends ConsumerState<HomePage> {
                               ),
                               title: Text(user.username),
                               subtitle: Text(user.email),
-                              trailing: const Icon(Icons.person_add_alt_1_outlined),
+                              trailing: IconButton(
+                                onPressed: state.busyUserId == user.id
+                                    ? null
+                                    : () {
+                                        addFriendBloc.add(AddFriendRequestRequested(user.id));
+                                      },
+                                icon: state.busyUserId == user.id
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
+                                    : const Icon(Icons.person_add_alt_1_outlined),
+                              ),
                             );
                           },
                         );
@@ -125,7 +138,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                             addFriendBloc.add(const AddFriendSearchRequested());
                           },
                     icon: const Icon(Icons.search),
-                    label: const Text('Search'),
+                    label: Text(l10n.search),
                   );
                 },
               ),

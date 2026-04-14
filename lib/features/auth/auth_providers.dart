@@ -70,6 +70,10 @@ final getCurrentUserUseCaseProvider = Provider<GetFullCurrentUserUseCase>((ref) 
   return GetFullCurrentUserUseCase(ref.watch(authRemoteRepoProvider));
 });
 
+final getUserByIdUseCaseProvider = Provider<GetUserByIdUseCase>((ref) {
+  return GetUserByIdUseCase(ref.watch(authRemoteRepoProvider));
+});
+
 final searchUsersByUsernameUseCaseProvider = Provider<SearchUsersByUsernameUseCase>((ref) {
   return SearchUsersByUsernameUseCase(ref.watch(authRemoteRepoProvider));
 });

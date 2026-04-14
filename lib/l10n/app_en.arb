@@ -1,5 +1,6 @@
 {
   "app_name": "Zolo",
+  "empty_data": "Nothing here yet",
   "i_accept_the": "I accept the ",
   "terms_of_service": "Terms of Service",
   "privacy_policy": "Privacy Policy",
@@ -29,12 +30,15 @@
   "or": "OR",
   "registry": "Registry",
   "fill_in_input_notify": "Please fill in all the fields",
+  "profile": "Profile",
   "profile_setup": "Profile Setup",
   "first_name_label": "First Name",
   "first_name_hint": "Enter your first name",
   "last_name_label": "Last Name",
   "last_name_hint": "Enter your last name",
   "fill_in_info_notify": "Please fill in the information",
+  "accept": "Accept",
+  "reject": "Reject",
   "submit": "Submit",
   "close": "Close",
   "messages": "Messages",
@@ -55,5 +59,6 @@
   "error_password_not_match": "Password does not match",
   "error_otp_invalid": "OTP code is invalid or expired",
   "error_registry_token": "Registry token is invalid or expired",
+  "error_user_not_found": "User not found",
   "error_unknown": "An unknown error occurred. Please try again later."
 }

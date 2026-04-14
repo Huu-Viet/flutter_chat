@@ -138,7 +138,16 @@ class FriendshipRemoteDataSourceImpl implements FriendshipRemoteDataSource {
   Future<PendingRequestsDto> getPendingRequests() async {
     try {
       debugPrint('[FriendshipRemoteDataSourceImpl] GET $_baseUrl/friendships/requests');
-      final response = await dio.get('$_baseUrl/friendships/requests');
+      final response = await dio.get(
+        '$_baseUrl/friendships/requests',
+        options: Options(
+          validateStatus: (status) => status != null && status < 600,
+        ),
+      );
+
+      debugPrint(
+        '[FriendshipRemoteDataSourceImpl] Pending requests response: status=${response.statusCode}, body=${response.data}',
+      );
 
       if (response.statusCode != 200 || response.data == null) {
         throw Exception('Failed to get pending requests: ${response.statusCode}');
@@ -149,8 +158,13 @@ class FriendshipRemoteDataSourceImpl implements FriendshipRemoteDataSource {
         throw Exception('Invalid response body format');
       }
 
-      debugPrint('[FriendshipRemoteDataSourceImpl] Pending requests: $responseBody');
-      return PendingRequestsDto.fromJson(responseBody);
+      final dynamic payload = responseBody['data'] ?? responseBody;
+      if (payload is! Map<String, dynamic>) {
+        throw Exception('Invalid pending requests payload format');
+      }
+
+      debugPrint('[FriendshipRemoteDataSourceImpl] Pending requests payload: $payload');
+      return PendingRequestsDto.fromJson(payload);
     } on DioException catch (e) {
       debugPrint('Error getting pending requests: ${e.message}, response=${e.response?.data}');
       throw Exception('[FriendshipRemoteDataSourceImpl] Get pending requests error: ${e.message}');

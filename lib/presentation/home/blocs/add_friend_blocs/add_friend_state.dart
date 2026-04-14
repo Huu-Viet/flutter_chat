@@ -4,15 +4,17 @@ sealed class AddFriendState extends Equatable {
   final String query;
   final List<MyUser> users;
   final bool hasSearched;
+  final String? busyUserId;
 
   const AddFriendState({
     required this.query,
     required this.users,
     required this.hasSearched,
+    required this.busyUserId,
   });
 
   @override
-  List<Object?> get props => [query, users, hasSearched];
+  List<Object?> get props => [query, users, hasSearched, busyUserId];
 }
 
 final class AddFriendInitial extends AddFriendState {
@@ -21,10 +23,11 @@ final class AddFriendInitial extends AddFriendState {
           query: '',
           users: const <MyUser>[],
           hasSearched: false,
+          busyUserId: null,
         );
 
   @override
-  List<Object?> get props => [query, users, hasSearched];
+  List<Object?> get props => [query, users, hasSearched, busyUserId];
 }
 
 final class AddFriendLoading extends AddFriendState {
@@ -32,10 +35,11 @@ final class AddFriendLoading extends AddFriendState {
     required super.query,
     required super.users,
     required super.hasSearched,
+    required super.busyUserId,
   });
 
   @override
-  List<Object?> get props => [query, users, hasSearched];
+  List<Object?> get props => [query, users, hasSearched, busyUserId];
 }
 
 final class AddFriendLoaded extends AddFriendState {
@@ -43,10 +47,11 @@ final class AddFriendLoaded extends AddFriendState {
     required super.query,
     required super.users,
     required super.hasSearched,
+    required super.busyUserId,
   });
 
   @override
-  List<Object?> get props => [query, users, hasSearched];
+  List<Object?> get props => [query, users, hasSearched, busyUserId];
 }
 
 final class AddFriendFailure extends AddFriendState {
@@ -57,8 +62,9 @@ final class AddFriendFailure extends AddFriendState {
     required super.query,
     required super.users,
     required super.hasSearched,
+    required super.busyUserId,
   });
 
   @override
-  List<Object?> get props => [message, query, users, hasSearched];
+  List<Object?> get props => [message, query, users, hasSearched, busyUserId];
 }

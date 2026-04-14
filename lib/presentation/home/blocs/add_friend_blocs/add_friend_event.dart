@@ -23,3 +23,12 @@ final class AddFriendResetRequested extends AddFriendEvent {
 final class AddFriendSearchRequested extends AddFriendEvent {
   const AddFriendSearchRequested();
 }
+
+final class AddFriendRequestRequested extends AddFriendEvent {
+  final String userId;
+
+  const AddFriendRequestRequested(this.userId);
+
+  @override
+  List<Object?> get props => [userId];
+}

@@ -14,17 +14,31 @@ class ConversationResponse {
   });
 
   factory ConversationResponse.fromJson(Map<String, dynamic> json) {
-    final data = json['data'] as Map<String, dynamic>?;
-    final items = (data?['conversations'] as List<dynamic>? ?? const [])
+    final dynamic data = json['data'];
+
+    final List<dynamic> rawItems = switch (data) {
+      final List<dynamic> list => list,
+      final Map<String, dynamic> map => (map['conversations'] as List<dynamic>? ?? const []),
+      final Map map => (map['conversations'] as List<dynamic>? ?? const []),
+      _ => const [],
+    };
+
+    final items = rawItems
         .whereType<Map<String, dynamic>>()
         .map(ConversationDto.fromJson)
         .toList(growable: false);
+
+    final total = switch (data) {
+      final Map<String, dynamic> map => (map['total'] as num?)?.toInt(),
+      final Map map => (map['total'] as num?)?.toInt(),
+      _ => null,
+    };
 
     return ConversationResponse(
       message: json['message'] as String?,
       statusCode: (json['statusCode'] as num?)?.toInt(),
       conversations: items,
-      total: (data?['total'] as num?)?.toInt(),
+      total: total,
     );
   }
 
