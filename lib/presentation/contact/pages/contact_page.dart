@@ -7,7 +7,9 @@ import 'package:flutter_chat/presentation/contact/widgets/friend_request_item.da
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class ContactPage extends ConsumerStatefulWidget {
-  const ContactPage({super.key});
+  final Function(int amount) onPendingRequestCountChanged;
+
+  const ContactPage({super.key, required this.onPendingRequestCountChanged});
 
   @override
   ConsumerState<ConsumerStatefulWidget> createState() => _ContactPageState();
@@ -56,29 +58,20 @@ class _ContactPageState extends ConsumerState<ContactPage> {
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: BlocBuilder<ContactBloc, ContactState>(
-              builder: (context, state) {
-                if (state is ContactLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (state is ContactError) {
-                  return RefreshIndicator(
-                    onRefresh: _refreshPendingRequests,
-                    child: ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      children: [
-                        SizedBox(
-                          height: MediaQuery.of(context).size.height * 0.6,
-                          child: Center(child: Text(state.message)),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
+            child: BlocListener<ContactBloc, ContactState>(
+              listenWhen: (previous, current) => current is ContactLoaded,
+              listener: (context, state) {
                 if (state is ContactLoaded) {
-                  if (state.pendingRequests.isEmpty) {
+                  widget.onPendingRequestCountChanged(state.pendingRequests.length);
+                }
+              },
+              child: BlocBuilder<ContactBloc, ContactState>(
+                builder: (context, state) {
+                  if (state is ContactLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (state is ContactError) {
                     return RefreshIndicator(
                       onRefresh: _refreshPendingRequests,
                       child: ListView(
@@ -86,48 +79,65 @@ class _ContactPageState extends ConsumerState<ContactPage> {
                         children: [
                           SizedBox(
                             height: MediaQuery.of(context).size.height * 0.6,
-                            child: Center(child: Text(l10n.empty_data)),
+                            child: Center(child: Text(state.message)),
                           ),
                         ],
                       ),
                     );
                   }
 
+                  if (state is ContactLoaded) {
+                    if (state.pendingRequests.isEmpty) {
+                      return RefreshIndicator(
+                        onRefresh: _refreshPendingRequests,
+                        child: ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.6,
+                              child: Center(child: Text(l10n.empty_data)),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return RefreshIndicator(
+                      onRefresh: _refreshPendingRequests,
+                      child: ListView.separated(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        itemCount: state.pendingRequests.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final user = state.pendingRequests[index];
+                          return FriendRequestItem(
+                            myUser: user,
+                            onAccept: () {
+                              context.read<ContactBloc>().add(AcceptRequest(user.id));
+                            },
+                            onDecline: () {
+                              context.read<ContactBloc>().add(DeclineRequest(user.id));
+                            },
+                          );
+                        },
+                      ),
+                    );
+                  }
+
                   return RefreshIndicator(
                     onRefresh: _refreshPendingRequests,
-                    child: ListView.separated(
+                    child: ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      itemCount: state.pendingRequests.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final user = state.pendingRequests[index];
-                        return FriendRequestItem(
-                          myUser: user,
-                          onAccept: () {
-                            context.read<ContactBloc>().add(AcceptRequest(user.id));
-                          },
-                          onDecline: () {
-                            context.read<ContactBloc>().add(DeclineRequest(user.id));
-                          },
-                        );
-                      },
+                      children: [
+                        SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.6,
+                          child: const Center(child: Text('No incoming requests yet')),
+                        ),
+                      ],
                     ),
                   );
-                }
-
-                return RefreshIndicator(
-                  onRefresh: _refreshPendingRequests,
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    children: [
-                      SizedBox(
-                        height: MediaQuery.of(context).size.height * 0.6,
-                        child: const Center(child: Text('No incoming requests yet')),
-                      ),
-                    ],
-                  ),
-                );
-              },
+                },
+              ),
             ),
           ),
         ),

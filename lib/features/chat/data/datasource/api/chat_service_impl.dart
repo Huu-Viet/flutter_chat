@@ -1,5 +1,7 @@
+import 'dart:math';
+
 import 'package:dio/dio.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_chat/core/network/realtime_gateway.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -15,6 +17,7 @@ class ChatServiceImpl implements ChatService {
   @override
   Future<ConversationResponse> fetchConversations(int page, int limit) async {
     try {
+      debugPrint('[ChatServiceImpl] Fetch conversations request: page=$page, limit=$limit');
       final response = await _dio.get(
         '$_baseUrl/conversations',
         queryParameters: {'page': page, 'limit': limit},
@@ -96,23 +99,44 @@ class ChatServiceImpl implements ChatService {
     Map<String, dynamic>? metadata,
   }) async {
     try {
+      final normalizedConversationId = conversationId.trim();
+      final normalizedClientMessageId =
+          (clientMessageId?.trim().isNotEmpty ?? false) ? clientMessageId!.trim() : _generateClientMessageId();
+
       final body = <String, dynamic>{
-        'conversationId': conversationId,
         'content': content,
         'type': type,
         if (mediaId != null) 'mediaId': mediaId,
-        if (clientMessageId != null) 'clientMessageId': clientMessageId,
+        'clientMessageId': normalizedClientMessageId,
         if (replyToMessageId != null) 'replyToMessageId': replyToMessageId,
         if (metadata != null) 'metadata': metadata,
       };
 
-      final response = await _dio.post(
-        '$_baseUrl/chat/messages',
-        data: body,
-      );
+      final endpoint = '$_baseUrl/conversations/$normalizedConversationId/messages';
+      debugPrint('[ChatServiceImpl] Send message request: endpoint=$endpoint, body=$body');
+
+      Response<dynamic> response;
+      try {
+        response = await _dio.post(endpoint, data: body);
+      } on DioException catch (e) {
+        if (e.response?.statusCode != 404) {
+          rethrow;
+        }
+
+        final legacyEndpoint = '$_baseUrl/chat/messages';
+        final legacyBody = <String, dynamic>{
+          ...body,
+          'conversationId': normalizedConversationId,
+        };
+
+        debugPrint(
+          '[ChatServiceImpl] Send message fallback request: endpoint=$legacyEndpoint, body=$legacyBody',
+        );
+        response = await _dio.post(legacyEndpoint, data: legacyBody);
+      }
 
       if ((response.statusCode != 200 && response.statusCode != 201) || response.data == null) {
-        throw Exception('Failed to send message: ${response.statusCode}');
+        throw Exception('Failed to send message: ${response.statusCode}, body=${response.data}');
       }
 
       final responseBody = response.data;
@@ -129,10 +153,28 @@ class ChatServiceImpl implements ChatService {
       }
 
       throw Exception('Invalid message payload from server');
+    } on DioException catch (e) {
+      debugPrint(
+        '[ChatServiceImpl] Send message Dio error: status=${e.response?.statusCode}, data=${e.response?.data}, message=${e.message}',
+      );
+      throw Exception(
+        'Failed to send message: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
     } catch (e) {
       debugPrint('[ChatServiceImpl] Send message error: $e');
       throw Exception('Failed to send message: $e');
     }
+  }
+
+  String _generateClientMessageId() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+
+    bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+    bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10xx
+
+    final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20, 32)}';
   }
 
 }

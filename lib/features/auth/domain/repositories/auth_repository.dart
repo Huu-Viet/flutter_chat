@@ -1,4 +1,5 @@
 import 'package:dartz/dartz.dart';
+import 'package:flutter_chat/core/theme/e_app_theme.dart';
 import '../../../../core/errors/failure.dart';
 import '../entities/user.dart';
 

@@ -5,12 +5,14 @@ sealed class AddFriendState extends Equatable {
   final List<MyUser> users;
   final bool hasSearched;
   final String? busyUserId;
+  final List<String> friendAndPendingUserIds;
 
   const AddFriendState({
     required this.query,
     required this.users,
     required this.hasSearched,
     required this.busyUserId,
+    required this.friendAndPendingUserIds,
   });
 
   @override
@@ -24,6 +26,7 @@ final class AddFriendInitial extends AddFriendState {
           users: const <MyUser>[],
           hasSearched: false,
           busyUserId: null,
+          friendAndPendingUserIds: const [],
         );
 
   @override
@@ -36,10 +39,11 @@ final class AddFriendLoading extends AddFriendState {
     required super.users,
     required super.hasSearched,
     required super.busyUserId,
+    required super.friendAndPendingUserIds,
   });
 
   @override
-  List<Object?> get props => [query, users, hasSearched, busyUserId];
+  List<Object?> get props => [query, users, hasSearched, busyUserId, friendAndPendingUserIds];
 }
 
 final class AddFriendLoaded extends AddFriendState {
@@ -48,10 +52,11 @@ final class AddFriendLoaded extends AddFriendState {
     required super.users,
     required super.hasSearched,
     required super.busyUserId,
+    required super.friendAndPendingUserIds,
   });
 
   @override
-  List<Object?> get props => [query, users, hasSearched, busyUserId];
+  List<Object?> get props => [query, users, hasSearched, busyUserId, friendAndPendingUserIds];
 }
 
 final class AddFriendFailure extends AddFriendState {
@@ -63,8 +68,9 @@ final class AddFriendFailure extends AddFriendState {
     required super.users,
     required super.hasSearched,
     required super.busyUserId,
+    required super.friendAndPendingUserIds,
   });
 
   @override
-  List<Object?> get props => [message, query, users, hasSearched, busyUserId];
+  List<Object?> get props => [message, query, users, hasSearched, busyUserId, friendAndPendingUserIds];
 }

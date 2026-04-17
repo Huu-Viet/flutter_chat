@@ -349,10 +349,20 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
     try {
       await authLocalDataSource.clearToken();
       await authLocalDataSource.clearCache();
-      await userDao.clearAllUsers();
       return Right(null);
     } catch (e) {
       return Future.value(Left(CacheFailure('Failed to clear local cache: $e')));
+    }
+  }
+
+  @override
+  Stream<Either<Failure, String>> watchTheme(String userId) async* {
+    await for (final userEntity in userDao.watchUserById(userId)) {
+      if (userEntity != null && userEntity.theme != null) {
+        yield Right(userEntity.theme!);
+      } else {
+        yield Right('system');
+      }
     }
   }
 }

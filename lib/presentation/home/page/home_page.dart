@@ -105,20 +105,22 @@ class _HomePageState extends ConsumerState<HomePage> {
                               ),
                               title: Text(user.username),
                               subtitle: Text(user.email),
-                              trailing: IconButton(
+                              trailing: (state.friendAndPendingUserIds.contains(user.id))
+                                  ? null
+                                  : IconButton(
                                 onPressed: state.busyUserId == user.id
                                     ? null
                                     : () {
-                                        addFriendBloc.add(AddFriendRequestRequested(user.id));
-                                      },
+                                  addFriendBloc.add(AddFriendRequestRequested(user.id));
+                                },
                                 icon: state.busyUserId == user.id
                                     ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(strokeWidth: 2),
-                                      )
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
                                     : const Icon(Icons.person_add_alt_1_outlined),
-                              ),
+                              )
                             );
                           },
                         );
@@ -309,7 +311,7 @@ class _HomePageContentState extends ConsumerState<HomePageContent> {
 
               if (state is HomeLoaded) {
                 if (state.conversations.isEmpty) {
-                  return Center(child: Text("There are no conversations yet!"));
+                  return Center(child: Text(l10n.warning_no_conversation));
                 }
 
                 return ListView.builder(
@@ -325,16 +327,17 @@ class _HomePageContentState extends ConsumerState<HomePageContent> {
 
                     final c = state.conversations[index];
                     return ChatListTile(
+                      conversationId: c.id,
                       name: c.name,
                       lastMessage: '',
                       time: c.updatedAt,
                       unreadCount: 0,
                       avatarUrl: c.avatarUrl.isEmpty ? null : c.avatarUrl,
+                      homeBloc: homeBloc,
                     );
                   },
                 );
               }
-
               return const SizedBox.shrink();
             },
           ),
@@ -349,6 +352,7 @@ class _NetworkStatusCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final networkStatusAsync = ref.watch(networkStatusProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return networkStatusAsync.when(
       data: (networkStatus) => Container(
@@ -368,7 +372,7 @@ class _NetworkStatusCard extends ConsumerWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                _getNetworkMessage(networkStatus),
+                _getNetworkMessage(networkStatus, l10n),
                 style: TextStyle(
                   color: Colors.blue.shade700,
                   fontWeight: FontWeight.w500,
@@ -396,20 +400,20 @@ class _NetworkStatusCard extends ConsumerWidget {
     }
   }
 
-  String _getNetworkMessage(NetworkStatus status) {
+  String _getNetworkMessage(NetworkStatus status, AppLocalizations l10n) {
     if (!status.isConnected) {
-      return 'Không có kết nối mạng';
+      return l10n.error_no_internet;
     }
     
     switch (status.connectionType) {
       case NetworkConnectionType.wifi:
-        return 'Đã kết nối WiFi';
+        return l10n.success_internet_connected;
       case NetworkConnectionType.mobile:
-        return 'Đang sử dụng dữ liệu di động';
+        return l10n.warning_using_mobile_data;
       case NetworkConnectionType.ethernet:
-        return 'Đã kết nối Ethernet';
+        return l10n.success_ethernet_connected;
       case NetworkConnectionType.none:
-        return 'Không có kết nối';
+        return l10n.error_no_internet;
     }
   }
 }

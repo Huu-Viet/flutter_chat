@@ -3,7 +3,7 @@ import 'package:flutter_chat/core/errors/failure.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 
 abstract class ChatRepository {
-  Future<Either<Failure, List<Conversation>>> fetchConversations(int page, int limit);
+  Future<Either<Failure, bool>> fetchConversations(int page, int limit);
 
   Future<Either<Failure, void>> joinConversation(String conversationId);
 
@@ -23,6 +23,8 @@ abstract class ChatRepository {
     String? replyToMessageId,
     Map<String, dynamic>? metadata,
   });
+
+  Future<Either<Failure, void>> clearLocalCache();
 
   Stream<Either<Failure, List<Conversation>>> watchConversationsLocal();
   Stream<Either<Failure, List<Message>>> watchMessagesLocal(String conversationId);

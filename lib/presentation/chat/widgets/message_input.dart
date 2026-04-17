@@ -66,9 +66,9 @@ class MessageInput extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
         decoration: BoxDecoration(
-          color: Colors.blueAccent,
+          color: Theme.of(context).colorScheme.surfaceBright,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -94,8 +94,8 @@ class MessageInput extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
-          color: Colors.white70,
-          borderRadius: BorderRadius.circular(24),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           children: [
@@ -107,7 +107,7 @@ class MessageInput extends StatelessWidget {
               icon: Icons.image_outlined,
               onPressed: () => _showImagePickerOptions(context),
             ),
-            Expanded(child: _buildTextField()),
+            Expanded(child: _buildTextField(context)),
           ],
         ),
       ),
@@ -116,8 +116,7 @@ class MessageInput extends StatelessWidget {
 
   Widget _buildSendButton() {
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.blueAccent,
+      decoration: BoxDecoration(
         shape: BoxShape.circle,
       ),
       child: IconButton(
@@ -139,17 +138,22 @@ class MessageInput extends StatelessWidget {
     );
   }
 
-  Widget _buildTextField() {
+  Widget _buildTextField(BuildContext context) {
     return TextField(
       controller: controller,
+      style: TextStyle(
+          color: Colors.black
+      ),
       decoration: const InputDecoration(
         hintText: 'Type a message...',
         border: InputBorder.none,
         contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        hintStyle: TextStyle(color: Colors.grey),
       ),
       minLines: 1,
       maxLines: 5,
       textCapitalization: TextCapitalization.sentences,
+      cursorColor: Colors.grey,
     );
   }
 

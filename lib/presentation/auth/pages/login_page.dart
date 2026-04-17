@@ -19,6 +19,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   late final TextEditingController emailController;
   late final TextEditingController passwordController;
   bool showLoading = false;
+  final RegExp _gmailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@gmail\.com$', caseSensitive: false);
 
   @override
   void initState() {
@@ -122,15 +123,26 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
                     ElevatedButton(
                       onPressed: () {
-                        if (emailController.text.isEmpty || passwordController.text.isEmpty) {
+                        final email = emailController.text.trim();
+                        final password = passwordController.text;
+
+                        if (email.isEmpty || password.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text(l10n.fill_in_input_notify)),
                           );
                           return;
                         }
+
+                        if (!_gmailRegex.hasMatch(email)) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(l10n.email_rule)),
+                          );
+                          return;
+                        }
+
                         grantedAccountProvider.add(LoginWithEmailEvent(
-                          emailController.text,
-                          passwordController.text,
+                          email,
+                          password,
                         ));
                       },
                       style: const ButtonStyle(

@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
 import 'package:flutter_chat/presentation/auth/widgets/login_custom_input.dart';
+import 'package:flutter_chat/presentation/auth/widgets/policy_dialog.dart';
 
 class ResetPasswordForm extends StatefulWidget {
   final void Function(String) onResetPassword;
@@ -23,6 +24,7 @@ class ResetPasswordForm extends StatefulWidget {
 class _ResetPasswordFormState extends State<ResetPasswordForm> {
   final newPasswordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
+  bool _acceptPolicy = false;
 
   bool has8Chars = false;
   bool hasUpper = false;
@@ -83,6 +85,13 @@ class _ResetPasswordFormState extends State<ResetPasswordForm> {
       return false;
     }
     return true;
+  }
+
+  void _showPolicyDialog({required int initialTab}) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => PolicyDialog(initialTab: initialTab),
+    );
   }
 
   @override
@@ -147,6 +156,69 @@ class _ResetPasswordFormState extends State<ResetPasswordForm> {
                   buildRule(l10n.password_rule_uppercase, hasUpper),
                   buildRule(l10n.password_rule_number, hasNum),
                   buildRule(l10n.password_rule_special, hasSpecial),
+                  const SizedBox(height: 4),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () {
+                      setState(() {
+                        _acceptPolicy = !_acceptPolicy;
+                      });
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Checkbox(
+                            value: _acceptPolicy,
+                            onChanged: (value) {
+                              setState(() {
+                                _acceptPolicy = value ?? false;
+                              });
+                            },
+                          ),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: Wrap(
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                    l10n.i_accept_the,
+                                    style: Theme.of(context).textTheme.bodyMedium,
+                                  ),
+                                  TextButton(
+                                    onPressed: () => _showPolicyDialog(initialTab: 0),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: Theme.of(context).colorScheme.primary,
+                                      padding: EdgeInsets.zero,
+                                      minimumSize: Size.zero,
+                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    child: Text(l10n.terms_of_service),
+                                  ),
+                                  Text(
+                                    ' & ',
+                                    style: Theme.of(context).textTheme.bodyMedium,
+                                  ),
+                                  TextButton(
+                                    onPressed: () => _showPolicyDialog(initialTab: 1),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: Theme.of(context).colorScheme.primary,
+                                      padding: EdgeInsets.zero,
+                                      minimumSize: Size.zero,
+                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    child: Text(l10n.privacy_policy),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 20),
 
                   ElevatedButton(
@@ -162,7 +234,7 @@ class _ResetPasswordFormState extends State<ResetPasswordForm> {
                         borderRadius: BorderRadius.all(Radius.circular(12)),
                       )),
                     ),
-                    onPressed: () {
+                    onPressed: !_acceptPolicy ? null : () {
                       if (!_canSubmit) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(

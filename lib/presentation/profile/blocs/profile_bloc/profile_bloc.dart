@@ -13,6 +13,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   final GetLocalCurrentUserDataUseCase getLocalCurrentUserDataUseCase;
   final SyncCurrentUserFromRemoteUseCase syncCurrentUserFromRemoteUseCase;
   final SignOutUseCase signOutUseCase;
+  final ClearLocalAppDataUseCase clearLocalAppDataUseCase;
   final DisconnectRealtimeGatewayUseCase disconnectRealtimeGatewayUseCase;
   StreamSubscription? _userSubscription;
 
@@ -21,6 +22,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     this.getLocalCurrentUserDataUseCase,
     this.syncCurrentUserFromRemoteUseCase,
     this.signOutUseCase,
+    this.clearLocalAppDataUseCase,
     this.disconnectRealtimeGatewayUseCase,
   ) : super(ProfileInitial()) {
     on<LoadProfileEvent>(_onLoadProfile);
@@ -82,9 +84,10 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   }
 
   Future<void> _onSignOut(SignOutEvent event, Emitter<ProfileState> emit) async {
-    emit (ProfileLoading());
+    emit(ProfileLoading());
     await disconnectRealtimeGatewayUseCase();
     await signOutUseCase();
+    await clearLocalAppDataUseCase();
     emit (ProfileSignOutComplete());
   }
 

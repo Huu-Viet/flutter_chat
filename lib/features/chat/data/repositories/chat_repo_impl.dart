@@ -1,10 +1,7 @@
 import 'package:dartz/dartz.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
 import 'package:flutter_chat/features/chat/export.dart';
-import 'package:flutter_chat/features/chat/data/datasource/local/conversation_dao.dart';
-import 'package:flutter_chat/features/chat/data/datasource/local/message_dao.dart';
-import 'package:flutter_chat/features/chat/data/mappers/local_conversation_mapper.dart';
-import 'package:flutter_chat/features/chat/data/mappers/local_message_mapper.dart';
 
 class ChatRepoImpl implements ChatRepository {
   final ChatService _chatService;
@@ -32,20 +29,26 @@ class ChatRepoImpl implements ChatRepository {
         _localMessageMapper = localMessageMapper;
 
   @override
-  Future<Either<Failure, List<Conversation>>> fetchConversations(int page, int limit) async {
+  Future<Either<Failure, bool>> fetchConversations(int page, int limit) async {
     try {
+      debugPrint('[ChatRepoImpl] fetchConversations start: page=$page, limit=$limit');
       final response = await _chatService.fetchConversations(page, limit);
       final conversations = _apiConversationMapper.toDomainList(response.conversations);
+      debugPrint('[ChatRepoImpl] fetchConversations mapped: count=${conversations.length}');
+      final hasMore = conversations.length == limit && conversations.isNotEmpty;
 
       if (page == 1 && conversations.isEmpty) {
         await _conversationDao.clearConversations();
-        return const Right(<Conversation>[]);
+        debugPrint('[ChatRepoImpl] fetchConversations cleared local conversations (page=1 empty result)');
+        return const Right(false);
       }
 
       final entities = _localConversationMapper.toEntityList(conversations);
       await _conversationDao.saveConversations(entities);
-      return Right(conversations);
+      debugPrint('[ChatRepoImpl] fetchConversations saved to local DB: count=${entities.length}');
+      return Right(hasMore);
     } catch (e) {
+      debugPrint('[ChatRepoImpl] fetchConversations error: $e');
       return Left(ServerFailure(e.toString()));
     }
   }
@@ -108,6 +111,17 @@ class ChatRepoImpl implements ChatRepository {
       return Right(message);
     } catch (e) {
       return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> clearLocalCache() async {
+    try {
+      await _conversationDao.clearConversations();
+      await _messageDao.clearAllMessages();
+      return const Right(null);
+    } catch (e) {
+      return Left(CacheFailure('Failed to clear chat cache: $e'));
     }
   }
 

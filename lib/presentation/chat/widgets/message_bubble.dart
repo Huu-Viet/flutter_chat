@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 
-import '../chat_page.dart';
+import 'package:flutter_chat/presentation/chat/page/chat_page.dart';
 
 class MessageBubble extends StatelessWidget {
   final ChatMessage message;
@@ -22,7 +22,7 @@ class MessageBubble extends StatelessWidget {
           maxWidth: MediaQuery.of(context).size.width * 0.7,
         ),
         decoration: BoxDecoration(
-          color: message.isSentByMe ? Colors.blue : Colors.grey[300],
+          color: message.isSentByMe ? Theme.of(context).colorScheme.primary : Colors.grey[300],
           borderRadius: BorderRadius.circular(16),
         ),
         child: _buildMessageContent(),

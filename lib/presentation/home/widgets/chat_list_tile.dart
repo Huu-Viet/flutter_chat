@@ -1,25 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_chat/presentation/home/blocs/home_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_chat/core/utils/date_utils.dart';
 
 class ChatListTile extends StatelessWidget {
+  final String conversationId;
   final String name;
   final String lastMessage;
   final DateTime time;
   final int unreadCount;
   final String? avatarUrl;
+  final HomeBloc homeBloc;
 
   const ChatListTile({
     super.key,
+    required this.conversationId,
     required this.name,
     required this.lastMessage,
     required this.time,
     required this.unreadCount,
     this.avatarUrl,
+    required this.homeBloc,
   });
 
   @override
   Widget build(BuildContext context) {
+    final id = conversationId.trim().isEmpty ? 'unknown_id' : conversationId;
     final displayName = name.trim().isEmpty ? 'Unknown' : name;
     final avatarText = displayName[0].toUpperCase();
 
@@ -74,8 +80,16 @@ class ChatListTile extends StatelessWidget {
           ],
         ],
       ),
-      onTap: () {
-        context.push('/chat/$displayName', extra: {'friendName': displayName});
+      onTap: () async {
+        await homeBloc.joinConversationUseCase(id);
+
+        if(!context.mounted) return;
+        context.push('/chat/$id/$displayName',
+          extra: {
+            'conversationId': id,
+            'friendName': displayName,
+          }
+        );
       },
     );
   }

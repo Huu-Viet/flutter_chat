@@ -7,14 +7,17 @@ import 'package:flutter_chat/features/auth/export.dart';
 class SessionAppEventSubscriber extends AppEventSubscriber {
   final RealtimeGateway _realtimeGateway;
   final SignOutUseCase _signOutUseCase;
+  final ClearLocalAppDataUseCase _clearLocalAppDataUseCase;
   final Future<void> Function()? _onSessionRevoked;
 
   const SessionAppEventSubscriber({
     required RealtimeGateway realtimeGateway,
     required SignOutUseCase signOutUseCase,
+    required ClearLocalAppDataUseCase clearLocalAppDataUseCase,
     Future<void> Function()? onSessionRevoked,
   })  : _realtimeGateway = realtimeGateway,
         _signOutUseCase = signOutUseCase,
+        _clearLocalAppDataUseCase = clearLocalAppDataUseCase,
         _onSessionRevoked = onSessionRevoked;
 
   @override
@@ -35,6 +38,16 @@ class SessionAppEventSubscriber extends AppEventSubscriber {
       await _signOutUseCase.call();
     } catch (e) {
       debugPrint('[SessionAppEventSubscriber] Error during sign out: $e');
+    }
+
+    try {
+      final result = await _clearLocalAppDataUseCase.call();
+      result.fold(
+        (failure) => debugPrint('[SessionAppEventSubscriber] Error clearing local data: ${failure.message}'),
+        (_) => debugPrint('[SessionAppEventSubscriber] Local data cleared'),
+      );
+    } catch (e) {
+      debugPrint('[SessionAppEventSubscriber] Error during local data cleanup: $e');
     }
 
     try {

@@ -7,7 +7,7 @@ class FetchConversationUseCase {
 
   FetchConversationUseCase(this._repository);
 
-  Future<Either<Failure, List<Conversation>>> call(int page, int limit) {
+  Future<Either<Failure, bool>> call(int page, int limit) {
     return _repository.fetchConversations(page, limit);
   }
 }

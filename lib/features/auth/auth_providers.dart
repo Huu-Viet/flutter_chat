@@ -1,8 +1,12 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_chat/features/auth/data/datasources/api/auth_interceptor.dart';
 import 'package:flutter_chat/features/auth/auth_session_providers.dart';
+import 'package:flutter_chat/features/auth/data/mappers/theme_mapper.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/features/auth/user_providers.dart';
+import 'package:flutter_chat/features/chat/chat_providers.dart';
+import 'package:flutter_chat/features/friendship/friendship_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Data Sources
@@ -136,4 +140,41 @@ final resetPasswordUseCaseProvider = Provider<ResetPasswordUseCase>((ref) {
 
 final logoutUseCaseProvider = Provider<SignOutUseCase>((ref) {
   return SignOutUseCase(ref.watch(authRemoteRepoProvider));
+});
+
+final clearLocalAppDataUseCaseProvider = Provider<ClearLocalAppDataUseCase>((ref) {
+  return ClearLocalAppDataUseCase(
+    ref.watch(chatRepoProvider),
+    ref.watch(friendshipRepositoryProvider),
+  );
+});
+
+// Theme streaming from local database
+final watchThemeStringProvider = StreamProvider<String>((ref) async* {
+  final currentUserIdResult = await ref.watch(getCurrentUserIdUseCaseProvider).call();
+  final userId = currentUserIdResult.fold(
+    (_) => null,
+    (id) => id,
+  );
+
+  if (userId == null) {
+    yield 'system';
+    return;
+  }
+
+  await for (final themeResult in ref.watch(authLocalRepoProvider).watchTheme(userId)) {
+    final themeString = themeResult.fold(
+      (_) => 'system',
+      (theme) => theme,
+    );
+    yield themeString;
+  }
+});
+
+// Map theme string to ThemeMode
+final themeProvider = StreamProvider<ThemeMode>((ref) async* {
+  final themeStringStream = ref.watch(watchThemeStringProvider.stream);
+  await for (final themeString in themeStringStream) {
+    yield ThemeMapper.toThemeMode(themeString);
+  }
 });

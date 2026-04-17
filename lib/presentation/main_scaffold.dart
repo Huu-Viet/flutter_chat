@@ -8,6 +8,7 @@ import 'package:flutter_chat/presentation/profile/pages/profile_page.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final selectedTabProvider = StateProvider<int>((ref) => 0);
+final pendingContactRequestsCountProvider = StateProvider<int>((ref) => 0);
 
 class MainScaffold extends ConsumerWidget{
   const MainScaffold({super.key});
@@ -15,13 +16,18 @@ class MainScaffold extends ConsumerWidget{
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedIndex = ref.watch(selectedTabProvider);
+    final pendingCount = ref.watch(pendingContactRequestsCountProvider);
     final l10n = AppLocalizations.of(context)!;
 
-    const pages = [
-      HomePage(),
-      ContactPage(),
-      CallPage(),
-      ProfilePage(),
+    final pages = [
+      const HomePage(),
+      ContactPage(
+        onPendingRequestCountChanged: (amount) {
+          ref.read(pendingContactRequestsCountProvider.notifier).state = amount;
+        },
+      ),
+      const CallPage(),
+      const ProfilePage(),
     ];
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -55,7 +61,7 @@ class MainScaffold extends ConsumerWidget{
                 label: l10n.messages,
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.contacts),
+                icon: _ContactTabIcon(pendingCount: pendingCount),
                 label: l10n.contacts,
               ),
               BottomNavigationBarItem(
@@ -70,6 +76,44 @@ class MainScaffold extends ConsumerWidget{
           ),
         ),
       ),
+    );
+  }
+}
+class _ContactTabIcon extends StatelessWidget {
+  final int pendingCount;
+
+  const _ContactTabIcon({required this.pendingCount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        const Icon(Icons.contacts),
+        if (pendingCount > 0)
+          Positioned(
+            right: -8,
+            top: -6,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+              decoration: const BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.rectangle,
+                borderRadius: BorderRadius.all(Radius.circular(10)),
+              ),
+              child: Text(
+                pendingCount > 99 ? '99+' : '$pendingCount',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

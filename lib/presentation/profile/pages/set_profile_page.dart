@@ -11,7 +11,7 @@ import 'package:flutter_chat/presentation/profile/widgets/info_input.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter_chat/presentation/profile/providers/set_profile_bloc_provider.dart';
+import 'package:flutter_chat/presentation/profile/providers/profile_bloc_provider.dart';
 
 class SetProfilePage extends ConsumerStatefulWidget {
   final MyUser? initialUser;

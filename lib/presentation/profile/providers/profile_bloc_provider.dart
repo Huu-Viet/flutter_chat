@@ -24,6 +24,7 @@ final profileBlocProvider = Provider.autoDispose<ProfileBloc>((ref) {
     ref.read(getCurrentLocalUserInfoUseCaseProvider),
     ref.read(syncCurrentUserFromRemoteUseCaseProvider),
     ref.read(logoutUseCaseProvider),
+    ref.read(clearLocalAppDataUseCaseProvider),
     ref.read(disconnectRealtimeGatewayUseCaseProvider),
   );
 

@@ -33,8 +33,13 @@ class FriendshipRemoteDataSourceImpl implements FriendshipRemoteDataSource {
         throw Exception('Invalid response body format');
       }
 
-      debugPrint('[FriendshipRemoteDataSourceImpl] Friendship status: $responseBody');
-      return FriendshipStatusDto.fromJson(responseBody);
+      final dynamic payload = responseBody['data'] ?? responseBody;
+      if (payload is! Map<String, dynamic>) {
+        throw Exception('Invalid friendship status payload format');
+      }
+
+      debugPrint('[FriendshipRemoteDataSourceImpl] Friendship status payload: $payload');
+      return FriendshipStatusDto.fromJson(payload);
     } on DioException catch (e) {
       debugPrint('Error getting friendship status: ${e.message}, response=${e.response?.data}');
       throw Exception('[FriendshipRemoteDataSourceImpl] Get friendship status error: ${e.message}');
@@ -186,8 +191,13 @@ class FriendshipRemoteDataSourceImpl implements FriendshipRemoteDataSource {
         throw Exception('Invalid response body format');
       }
 
-      debugPrint('[FriendshipRemoteDataSourceImpl] Friends list: $responseBody');
-      return FriendsListDto.fromJson(responseBody);
+      final dynamic payload = responseBody['data'] ?? responseBody;
+      if (payload is! Map<String, dynamic>) {
+        throw Exception('Invalid friends list payload format');
+      }
+
+      debugPrint('[FriendshipRemoteDataSourceImpl] Friends list payload: $payload');
+      return FriendsListDto.fromJson(payload);
     } on DioException catch (e) {
       debugPrint('Error getting friends list: ${e.message}, response=${e.response?.data}');
       throw Exception('[FriendshipRemoteDataSourceImpl] Get friends list error: ${e.message}');

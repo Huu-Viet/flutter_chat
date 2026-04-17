@@ -50,6 +50,15 @@ class AppDatabase extends _$AppDatabase {
     return delete(users).go().then((count) => count > 0);
   }
 
+  Future<void> clearAllAppData() async {
+    await transaction(() async {
+      await delete(chatMessages).go();
+      await delete(chatConversations).go();
+      await delete(friendships).go();
+      await delete(users).go();
+    });
+  }
+
   Future<UserEntity?> getUserById(String userId) async {
     return (select(users)..where((u) => u.id.equals(userId))).getSingleOrNull();
   }
@@ -99,9 +108,21 @@ class AppDatabase extends _$AppDatabase {
     await delete(chatConversations).go();
   }
 
+  Future<void> clearAllMessages() async {
+    await delete(chatMessages).go();
+  }
+
   // Chat message queries
   Future<void> insertMessage(ChatMessageEntity item) async {
     await into(chatMessages).insert(item, mode: InsertMode.replace);
+  }
+
+  Future<ChatMessageEntity?> getMessageByClientMessageId(String clientMessageId) async {
+    return (select(chatMessages)..where((tbl) => tbl.clientMessageId.equals(clientMessageId))).getSingleOrNull();
+  }
+
+  Future<void> deleteMessagesByClientMessageId(String clientMessageId) async {
+    await (delete(chatMessages)..where((tbl) => tbl.clientMessageId.equals(clientMessageId))).go();
   }
 
   Future<void> insertMessages(List<ChatMessageEntity> items) async {
@@ -133,6 +154,10 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> clearMessagesByConversationId(String conversationId) async {
     await (delete(chatMessages)..where((tbl) => tbl.conversationId.equals(conversationId))).go();
+  }
+
+  Future<void> clearFriendships() async {
+    await delete(friendships).go();
   }
 }
 

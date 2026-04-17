@@ -47,6 +47,7 @@ export '../auth/domain/usecases/forgot_password_usecase.dart';
 export '../auth/domain/usecases/verify_reset_pass_usecase.dart';
 export '../auth/domain/usecases/reset_password_usecase.dart';
 export '../auth/domain/usecases/sign_out_usecase.dart';
+export '../auth/domain/usecases/clear_local_app_data_usecase.dart';
 export '../auth/domain/usecases/register_init_usecase.dart';
 export '../auth/domain/usecases/register_complete_usecase.dart';
 export '../auth/domain/usecases/register_verify_otp_usecase.dart';

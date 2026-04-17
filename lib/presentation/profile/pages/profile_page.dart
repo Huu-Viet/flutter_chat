@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
 import 'package:flutter_chat/presentation/profile/blocs/profile_bloc/profile_bloc.dart';
-import 'package:flutter_chat/presentation/profile/providers/set_profile_bloc_provider.dart';
+import 'package:flutter_chat/presentation/profile/providers/profile_bloc_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 

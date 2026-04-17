@@ -20,6 +20,11 @@ class AppEventBus {
 
   Future<void> publish(AppEvent event) async {
     if (_controller.isClosed) return;
+
+    if (event.namespace == '/chat' && event.type == 'session_revoked') {
+      debugPrint('[AppEventBus] publishing session_revoked to subscribers');
+    }
+
     _controller.add(event);
 
     for (final subscriber in _subscribers) {

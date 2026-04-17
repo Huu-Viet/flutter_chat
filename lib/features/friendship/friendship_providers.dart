@@ -19,6 +19,7 @@ final friendshipRepositoryProvider = Provider<FriendshipRepository>((ref) {
     friendshipDao: ref.watch(friendshipDaoProvider),
     localUserMapper: ref.watch(localUserMapperProvider),
     authPrefDataSource: ref.watch(authPrefsDtsProvider),
+    authRemoteRepository: ref.watch(authRemoteRepoProvider),
   );
 });
 
@@ -45,6 +46,10 @@ final getPendingRequestsUseCaseProvider = Provider<GetPendingRequestsUseCase>((r
 
 final getFriendsListUseCaseProvider = Provider<GetFriendsListUseCase>((ref) {
   return GetFriendsListUseCase(ref.watch(friendshipRepositoryProvider));
+});
+
+final syncFriendshipsToLocalUseCaseProvider = Provider<SyncFriendshipsToLocalUseCase>((ref) {
+  return SyncFriendshipsToLocalUseCase(ref.watch(friendshipRepositoryProvider));
 });
 
 final removeFriendshipUseCaseProvider = Provider<RemoveFriendshipUseCase>((ref) {

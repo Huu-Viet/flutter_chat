@@ -4,6 +4,7 @@ import 'package:flutter_chat/features/auth/export.dart';
 
 abstract class AuthLocalRepo {
   Stream<Either<Failure, MyUser>> getUserData(String userId);
+  Stream<Either<Failure, String>> watchTheme(String userId);
   Future<void> writeUserDataToLocal(MyUser userInfo);
   Future<Either<Failure, String>> getCurrentUserId();
   Future<Either<Failure, String>> getAccessToken();

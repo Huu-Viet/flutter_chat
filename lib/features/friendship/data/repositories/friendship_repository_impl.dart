@@ -1,4 +1,5 @@
 import 'package:dartz/dartz.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/features/friendship/data/datasources/api/friendship_remote_datasource.dart';
@@ -12,13 +13,118 @@ class FriendshipRepositoryImpl implements FriendshipRepository {
   final FriendshipDao friendshipDao;
   final LocalUserMapper localUserMapper;
   final AuthPrefDataSource authPrefDataSource;
+  final AuthRemoteRepository authRemoteRepository;
 
   FriendshipRepositoryImpl({
     required this.remoteDataSource,
     required this.friendshipDao,
     required this.localUserMapper,
     required this.authPrefDataSource,
+    required this.authRemoteRepository,
   });
+
+  @override
+  Future<Either<Failure, void>> syncFriendshipsToLocal() async {
+    try {
+      String? currentUserId = await authPrefDataSource.getCurrentUserId();
+      if (currentUserId == null || currentUserId.trim().isEmpty) {
+        final currentUserResult = await authRemoteRepository.getFullCurrentUser();
+        currentUserResult.fold(
+          (failure) => debugPrint(
+            '[FriendshipRepositoryImpl] failed to sync current user before friendship sync: ${failure.message}',
+          ),
+          (_) {},
+        );
+        currentUserId = await authPrefDataSource.getCurrentUserId();
+      }
+
+      if (currentUserId == null || currentUserId.trim().isEmpty) {
+        return const Left(CacheFailure('No current user id found after profile sync'));
+      }
+
+      final friendsDto = await remoteDataSource.getFriendsList();
+      final friendIds = friendsDto.friends
+          .map((id) => id.trim())
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList(growable: false);
+
+          debugPrint('[FriendshipRepositoryImpl] friendship sync started, friend count=${friendIds.length}');
+
+      // Hydrate local users table from remote for every friend id.
+      for (final friendId in friendIds) {
+        final userResult = await authRemoteRepository.getUserById(friendId);
+        userResult.fold(
+          (failure) => debugPrint(
+            '[FriendshipRepositoryImpl] failed to hydrate user $friendId: ${failure.message}',
+          ),
+          (_) {},
+        );
+      }
+
+      final items = <FriendshipSyncItem>[];
+      for (final friendId in friendIds) {
+        try {
+          final statusDto = await remoteDataSource.getFriendshipStatus(friendId);
+          items.add(
+            FriendshipSyncItem(
+              friendId: friendId,
+              status: statusDto.status,
+              updatedAt: DateTime.now(),
+            ),
+          );
+        } catch (e) {
+          debugPrint(
+            '[FriendshipRepositoryImpl] failed to fetch friendship status with $friendId: $e',
+          );
+          items.add(
+            FriendshipSyncItem(
+              friendId: friendId,
+              status: 'FRIEND',
+              updatedAt: DateTime.now(),
+            ),
+          );
+        }
+      }
+
+      await friendshipDao.replaceFriendshipsBySyncItems(
+        userId: currentUserId,
+        items: items,
+      );
+
+      debugPrint('[FriendshipRepositoryImpl] friendship sync completed, rows=${items.length}');
+
+      return const Right(null);
+    } catch (e) {
+      return Left(ServerFailure('Failed to sync friendships to local: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<FriendUser>>> getFriendsListLocal() async {
+    try {
+      final currentUserId = await authPrefDataSource.getCurrentUserId();
+      if (currentUserId == null || currentUserId.trim().isEmpty) {
+        return const Left(CacheFailure('No current user id found'));
+      }
+
+      final joinedRows = await friendshipDao.getFriendUsersByUserId(currentUserId);
+      final friendUsers = joinedRows
+          .where((row) => row.user != null)
+          .map(
+            (row) => FriendUser(
+              user: localUserMapper.toDomain(row.user!),
+              friendshipStatus: row.friendship.status,
+              updatedAt: DateTime.tryParse(row.friendship.updatedAt) ?? DateTime.now(),
+            ),
+          )
+          .toList(growable: false);
+
+      return Right(friendUsers);
+    } catch (e) {
+      return Left(CacheFailure('Failed to get local friends list: $e'));
+    }
+  }
 
   @override
   Future<Either<Failure, FriendshipStatus>> getFriendshipStatus(String targetUserId) async {
@@ -78,37 +184,22 @@ class FriendshipRepositoryImpl implements FriendshipRepository {
   }
 
   @override
-  Future<Either<Failure, List<FriendUser>>> getFriendsList() async {
+  Future<Either<Failure, void>> clearLocalCache() async {
     try {
-      final currentUserId = await authPrefDataSource.getCurrentUserId();
-      if (currentUserId == null || currentUserId.trim().isEmpty) {
-        return const Left(CacheFailure('No current user id found'));
-      }
-
-      final dto = await remoteDataSource.getFriendsList();
-
-      await friendshipDao.replaceFriendshipsForUser(
-        userId: currentUserId,
-        friendIds: dto.friends,
-        status: 'FRIEND',
-      );
-
-      final joinedRows = await friendshipDao.getFriendUsersByUserId(currentUserId);
-      final friendUsers = joinedRows
-          .where((row) => row.user != null)
-          .map(
-            (row) => FriendUser(
-              user: localUserMapper.toDomain(row.user!),
-              friendshipStatus: row.friendship.status,
-              updatedAt: DateTime.tryParse(row.friendship.updatedAt) ?? DateTime.now(),
-            ),
-          )
-          .toList(growable: false);
-
-      return Right(friendUsers);
+      await friendshipDao.clearFriendships();
+      return const Right(null);
     } catch (e) {
-      return Left(ServerFailure('Failed to get friends list: $e'));
+      return Left(CacheFailure('Failed to clear friendship cache: $e'));
     }
+  }
+
+  @override
+  Future<Either<Failure, List<FriendUser>>> getFriendsList() async {
+    final syncResult = await syncFriendshipsToLocal();
+    return syncResult.fold(
+      (failure) => Left(failure),
+      (_) => getFriendsListLocal(),
+    );
   }
 
   @override

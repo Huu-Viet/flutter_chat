@@ -34,7 +34,7 @@ class MessageDto {
       senderId: json['senderId'] as String?,
       content: json['content']?.toString(),
       type: json['type']?.toString(),
-      offset: (json['offset'] as num?)?.toInt(),
+      offset: _asInt(json['offset']),
       isDeleted: json['isDeleted'] as bool?,
       mediaId: json['mediaId'] as String?,
       metadata: json['metadata'] is Map<String, dynamic>
@@ -44,6 +44,13 @@ class MessageDto {
       createdAt: json['createdAt']?.toString(),
       editedAt: json['editedAt']?.toString(),
     );
+  }
+
+  static int? _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 
   Map<String, dynamic> toJson() => {

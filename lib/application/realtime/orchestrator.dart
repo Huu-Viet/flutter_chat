@@ -13,6 +13,11 @@ class RealtimeOrchestrator {
       : _handlers = handlers;
 
   void start() {
+    if (_sub != null) {
+      return;
+    }
+
+    debugPrint('[RealtimeOrchestrator] start listening gateway.events');
     _sub ??= _gateway.events.listen(_handle);
   }
 
@@ -22,6 +27,10 @@ class RealtimeOrchestrator {
   }
 
   Future<void> _handle(RealtimeGatewayEvent event) async {
+    if (event.namespace == '/chat' && event.event == 'session_revoked') {
+      debugPrint('[RealtimeOrchestrator] received session_revoked from gateway stream');
+    }
+
     for (final handler in _handlers) {
       if (!handler.supportsNamespace(event.namespace)) {
         continue;
@@ -38,8 +47,11 @@ class RealtimeOrchestrator {
   }
 
   Future<void> connect() async {
-    await _gateway.initialize();
+    // Listen first to avoid missing early server events sent right after auth.
     start();
+    debugPrint('[RealtimeOrchestrator] connect requested');
+    await _gateway.initialize();
+    debugPrint('[RealtimeOrchestrator] gateway initialize completed');
   }
 
   Future<void> disconnect() async {

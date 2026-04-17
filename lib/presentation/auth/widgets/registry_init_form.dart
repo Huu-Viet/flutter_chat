@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
 import 'package:flutter_chat/presentation/auth/widgets/login_custom_input.dart';
-import 'package:flutter_chat/presentation/auth/widgets/policy_dialog.dart';
 
 class RegistryInitForm extends StatefulWidget {
   final bool isLoading;
@@ -21,7 +20,7 @@ class _RegistryInitFormState extends State<RegistryInitForm> {
   late final TextEditingController emailController;
   late final TextEditingController firstNameController;
   late final TextEditingController lastNameController;
-  bool _acceptPolicy = false;
+  final RegExp _gmailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@gmail\.com$', caseSensitive: false);
 
   @override
   void initState() {
@@ -52,21 +51,14 @@ class _RegistryInitFormState extends State<RegistryInitForm> {
       return;
     }
 
-    if (!_acceptPolicy) {
+    if (!_gmailRegex.hasMatch(email)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please accept the Terms & Privacy Policy')),
+        SnackBar(content: Text(l10n.email_rule)),
       );
       return;
     }
 
     widget.onSubmit(email, firstName, lastName);
-  }
-
-  void _showPolicyDialog({required int initialTab}) {
-    showDialog<void>(
-      context: context,
-      builder: (_) => PolicyDialog(initialTab: initialTab),
-    );
   }
 
   @override
@@ -102,70 +94,7 @@ class _RegistryInitFormState extends State<RegistryInitForm> {
               controller: lastNameController,
               icon: Icons.badge_outlined,
             ),
-            const SizedBox(height: 4),
-            InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () {
-                setState(() {
-                  _acceptPolicy = !_acceptPolicy;
-                });
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Checkbox(
-                      value: _acceptPolicy,
-                      onChanged: (value) {
-                        setState(() {
-                          _acceptPolicy = value ?? false;
-                        });
-                      },
-                    ),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: Wrap(
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            Text(
-                              l10n.i_accept_the,
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                            TextButton(
-                              onPressed: () => _showPolicyDialog(initialTab: 0),
-                              style: TextButton.styleFrom(
-                                foregroundColor: Theme.of(context).colorScheme.primary,
-                                padding: EdgeInsets.zero,
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(l10n.terms_of_service),
-                            ),
-                            Text(
-                              ' & ',
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                            TextButton(
-                              onPressed: () => _showPolicyDialog(initialTab: 1),
-                              style: TextButton.styleFrom(
-                                foregroundColor: Theme.of(context).colorScheme.primary,
-                                padding: EdgeInsets.zero,
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(l10n.privacy_policy),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             ElevatedButton(
               style: ButtonStyle(
                 backgroundColor: WidgetStateProperty.resolveWith((states) {
@@ -181,7 +110,7 @@ class _RegistryInitFormState extends State<RegistryInitForm> {
                   ),
                 ),
               ),
-              onPressed: widget.isLoading || !_acceptPolicy ? null : _submit,
+              onPressed: widget.isLoading ? null : _submit,
               child: widget.isLoading
                   ? const SizedBox(
                       width: 20,

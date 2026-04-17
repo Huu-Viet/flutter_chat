@@ -13,7 +13,24 @@ class FriendUserLocalRow {
   });
 }
 
+class FriendshipSyncItem {
+  final String friendId;
+  final String status;
+  final DateTime updatedAt;
+
+  const FriendshipSyncItem({
+    required this.friendId,
+    required this.status,
+    required this.updatedAt,
+  });
+}
+
 abstract class FriendshipDao {
+  Future<void> replaceFriendshipsBySyncItems({
+    required String userId,
+    required List<FriendshipSyncItem> items,
+  });
+
   Future<void> replaceFriendshipsForUser({
     required String userId,
     required List<String> friendIds,
@@ -22,12 +39,65 @@ abstract class FriendshipDao {
 
   Future<List<FriendUserLocalRow>> getFriendUsersByUserId(String userId);
   Stream<List<FriendUserLocalRow>> watchFriendUsersByUserId(String userId);
+  Future<void> clearFriendships();
 }
 
 class DriftFriendshipDaoImpl implements FriendshipDao {
   final AppDatabase _database;
 
   DriftFriendshipDaoImpl(this._database);
+
+  @override
+  Future<void> replaceFriendshipsBySyncItems({
+    required String userId,
+    required List<FriendshipSyncItem> items,
+  }) async {
+    final normalizedUserId = userId.trim();
+    if (normalizedUserId.isEmpty) return;
+
+    final dedupedItems = <String, FriendshipSyncItem>{};
+    for (final item in items) {
+      final normalizedFriendId = item.friendId.trim();
+      if (normalizedFriendId.isEmpty) {
+        continue;
+      }
+      dedupedItems[normalizedFriendId] = FriendshipSyncItem(
+        friendId: normalizedFriendId,
+        status: item.status.trim().isEmpty ? 'NONE' : item.status.trim(),
+        updatedAt: item.updatedAt,
+      );
+    }
+
+    try {
+      await _database.transaction(() async {
+        await (_database.delete(_database.friendships)
+              ..where((tbl) => tbl.userId.equals(normalizedUserId)))
+            .go();
+
+        if (dedupedItems.isEmpty) {
+          return;
+        }
+
+        final rows = dedupedItems.values
+            .map(
+              (item) => FriendshipEntity(
+                userId: normalizedUserId,
+                friendId: item.friendId,
+                status: item.status,
+                updatedAt: item.updatedAt.toIso8601String(),
+              ),
+            )
+            .toList(growable: false);
+
+        await _database.batch((b) {
+          b.insertAllOnConflictUpdate(_database.friendships, rows);
+        });
+      });
+    } catch (e) {
+      log(e.toString());
+      rethrow;
+    }
+  }
 
   @override
   Future<void> replaceFriendshipsForUser({
@@ -41,35 +111,21 @@ class DriftFriendshipDaoImpl implements FriendshipDao {
     final normalizedFriendIds = friendIds
         .map((id) => id.trim())
         .where((id) => id.isNotEmpty)
-        .toSet()
+        .toSet();
+
+    final now = DateTime.now();
+    final items = normalizedFriendIds
+        .map(
+          (id) => FriendshipSyncItem(
+            friendId: id,
+            status: status,
+            updatedAt: now,
+          ),
+        )
         .toList(growable: false);
 
     try {
-      await _database.transaction(() async {
-        await (_database.delete(_database.friendships)
-              ..where((tbl) => tbl.userId.equals(normalizedUserId)))
-            .go();
-
-        if (normalizedFriendIds.isEmpty) {
-          return;
-        }
-
-        final nowIso = DateTime.now().toIso8601String();
-        final rows = normalizedFriendIds
-            .map(
-              (friendId) => FriendshipEntity(
-                userId: normalizedUserId,
-                friendId: friendId,
-                status: status,
-                updatedAt: nowIso,
-              ),
-            )
-            .toList(growable: false);
-
-        await _database.batch((b) {
-          b.insertAllOnConflictUpdate(_database.friendships, rows);
-        });
-      });
+      await replaceFriendshipsBySyncItems(userId: normalizedUserId, items: items);
     } catch (e) {
       log(e.toString());
       rethrow;
@@ -89,6 +145,16 @@ class DriftFriendshipDaoImpl implements FriendshipDao {
   @override
   Stream<List<FriendUserLocalRow>> watchFriendUsersByUserId(String userId) {
     return _baseJoinQuery(userId).watch().map(_mapJoinedRows);
+  }
+
+  @override
+  Future<void> clearFriendships() async {
+    try {
+      await _database.clearFriendships();
+    } catch (e) {
+      log(e.toString());
+      rethrow;
+    }
   }
 
   JoinedSelectStatement<HasResultSet, dynamic> _baseJoinQuery(String userId) {

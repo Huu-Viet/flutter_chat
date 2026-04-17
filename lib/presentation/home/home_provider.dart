@@ -9,8 +9,11 @@ final homeBlocProvider = Provider<HomeBloc>((ref) {
   final bloc = HomeBloc(
     fetchConversationUseCase: ref.read(fetchConversationUseCaseProvider),
     watchConversationsLocalUseCase: ref.read(watchConversationsLocalUseCaseProvider),
+    syncFriendshipsToLocalUseCase: ref.read(syncFriendshipsToLocalUseCaseProvider),
+    joinConversationUseCase: ref.read(joinConversationUseCaseProvider),
   );
 
+  bloc.add(const InitialLoadHomeEvent());
   bloc.add(const LoadHomeEvent());
   ref.onDispose(bloc.close);
 
@@ -21,6 +24,8 @@ final addFriendBlocProvider = Provider<AddFriendBloc>((ref) {
   final bloc = AddFriendBloc(
     searchUsersByUsernameUseCase: ref.read(searchUsersByUsernameUseCaseProvider),
     sendFriendRequestUseCase: ref.read(sendFriendRequestUseCaseProvider),
+    getFriendsListUseCase: ref.read(getFriendsListUseCaseProvider),
+    getPendingRequestsUseCase: ref.read(getPendingRequestsUseCaseProvider),
   );
 
   ref.onDispose(bloc.close);

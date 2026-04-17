@@ -17,6 +17,18 @@ class AuthLocalRepoImpl extends AuthLocalRepo {
   });
 
   @override
+  Stream<Either<Failure, String>> watchTheme(String userId) async* {
+    await for (final userEntity in userDao.watchUserById(userId)) {
+      if (userEntity != null) {
+        final themeString = userEntity.theme ?? 'system';
+        yield Right(themeString);
+      } else {
+        yield Left(ServerFailure('User not found'));
+      }
+    }
+  }
+
+  @override
   Stream<Either<Failure, MyUser>> getUserData(String userId) async* {
     await for (final userEntity in userDao.watchUserById(userId)) {
       if (userEntity != null) {

@@ -1,6 +1,7 @@
 import 'package:flutter_chat/presentation/auth/pages/forgot_pass_page.dart';
 import 'package:flutter_chat/presentation/auth/pages/login_page.dart';
 import 'package:flutter_chat/presentation/auth/pages/registry_page.dart';
+import 'package:flutter_chat/presentation/chat/page/chat_page.dart';
 import 'package:flutter_chat/presentation/main_scaffold.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/presentation/profile/pages/profile_page.dart';
@@ -8,8 +9,6 @@ import 'package:flutter_chat/presentation/profile/pages/set_profile_page.dart';
 import 'package:flutter_chat/presentation/splash/pages/splash_page.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
-import '../presentation/chat/presentation/chat_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -59,11 +58,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ProfilePage(),
       ),
       GoRoute(
-        path: '/chat/:friendName',
+        path: '/chat/:conversationId/:friendName',
         name: 'chat',
         builder: (context, state) {
-          final friendName = state.pathParameters['friendName'] ?? 'Unknown';
-          return ChatPage(friendName: friendName);
+            final conversationId = state.pathParameters['conversationId'] ?? '';
+          final friendName = state.pathParameters['friendName'] ?? '';
+          return ChatPage(
+            conversationId: conversationId,
+            friendName: friendName,
+          );
         },
       ),
     ],

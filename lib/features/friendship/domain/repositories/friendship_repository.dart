@@ -4,6 +4,12 @@ import 'package:flutter_chat/features/friendship/domain/entities/friend_user.dar
 import 'package:flutter_chat/features/friendship/domain/entities/friendship_status.dart';
 
 abstract class FriendshipRepository {
+  /// Sync friendships from remote API to local database.
+  Future<Either<Failure, void>> syncFriendshipsToLocal();
+
+  /// Get list of friends from local database only.
+  Future<Either<Failure, List<FriendUser>>> getFriendsListLocal();
+
   /// Get friendship status with a specific user
   Future<Either<Failure, FriendshipStatus>> getFriendshipStatus(String targetUserId);
 
@@ -21,6 +27,9 @@ abstract class FriendshipRepository {
 
   /// Get list of friends
   Future<Either<Failure, List<FriendUser>>> getFriendsList();
+
+  /// Clear local friendship cache
+  Future<Either<Failure, void>> clearLocalCache();
 
   /// Remove friendship
   Future<Either<Failure, void>> removeFriendship(String targetUserId);

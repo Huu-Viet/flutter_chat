@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_chat/application/realtime/bus/app_event_bus.dart';
 import 'package:flutter_chat/application/realtime/handlers/call_realtime_handler.dart';
 import 'package:flutter_chat/application/realtime/handlers/chat_realtime_handler.dart';
@@ -53,6 +54,7 @@ final realtimeGatewayServiceProvider = Provider<RealtimeGateway>((ref) {
 final chatAppEventSubscriberProvider = Provider<AppEventSubscriber>((ref) {
   return ChatAppEventSubscriber(
     fetchConversationUseCase: ref.watch(fetchConversationUseCaseProvider),
+    fetchMessagesUseCase: ref.watch(fetchMessagesUseCaseProvider),
   );
 });
 
@@ -64,7 +66,9 @@ final sessionAppEventSubscriberProvider = Provider<AppEventSubscriber>((ref) {
   return SessionAppEventSubscriber(
     realtimeGateway: ref.watch(realtimeGatewayServiceProvider),
     signOutUseCase: ref.watch(logoutUseCaseProvider),
+    clearLocalAppDataUseCase: ref.watch(clearLocalAppDataUseCaseProvider),
     onSessionRevoked: () async {
+      debugPrint('[AppProviders] session revoked callback -> forceLogoutTick++');
       ref.read(forceLogoutTickProvider.notifier).state++;
     },
   );

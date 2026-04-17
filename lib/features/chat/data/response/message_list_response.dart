@@ -14,9 +14,16 @@ class MessageListMetaDto {
   factory MessageListMetaDto.fromJson(Map<String, dynamic> json) {
     return MessageListMetaDto(
       hasMore: json['hasMore'] == true,
-      oldestOffset: (json['oldestOffset'] as num?)?.toInt(),
-      newestOffset: (json['newestOffset'] as num?)?.toInt(),
+      oldestOffset: _asInt(json['oldestOffset']),
+      newestOffset: _asInt(json['newestOffset']),
     );
+  }
+
+  static int? _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 }
 

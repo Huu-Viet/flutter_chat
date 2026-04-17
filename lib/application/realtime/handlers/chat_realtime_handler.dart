@@ -42,6 +42,10 @@ class ChatRealtimeHandler extends RealtimeHandler {
       return;
     }
 
+    if (event.event == 'session_revoked') {
+      debugPrint('[ChatRealtimeHandler] session_revoked forwarded to AppEventBus: ${event.payload}');
+    }
+
     final payload = _toMap(event.payload);
     await _bus.publish(
       AppEvent(
