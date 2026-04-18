@@ -61,7 +61,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/chat/:conversationId/:friendName',
         name: 'chat',
         builder: (context, state) {
-            final conversationId = state.pathParameters['conversationId'] ?? '';
+          final conversationId = state.pathParameters['conversationId'] ?? '';
           final friendName = state.pathParameters['friendName'] ?? '';
           return ChatPage(
             conversationId: conversationId,

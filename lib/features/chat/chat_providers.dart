@@ -9,7 +9,7 @@ import 'package:riverpod/riverpod.dart';
 final chatServiceProvider = Provider<ChatService>((ref) {
   // authDioProvider already includes auth interceptor/token refresh behavior.
   return ChatServiceImpl(
-    ref.read(authDioProvider),
+    ref.watch(authDioProvider),
     ref.read(realtimeGatewayServiceProvider),
   );
 });

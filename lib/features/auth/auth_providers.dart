@@ -55,6 +55,7 @@ final authRepositoryProvider = Provider<AuthRemoteRepoImpl>((ref) {
     authRemoteDataSource: ref.watch(authRemoteServiceProvider),
     authLocalDataSource: ref.watch(authPrefsDtsProvider),
     userRemoteDataSource: ref.watch(userRemoteDataSourceProvider),
+    conversationDao: ref.watch(conversationDaoProvider),
     userDao: ref.watch(userDaoProvider),
     apiMapper: ref.watch(apiUserMapperProvider),
     localMapper: ref.watch(localUserMapperProvider),

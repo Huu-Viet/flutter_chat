@@ -63,21 +63,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       editedAt: null,
     );
 
-    final sendResult = await sendMessageUseCase(
-      message: message
-    );
-
-    final failure = sendResult.fold<Failure?>(
-      (failure) => failure,
-      (_) => null,
-    );
-
-    if (failure != null) {
-      add(_LocalMessagesErrorEvent(failure.message));
-      return;
-    }
-
-    await fetchMessagesUseCase(event.conversationId, limit: 1);
+    unawaited(sendMessageUseCase(message: message));
   }
 
   void _startMessagesLocalWatcher(String conversationId) {

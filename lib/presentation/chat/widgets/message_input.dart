@@ -82,7 +82,7 @@ class MessageInput extends StatelessWidget {
           children: [
             _buildInputContainer(context),
             const SizedBox(width: 8),
-            _buildSendButton(),
+            _buildSendButton(context),
           ],
         ),
       ),
@@ -103,10 +103,6 @@ class MessageInput extends StatelessWidget {
               icon: Icons.emoji_emotions_outlined,
               onPressed: () => _showEmojiPicker(context),
             ),
-            _buildIconButton(
-              icon: Icons.image_outlined,
-              onPressed: () => _showImagePickerOptions(context),
-            ),
             Expanded(child: _buildTextField(context)),
           ],
         ),
@@ -114,15 +110,34 @@ class MessageInput extends StatelessWidget {
     );
   }
 
-  Widget _buildSendButton() {
-    return Container(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-      ),
-      child: IconButton(
-        icon: const Icon(Icons.send, color: Colors.white),
-        onPressed: onSendMessage,
-      ),
+  Widget _buildSendButton(BuildContext context) {
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: controller,
+      builder: (context, value, child) {
+        final isTextEmpty = value.text.trim().isEmpty;
+        return Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+          ),
+          child: isTextEmpty
+              ? Row(
+            children: [
+              _buildIconButton(
+                icon: Icons.image_outlined,
+                onPressed: () => _showImagePickerOptions(context),
+              ),
+              _buildIconButton(
+                icon: Icons.mic_none_rounded,
+                onPressed: () => {},
+              ),
+            ],
+          )
+              : IconButton(
+            icon: const Icon(Icons.send, color: Colors.white),
+            onPressed: onSendMessage,
+          ),
+        );
+      },
     );
   }
 

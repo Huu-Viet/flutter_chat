@@ -1,6 +1,7 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'dart:io';
-
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:flutter_chat/core/utils/date_utils.dart';
 import 'package:flutter_chat/presentation/chat/page/chat_page.dart';
 
 class MessageBubble extends StatelessWidget {
@@ -31,25 +32,45 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _buildMessageContent() {
+    final customCacheManager = CacheManager(
+      Config(
+        'chatImages',
+        stalePeriod: const Duration(days: 3), // cache images for 3 days
+        maxNrOfCacheObjects: 200, // limit to 200 images in cache
+      ),
+    );
     if (message.imagePath != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: Image.file(
-          File(message.imagePath!),
+        child: CachedNetworkImage(
+          imageUrl: message.imagePath!,
           height: 200,
           fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return const Icon(Icons.broken_image, size: 50);
-          },
+          errorWidget: (context, url, error) => const Icon(Icons.broken_image),
+          cacheManager: customCacheManager,
         ),
       );
     }
 
-    return Text(
-      message.text ?? '',
-      style: TextStyle(
-        color: message.isSentByMe ? Colors.white : Colors.black,
-      ),
+    return Column(
+      crossAxisAlignment: message.isSentByMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        Text(
+          message.text ?? '',
+          style: TextStyle(
+            color: message.isSentByMe ? Colors.white : Colors.black,
+          ),
+        ),
+        SizedBox(height: 4,),
+        Text(
+          AppDateUtils.formatTime(message.timestamp),
+          style: TextStyle(
+            color: message.isSentByMe ? Colors.grey[300] : Colors.grey[600],
+            fontSize: 10,
+          ),
+          textAlign: message.isSentByMe ? TextAlign.right : TextAlign.left,
+        ),
+      ],
     );
   }
 }

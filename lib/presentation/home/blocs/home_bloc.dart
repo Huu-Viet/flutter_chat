@@ -52,7 +52,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       ));
     }
 
-    _startLocalWatcher();
+    _startLocalWatcher(emit);
 
     final syncResult = await syncFriendshipsToLocalUseCase();
     syncResult.fold(
@@ -128,7 +128,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     );
   }
 
-  void _startLocalWatcher() {
+  void _startLocalWatcher(Emitter<HomeState> emit) {
     _localSubscription?.cancel();
     _localSubscription = watchConversationsLocalUseCase().listen((result) {
       if (isClosed) {
@@ -137,7 +137,9 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
 
       result.fold(
         (failure) => add(_LocalConversationsErrorEvent(failure)),
-        (conversations) => add(_LocalConversationsChangedEvent(conversations)),
+        (conversations) {
+          add(_LocalConversationsChangedEvent(conversations));
+        },
       );
     });
   }
