@@ -2,6 +2,8 @@ import 'package:flutter_chat/app/app_providers.dart';
 import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/chat/data/datasource/api/chat_service_impl.dart';
 import 'package:flutter_chat/features/chat/data/repositories/chat_repo_impl.dart';
+import 'package:flutter_chat/features/chat/domain/usecases/get_sticker_packages_usecase.dart';
+import 'package:flutter_chat/features/chat/domain/usecases/get_stickers_in_package_usecase.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:riverpod/riverpod.dart';
 
@@ -76,3 +78,10 @@ final watchMessagesLocalUseCaseProvider = Provider<WatchMessagesLocalUseCase>((r
   return WatchMessagesLocalUseCase(ref.read(chatRepoProvider));
 });
 
+final getStickerPackagesUseCaseProvider = Provider<GetStickerPackagesUseCase>((ref) {
+  return GetStickerPackagesUseCase(ref.read(chatRepoProvider));
+});
+
+final getStickersInPackageUseCaseProvider = Provider<GetStickersInPackageUseCase>((ref) {
+  return GetStickersInPackageUseCase(ref.read(chatRepoProvider));
+});

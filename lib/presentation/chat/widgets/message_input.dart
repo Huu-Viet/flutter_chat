@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'emoji_picker_widget.dart';
+import 'sticker_picker_sheet.dart';
+import '../../../features/chat/domain/entities/sticker_item.dart';
 
 class MessageInput extends StatelessWidget {
   final TextEditingController controller;
@@ -7,6 +8,7 @@ class MessageInput extends StatelessWidget {
   final VoidCallback onPickImage;
   final VoidCallback onPickMultipleImages; // Add this
   final Function(String) onEmojiSelected;
+  final Function(StickerItem)? onStickerSelected;
 
   const MessageInput({
     super.key,
@@ -15,6 +17,7 @@ class MessageInput extends StatelessWidget {
     required this.onPickImage,
     required this.onPickMultipleImages, // Add this
     required this.onEmojiSelected,
+    this.onStickerSelected,
   });
 
   void _showEmojiPicker(BuildContext context) {
@@ -23,9 +26,11 @@ class MessageInput extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => EmojiPickerWidget(
-        onEmojiSelected: (emoji) {
-          onEmojiSelected(emoji);
+      builder: (_) => StickerPickerSheet(
+        onStickerTap: (sticker) {
+          if (onStickerSelected != null) {
+            onStickerSelected!(sticker);
+          }
           Navigator.pop(context);
         },
       ),
