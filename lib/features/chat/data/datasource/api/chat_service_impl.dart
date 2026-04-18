@@ -2,6 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_chat/core/network/realtime_gateway.dart';
 import 'package:flutter_chat/features/chat/data/response/message_send_response.dart';
+import 'package:flutter_chat/features/chat/data/response/sticker_package_response.dart';
+import 'package:flutter_chat/features/chat/data/response/sticker_item_response.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:uuid/uuid.dart';
@@ -160,6 +162,37 @@ class ChatServiceImpl implements ChatService {
     } catch (e) {
       debugPrint('[ChatServiceImpl] Send message error: $e');
       throw Exception('Failed to send message: $e');
+    }
+  }
+
+  @override
+  Future<StickerPackageResponse> getStickerPackages() async {
+    try {
+      final response = await _dio.get('$_baseUrl/stickers/packages');
+      if (response.statusCode != 200 || response.data == null) {
+        throw Exception('Failed to fetch sticker packages: ${response.statusCode}');
+      }
+      return StickerPackageResponse.fromJson(response.data!);
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] getStickerPackages error: $e');
+      throw Exception('Failed to fetch sticker packages: $e');
+    }
+  }
+
+  @override
+  Future<StickerItemResponse> getStickersInPackage(String packageId, {int limit = 50, int offset = 0}) async {
+    try {
+      final response = await _dio.get(
+        '$_baseUrl/stickers/packages/$packageId/stickers',
+        queryParameters: {'limit': limit, 'offset': offset},
+      );
+      if (response.statusCode != 200 || response.data == null) {
+        throw Exception('Failed to fetch stickers: ${response.statusCode}');
+      }
+      return StickerItemResponse.fromJson(response.data!);
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] getStickersInPackage error: $e');
+      throw Exception('Failed to fetch stickers: $e');
     }
   }
 }

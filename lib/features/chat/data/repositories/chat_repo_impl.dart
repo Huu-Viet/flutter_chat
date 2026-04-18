@@ -1,6 +1,8 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
+import 'package:flutter_chat/features/chat/domain/entities/sticker_item.dart';
+import 'package:flutter_chat/features/chat/domain/entities/sticker_package.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:uuid/uuid.dart';
 
@@ -144,6 +146,28 @@ class ChatRepoImpl implements ChatRepository {
       } catch (e) {
         yield Left(CacheFailure('Failed to map local messages: $e'));
       }
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<StickerPackage>>> getStickerPackages() async {
+    try {
+      final response = await _chatService.getStickerPackages();
+      return Right(response.packages);
+    } catch (e) {
+      debugPrint('[ChatRepoImpl] getStickerPackages error: $e');
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<StickerItem>>> getStickersInPackage(String packageId, {int limit = 50, int offset = 0}) async {
+    try {
+      final response = await _chatService.getStickersInPackage(packageId, limit: limit, offset: offset);
+      return Right(response.stickers);
+    } catch (e) {
+      debugPrint('[ChatRepoImpl] getStickersInPackage error: $e');
+      return Left(ServerFailure(e.toString()));
     }
   }
 }
