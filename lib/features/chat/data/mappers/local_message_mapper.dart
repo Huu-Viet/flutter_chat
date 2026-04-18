@@ -19,7 +19,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageEntity, Message> {
       metadata: entity.metadata == null
           ? null
           : jsonDecode(entity.metadata!) as Map<String, dynamic>,
-      clientMessageId: entity.clientMessageId,
+      serverId: entity.clientMessageId,
       createdAt: DateTime.tryParse(entity.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
       editedAt: entity.editedAt == null ? null : DateTime.tryParse(entity.editedAt!),
     );
@@ -37,7 +37,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageEntity, Message> {
       isDeleted: domain.isDeleted,
       mediaId: domain.mediaId,
       metadata: domain.metadata == null ? null : jsonEncode(domain.metadata),
-      clientMessageId: domain.clientMessageId,
+      clientMessageId: domain.serverId,
       createdAt: domain.createdAt.toIso8601String(),
       editedAt: domain.editedAt?.toIso8601String(),
     );

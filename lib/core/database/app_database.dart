@@ -118,11 +118,11 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<ChatMessageEntity?> getMessageByClientMessageId(String clientMessageId) async {
-    return (select(chatMessages)..where((tbl) => tbl.clientMessageId.equals(clientMessageId))).getSingleOrNull();
+    return (select(chatMessages)..where((tbl) => tbl.serverId.equals(clientMessageId))).getSingleOrNull();
   }
 
   Future<void> deleteMessagesByClientMessageId(String clientMessageId) async {
-    await (delete(chatMessages)..where((tbl) => tbl.clientMessageId.equals(clientMessageId))).go();
+    await (delete(chatMessages)..where((tbl) => tbl.serverId.equals(clientMessageId))).go();
   }
 
   Future<void> insertMessages(List<ChatMessageEntity> items) async {

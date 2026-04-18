@@ -1,10 +1,10 @@
-import 'dart:math';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_chat/core/network/realtime_gateway.dart';
+import 'package:flutter_chat/features/chat/data/response/message_send_response.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:uuid/uuid.dart';
 
 class ChatServiceImpl implements ChatService {
   static String get _baseUrl => dotenv.get('NEST_API_BASE_URL');
@@ -89,7 +89,7 @@ class ChatServiceImpl implements ChatService {
   }
 
   @override
-  Future<MessageDto> sendMessage({
+  Future<MessageSendResponse> sendMessage({
     required String conversationId,
     required String content,
     String type = 'text',
@@ -101,7 +101,7 @@ class ChatServiceImpl implements ChatService {
     try {
       final normalizedConversationId = conversationId.trim();
       final normalizedClientMessageId =
-          (clientMessageId?.trim().isNotEmpty ?? false) ? clientMessageId!.trim() : _generateClientMessageId();
+          (clientMessageId?.trim().isNotEmpty ?? false) ? clientMessageId!.trim() : Uuid().v4();
 
       final body = <String, dynamic>{
         'content': content,
@@ -146,10 +146,7 @@ class ChatServiceImpl implements ChatService {
 
       final data = responseBody['data'];
       if (data is Map<String, dynamic>) {
-        if (data['message'] is Map<String, dynamic>) {
-          return MessageDto.fromJson(data['message'] as Map<String, dynamic>);
-        }
-        return MessageDto.fromJson(data);
+        return MessageSendResponse.fromJson(data);
       }
 
       throw Exception('Invalid message payload from server');
@@ -165,16 +162,4 @@ class ChatServiceImpl implements ChatService {
       throw Exception('Failed to send message: $e');
     }
   }
-
-  String _generateClientMessageId() {
-    final random = Random.secure();
-    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
-
-    bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
-    bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10xx
-
-    final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20, 32)}';
-  }
-
 }

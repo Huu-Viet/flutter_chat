@@ -109,7 +109,7 @@ class RealtimeGatewayService implements RealtimeGateway {
     final socket = io.io(
       '$_wsBaseUrl/chat',
       io.OptionBuilder()
-          .setAuth({'token': 'Bearer $accessToken'})
+          .setAuth({'token': accessToken})
           .setReconnectionAttempts(9999)
           .setReconnectionDelay(1000)
           .setTransports(['websocket'])
@@ -129,7 +129,7 @@ class RealtimeGatewayService implements RealtimeGateway {
       socket: socket,
       namespace: '/chat',
       payload: {
-        'token': 'Bearer $accessToken',
+        'token': accessToken,
         'deviceId': deviceToken,
         'deviceType': 'mobile',
       },
@@ -149,7 +149,7 @@ class RealtimeGatewayService implements RealtimeGateway {
     final socket = io.io(
       '$_wsBaseUrl/call',
       io.OptionBuilder()
-          .setAuth({'token': 'Bearer $accessToken'})
+          .setAuth({'token': accessToken})
           .setReconnectionAttempts(9999)
           .setReconnectionDelay(1000)
           .setTransports(['websocket'])
@@ -167,7 +167,7 @@ class RealtimeGatewayService implements RealtimeGateway {
     await _waitForAuthenticated(
       socket: socket,
       namespace: '/call',
-      payload: {'token': 'Bearer $accessToken'},
+      payload: {'token': accessToken},
       onAuthenticated: () {
         _callAuthenticated = true;
         debugPrint('[RealtimeGatewayService] /call authenticated');

@@ -1,6 +1,7 @@
 import 'package:flutter_chat/features/chat/data/response/conversation_response.dart';
 import 'package:flutter_chat/features/chat/data/response/message_list_response.dart';
 import 'package:flutter_chat/features/chat/data/dtos/message_dto.dart';
+import 'package:flutter_chat/features/chat/data/response/message_send_response.dart';
 
 abstract class ChatService {
   Future<ConversationResponse> fetchConversations(int page, int limit);
@@ -14,7 +15,7 @@ abstract class ChatService {
     int limit = 30,
   });
 
-  Future<MessageDto> sendMessage({
+  Future<MessageSendResponse> sendMessage({
     required String conversationId,
     required String content,
     String type = 'text',

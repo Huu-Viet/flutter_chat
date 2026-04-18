@@ -15,13 +15,8 @@ abstract class ChatRepository {
   });
 
   Future<Either<Failure, Message>> sendMessage({
-    required String conversationId,
-    required String content,
-    String type,
-    String? mediaId,
-    String? clientMessageId,
+    required Message message,
     String? replyToMessageId,
-    Map<String, dynamic>? metadata,
   });
 
   Future<Either<Failure, void>> clearLocalCache();

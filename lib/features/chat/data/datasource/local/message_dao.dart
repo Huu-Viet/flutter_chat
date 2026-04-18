@@ -1,5 +1,6 @@
 import 'dart:developer';
 
+import 'package:drift/drift.dart';
 import 'package:flutter_chat/core/database/app_database.dart';
 
 abstract class MessageDao {
@@ -10,6 +11,7 @@ abstract class MessageDao {
   Stream<List<ChatMessageEntity>> watchMessagesByConversationId(String conversationId);
   Future<void> clearMessagesByConversationId(String conversationId);
   Future<void> clearAllMessages();
+  Future<void> updateServerId(String localId, String serverId);
 }
 
 class DriftMessageDaoImpl implements MessageDao {
@@ -96,6 +98,20 @@ class DriftMessageDaoImpl implements MessageDao {
   Future<void> clearAllMessages() async {
     try {
       await _database.clearAllMessages();
+    } catch (e) {
+      log(e.toString());
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> updateServerId(String localId, String serverId) async {
+    try {
+      await (_database.update(_database.chatMessages)
+        ..where((tbl) => tbl.id.equals(localId)))
+          .write(ChatMessagesCompanion(
+          clientMessageId: Value(serverId),),
+      );
     } catch (e) {
       log(e.toString());
       rethrow;

@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
 import 'package:flutter_chat/features/chat/export.dart';
+import 'package:uuid/uuid.dart';
 
 class ChatRepoImpl implements ChatRepository {
   final ChatService _chatService;
@@ -88,26 +89,25 @@ class ChatRepoImpl implements ChatRepository {
 
   @override
   Future<Either<Failure, Message>> sendMessage({
-    required String conversationId,
-    required String content,
-    String type = 'text',
-    String? mediaId,
-    String? clientMessageId,
+    required Message message,
     String? replyToMessageId,
-    Map<String, dynamic>? metadata,
   }) async {
     try {
-      final dto = await _chatService.sendMessage(
-        conversationId: conversationId,
-        content: content,
-        type: type,
-        mediaId: mediaId,
-        clientMessageId: clientMessageId,
-        replyToMessageId: replyToMessageId,
-        metadata: metadata,
-      );
-      final message = _apiMessageMapper.toDomain(dto);
       await _messageDao.saveMessage(_localMessageMapper.toEntity(message));
+      final response = await _chatService.sendMessage(
+        conversationId: message.conversationId,
+        content: message.content,
+        type: message.type,
+        mediaId: message.mediaId,
+        clientMessageId: message.serverId ?? const Uuid().v4(),
+        replyToMessageId: replyToMessageId,
+        metadata: message.metadata,
+      );
+      await _messageDao.updateServerId(
+        message.id,
+        response.messageId ?? message.id,
+      );
+
       return Right(message);
     } catch (e) {
       return Left(ServerFailure(e.toString()));

@@ -9,22 +9,8 @@ class SendMessageUseCase {
   SendMessageUseCase(this._repository);
 
   Future<Either<Failure, Message>> call({
-    required String conversationId,
-    required String content,
-    String type = 'text',
-    String? mediaId,
-    String? clientMessageId,
-    String? replyToMessageId,
-    Map<String, dynamic>? metadata,
+    required Message message
   }) {
-    return _repository.sendMessage(
-      conversationId: conversationId,
-      content: content,
-      type: type,
-      mediaId: mediaId,
-      clientMessageId: clientMessageId,
-      replyToMessageId: replyToMessageId,
-      metadata: metadata,
-    );
+    return _repository.sendMessage(message: message);
   }
 }

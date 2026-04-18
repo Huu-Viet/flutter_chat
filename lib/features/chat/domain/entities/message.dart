@@ -8,7 +8,7 @@ class Message {
   final bool isDeleted;
   final String? mediaId;
   final Map<String, dynamic>? metadata;
-  final String? clientMessageId;
+  final String? serverId;
   final DateTime createdAt;
   final DateTime? editedAt;
 
@@ -22,7 +22,7 @@ class Message {
     required this.isDeleted,
     required this.mediaId,
     required this.metadata,
-    required this.clientMessageId,
+    required this.serverId,
     required this.createdAt,
     required this.editedAt,
   });

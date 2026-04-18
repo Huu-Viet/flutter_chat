@@ -19,7 +19,7 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
       isDeleted: dto.isDeleted ?? false,
       mediaId: dto.mediaId,
       metadata: dto.metadata,
-      clientMessageId: dto.clientMessageId,
+      serverId: dto.clientMessageId,
       createdAt: _parseDate(dto.createdAt),
       editedAt: dto.editedAt == null ? null : _parseDate(dto.editedAt),
     );
@@ -37,7 +37,7 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
       isDeleted: domain.isDeleted,
       mediaId: domain.mediaId,
       metadata: domain.metadata,
-      clientMessageId: domain.clientMessageId,
+      clientMessageId: domain.serverId,
       createdAt: domain.createdAt.toIso8601String(),
       editedAt: domain.editedAt?.toIso8601String(),
     );

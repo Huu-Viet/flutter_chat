@@ -1875,7 +1875,7 @@ class $ChatMessagesTable extends ChatMessages
     'clientMessageId',
   );
   @override
-  late final GeneratedColumn<String> clientMessageId = GeneratedColumn<String>(
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
     'client_message_id',
     aliasedName,
     true,
@@ -1915,7 +1915,7 @@ class $ChatMessagesTable extends ChatMessages
     isDeleted,
     mediaId,
     metadata,
-    clientMessageId,
+    serverId,
     createdAt,
     editedAt,
   ];
@@ -1996,7 +1996,7 @@ class $ChatMessagesTable extends ChatMessages
     if (data.containsKey('client_message_id')) {
       context.handle(
         _clientMessageIdMeta,
-        clientMessageId.isAcceptableOrUnknown(
+        serverId.isAcceptableOrUnknown(
           data['client_message_id']!,
           _clientMessageIdMeta,
         ),
@@ -3693,7 +3693,7 @@ class $$ChatMessagesTableFilterComposer
   );
 
   ColumnFilters<String> get clientMessageId => $composableBuilder(
-    column: $table.clientMessageId,
+    column: $table.serverId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3763,7 +3763,7 @@ class $$ChatMessagesTableOrderingComposer
   );
 
   ColumnOrderings<String> get clientMessageId => $composableBuilder(
-    column: $table.clientMessageId,
+    column: $table.serverId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -3817,7 +3817,7 @@ class $$ChatMessagesTableAnnotationComposer
       $composableBuilder(column: $table.metadata, builder: (column) => column);
 
   GeneratedColumn<String> get clientMessageId => $composableBuilder(
-    column: $table.clientMessageId,
+    column: $table.serverId,
     builder: (column) => column,
   );
 
