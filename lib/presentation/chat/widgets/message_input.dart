@@ -451,12 +451,12 @@ class _MessageInputState extends State<MessageInput> {
   Widget _buildTextField(BuildContext context) {
     return TextField(
       controller: widget.controller,
-      style: const TextStyle(color: Colors.white),
-      decoration: const InputDecoration(
+      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+      decoration: InputDecoration(
         hintText: 'Tin nhắn',
         border: InputBorder.none,
         contentPadding: EdgeInsets.symmetric(horizontal: 0, vertical: 10),
-        hintStyle: TextStyle(color: Colors.white),
+        hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),
         isDense: true,
       ),
       minLines: 1,
