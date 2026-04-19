@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'sticker_picker_sheet.dart';
 import '../../../features/chat/domain/entities/sticker_item.dart';
 
-class MessageInput extends StatelessWidget {
+class MessageInput extends StatefulWidget {
   final TextEditingController controller;
   final VoidCallback onSendMessage;
   final VoidCallback onPickImage;
-  final VoidCallback onPickMultipleImages; // Add this
+  final VoidCallback onPickMultipleImages;
   final Function(String) onEmojiSelected;
   final Function(StickerItem)? onStickerSelected;
 
@@ -15,10 +15,49 @@ class MessageInput extends StatelessWidget {
     required this.controller,
     required this.onSendMessage,
     required this.onPickImage,
-    required this.onPickMultipleImages, // Add this
+    required this.onPickMultipleImages,
     required this.onEmojiSelected,
     this.onStickerSelected,
   });
+
+  @override
+  State<MessageInput> createState() => _MessageInputState();
+}
+
+class _MessageInputState extends State<MessageInput> {
+  bool _hasText = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _hasText = widget.controller.text.isNotEmpty;
+    widget.controller.addListener(_onTextChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant MessageInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_onTextChanged);
+      widget.controller.addListener(_onTextChanged);
+      _hasText = widget.controller.text.isNotEmpty;
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onTextChanged);
+    super.dispose();
+  }
+
+  void _onTextChanged() {
+    final hasText = widget.controller.text.isNotEmpty;
+    if (_hasText != hasText) {
+      setState(() {
+        _hasText = hasText;
+      });
+    }
+  }
 
   void _showEmojiPicker(BuildContext context) {
     FocusScope.of(context).unfocus();
@@ -28,8 +67,8 @@ class MessageInput extends StatelessWidget {
       isScrollControlled: true,
       builder: (_) => StickerPickerSheet(
         onStickerTap: (sticker) {
-          if (onStickerSelected != null) {
-            onStickerSelected!(sticker);
+          if (widget.onStickerSelected != null) {
+            widget.onStickerSelected!(sticker);
           }
           Navigator.pop(context);
         },
@@ -49,7 +88,7 @@ class MessageInput extends StatelessWidget {
               title: const Text('Pick Single Image'),
               onTap: () {
                 Navigator.pop(context);
-                onPickImage();
+                widget.onPickImage();
               },
             ),
             ListTile(
@@ -57,7 +96,7 @@ class MessageInput extends StatelessWidget {
               title: const Text('Pick Multiple Images'),
               onTap: () {
                 Navigator.pop(context);
-                onPickMultipleImages();
+                widget.onPickMultipleImages();
               },
             ),
           ],
@@ -71,48 +110,35 @@ class MessageInput extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceBright,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        color: Theme.of(context).colorScheme.surfaceBright,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            _buildInputContainer(context),
-            const SizedBox(width: 8),
-            _buildSendButton(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInputContainer(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
           children: [
             _buildIconButton(
               icon: Icons.emoji_emotions_outlined,
               onPressed: () => _showEmojiPicker(context),
             ),
-            _buildIconButton(
-              icon: Icons.image_outlined,
-              onPressed: () => _showImagePickerOptions(context),
-            ),
+            const SizedBox(width: 8),
             Expanded(child: _buildTextField(context)),
+            if (!_hasText) ...[
+              const SizedBox(width: 8),
+              _buildIconButton(
+                icon: Icons.more_horiz,
+                onPressed: () {},
+              ),
+              _buildIconButton(
+                icon: Icons.mic_none,
+                onPressed: () {},
+              ),
+              _buildIconButton(
+                icon: Icons.image_outlined,
+                onPressed: () => _showImagePickerOptions(context),
+              ),
+            ] else ...[
+              const SizedBox(width: 8),
+              _buildSendButton(),
+            ],
           ],
         ),
       ),
@@ -120,17 +146,11 @@ class MessageInput extends StatelessWidget {
   }
 
   Widget _buildSendButton() {
-    return Container(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-      ),
-      child: IconButton(
-        icon: const Icon(Icons.send, color: Colors.white),
-        onPressed: onSendMessage,
-      ),
+    return IconButton(
+      icon: const Icon(Icons.send, color: Colors.blue),
+      onPressed: widget.onSendMessage,
     );
   }
-
 
   Widget _buildIconButton({
     required IconData icon,
@@ -138,27 +158,30 @@ class MessageInput extends StatelessWidget {
     Color? color,
   }) {
     return IconButton(
-      icon: Icon(icon, color: color ?? Colors.grey),
+      icon: Icon(icon, color: color ?? Colors.white70),
       onPressed: onPressed,
+      constraints: const BoxConstraints(),
+      padding: const EdgeInsets.all(8),
     );
   }
 
   Widget _buildTextField(BuildContext context) {
     return TextField(
-      controller: controller,
-      style: TextStyle(
-          color: Colors.black
+      controller: widget.controller,
+      style: const TextStyle(
+          color: Colors.white
       ),
       decoration: const InputDecoration(
-        hintText: 'Type a message...',
+        hintText: 'Tin nhắn',
         border: InputBorder.none,
-        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        contentPadding: EdgeInsets.symmetric(horizontal: 0, vertical: 10),
         hintStyle: TextStyle(color: Colors.grey),
+        isDense: true,
       ),
       minLines: 1,
       maxLines: 5,
       textCapitalization: TextCapitalization.sentences,
-      cursorColor: Colors.grey,
+      cursorColor: Colors.blue,
     );
   }
 
