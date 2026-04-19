@@ -19,14 +19,18 @@ class ChatServiceImpl implements ChatService {
   @override
   Future<ConversationResponse> fetchConversations(int page, int limit) async {
     try {
-      debugPrint('[ChatServiceImpl] Fetch conversations request: page=$page, limit=$limit');
+      debugPrint(
+        '[ChatServiceImpl] Fetch conversations request: page=$page, limit=$limit',
+      );
       final response = await _dio.get(
         '$_baseUrl/conversations',
         queryParameters: {'page': page, 'limit': limit},
       );
 
       if (response.statusCode != 200 || response.data == null) {
-        throw Exception('Failed to fetch conversations: ${response.statusCode}');
+        throw Exception(
+          'Failed to fetch conversations: ${response.statusCode}',
+        );
       }
 
       final responseBody = response.data;
@@ -45,10 +49,9 @@ class ChatServiceImpl implements ChatService {
   @override
   Future<void> joinConversation(String conversationId) async {
     try {
-      await _realtimeGateway.emitChatEvent(
-        'conversation:join',
-        {'conversationId': conversationId},
-      );
+      await _realtimeGateway.emitChatEvent('conversation:join', {
+        'conversationId': conversationId,
+      });
     } catch (e) {
       debugPrint('[ChatServiceImpl] Join conversation error: $e');
       throw Exception('Failed to join conversation: $e');
@@ -103,7 +106,9 @@ class ChatServiceImpl implements ChatService {
     try {
       final normalizedConversationId = conversationId.trim();
       final normalizedClientMessageId =
-          (clientMessageId?.trim().isNotEmpty ?? false) ? clientMessageId!.trim() : Uuid().v4();
+          (clientMessageId?.trim().isNotEmpty ?? false)
+          ? clientMessageId!.trim()
+          : Uuid().v4();
 
       final body = <String, dynamic>{
         'content': content,
@@ -114,8 +119,11 @@ class ChatServiceImpl implements ChatService {
         if (metadata != null) 'metadata': metadata,
       };
 
-      final endpoint = '$_baseUrl/conversations/$normalizedConversationId/messages';
-      debugPrint('[ChatServiceImpl] Send message request: endpoint=$endpoint, body=$body');
+      final endpoint =
+          '$_baseUrl/conversations/$normalizedConversationId/messages';
+      debugPrint(
+        '[ChatServiceImpl] Send message request: endpoint=$endpoint, body=$body',
+      );
 
       Response<dynamic> response;
       try {
@@ -126,19 +134,37 @@ class ChatServiceImpl implements ChatService {
         }
 
         final legacyEndpoint = '$_baseUrl/chat/messages';
-        final legacyBody = <String, dynamic>{
-          ...body,
-          'conversationId': normalizedConversationId,
+        final legacyMetadata = <String, dynamic>{
+          if (metadata != null) ...metadata,
+          if (mediaId != null && mediaId.trim().isNotEmpty)
+            'mediaId': mediaId.trim(),
         };
 
+        final legacyContent = content.trim().isNotEmpty
+            ? content
+            : (mediaId?.trim().isNotEmpty ?? false)
+            ? mediaId!.trim()
+            : content;
+
+        final legacyBody = <String, dynamic>{
+          'content': legacyContent,
+          'type': type,
+          'clientMessageId': normalizedClientMessageId,
+          if (replyToMessageId != null) 'replyToMessageId': replyToMessageId,
+          if (legacyMetadata.isNotEmpty) 'metadata': legacyMetadata,
+          'conversationId': normalizedConversationId,
+        };
         debugPrint(
           '[ChatServiceImpl] Send message fallback request: endpoint=$legacyEndpoint, body=$legacyBody',
         );
         response = await _dio.post(legacyEndpoint, data: legacyBody);
       }
 
-      if ((response.statusCode != 200 && response.statusCode != 201) || response.data == null) {
-        throw Exception('Failed to send message: ${response.statusCode}, body=${response.data}');
+      if ((response.statusCode != 200 && response.statusCode != 201) ||
+          response.data == null) {
+        throw Exception(
+          'Failed to send message: ${response.statusCode}, body=${response.data}',
+        );
       }
 
       final responseBody = response.data;
@@ -170,7 +196,9 @@ class ChatServiceImpl implements ChatService {
     try {
       final response = await _dio.get('$_baseUrl/stickers/packages');
       if (response.statusCode != 200 || response.data == null) {
-        throw Exception('Failed to fetch sticker packages: ${response.statusCode}');
+        throw Exception(
+          'Failed to fetch sticker packages: ${response.statusCode}',
+        );
       }
       return StickerPackageResponse.fromJson(response.data!);
     } catch (e) {
@@ -180,7 +208,11 @@ class ChatServiceImpl implements ChatService {
   }
 
   @override
-  Future<StickerItemResponse> getStickersInPackage(String packageId, {int limit = 50, int offset = 0}) async {
+  Future<StickerItemResponse> getStickersInPackage(
+    String packageId, {
+    int limit = 50,
+    int offset = 0,
+  }) async {
     try {
       final response = await _dio.get(
         '$_baseUrl/stickers/packages/$packageId/stickers',

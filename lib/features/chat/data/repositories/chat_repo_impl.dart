@@ -193,6 +193,7 @@ class ChatRepoImpl implements ChatRepository {
       
       // 3. Save to local database
       final entities = _localStickerPackageMapper.toEntityList(domainPackages);
+      debugPrint('[ChatRepoImpl] fetchStickerPackages: saved to local db');
       await _stickerPackageDao.savePackages(entities);
 
       return Right(domainPackages);
