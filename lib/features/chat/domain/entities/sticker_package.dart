@@ -11,12 +11,5 @@ class StickerPackage {
   final String thumbnailUrl;
   final bool isFree;
 
-  factory StickerPackage.fromJson(Map<String, dynamic> json) {
-    return StickerPackage(
-      id: (json['id'] ?? '').toString(),
-      name: (json['name'] ?? '').toString(),
-      thumbnailUrl: (json['thumbnailUrl'] ?? '').toString(),
-      isFree: (json['isFree'] ?? true) as bool,
-    );
-  }
+
 }

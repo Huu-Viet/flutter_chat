@@ -1,15 +1,15 @@
-// filepath: d:\KIENTRUCPM\flutter_chat\lib\features\chat\data\response\sticker_item_response.dart
-import 'package:flutter_chat/features/chat/domain/entities/sticker_item.dart';
+
+import '../dtos/sticker_item_dto.dart';
 
 class StickerItemResponse {
-  final List<StickerItem> stickers;
+  final List<StickerItemDto> stickers;
 
   StickerItemResponse({required this.stickers});
 
   factory StickerItemResponse.fromJson(dynamic json) {
     if (json is List) {
       return StickerItemResponse(
-        stickers: json.map((e) => StickerItem.fromJson(e as Map<String, dynamic>)).toList(),
+        stickers: json.map((e) => StickerItemDto.fromJson(e as Map<String, dynamic>)).toList(),
       );
     }
 
@@ -23,7 +23,7 @@ class StickerItemResponse {
         final items = dataField['items'];
         if (items is List) {
           return StickerItemResponse(
-            stickers: items.map((e) => StickerItem.fromJson(e as Map<String, dynamic>)).toList(),
+            stickers: items.map((e) => StickerItemDto.fromJson(e as Map<String, dynamic>)).toList(),
           );
         }
 
@@ -31,7 +31,7 @@ class StickerItemResponse {
         for (final key in dataField.keys) {
           if (dataField[key] is List) {
              return StickerItemResponse(
-               stickers: (dataField[key] as List).map((e) => StickerItem.fromJson(e as Map<String, dynamic>)).toList(),
+               stickers: (dataField[key] as List).map((e) => StickerItemDto.fromJson(e as Map<String, dynamic>)).toList(),
              );
           }
         }
@@ -39,7 +39,7 @@ class StickerItemResponse {
 
       if (dataField is List) {
         return StickerItemResponse(
-          stickers: dataField.map((e) => StickerItem.fromJson(e as Map<String, dynamic>)).toList(),
+          stickers: dataField.map((e) => StickerItemDto.fromJson(e as Map<String, dynamic>)).toList(),
         );
       }
 
@@ -49,7 +49,7 @@ class StickerItemResponse {
       for (final key in json.keys) {
         if (json[key] is List) {
            return StickerItemResponse(
-             stickers: (json[key] as List).map((e) => StickerItem.fromJson(e as Map<String, dynamic>)).toList(),
+             stickers: (json[key] as List).map((e) => StickerItemDto.fromJson(e as Map<String, dynamic>)).toList(),
            );
         }
       }

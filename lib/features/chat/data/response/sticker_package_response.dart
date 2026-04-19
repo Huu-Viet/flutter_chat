@@ -1,15 +1,15 @@
-// filepath: d:\KIENTRUCPM\flutter_chat\lib\features\chat\data\response\sticker_package_response.dart
-import 'package:flutter_chat/features/chat/domain/entities/sticker_package.dart';
+
+import 'package:flutter_chat/features/chat/data/dtos/sticker_package_dto.dart';
 
 class StickerPackageResponse {
-  final List<StickerPackage> packages;
+  final List<StickerPackageDto> packages;
 
   StickerPackageResponse({required this.packages});
 
   factory StickerPackageResponse.fromJson(dynamic json) {
     if (json is List) {
       return StickerPackageResponse(
-        packages: json.map((e) => StickerPackage.fromJson(e as Map<String, dynamic>)).toList(),
+        packages: json.map((e) => StickerPackageDto.fromJson(e as Map<String, dynamic>)).toList(),
       );
     }
 
@@ -22,14 +22,14 @@ class StickerPackageResponse {
         final items = dataField['items'];
         if (items is List) {
           return StickerPackageResponse(
-            packages: items.map((e) => StickerPackage.fromJson(e as Map<String, dynamic>)).toList(),
+            packages: items.map((e) => StickerPackageDto.fromJson(e as Map<String, dynamic>)).toList(),
           );
         }
 
         for (final key in dataField.keys) {
           if (dataField[key] is List) {
              return StickerPackageResponse(
-               packages: (dataField[key] as List).map((e) => StickerPackage.fromJson(e as Map<String, dynamic>)).toList(),
+               packages: (dataField[key] as List).map((e) => StickerPackageDto.fromJson(e as Map<String, dynamic>)).toList(),
              );
           }
         }
@@ -37,7 +37,7 @@ class StickerPackageResponse {
 
       if (dataField is List) {
         return StickerPackageResponse(
-          packages: dataField.map((e) => StickerPackage.fromJson(e as Map<String, dynamic>)).toList(),
+          packages: dataField.map((e) => StickerPackageDto.fromJson(e as Map<String, dynamic>)).toList(),
         );
       }
 
@@ -45,7 +45,7 @@ class StickerPackageResponse {
       for (final key in json.keys) {
         if (json[key] is List) {
            return StickerPackageResponse(
-             packages: (json[key] as List).map((e) => StickerPackage.fromJson(e as Map<String, dynamic>)).toList(),
+             packages: (json[key] as List).map((e) => StickerPackageDto.fromJson(e as Map<String, dynamic>)).toList(),
            );
         }
       }

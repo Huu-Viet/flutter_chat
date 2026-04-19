@@ -7,29 +7,35 @@ import '../../features/auth/data/entities/user_entity.dart';
 import '../../features/chat/data/entities/conversation_entity.dart';
 import '../../features/chat/data/entities/message_entity.dart';
 import '../../features/friendship/data/entities/friendship_entity.dart';
+import '../../features/chat/data/entities/sticker_package_entity.dart';
+import '../../features/chat/data/entities/sticker_item_entity.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: [Users, ChatConversations, ChatMessages, Friendships])
+@DriftDatabase(tables: [Users, ChatConversations, ChatMessages, Friendships, StickerPackages, StickerItems])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onUpgrade: (m, from, to) async {
           // We do not preserve old local data, so any schema upgrade recreates all tables.
+          await m.deleteTable('sticker_items');
+          await m.deleteTable('sticker_packages');
           await m.deleteTable('chat_messages');
           await m.deleteTable('chat_conversations');
           await m.deleteTable('friendships');
           await m.deleteTable('users');
 
           await m.createTable(users);
+          await m.createTable(friendships);
           await m.createTable(chatConversations);
           await m.createTable(chatMessages);
-          await m.createTable(friendships);
+          await m.createTable(stickerPackages);
+          await m.createTable(stickerItems);
         },
       );
 
@@ -52,6 +58,8 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> clearAllAppData() async {
     await transaction(() async {
+      await delete(stickerItems).go();
+      await delete(stickerPackages).go();
       await delete(chatMessages).go();
       await delete(chatConversations).go();
       await delete(friendships).go();
@@ -112,17 +120,69 @@ class AppDatabase extends _$AppDatabase {
     await delete(chatMessages).go();
   }
 
+  // Sticker package queries
+  Future<void> insertStickerPackage(StickerPackageEntity item) async {
+    await into(stickerPackages).insert(item, mode: InsertMode.replace);
+  }
+
+  Future<void> insertStickerPackages(List<StickerPackageEntity> items) async {
+    if (items.isEmpty) return;
+    await batch((b) {
+      b.insertAllOnConflictUpdate(stickerPackages, items);
+    });
+  }
+
+  Future<List<StickerPackageEntity>> getAllStickerPackages() {
+    return select(stickerPackages).get();
+  }
+
+  Stream<List<StickerPackageEntity>> watchAllStickerPackages() {
+    return select(stickerPackages).watch();
+  }
+
+  Future<void> clearStickerPackages() async {
+    await delete(stickerPackages).go();
+  }
+
+  // Sticker item queries
+  Future<void> insertStickerItem(StickerItemEntity item) async {
+    await into(stickerItems).insert(item, mode: InsertMode.replace);
+  }
+
+  Future<void> insertStickerItems(List<StickerItemEntity> items) async {
+    if (items.isEmpty) return;
+    await batch((b) {
+      b.insertAllOnConflictUpdate(stickerItems, items);
+    });
+  }
+
+  Future<List<StickerItemEntity>> getStickerItemsByPackageId(String packageId) {
+    return (select(stickerItems)..where((tbl) => tbl.packageId.equals(packageId))).get();
+  }
+
+  Stream<List<StickerItemEntity>> watchStickerItemsByPackageId(String packageId) {
+    return (select(stickerItems)..where((tbl) => tbl.packageId.equals(packageId))).watch();
+  }
+
+  Future<void> clearStickerItemsByPackageId(String packageId) async {
+    await (delete(stickerItems)..where((tbl) => tbl.packageId.equals(packageId))).go();
+  }
+
+  Future<void> clearAllStickerItems() async {
+    await delete(stickerItems).go();
+  }
+
   // Chat message queries
   Future<void> insertMessage(ChatMessageEntity item) async {
     await into(chatMessages).insert(item, mode: InsertMode.replace);
   }
 
-  Future<ChatMessageEntity?> getMessageByClientMessageId(String clientMessageId) async {
-    return (select(chatMessages)..where((tbl) => tbl.serverId.equals(clientMessageId))).getSingleOrNull();
+  Future<ChatMessageEntity?> getMessageByServerId(String serverId) async {
+    return (select(chatMessages)..where((tbl) => tbl.serverId.equals(serverId))).getSingleOrNull();
   }
 
-  Future<void> deleteMessagesByClientMessageId(String clientMessageId) async {
-    await (delete(chatMessages)..where((tbl) => tbl.serverId.equals(clientMessageId))).go();
+  Future<void> deleteMessagesByServerId(String serverId) async {
+    await (delete(chatMessages)..where((tbl) => tbl.serverId.equals(serverId))).go();
   }
 
   Future<void> insertMessages(List<ChatMessageEntity> items) async {
