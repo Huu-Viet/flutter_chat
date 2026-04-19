@@ -6,6 +6,7 @@ import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
 import 'package:flutter_chat/presentation/chat/blocs/chat_bloc.dart';
 import 'package:flutter_chat/presentation/chat/chat_providers.dart';
+import 'package:flutter_chat/presentation/chat/widgets/image_send_confirmation_dialog.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_bubble.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_input.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,20 +32,70 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   final MediaService _mediaService = MediaService();
   String? _currentUserId;
 
-  List<ChatMessage> _mapStateMessagesToUi(List<Message> messages) {
-    return messages
+  List<ChatMessage> _mapStateMessagesToUi(
+    List<Message> messages,
+    Set<String> uploadingImagePaths,
+    Map<String, String> imageUrlsByMediaId,
+    Set<String> resolvingImageMediaIds,
+  ) {
+    final mappedMessages = messages
         .map(
-          (message) => ChatMessage(
-            text: _isLikelyLocalImagePath(message.content) ? null : message.content,
-            imagePath: _isLikelyLocalImagePath(message.content) ? message.content : null,
-            isSentByMe: _currentUserId != null && message.senderId == _currentUserId,
-            timestamp: message.createdAt,
-          ),
+          (message) {
+            final isImageLikeMessage = _isImageLikeMessage(message);
+            final mediaId = message.mediaId?.trim();
+            final localPath = _isLikelyLocalImagePath(message.content) ? message.content : null;
+            final resolvedRemoteUrl = mediaId != null && mediaId.isNotEmpty
+                ? imageUrlsByMediaId[mediaId]
+                : null;
+            final imagePath = isImageLikeMessage ? (resolvedRemoteUrl ?? localPath) : null;
+
+            return ChatMessage(
+              text: imagePath == null && !isImageLikeMessage ? message.content : null,
+              imagePath: imagePath,
+              mediaId: mediaId,
+              isSentByMe: _currentUserId != null && message.senderId == _currentUserId,
+              timestamp: message.createdAt,
+              isUploading: localPath != null && uploadingImagePaths.contains(localPath),
+              isResolvingImage: isImageLikeMessage &&
+                  imagePath == null &&
+                  mediaId != null &&
+                  mediaId.isNotEmpty &&
+                  resolvingImageMediaIds.contains(mediaId),
+            );
+          },
         )
         .toList();
+
+    final existingImagePaths = mappedMessages
+        .where((message) => message.imagePath != null)
+        .map((message) => message.imagePath!)
+        .toSet();
+
+    for (final imagePath in uploadingImagePaths) {
+      if (existingImagePaths.contains(imagePath)) {
+        continue;
+      }
+
+      mappedMessages.add(
+        ChatMessage(
+          imagePath: imagePath,
+          mediaId: null,
+          isSentByMe: true,
+          timestamp: DateTime.now(),
+          isUploading: true,
+        ),
+      );
+    }
+
+    return mappedMessages;
   }
 
   bool _isLikelyLocalImagePath(String value) {
+    final uri = Uri.tryParse(value);
+    if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
+      return false;
+    }
+
     final lowerValue = value.toLowerCase();
     return value.startsWith('/') ||
         value.contains(':/') ||
@@ -54,6 +105,16 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         lowerValue.endsWith('.jpeg') ||
         lowerValue.endsWith('.webp') ||
         lowerValue.endsWith('.gif');
+  }
+
+  bool _isImageLikeMessage(Message message) {
+    final mediaId = message.mediaId?.trim();
+    if (mediaId == null || mediaId.isEmpty) {
+      return false;
+    }
+
+    final normalizedType = message.type.trim().toLowerCase();
+    return normalizedType == 'image' || normalizedType == 'file';
   }
 
   Future<void> _loadCurrentUserId() async {
@@ -101,13 +162,24 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       );
 
       if (image != null) {
-        setState(() {
-          _messages.add(ChatMessage(
+        if (!mounted) return;
+        final isConfirmed = await showImageSendConfirmationDialog(context, image);
+        if (!isConfirmed || !mounted) {
+          return;
+        }
+
+        final imageSize = await image.length();
+        if (!mounted) {
+          return;
+        }
+
+        ref.read(chatBlocProvider).add(
+          SendImageEvent(
+            conversationId: widget.conversationId,
             imagePath: image.path,
-            isSentByMe: true,
-            timestamp: DateTime.now(),
-          ));
-        });
+            imageSize: imageSize,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -143,9 +215,11 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   Widget build(BuildContext context) {
     final chatBloc = ref.read(chatBlocProvider);
     final l10n = AppLocalizations.of(context)!;
+
     return BlocProvider<ChatBloc>.value(
       value: chatBloc,
-      child: BlocListener<ChatBloc, ChatState>(
+      child: BlocConsumer<ChatBloc, ChatState>(
+        buildWhen: (previous, current) => current is! ChatError,
         listener: (context, state) {
           if (state is ChatError) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -153,7 +227,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             );
           }
         },
-        child: Scaffold(
+        builder: (context, state) => Scaffold(
             appBar: AppBar(
               title: Container(
                 alignment: Alignment.centerLeft,
@@ -170,24 +244,29 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             ),
             body: Column(
               children: [
-                BlocBuilder<ChatBloc, ChatState>(
-                  builder: (context, state) {
-                    final List<ChatMessage> displayMessages = state is ChatLoaded
-                        ? _mapStateMessagesToUi(state.messages)
-                        : _messages;
+                Expanded(
+                  child: Builder(
+                    builder: (context) {
+                      final List<ChatMessage> displayMessages = state is ChatLoaded
+                          ? _mapStateMessagesToUi(
+                              state.messages,
+                              state.uploadingImagePaths,
+                              state.imageUrlsByMediaId,
+                              state.resolvingImageMediaIds,
+                            )
+                          : _messages;
 
-                    return Expanded(
-                      child: ListView.builder(
-                      reverse: true,
-                      padding: const EdgeInsets.all(16),
-                      itemCount: displayMessages.length,
-                      itemBuilder: (context, index) {
-                        final message = displayMessages[displayMessages.length - 1 - index];
-                        return MessageBubble(message: message);
+                      return ListView.builder(
+                        reverse: true,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: displayMessages.length,
+                        itemBuilder: (context, index) {
+                          final message = displayMessages[displayMessages.length - 1 - index];
+                          return MessageBubble(message: message);
                         },
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
                 MessageInput(
                   controller: _messageController,
@@ -209,13 +288,19 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 class ChatMessage {
   final String? text;
   final String? imagePath;
+  final String? mediaId;
   final bool isSentByMe;
   final DateTime timestamp;
+  final bool isUploading;
+  final bool isResolvingImage;
 
   ChatMessage({
     this.text,
     this.imagePath,
+    this.mediaId,
     required this.isSentByMe,
     required this.timestamp,
+    this.isUploading = false,
+    this.isResolvingImage = false,
   });
 }

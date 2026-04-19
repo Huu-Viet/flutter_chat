@@ -1,6 +1,5 @@
 import 'package:flutter_chat/features/chat/data/response/conversation_response.dart';
 import 'package:flutter_chat/features/chat/data/response/message_list_response.dart';
-import 'package:flutter_chat/features/chat/data/dtos/message_dto.dart';
 import 'package:flutter_chat/features/chat/data/response/message_send_response.dart';
 import 'package:flutter_chat/features/chat/data/response/sticker_package_response.dart';
 import 'package:flutter_chat/features/chat/data/response/sticker_item_response.dart';

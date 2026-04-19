@@ -3,7 +3,6 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/features/friendship/export.dart';
-import 'package:flutter_chat/features/friendship/friendship_providers.dart';
 
 part 'add_friend_event.dart';
 part 'add_friend_state.dart';

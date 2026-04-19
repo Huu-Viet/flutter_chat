@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:dartz/dartz.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
@@ -115,32 +113,28 @@ class ChatRepoImpl implements ChatRepository {
     try {
       await _messageDao.saveMessage(_localMessageMapper.toEntity(message));
 
-      unawaited(_sendToServer(message, replyToMessageId));
+      final isImageMessage = message.type.trim().toLowerCase() == 'image';
+      final hasMediaId = message.mediaId?.trim().isNotEmpty ?? false;
+      final outboundContent = (isImageMessage && hasMediaId) ? '' : message.content;
+      final outboundType = (isImageMessage && hasMediaId) ? 'file' : message.type;
 
-      return Right(message);
-    } catch (e) {
-      return Left(ServerFailure(e.toString()));
-    }
-  }
-
-  Future<void> _sendToServer(Message message, String? replyToMessageId) async {
-    try {
       final response = await _chatService.sendMessage(
         conversationId: message.conversationId,
-        content: message.content,
-        type: message.type,
+        content: outboundContent,
+        type: outboundType,
         mediaId: message.mediaId,
         clientMessageId: message.serverId ?? const Uuid().v4(),
         replyToMessageId: replyToMessageId,
         metadata: message.metadata,
       );
-
       await _messageDao.updateServerId(
         message.id,
-        response.messageId ?? message.id,
+        response.clientMessageId ?? message.serverId ?? message.id,
       );
+
+      return Right(message);
     } catch (e) {
-      debugPrint('[ChatRepoImpl] _sendToServer error: $e');
+      return Left(ServerFailure(e.toString()));
     }
   }
 

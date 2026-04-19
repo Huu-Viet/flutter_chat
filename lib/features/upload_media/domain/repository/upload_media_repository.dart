@@ -9,4 +9,6 @@ abstract class UploadMediaRepository {
     int size,
     String checksum,
   );
+
+  Future<Either<Failure, String>> getImageUrlByMediaId(String mediaId);
 }

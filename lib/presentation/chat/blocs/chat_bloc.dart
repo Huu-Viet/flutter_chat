@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:bloc/bloc.dart';
 import 'package:dartz/dartz.dart';
@@ -6,6 +7,8 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/features/chat/export.dart';
+import 'package:flutter_chat/features/upload_media/export.dart';
+import 'package:flutter_chat/presentation/chat/chat_image_cache_manager.dart';
 import 'package:uuid/uuid.dart';
 
 part 'chat_event.dart';
@@ -16,19 +19,97 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final WatchMessagesLocalUseCase watchMessagesLocalUseCase;
   final SendMessageUseCase sendMessageUseCase;
   final GetCurrentUserIdUseCase getCurrentUserIdUseCase;
+  final UploadMediaUseCase uploadMediaUseCase;
+  final GetImageUrlByMediaIdUseCase getImageUrlByMediaIdUseCase;
+  late final String currentUserId;
 
   StreamSubscription<Either<Failure, List<Message>>>? _localSubscription;
+  List<Message> _currentMessages = const [];
+  final Set<String> _uploadingImagePaths = <String>{};
+  final Map<String, String> _imageUrlsByMediaId = <String, String>{};
+  final Set<String> _resolvingImageMediaIds = <String>{};
 
   ChatBloc({
     required this.fetchMessagesUseCase,
     required this.watchMessagesLocalUseCase,
     required this.sendMessageUseCase,
     required this.getCurrentUserIdUseCase,
+    required this.uploadMediaUseCase,
+    required this.getImageUrlByMediaIdUseCase,
   }) : super(ChatInitial()) {
+    _signUpCurrentUserId();
+
     on<ChatInitialLoadEvent>(_onChatInitialLoad);
     on<SendTextEvent>(_onSendText);
-    on<_LocalMessagesChangedEvent>((event, emit) => emit(ChatLoaded(event.messages)));
+    on<SendImageEvent>(_onSendImage);
+    on<FetchImageEvent>(_onFetchImageByMediaId);
+    on<_LocalMessagesChangedEvent>((event, emit) {
+      _currentMessages = event.messages;
+      _requestMissingImageUrls(event.messages);
+      emit(_buildChatLoaded(event.messages));
+    });
     on<_LocalMessagesErrorEvent>((event, emit) => emit(ChatError(event.message)));
+  }
+
+  ChatLoaded _buildChatLoaded(List<Message> messages) {
+    return ChatLoaded(
+      messages,
+      uploadingImagePaths: Set<String>.from(_uploadingImagePaths),
+      imageUrlsByMediaId: Map<String, String>.from(_imageUrlsByMediaId),
+      resolvingImageMediaIds: Set<String>.from(_resolvingImageMediaIds),
+    );
+  }
+
+  bool _isRemoteUrl(String value) {
+    final uri = Uri.tryParse(value);
+    return uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+  }
+
+  bool _hasUsableResolvedImage(String mediaId) {
+    final resolvedPath = _imageUrlsByMediaId[mediaId];
+    if (resolvedPath == null || resolvedPath.trim().isEmpty) {
+      return false;
+    }
+
+    if (_isRemoteUrl(resolvedPath)) {
+      return true;
+    }
+
+    return File(resolvedPath).existsSync();
+  }
+
+  bool _isImageLikeMessage(Message message) {
+    final mediaId = message.mediaId?.trim();
+    if (mediaId == null || mediaId.isEmpty) {
+      return false;
+    }
+
+    final normalizedType = message.type.trim().toLowerCase();
+    return normalizedType == 'image' || normalizedType == 'file';
+  }
+
+  void _requestMissingImageUrls(List<Message> messages) {
+    for (final message in messages) {
+      if (!_isImageLikeMessage(message)) {
+        continue;
+      }
+
+      final mediaId = message.mediaId?.trim();
+      if (mediaId == null || mediaId.isEmpty) {
+        continue;
+      }
+
+      final hasUsableResolvedImage = _hasUsableResolvedImage(mediaId);
+      if (!hasUsableResolvedImage) {
+        _imageUrlsByMediaId.remove(mediaId);
+      }
+
+      if (hasUsableResolvedImage || _resolvingImageMediaIds.contains(mediaId)) {
+        continue;
+      }
+
+      add(FetchImageEvent(mediaId));
+    }
   }
 
   FutureOr<void> _onChatInitialLoad(ChatInitialLoadEvent event, Emitter<ChatState> emit) async {
@@ -37,33 +118,36 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     final result = await fetchMessagesUseCase(event.conversationId);
     result.fold(
       (failure) => emit(ChatError(failure.message)),
-      (messages) => emit(ChatLoaded(messages)),
+      (messages) {
+        _currentMessages = messages;
+        _requestMissingImageUrls(messages);
+        emit(_buildChatLoaded(messages));
+      },
     );
   }
 
   FutureOr<void> _onSendText(SendTextEvent event, Emitter<ChatState> emit) async {
-    final result = await getCurrentUserIdUseCase();
-    final userId = result.fold(
-      (failure) => null,
-      (userId) => userId,
-    );
     final messageId = Uuid().v4();
     final message = Message(
       id: messageId,
       conversationId: event.conversationId,
-      senderId: userId ?? '',
+      senderId: currentUserId,
       content: event.content,
       type: 'text',
       offset: null,
       isDeleted: false,
-      mediaId: null,
+      mediaId: event.mediaId,
       serverId: messageId,
       metadata: null,
       createdAt: DateTime.now(),
       editedAt: null,
     );
 
-    unawaited(sendMessageUseCase(message: message));
+    final sendResult = await sendMessageUseCase(message: message);
+    sendResult.fold(
+      (failure) => add(_LocalMessagesErrorEvent(failure.message)),
+      (_) {},
+    );
   }
 
   void _startMessagesLocalWatcher(String conversationId) {
@@ -74,6 +158,113 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         (messages) => add(_LocalMessagesChangedEvent(messages)),
       );
     });
+  }
+
+  Future<void> _onSendImage(SendImageEvent event, Emitter<ChatState> emit) async {
+    _uploadingImagePaths.add(event.imagePath);
+    emit(_buildChatLoaded(_currentMessages));
+
+    final result = await uploadMediaUseCase(
+      event.imagePath,
+      'image',
+      event.imageSize,
+    );
+    final mediaId = result.fold(
+          (failure) {
+            add(_LocalMessagesErrorEvent(failure.message));
+            return null;
+          },
+          (mediaInfo) {
+            if (mediaInfo.mediaId == null || mediaInfo.mediaId!.isEmpty) {
+              add(_LocalMessagesErrorEvent('Upload image failed: missing mediaId'));
+              return null;
+            }
+
+            return mediaInfo.mediaId;
+          },
+    );
+
+    if (mediaId == null) {
+      _uploadingImagePaths.remove(event.imagePath);
+      emit(_buildChatLoaded(_currentMessages));
+      return;
+    }
+
+    final messageId = Uuid().v4();
+    final message = Message(
+      id: messageId,
+      conversationId: event.conversationId,
+      senderId: currentUserId,
+      content: event.imagePath,
+      type: 'file',
+      offset: null,
+      isDeleted: false,
+      mediaId: mediaId,
+      serverId: messageId,
+      metadata: null,
+      createdAt: DateTime.now(),
+      editedAt: null,
+    );
+
+    final sendResult = await sendMessageUseCase(message: message);
+    sendResult.fold(
+      (failure) => add(_LocalMessagesErrorEvent(failure.message)),
+      (_) {},
+    );
+
+    _uploadingImagePaths.remove(event.imagePath);
+    emit(_buildChatLoaded(_currentMessages));
+  }
+
+  Future<void> _onFetchImageByMediaId(
+    FetchImageEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final mediaId = event.mediaId.trim();
+    if (mediaId.isEmpty) {
+      return;
+    }
+
+    final hasUsableResolvedImage = _hasUsableResolvedImage(mediaId);
+    if (!hasUsableResolvedImage) {
+      _imageUrlsByMediaId.remove(mediaId);
+    }
+
+    if (hasUsableResolvedImage) {
+      return;
+    }
+
+    final cachedFileInfo = await chatImageCacheManager.getFileFromCache(mediaId);
+    if (cachedFileInfo?.file.path != null && cachedFileInfo!.file.path.trim().isNotEmpty) {
+      _imageUrlsByMediaId[mediaId] = cachedFileInfo.file.path;
+      emit(_buildChatLoaded(_currentMessages));
+      return;
+    }
+
+    _resolvingImageMediaIds.add(mediaId);
+    emit(_buildChatLoaded(_currentMessages));
+
+    final result = await getImageUrlByMediaIdUseCase(mediaId);
+    result.fold(
+      (failure) => add(_LocalMessagesErrorEvent(failure.message)),
+      (imageUrl) {
+        if (imageUrl.trim().isNotEmpty) {
+          _imageUrlsByMediaId[mediaId] = imageUrl;
+        }
+      },
+    );
+
+    _resolvingImageMediaIds.remove(mediaId);
+    emit(_buildChatLoaded(_currentMessages));
+  }
+
+  void _signUpCurrentUserId() {
+      getCurrentUserIdUseCase().then((result) {
+        result.fold(
+          (failure) => null,
+          (userId) => currentUserId = userId,
+        );
+      });
   }
 }
 

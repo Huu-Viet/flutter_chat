@@ -16,14 +16,40 @@ final class ChatInitialLoadEvent extends ChatEvent {
 final class SendTextEvent extends ChatEvent {
   final String conversationId;
   final String content;
+  final String? mediaId;
 
   const SendTextEvent({
     required this.conversationId,
     required this.content,
+    this.mediaId,
   });
 
   @override
-  List<Object> get props => [conversationId, content];
+  List<Object> get props => [conversationId, content, ?mediaId];
+}
+
+final class SendImageEvent extends ChatEvent {
+  final String conversationId;
+  final String imagePath;
+  final int imageSize;
+
+  const SendImageEvent({
+    required this.conversationId,
+    required this.imagePath,
+    required this.imageSize,
+  });
+
+  @override
+  List<Object> get props => [conversationId, imagePath, imageSize];
+}
+
+final class FetchImageEvent extends ChatEvent {
+  final String mediaId;
+
+  const FetchImageEvent(this.mediaId);
+
+  @override
+  List<Object> get props => [mediaId];
 }
 
 final class _LocalMessagesErrorEvent extends ChatEvent {

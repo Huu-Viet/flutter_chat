@@ -28,6 +28,16 @@ class MessageDto {
   });
 
   factory MessageDto.fromJson(Map<String, dynamic> json) {
+    final rawMetadata = json['metadata'];
+    final parsedMetadata = rawMetadata is Map<String, dynamic>
+        ? rawMetadata
+        : null;
+
+    final topLevelMediaId = json['mediaId'] as String?;
+    final metadataMediaId = parsedMetadata == null
+        ? null
+        : (parsedMetadata['mediaId'] ?? parsedMetadata['media_id'])?.toString();
+
     return MessageDto(
       id: json['id'] as String?,
       conversationId: json['conversationId'] as String?,
@@ -36,10 +46,10 @@ class MessageDto {
       type: json['type']?.toString(),
       offset: _asInt(json['offset']),
       isDeleted: json['isDeleted'] as bool?,
-      mediaId: json['mediaId'] as String?,
-      metadata: json['metadata'] is Map<String, dynamic>
-          ? json['metadata'] as Map<String, dynamic>
-          : null,
+      mediaId: (topLevelMediaId != null && topLevelMediaId.trim().isNotEmpty)
+          ? topLevelMediaId
+          : metadataMediaId,
+      metadata: parsedMetadata,
       clientMessageId: json['clientMessageId'] as String?,
       createdAt: json['createdAt']?.toString(),
       editedAt: json['editedAt']?.toString(),

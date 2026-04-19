@@ -37,6 +37,23 @@ class PresignMediaServiceImpl implements PresignMediaService {
     return responseData;
   }
 
+  String? _extractMediaUrl(Map<String, dynamic> payload) {
+    final directUrl = payload['url'] ?? payload['downloadUrl'] ?? payload['fileUrl'] ?? payload['viewUrl'];
+    if (directUrl is String && directUrl.trim().isNotEmpty) {
+      return directUrl;
+    }
+
+    final nestedData = payload['data'];
+    if (nestedData is Map<String, dynamic>) {
+      final nestedUrl = nestedData['url'] ?? nestedData['downloadUrl'] ?? nestedData['fileUrl'] ?? nestedData['viewUrl'];
+      if (nestedUrl is String && nestedUrl.trim().isNotEmpty) {
+        return nestedUrl;
+      }
+    }
+
+    return null;
+  }
+
   @override
   Future<MediaInfo> presignFile(String filePath, int size) async {
     try {
@@ -145,6 +162,54 @@ class PresignMediaServiceImpl implements PresignMediaService {
     } catch (e) {
       debugPrint('Error uploading video: $e');
       throw Exception('Failed to upload video: $e');
+    }
+  }
+
+  @override
+  Future<String> getImageUrlByMediaId(String mediaId) async {
+    final normalizedMediaId = mediaId.trim();
+    if (normalizedMediaId.isEmpty) {
+      throw Exception('Media ID is empty');
+    }
+
+    try {
+      final response = await _dio.get('$_baseUrl/media/$normalizedMediaId');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final payload = _extractMediaPayload(response.data);
+        final mediaUrl = _extractMediaUrl(payload);
+        if (mediaUrl == null) {
+          throw Exception('Missing image url in media response');
+        }
+        return mediaUrl;
+      }
+
+      throw Exception('Failed to get media url: ${response.statusCode}');
+    } on DioException catch (e) {
+      final statusCode = e.response?.statusCode;
+
+      // Backward-compatible fallback when backend exposes url endpoint.
+      if (statusCode == 404) {
+        try {
+          final fallbackResponse = await _dio.get('$_baseUrl/media/$normalizedMediaId/url');
+          if (fallbackResponse.statusCode == 200 || fallbackResponse.statusCode == 201) {
+            final payload = _extractMediaPayload(fallbackResponse.data);
+            final mediaUrl = _extractMediaUrl(payload);
+            if (mediaUrl != null) {
+              return mediaUrl;
+            }
+            throw Exception('Missing image url in fallback media response');
+          }
+        } on DioException catch (_) {
+          // Fall through to the main error below.
+        }
+      }
+
+      debugPrint('Error getting media url: ${e.response?.statusCode} - ${e.response?.data}');
+      throw Exception('Failed to get media url: ${e.response?.data ?? e.message}');
+    } catch (e) {
+      debugPrint('Error getting media url: $e');
+      throw Exception('Failed to get media url: $e');
     }
   }
 

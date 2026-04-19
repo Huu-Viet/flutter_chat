@@ -1,5 +1,4 @@
 import 'package:dartz/dartz.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_chat/core/utils/token_utils.dart';
 import 'package:flutter_chat/features/auth/data/datasources/local/user_dao.dart';
 import 'package:flutter_chat/features/auth/export.dart';

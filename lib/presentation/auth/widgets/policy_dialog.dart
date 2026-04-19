@@ -35,7 +35,7 @@ class _PolicyDialogState extends State<PolicyDialog> {
       if (currentTitle == null) return;
       sections.add(
         _PolicySection(
-          title: currentTitle!,
+          title: currentTitle,
           body: currentBody.toString().trim(),
         ),
       );

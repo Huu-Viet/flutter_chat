@@ -16,3 +16,7 @@ final uploadMediaRepoProvider = Provider<UploadMediaRepository>((ref) {
 final uploadMediaUseCaseProvider = Provider<UploadMediaUseCase>((ref) {
 	return UploadMediaUseCase(ref.read(uploadMediaRepoProvider));
 });
+
+final getImageUrlByMediaIdUseCaseProvider = Provider<GetImageUrlByMediaIdUseCase>((ref) {
+	return GetImageUrlByMediaIdUseCase(ref.read(uploadMediaRepoProvider));
+});

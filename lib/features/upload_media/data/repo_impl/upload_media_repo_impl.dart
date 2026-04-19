@@ -44,6 +44,20 @@ class UploadMediaRepoImpl implements UploadMediaRepository {
     }
   }
 
+  @override
+  Future<Either<Failure, String>> getImageUrlByMediaId(String mediaId) async {
+    try {
+      final imageUrl = await _presignMediaService.getImageUrlByMediaId(mediaId);
+      if (imageUrl.trim().isEmpty) {
+        return const Left(ServerFailure('Image URL is empty'));
+      }
+
+      return Right(imageUrl);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
   Future<MediaInfo> _presignMediaByType({
     required String filePath,
     required String fileType,

@@ -6,7 +6,7 @@ import 'package:flutter_chat/core/database/app_database.dart';
 abstract class MessageDao {
   Future<void> saveMessages(List<ChatMessageEntity> items);
   Future<void> saveMessage(ChatMessageEntity item);
-  Future<ChatMessageEntity?> getMessageByServerId(String serverId);
+  Future<ChatMessageEntity?> getMessageByClientMessageId(String clientMessageId);
   Future<List<ChatMessageEntity>> getMessagesByConversationId(String conversationId);
   Stream<List<ChatMessageEntity>> watchMessagesByConversationId(String conversationId);
   Future<void> clearMessagesByConversationId(String conversationId);
@@ -34,22 +34,23 @@ class DriftMessageDaoImpl implements MessageDao {
   @override
   Future<void> saveMessage(ChatMessageEntity item) async {
     try {
-      final serverId = item.serverId?.trim();
-      if (serverId == null || serverId.isEmpty) {
+      final clientMessageId = item.serverId?.trim();
+      if (clientMessageId == null || clientMessageId.isEmpty) {
         await _database.insertMessage(item);
         return;
       }
 
-      final existing = await _database.getMessageByServerId(serverId);
+      final existing = await _database.getMessageByServerId(clientMessageId);
       if (existing != null) {
         final existingContent = existing.content.trim();
         final incomingContent = item.content.trim();
+        final type = item.type.trim().toLowerCase();
 
-        if (existingContent.isNotEmpty && incomingContent.isEmpty) {
+        if (existingContent.isNotEmpty && incomingContent.isEmpty && type != 'image') {
           return;
         }
 
-        await _database.deleteMessagesByServerId(serverId);
+        await _database.deleteMessagesByServerId(clientMessageId);
       }
 
       await _database.insertMessage(item);
@@ -60,9 +61,9 @@ class DriftMessageDaoImpl implements MessageDao {
   }
 
   @override
-  Future<ChatMessageEntity?> getMessageByServerId(String serverId) async {
+  Future<ChatMessageEntity?> getMessageByClientMessageId(String clientMessageId) async {
     try {
-      return await _database.getMessageByServerId(serverId);
+      return await _database.getMessageByServerId(clientMessageId);
     } catch (e) {
       log(e.toString());
       rethrow;

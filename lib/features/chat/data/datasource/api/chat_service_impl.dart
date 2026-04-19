@@ -2,8 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_chat/core/network/realtime_gateway.dart';
 import 'package:flutter_chat/features/chat/data/response/message_send_response.dart';
-import 'package:flutter_chat/features/chat/data/response/sticker_package_response.dart';
 import 'package:flutter_chat/features/chat/data/response/sticker_item_response.dart';
+import 'package:flutter_chat/features/chat/data/response/sticker_package_response.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:uuid/uuid.dart';
@@ -19,18 +19,14 @@ class ChatServiceImpl implements ChatService {
   @override
   Future<ConversationResponse> fetchConversations(int page, int limit) async {
     try {
-      debugPrint(
-        '[ChatServiceImpl] Fetch conversations request: page=$page, limit=$limit',
-      );
+      debugPrint('[ChatServiceImpl] Fetch conversations request: page=$page, limit=$limit');
       final response = await _dio.get(
         '$_baseUrl/conversations',
         queryParameters: {'page': page, 'limit': limit},
       );
 
       if (response.statusCode != 200 || response.data == null) {
-        throw Exception(
-          'Failed to fetch conversations: ${response.statusCode}',
-        );
+        throw Exception('Failed to fetch conversations: ${response.statusCode}');
       }
 
       final responseBody = response.data;
@@ -49,9 +45,10 @@ class ChatServiceImpl implements ChatService {
   @override
   Future<void> joinConversation(String conversationId) async {
     try {
-      await _realtimeGateway.emitChatEvent('conversation:join', {
-        'conversationId': conversationId,
-      });
+      await _realtimeGateway.emitChatEvent(
+        'conversation:join',
+        {'conversationId': conversationId},
+      );
     } catch (e) {
       debugPrint('[ChatServiceImpl] Join conversation error: $e');
       throw Exception('Failed to join conversation: $e');
@@ -106,9 +103,7 @@ class ChatServiceImpl implements ChatService {
     try {
       final normalizedConversationId = conversationId.trim();
       final normalizedClientMessageId =
-          (clientMessageId?.trim().isNotEmpty ?? false)
-          ? clientMessageId!.trim()
-          : Uuid().v4();
+          (clientMessageId?.trim().isNotEmpty ?? false) ? clientMessageId!.trim() : Uuid().v4();
 
       final body = <String, dynamic>{
         'content': content,
@@ -119,8 +114,7 @@ class ChatServiceImpl implements ChatService {
         if (metadata != null) 'metadata': metadata,
       };
 
-      final endpoint =
-          '$_baseUrl/conversations/$normalizedConversationId/messages';
+      final endpoint = '$_baseUrl/conversations/$normalizedConversationId/messages';
       debugPrint(
         '[ChatServiceImpl] Send message request: endpoint=$endpoint, body=$body',
       );
@@ -209,10 +203,10 @@ class ChatServiceImpl implements ChatService {
 
   @override
   Future<StickerItemResponse> getStickersInPackage(
-    String packageId, {
-    int limit = 50,
-    int offset = 0,
-  }) async {
+      String packageId, {
+        int limit = 50,
+        int offset = 0,
+      }) async {
     try {
       final response = await _dio.get(
         '$_baseUrl/stickers/packages/$packageId/stickers',
