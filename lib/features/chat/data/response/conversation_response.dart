@@ -24,8 +24,9 @@ class ConversationResponse {
     };
 
     final items = rawItems
-        .whereType<Map<String, dynamic>>()
-        .map(ConversationDto.fromJson)
+        .map((e) => ConversationDto.fromJson(
+      Map<String, dynamic>.from(e as Map),
+    ))
         .toList(growable: false);
 
     final total = switch (data) {

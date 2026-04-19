@@ -22,6 +22,7 @@ class ConversationDto {
   });
 
   factory ConversationDto.fromJson(Map<String, dynamic> json) {
+    final otherUser = json['otherUser'] as Map<String, dynamic>?;
     return ConversationDto(
       id: json['id'] as String?,
       orgId: json['orgId'] as String?,
@@ -31,7 +32,8 @@ class ConversationDto {
       memberCount: (json['memberCount'] as num?)?.toInt(),
       maxOffset: json['maxOffset'] as String?,
       updatedAt: json['updatedAt']?.toString(),
-      avatarUrl: json['avatarUrl'] as String?,
+      avatarUrl: json['avatarUrl'] as String?
+          ?? otherUser?['avatarUrl'] as String?,
     );
   }
 

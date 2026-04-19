@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dartz/dartz.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
@@ -96,6 +98,17 @@ class ChatRepoImpl implements ChatRepository {
   }) async {
     try {
       await _messageDao.saveMessage(_localMessageMapper.toEntity(message));
+
+      unawaited(_sendToServer(message, replyToMessageId));
+
+      return Right(message);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  Future<void> _sendToServer(Message message, String? replyToMessageId) async {
+    try {
       final response = await _chatService.sendMessage(
         conversationId: message.conversationId,
         content: message.content,
@@ -105,14 +118,13 @@ class ChatRepoImpl implements ChatRepository {
         replyToMessageId: replyToMessageId,
         metadata: message.metadata,
       );
+
       await _messageDao.updateServerId(
         message.id,
         response.messageId ?? message.id,
       );
-
-      return Right(message);
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      debugPrint('[ChatRepoImpl] _sendToServer error: $e');
     }
   }
 

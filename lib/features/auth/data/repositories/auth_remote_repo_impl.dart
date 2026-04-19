@@ -3,12 +3,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_chat/core/utils/token_utils.dart';
 import 'package:flutter_chat/features/auth/data/datasources/local/user_dao.dart';
 import 'package:flutter_chat/features/auth/export.dart';
+import 'package:flutter_chat/features/chat/export.dart';
 import '../../../../core/errors/failure.dart';
 
 class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
   final AuthRemoteService authRemoteDataSource;
   final AuthPrefDataSource authLocalDataSource;
   final UserRemoteDataSource userRemoteDataSource;
+  final ConversationDao conversationDao;
   final UserDao userDao;
   final APIUserMapper apiMapper;
   final LocalUserMapper localMapper;
@@ -17,6 +19,7 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
     required this.authRemoteDataSource,
     required this.authLocalDataSource,
     required this.userRemoteDataSource,
+    required this.conversationDao,
     required this.userDao,
     required this.apiMapper,
     required this.localMapper,
@@ -349,6 +352,7 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
     try {
       await authLocalDataSource.clearToken();
       await authLocalDataSource.clearCache();
+      await conversationDao.clearConversations();
       return Right(null);
     } catch (e) {
       return Future.value(Left(CacheFailure('Failed to clear local cache: $e')));

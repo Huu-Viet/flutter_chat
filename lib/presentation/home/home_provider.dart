@@ -12,9 +12,6 @@ final homeBlocProvider = Provider<HomeBloc>((ref) {
     syncFriendshipsToLocalUseCase: ref.read(syncFriendshipsToLocalUseCaseProvider),
     joinConversationUseCase: ref.read(joinConversationUseCaseProvider),
   );
-
-  bloc.add(const InitialLoadHomeEvent());
-  bloc.add(const LoadHomeEvent());
   ref.onDispose(bloc.close);
 
   return bloc;

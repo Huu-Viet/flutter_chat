@@ -19,8 +19,10 @@ dependencies:
   drift: ^2.30.1
   drift_flutter: ^0.2.8
 
-  #image picker
+  #media
   image_picker: ^1.2.1
+  cached_network_image: ^3.4.1
+  flutter_cache_manager: ^3.4.1
 
   #notification
   flutter_local_notifications: ^20.1.0

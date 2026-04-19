@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_chat/features/auth/export.dart';
@@ -160,7 +161,7 @@ class _ProfileLoadedView extends StatelessWidget {
             child: CircleAvatar(
               radius: 60,
               backgroundImage: myUser.avatarUrl != null && myUser.avatarUrl!.trim().isNotEmpty
-                  ? NetworkImage(myUser.avatarUrl!)
+                  ? CachedNetworkImageProvider(myUser.avatarUrl!)
                   : null,
               child: (myUser.avatarUrl == null || myUser.avatarUrl!.trim().isEmpty)
                   ? const Icon(Icons.person, size: 60)
