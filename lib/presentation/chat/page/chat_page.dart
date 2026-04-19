@@ -18,7 +18,8 @@ class ChatPage extends ConsumerStatefulWidget {
 
   const ChatPage({super.key,
     required this.conversationId,
-    required this.friendName});
+    required this.friendName,
+  });
 
   @override
   ConsumerState<ConsumerStatefulWidget> createState() => _ChatPageState();
@@ -29,7 +30,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   final List<ChatMessage> _messages = [];
   final MediaService _mediaService = MediaService();
   String? _currentUserId;
-  // bool _showEmojiKeyboard = false;
 
   List<ChatMessage> _mapStateMessagesToUi(List<Message> messages) {
     return messages

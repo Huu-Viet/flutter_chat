@@ -23,6 +23,10 @@ class _HomePageState extends ConsumerState<HomePage> {
   void initState() {
     AppPermission.requestNotificationPermission();
     super.initState();
+    if (mounted) {
+      ref.read(homeBlocProvider).add(const InitialLoadHomeEvent());
+      ref.read(homeBlocProvider).add(const LoadHomeEvent());
+    }
   }
 
   Future<void> _showAddFriendDialog(BuildContext context, AppLocalizations l10n) async {
@@ -233,11 +237,11 @@ class _HomePageContentState extends ConsumerState<HomePageContent> {
     final onlineFriends = [
       MyUser(
         id: 'user-001',
-        email: 'john.doe@example.com',
-        username: 'john_doe',
-        firstName: 'John',
-        lastName: 'Doe',
-        phone: '0901234567',
+        email: '',
+        username: 'Your status',
+        firstName: '',
+        lastName: '',
+        phone: '',
         avatarUrl: null,
         settings: const UserSettings(),
         isActive: true,
@@ -326,6 +330,7 @@ class _HomePageContentState extends ConsumerState<HomePageContent> {
                       }
 
                     final c = state.conversations[index];
+                      debugPrint('[HomePage] Rendering conversation: ${c.avatarUrl}');
                     return ChatListTile(
                       conversationId: c.id,
                       name: c.name,

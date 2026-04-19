@@ -65,7 +65,7 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
       conversationId,
       before: null,
       after: null,
-      limit: 20,
+      limit: 1,
     );
     result.fold(
       (failure) {
