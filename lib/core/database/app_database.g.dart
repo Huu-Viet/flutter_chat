@@ -1871,8 +1871,8 @@ class $ChatMessagesTable extends ChatMessages
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _clientMessageIdMeta = const VerificationMeta(
-    'clientMessageId',
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
   );
   @override
   late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
@@ -1995,10 +1995,10 @@ class $ChatMessagesTable extends ChatMessages
     }
     if (data.containsKey('client_message_id')) {
       context.handle(
-        _clientMessageIdMeta,
+        _serverIdMeta,
         serverId.isAcceptableOrUnknown(
           data['client_message_id']!,
-          _clientMessageIdMeta,
+          _serverIdMeta,
         ),
       );
     }
@@ -2061,7 +2061,7 @@ class $ChatMessagesTable extends ChatMessages
         DriftSqlType.string,
         data['${effectivePrefix}metadata'],
       ),
-      clientMessageId: attachedDatabase.typeMapping.read(
+      serverId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}client_message_id'],
       ),
@@ -2093,7 +2093,7 @@ class ChatMessageEntity extends DataClass
   final bool isDeleted;
   final String? mediaId;
   final String? metadata;
-  final String? clientMessageId;
+  final String? serverId;
   final String createdAt;
   final String? editedAt;
   const ChatMessageEntity({
@@ -2106,7 +2106,7 @@ class ChatMessageEntity extends DataClass
     required this.isDeleted,
     this.mediaId,
     this.metadata,
-    this.clientMessageId,
+    this.serverId,
     required this.createdAt,
     this.editedAt,
   });
@@ -2128,8 +2128,8 @@ class ChatMessageEntity extends DataClass
     if (!nullToAbsent || metadata != null) {
       map['metadata'] = Variable<String>(metadata);
     }
-    if (!nullToAbsent || clientMessageId != null) {
-      map['client_message_id'] = Variable<String>(clientMessageId);
+    if (!nullToAbsent || serverId != null) {
+      map['client_message_id'] = Variable<String>(serverId);
     }
     map['created_at'] = Variable<String>(createdAt);
     if (!nullToAbsent || editedAt != null) {
@@ -2155,9 +2155,9 @@ class ChatMessageEntity extends DataClass
       metadata: metadata == null && nullToAbsent
           ? const Value.absent()
           : Value(metadata),
-      clientMessageId: clientMessageId == null && nullToAbsent
+      serverId: serverId == null && nullToAbsent
           ? const Value.absent()
-          : Value(clientMessageId),
+          : Value(serverId),
       createdAt: Value(createdAt),
       editedAt: editedAt == null && nullToAbsent
           ? const Value.absent()
@@ -2180,7 +2180,7 @@ class ChatMessageEntity extends DataClass
       isDeleted: serializer.fromJson<bool>(json['isDeleted']),
       mediaId: serializer.fromJson<String?>(json['mediaId']),
       metadata: serializer.fromJson<String?>(json['metadata']),
-      clientMessageId: serializer.fromJson<String?>(json['clientMessageId']),
+      serverId: serializer.fromJson<String?>(json['serverId']),
       createdAt: serializer.fromJson<String>(json['createdAt']),
       editedAt: serializer.fromJson<String?>(json['editedAt']),
     );
@@ -2198,7 +2198,7 @@ class ChatMessageEntity extends DataClass
       'isDeleted': serializer.toJson<bool>(isDeleted),
       'mediaId': serializer.toJson<String?>(mediaId),
       'metadata': serializer.toJson<String?>(metadata),
-      'clientMessageId': serializer.toJson<String?>(clientMessageId),
+      'serverId': serializer.toJson<String?>(serverId),
       'createdAt': serializer.toJson<String>(createdAt),
       'editedAt': serializer.toJson<String?>(editedAt),
     };
@@ -2214,7 +2214,7 @@ class ChatMessageEntity extends DataClass
     bool? isDeleted,
     Value<String?> mediaId = const Value.absent(),
     Value<String?> metadata = const Value.absent(),
-    Value<String?> clientMessageId = const Value.absent(),
+    Value<String?> serverId = const Value.absent(),
     String? createdAt,
     Value<String?> editedAt = const Value.absent(),
   }) => ChatMessageEntity(
@@ -2227,9 +2227,7 @@ class ChatMessageEntity extends DataClass
     isDeleted: isDeleted ?? this.isDeleted,
     mediaId: mediaId.present ? mediaId.value : this.mediaId,
     metadata: metadata.present ? metadata.value : this.metadata,
-    clientMessageId: clientMessageId.present
-        ? clientMessageId.value
-        : this.clientMessageId,
+    serverId: serverId.present ? serverId.value : this.serverId,
     createdAt: createdAt ?? this.createdAt,
     editedAt: editedAt.present ? editedAt.value : this.editedAt,
   );
@@ -2246,9 +2244,7 @@ class ChatMessageEntity extends DataClass
       isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
       mediaId: data.mediaId.present ? data.mediaId.value : this.mediaId,
       metadata: data.metadata.present ? data.metadata.value : this.metadata,
-      clientMessageId: data.clientMessageId.present
-          ? data.clientMessageId.value
-          : this.clientMessageId,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       editedAt: data.editedAt.present ? data.editedAt.value : this.editedAt,
     );
@@ -2266,7 +2262,7 @@ class ChatMessageEntity extends DataClass
           ..write('isDeleted: $isDeleted, ')
           ..write('mediaId: $mediaId, ')
           ..write('metadata: $metadata, ')
-          ..write('clientMessageId: $clientMessageId, ')
+          ..write('serverId: $serverId, ')
           ..write('createdAt: $createdAt, ')
           ..write('editedAt: $editedAt')
           ..write(')'))
@@ -2284,7 +2280,7 @@ class ChatMessageEntity extends DataClass
     isDeleted,
     mediaId,
     metadata,
-    clientMessageId,
+    serverId,
     createdAt,
     editedAt,
   );
@@ -2301,7 +2297,7 @@ class ChatMessageEntity extends DataClass
           other.isDeleted == this.isDeleted &&
           other.mediaId == this.mediaId &&
           other.metadata == this.metadata &&
-          other.clientMessageId == this.clientMessageId &&
+          other.serverId == this.serverId &&
           other.createdAt == this.createdAt &&
           other.editedAt == this.editedAt);
 }
@@ -2316,7 +2312,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
   final Value<bool> isDeleted;
   final Value<String?> mediaId;
   final Value<String?> metadata;
-  final Value<String?> clientMessageId;
+  final Value<String?> serverId;
   final Value<String> createdAt;
   final Value<String?> editedAt;
   final Value<int> rowid;
@@ -2330,7 +2326,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
     this.isDeleted = const Value.absent(),
     this.mediaId = const Value.absent(),
     this.metadata = const Value.absent(),
-    this.clientMessageId = const Value.absent(),
+    this.serverId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.editedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -2345,7 +2341,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
     this.isDeleted = const Value.absent(),
     this.mediaId = const Value.absent(),
     this.metadata = const Value.absent(),
-    this.clientMessageId = const Value.absent(),
+    this.serverId = const Value.absent(),
     required String createdAt,
     this.editedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -2364,7 +2360,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
     Expression<bool>? isDeleted,
     Expression<String>? mediaId,
     Expression<String>? metadata,
-    Expression<String>? clientMessageId,
+    Expression<String>? serverId,
     Expression<String>? createdAt,
     Expression<String>? editedAt,
     Expression<int>? rowid,
@@ -2379,7 +2375,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
       if (isDeleted != null) 'is_deleted': isDeleted,
       if (mediaId != null) 'media_id': mediaId,
       if (metadata != null) 'metadata': metadata,
-      if (clientMessageId != null) 'client_message_id': clientMessageId,
+      if (serverId != null) 'client_message_id': serverId,
       if (createdAt != null) 'created_at': createdAt,
       if (editedAt != null) 'edited_at': editedAt,
       if (rowid != null) 'rowid': rowid,
@@ -2396,7 +2392,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
     Value<bool>? isDeleted,
     Value<String?>? mediaId,
     Value<String?>? metadata,
-    Value<String?>? clientMessageId,
+    Value<String?>? serverId,
     Value<String>? createdAt,
     Value<String?>? editedAt,
     Value<int>? rowid,
@@ -2411,7 +2407,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
       isDeleted: isDeleted ?? this.isDeleted,
       mediaId: mediaId ?? this.mediaId,
       metadata: metadata ?? this.metadata,
-      clientMessageId: clientMessageId ?? this.clientMessageId,
+      serverId: serverId ?? this.serverId,
       createdAt: createdAt ?? this.createdAt,
       editedAt: editedAt ?? this.editedAt,
       rowid: rowid ?? this.rowid,
@@ -2448,8 +2444,8 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
     if (metadata.present) {
       map['metadata'] = Variable<String>(metadata.value);
     }
-    if (clientMessageId.present) {
-      map['client_message_id'] = Variable<String>(clientMessageId.value);
+    if (serverId.present) {
+      map['client_message_id'] = Variable<String>(serverId.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<String>(createdAt.value);
@@ -2475,7 +2471,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
           ..write('isDeleted: $isDeleted, ')
           ..write('mediaId: $mediaId, ')
           ..write('metadata: $metadata, ')
-          ..write('clientMessageId: $clientMessageId, ')
+          ..write('serverId: $serverId, ')
           ..write('createdAt: $createdAt, ')
           ..write('editedAt: $editedAt, ')
           ..write('rowid: $rowid')
@@ -2796,6 +2792,686 @@ class FriendshipsCompanion extends UpdateCompanion<FriendshipEntity> {
   }
 }
 
+class $StickerPackagesTable extends StickerPackages
+    with TableInfo<$StickerPackagesTable, StickerPackageEntity> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StickerPackagesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isFreeMeta = const VerificationMeta('isFree');
+  @override
+  late final GeneratedColumn<bool> isFree = GeneratedColumn<bool>(
+    'is_free',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_free" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _thumbnailUrlMeta = const VerificationMeta(
+    'thumbnailUrl',
+  );
+  @override
+  late final GeneratedColumn<String> thumbnailUrl = GeneratedColumn<String>(
+    'thumbnail_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    isFree,
+    thumbnailUrl,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sticker_packages';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<StickerPackageEntity> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('is_free')) {
+      context.handle(
+        _isFreeMeta,
+        isFree.isAcceptableOrUnknown(data['is_free']!, _isFreeMeta),
+      );
+    }
+    if (data.containsKey('thumbnail_url')) {
+      context.handle(
+        _thumbnailUrlMeta,
+        thumbnailUrl.isAcceptableOrUnknown(
+          data['thumbnail_url']!,
+          _thumbnailUrlMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  StickerPackageEntity map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return StickerPackageEntity(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      isFree: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_free'],
+      )!,
+      thumbnailUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}thumbnail_url'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      ),
+    );
+  }
+
+  @override
+  $StickerPackagesTable createAlias(String alias) {
+    return $StickerPackagesTable(attachedDatabase, alias);
+  }
+}
+
+class StickerPackageEntity extends DataClass
+    implements Insertable<StickerPackageEntity> {
+  final String id;
+  final String name;
+  final bool isFree;
+  final String? thumbnailUrl;
+  final String? createdAt;
+  const StickerPackageEntity({
+    required this.id,
+    required this.name,
+    required this.isFree,
+    this.thumbnailUrl,
+    this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['is_free'] = Variable<bool>(isFree);
+    if (!nullToAbsent || thumbnailUrl != null) {
+      map['thumbnail_url'] = Variable<String>(thumbnailUrl);
+    }
+    if (!nullToAbsent || createdAt != null) {
+      map['created_at'] = Variable<String>(createdAt);
+    }
+    return map;
+  }
+
+  StickerPackagesCompanion toCompanion(bool nullToAbsent) {
+    return StickerPackagesCompanion(
+      id: Value(id),
+      name: Value(name),
+      isFree: Value(isFree),
+      thumbnailUrl: thumbnailUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(thumbnailUrl),
+      createdAt: createdAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAt),
+    );
+  }
+
+  factory StickerPackageEntity.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return StickerPackageEntity(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      isFree: serializer.fromJson<bool>(json['isFree']),
+      thumbnailUrl: serializer.fromJson<String?>(json['thumbnailUrl']),
+      createdAt: serializer.fromJson<String?>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'isFree': serializer.toJson<bool>(isFree),
+      'thumbnailUrl': serializer.toJson<String?>(thumbnailUrl),
+      'createdAt': serializer.toJson<String?>(createdAt),
+    };
+  }
+
+  StickerPackageEntity copyWith({
+    String? id,
+    String? name,
+    bool? isFree,
+    Value<String?> thumbnailUrl = const Value.absent(),
+    Value<String?> createdAt = const Value.absent(),
+  }) => StickerPackageEntity(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    isFree: isFree ?? this.isFree,
+    thumbnailUrl: thumbnailUrl.present ? thumbnailUrl.value : this.thumbnailUrl,
+    createdAt: createdAt.present ? createdAt.value : this.createdAt,
+  );
+  StickerPackageEntity copyWithCompanion(StickerPackagesCompanion data) {
+    return StickerPackageEntity(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      isFree: data.isFree.present ? data.isFree.value : this.isFree,
+      thumbnailUrl: data.thumbnailUrl.present
+          ? data.thumbnailUrl.value
+          : this.thumbnailUrl,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StickerPackageEntity(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('isFree: $isFree, ')
+          ..write('thumbnailUrl: $thumbnailUrl, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, isFree, thumbnailUrl, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StickerPackageEntity &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.isFree == this.isFree &&
+          other.thumbnailUrl == this.thumbnailUrl &&
+          other.createdAt == this.createdAt);
+}
+
+class StickerPackagesCompanion extends UpdateCompanion<StickerPackageEntity> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<bool> isFree;
+  final Value<String?> thumbnailUrl;
+  final Value<String?> createdAt;
+  final Value<int> rowid;
+  const StickerPackagesCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.isFree = const Value.absent(),
+    this.thumbnailUrl = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  StickerPackagesCompanion.insert({
+    required String id,
+    required String name,
+    this.isFree = const Value.absent(),
+    this.thumbnailUrl = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name);
+  static Insertable<StickerPackageEntity> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<bool>? isFree,
+    Expression<String>? thumbnailUrl,
+    Expression<String>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (isFree != null) 'is_free': isFree,
+      if (thumbnailUrl != null) 'thumbnail_url': thumbnailUrl,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  StickerPackagesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<bool>? isFree,
+    Value<String?>? thumbnailUrl,
+    Value<String?>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return StickerPackagesCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      isFree: isFree ?? this.isFree,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (isFree.present) {
+      map['is_free'] = Variable<bool>(isFree.value);
+    }
+    if (thumbnailUrl.present) {
+      map['thumbnail_url'] = Variable<String>(thumbnailUrl.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StickerPackagesCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('isFree: $isFree, ')
+          ..write('thumbnailUrl: $thumbnailUrl, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $StickerItemsTable extends StickerItems
+    with TableInfo<$StickerItemsTable, StickerItemEntity> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StickerItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _packageIdMeta = const VerificationMeta(
+    'packageId',
+  );
+  @override
+  late final GeneratedColumn<String> packageId = GeneratedColumn<String>(
+    'package_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES sticker_packages (id)',
+    ),
+  );
+  static const VerificationMeta _urlMeta = const VerificationMeta('url');
+  @override
+  late final GeneratedColumn<String> url = GeneratedColumn<String>(
+    'url',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, packageId, url, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sticker_items';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<StickerItemEntity> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('package_id')) {
+      context.handle(
+        _packageIdMeta,
+        packageId.isAcceptableOrUnknown(data['package_id']!, _packageIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_packageIdMeta);
+    }
+    if (data.containsKey('url')) {
+      context.handle(
+        _urlMeta,
+        url.isAcceptableOrUnknown(data['url']!, _urlMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_urlMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  StickerItemEntity map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return StickerItemEntity(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      packageId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}package_id'],
+      )!,
+      url: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}url'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      ),
+    );
+  }
+
+  @override
+  $StickerItemsTable createAlias(String alias) {
+    return $StickerItemsTable(attachedDatabase, alias);
+  }
+}
+
+class StickerItemEntity extends DataClass
+    implements Insertable<StickerItemEntity> {
+  final String id;
+  final String packageId;
+  final String url;
+  final String? createdAt;
+  const StickerItemEntity({
+    required this.id,
+    required this.packageId,
+    required this.url,
+    this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['package_id'] = Variable<String>(packageId);
+    map['url'] = Variable<String>(url);
+    if (!nullToAbsent || createdAt != null) {
+      map['created_at'] = Variable<String>(createdAt);
+    }
+    return map;
+  }
+
+  StickerItemsCompanion toCompanion(bool nullToAbsent) {
+    return StickerItemsCompanion(
+      id: Value(id),
+      packageId: Value(packageId),
+      url: Value(url),
+      createdAt: createdAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAt),
+    );
+  }
+
+  factory StickerItemEntity.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return StickerItemEntity(
+      id: serializer.fromJson<String>(json['id']),
+      packageId: serializer.fromJson<String>(json['packageId']),
+      url: serializer.fromJson<String>(json['url']),
+      createdAt: serializer.fromJson<String?>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'packageId': serializer.toJson<String>(packageId),
+      'url': serializer.toJson<String>(url),
+      'createdAt': serializer.toJson<String?>(createdAt),
+    };
+  }
+
+  StickerItemEntity copyWith({
+    String? id,
+    String? packageId,
+    String? url,
+    Value<String?> createdAt = const Value.absent(),
+  }) => StickerItemEntity(
+    id: id ?? this.id,
+    packageId: packageId ?? this.packageId,
+    url: url ?? this.url,
+    createdAt: createdAt.present ? createdAt.value : this.createdAt,
+  );
+  StickerItemEntity copyWithCompanion(StickerItemsCompanion data) {
+    return StickerItemEntity(
+      id: data.id.present ? data.id.value : this.id,
+      packageId: data.packageId.present ? data.packageId.value : this.packageId,
+      url: data.url.present ? data.url.value : this.url,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StickerItemEntity(')
+          ..write('id: $id, ')
+          ..write('packageId: $packageId, ')
+          ..write('url: $url, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, packageId, url, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StickerItemEntity &&
+          other.id == this.id &&
+          other.packageId == this.packageId &&
+          other.url == this.url &&
+          other.createdAt == this.createdAt);
+}
+
+class StickerItemsCompanion extends UpdateCompanion<StickerItemEntity> {
+  final Value<String> id;
+  final Value<String> packageId;
+  final Value<String> url;
+  final Value<String?> createdAt;
+  final Value<int> rowid;
+  const StickerItemsCompanion({
+    this.id = const Value.absent(),
+    this.packageId = const Value.absent(),
+    this.url = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  StickerItemsCompanion.insert({
+    required String id,
+    required String packageId,
+    required String url,
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       packageId = Value(packageId),
+       url = Value(url);
+  static Insertable<StickerItemEntity> custom({
+    Expression<String>? id,
+    Expression<String>? packageId,
+    Expression<String>? url,
+    Expression<String>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (packageId != null) 'package_id': packageId,
+      if (url != null) 'url': url,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  StickerItemsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? packageId,
+    Value<String>? url,
+    Value<String?>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return StickerItemsCompanion(
+      id: id ?? this.id,
+      packageId: packageId ?? this.packageId,
+      url: url ?? this.url,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (packageId.present) {
+      map['package_id'] = Variable<String>(packageId.value);
+    }
+    if (url.present) {
+      map['url'] = Variable<String>(url.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StickerItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('packageId: $packageId, ')
+          ..write('url: $url, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2804,6 +3480,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $ChatConversationsTable(this);
   late final $ChatMessagesTable chatMessages = $ChatMessagesTable(this);
   late final $FriendshipsTable friendships = $FriendshipsTable(this);
+  late final $StickerPackagesTable stickerPackages = $StickerPackagesTable(
+    this,
+  );
+  late final $StickerItemsTable stickerItems = $StickerItemsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2813,6 +3493,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     chatConversations,
     chatMessages,
     friendships,
+    stickerPackages,
+    stickerItems,
   ];
 }
 
@@ -3616,7 +4298,7 @@ typedef $$ChatMessagesTableCreateCompanionBuilder =
       Value<bool> isDeleted,
       Value<String?> mediaId,
       Value<String?> metadata,
-      Value<String?> clientMessageId,
+      Value<String?> serverId,
       required String createdAt,
       Value<String?> editedAt,
       Value<int> rowid,
@@ -3632,7 +4314,7 @@ typedef $$ChatMessagesTableUpdateCompanionBuilder =
       Value<bool> isDeleted,
       Value<String?> mediaId,
       Value<String?> metadata,
-      Value<String?> clientMessageId,
+      Value<String?> serverId,
       Value<String> createdAt,
       Value<String?> editedAt,
       Value<int> rowid,
@@ -3692,7 +4374,7 @@ class $$ChatMessagesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get clientMessageId => $composableBuilder(
+  ColumnFilters<String> get serverId => $composableBuilder(
     column: $table.serverId,
     builder: (column) => ColumnFilters(column),
   );
@@ -3762,7 +4444,7 @@ class $$ChatMessagesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get clientMessageId => $composableBuilder(
+  ColumnOrderings<String> get serverId => $composableBuilder(
     column: $table.serverId,
     builder: (column) => ColumnOrderings(column),
   );
@@ -3816,10 +4498,8 @@ class $$ChatMessagesTableAnnotationComposer
   GeneratedColumn<String> get metadata =>
       $composableBuilder(column: $table.metadata, builder: (column) => column);
 
-  GeneratedColumn<String> get clientMessageId => $composableBuilder(
-    column: $table.serverId,
-    builder: (column) => column,
-  );
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
 
   GeneratedColumn<String> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -3872,7 +4552,7 @@ class $$ChatMessagesTableTableManager
                 Value<bool> isDeleted = const Value.absent(),
                 Value<String?> mediaId = const Value.absent(),
                 Value<String?> metadata = const Value.absent(),
-                Value<String?> clientMessageId = const Value.absent(),
+                Value<String?> serverId = const Value.absent(),
                 Value<String> createdAt = const Value.absent(),
                 Value<String?> editedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -3886,7 +4566,7 @@ class $$ChatMessagesTableTableManager
                 isDeleted: isDeleted,
                 mediaId: mediaId,
                 metadata: metadata,
-                clientMessageId: clientMessageId,
+                serverId: serverId,
                 createdAt: createdAt,
                 editedAt: editedAt,
                 rowid: rowid,
@@ -3902,7 +4582,7 @@ class $$ChatMessagesTableTableManager
                 Value<bool> isDeleted = const Value.absent(),
                 Value<String?> mediaId = const Value.absent(),
                 Value<String?> metadata = const Value.absent(),
-                Value<String?> clientMessageId = const Value.absent(),
+                Value<String?> serverId = const Value.absent(),
                 required String createdAt,
                 Value<String?> editedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -3916,7 +4596,7 @@ class $$ChatMessagesTableTableManager
                 isDeleted: isDeleted,
                 mediaId: mediaId,
                 metadata: metadata,
-                clientMessageId: clientMessageId,
+                serverId: serverId,
                 createdAt: createdAt,
                 editedAt: editedAt,
                 rowid: rowid,
@@ -4127,6 +4807,624 @@ typedef $$FriendshipsTableProcessedTableManager =
       FriendshipEntity,
       PrefetchHooks Function()
     >;
+typedef $$StickerPackagesTableCreateCompanionBuilder =
+    StickerPackagesCompanion Function({
+      required String id,
+      required String name,
+      Value<bool> isFree,
+      Value<String?> thumbnailUrl,
+      Value<String?> createdAt,
+      Value<int> rowid,
+    });
+typedef $$StickerPackagesTableUpdateCompanionBuilder =
+    StickerPackagesCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<bool> isFree,
+      Value<String?> thumbnailUrl,
+      Value<String?> createdAt,
+      Value<int> rowid,
+    });
+
+final class $$StickerPackagesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $StickerPackagesTable,
+          StickerPackageEntity
+        > {
+  $$StickerPackagesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<$StickerItemsTable, List<StickerItemEntity>>
+  _stickerItemsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.stickerItems,
+    aliasName: $_aliasNameGenerator(
+      db.stickerPackages.id,
+      db.stickerItems.packageId,
+    ),
+  );
+
+  $$StickerItemsTableProcessedTableManager get stickerItemsRefs {
+    final manager = $$StickerItemsTableTableManager(
+      $_db,
+      $_db.stickerItems,
+    ).filter((f) => f.packageId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_stickerItemsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$StickerPackagesTableFilterComposer
+    extends Composer<_$AppDatabase, $StickerPackagesTable> {
+  $$StickerPackagesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isFree => $composableBuilder(
+    column: $table.isFree,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get thumbnailUrl => $composableBuilder(
+    column: $table.thumbnailUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> stickerItemsRefs(
+    Expression<bool> Function($$StickerItemsTableFilterComposer f) f,
+  ) {
+    final $$StickerItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.stickerItems,
+      getReferencedColumn: (t) => t.packageId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StickerItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.stickerItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$StickerPackagesTableOrderingComposer
+    extends Composer<_$AppDatabase, $StickerPackagesTable> {
+  $$StickerPackagesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isFree => $composableBuilder(
+    column: $table.isFree,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get thumbnailUrl => $composableBuilder(
+    column: $table.thumbnailUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$StickerPackagesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StickerPackagesTable> {
+  $$StickerPackagesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<bool> get isFree =>
+      $composableBuilder(column: $table.isFree, builder: (column) => column);
+
+  GeneratedColumn<String> get thumbnailUrl => $composableBuilder(
+    column: $table.thumbnailUrl,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  Expression<T> stickerItemsRefs<T extends Object>(
+    Expression<T> Function($$StickerItemsTableAnnotationComposer a) f,
+  ) {
+    final $$StickerItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.stickerItems,
+      getReferencedColumn: (t) => t.packageId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StickerItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.stickerItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$StickerPackagesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $StickerPackagesTable,
+          StickerPackageEntity,
+          $$StickerPackagesTableFilterComposer,
+          $$StickerPackagesTableOrderingComposer,
+          $$StickerPackagesTableAnnotationComposer,
+          $$StickerPackagesTableCreateCompanionBuilder,
+          $$StickerPackagesTableUpdateCompanionBuilder,
+          (StickerPackageEntity, $$StickerPackagesTableReferences),
+          StickerPackageEntity,
+          PrefetchHooks Function({bool stickerItemsRefs})
+        > {
+  $$StickerPackagesTableTableManager(
+    _$AppDatabase db,
+    $StickerPackagesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$StickerPackagesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$StickerPackagesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$StickerPackagesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<bool> isFree = const Value.absent(),
+                Value<String?> thumbnailUrl = const Value.absent(),
+                Value<String?> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => StickerPackagesCompanion(
+                id: id,
+                name: name,
+                isFree: isFree,
+                thumbnailUrl: thumbnailUrl,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                Value<bool> isFree = const Value.absent(),
+                Value<String?> thumbnailUrl = const Value.absent(),
+                Value<String?> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => StickerPackagesCompanion.insert(
+                id: id,
+                name: name,
+                isFree: isFree,
+                thumbnailUrl: thumbnailUrl,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$StickerPackagesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({stickerItemsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (stickerItemsRefs) db.stickerItems],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (stickerItemsRefs)
+                    await $_getPrefetchedData<
+                      StickerPackageEntity,
+                      $StickerPackagesTable,
+                      StickerItemEntity
+                    >(
+                      currentTable: table,
+                      referencedTable: $$StickerPackagesTableReferences
+                          ._stickerItemsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$StickerPackagesTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).stickerItemsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.packageId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$StickerPackagesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $StickerPackagesTable,
+      StickerPackageEntity,
+      $$StickerPackagesTableFilterComposer,
+      $$StickerPackagesTableOrderingComposer,
+      $$StickerPackagesTableAnnotationComposer,
+      $$StickerPackagesTableCreateCompanionBuilder,
+      $$StickerPackagesTableUpdateCompanionBuilder,
+      (StickerPackageEntity, $$StickerPackagesTableReferences),
+      StickerPackageEntity,
+      PrefetchHooks Function({bool stickerItemsRefs})
+    >;
+typedef $$StickerItemsTableCreateCompanionBuilder =
+    StickerItemsCompanion Function({
+      required String id,
+      required String packageId,
+      required String url,
+      Value<String?> createdAt,
+      Value<int> rowid,
+    });
+typedef $$StickerItemsTableUpdateCompanionBuilder =
+    StickerItemsCompanion Function({
+      Value<String> id,
+      Value<String> packageId,
+      Value<String> url,
+      Value<String?> createdAt,
+      Value<int> rowid,
+    });
+
+final class $$StickerItemsTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $StickerItemsTable, StickerItemEntity> {
+  $$StickerItemsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $StickerPackagesTable _packageIdTable(_$AppDatabase db) =>
+      db.stickerPackages.createAlias(
+        $_aliasNameGenerator(db.stickerItems.packageId, db.stickerPackages.id),
+      );
+
+  $$StickerPackagesTableProcessedTableManager get packageId {
+    final $_column = $_itemColumn<String>('package_id')!;
+
+    final manager = $$StickerPackagesTableTableManager(
+      $_db,
+      $_db.stickerPackages,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_packageIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$StickerItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $StickerItemsTable> {
+  $$StickerItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$StickerPackagesTableFilterComposer get packageId {
+    final $$StickerPackagesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packageId,
+      referencedTable: $db.stickerPackages,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StickerPackagesTableFilterComposer(
+            $db: $db,
+            $table: $db.stickerPackages,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StickerItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $StickerItemsTable> {
+  $$StickerItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$StickerPackagesTableOrderingComposer get packageId {
+    final $$StickerPackagesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packageId,
+      referencedTable: $db.stickerPackages,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StickerPackagesTableOrderingComposer(
+            $db: $db,
+            $table: $db.stickerPackages,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StickerItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StickerItemsTable> {
+  $$StickerItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get url =>
+      $composableBuilder(column: $table.url, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$StickerPackagesTableAnnotationComposer get packageId {
+    final $$StickerPackagesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.packageId,
+      referencedTable: $db.stickerPackages,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StickerPackagesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.stickerPackages,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StickerItemsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $StickerItemsTable,
+          StickerItemEntity,
+          $$StickerItemsTableFilterComposer,
+          $$StickerItemsTableOrderingComposer,
+          $$StickerItemsTableAnnotationComposer,
+          $$StickerItemsTableCreateCompanionBuilder,
+          $$StickerItemsTableUpdateCompanionBuilder,
+          (StickerItemEntity, $$StickerItemsTableReferences),
+          StickerItemEntity,
+          PrefetchHooks Function({bool packageId})
+        > {
+  $$StickerItemsTableTableManager(_$AppDatabase db, $StickerItemsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$StickerItemsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$StickerItemsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$StickerItemsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> packageId = const Value.absent(),
+                Value<String> url = const Value.absent(),
+                Value<String?> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => StickerItemsCompanion(
+                id: id,
+                packageId: packageId,
+                url: url,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String packageId,
+                required String url,
+                Value<String?> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => StickerItemsCompanion.insert(
+                id: id,
+                packageId: packageId,
+                url: url,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$StickerItemsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({packageId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (packageId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.packageId,
+                                referencedTable: $$StickerItemsTableReferences
+                                    ._packageIdTable(db),
+                                referencedColumn: $$StickerItemsTableReferences
+                                    ._packageIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$StickerItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $StickerItemsTable,
+      StickerItemEntity,
+      $$StickerItemsTableFilterComposer,
+      $$StickerItemsTableOrderingComposer,
+      $$StickerItemsTableAnnotationComposer,
+      $$StickerItemsTableCreateCompanionBuilder,
+      $$StickerItemsTableUpdateCompanionBuilder,
+      (StickerItemEntity, $$StickerItemsTableReferences),
+      StickerItemEntity,
+      PrefetchHooks Function({bool packageId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4139,4 +5437,8 @@ class $AppDatabaseManager {
       $$ChatMessagesTableTableManager(_db, _db.chatMessages);
   $$FriendshipsTableTableManager get friendships =>
       $$FriendshipsTableTableManager(_db, _db.friendships);
+  $$StickerPackagesTableTableManager get stickerPackages =>
+      $$StickerPackagesTableTableManager(_db, _db.stickerPackages);
+  $$StickerItemsTableTableManager get stickerItems =>
+      $$StickerItemsTableTableManager(_db, _db.stickerItems);
 }

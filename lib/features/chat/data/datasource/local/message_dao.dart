@@ -6,7 +6,7 @@ import 'package:flutter_chat/core/database/app_database.dart';
 abstract class MessageDao {
   Future<void> saveMessages(List<ChatMessageEntity> items);
   Future<void> saveMessage(ChatMessageEntity item);
-  Future<ChatMessageEntity?> getMessageByClientMessageId(String clientMessageId);
+  Future<ChatMessageEntity?> getMessageByServerId(String serverId);
   Future<List<ChatMessageEntity>> getMessagesByConversationId(String conversationId);
   Stream<List<ChatMessageEntity>> watchMessagesByConversationId(String conversationId);
   Future<void> clearMessagesByConversationId(String conversationId);
@@ -34,13 +34,13 @@ class DriftMessageDaoImpl implements MessageDao {
   @override
   Future<void> saveMessage(ChatMessageEntity item) async {
     try {
-      final clientMessageId = item.clientMessageId?.trim();
-      if (clientMessageId == null || clientMessageId.isEmpty) {
+      final serverId = item.serverId?.trim();
+      if (serverId == null || serverId.isEmpty) {
         await _database.insertMessage(item);
         return;
       }
 
-      final existing = await _database.getMessageByClientMessageId(clientMessageId);
+      final existing = await _database.getMessageByServerId(serverId);
       if (existing != null) {
         final existingContent = existing.content.trim();
         final incomingContent = item.content.trim();
@@ -49,7 +49,7 @@ class DriftMessageDaoImpl implements MessageDao {
           return;
         }
 
-        await _database.deleteMessagesByClientMessageId(clientMessageId);
+        await _database.deleteMessagesByServerId(serverId);
       }
 
       await _database.insertMessage(item);
@@ -60,9 +60,9 @@ class DriftMessageDaoImpl implements MessageDao {
   }
 
   @override
-  Future<ChatMessageEntity?> getMessageByClientMessageId(String clientMessageId) async {
+  Future<ChatMessageEntity?> getMessageByServerId(String serverId) async {
     try {
-      return await _database.getMessageByClientMessageId(clientMessageId);
+      return await _database.getMessageByServerId(serverId);
     } catch (e) {
       log(e.toString());
       rethrow;
@@ -110,7 +110,7 @@ class DriftMessageDaoImpl implements MessageDao {
       await (_database.update(_database.chatMessages)
         ..where((tbl) => tbl.id.equals(localId)))
           .write(ChatMessagesCompanion(
-          clientMessageId: Value(serverId),),
+          serverId: Value(serverId),),
       );
     } catch (e) {
       log(e.toString());

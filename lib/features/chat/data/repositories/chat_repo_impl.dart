@@ -10,26 +10,44 @@ class ChatRepoImpl implements ChatRepository {
   final ChatService _chatService;
   final ConversationDao _conversationDao;
   final MessageDao _messageDao;
+  final StickerPackageDao _stickerPackageDao;
+  final StickerItemDao _stickerItemDao;
   final ApiConversationMapper _apiConversationMapper;
   final ApiMessageMapper _apiMessageMapper;
   final LocalConversationMapper _localConversationMapper;
   final LocalMessageMapper _localMessageMapper;
+  final ApiStickerPackageMapper _stickerPackageMapper;
+  final ApiStickerItemMapper _stickerItemMapper;
+  final LocalStickerPackageMapper _localStickerPackageMapper;
+  final LocalStickerItemMapper _localStickerItemMapper;
 
   ChatRepoImpl({
     required ChatService chatService,
     required ConversationDao conversationDao,
     required MessageDao messageDao,
+    required StickerPackageDao stickerPackageDao,
+    required StickerItemDao stickerItemDao,
     required ApiConversationMapper apiConversationMapper,
     required ApiMessageMapper apiMessageMapper,
     required LocalConversationMapper localConversationMapper,
     required LocalMessageMapper localMessageMapper,
+    required ApiStickerPackageMapper stickerPackageMapper,
+    required ApiStickerItemMapper stickerItemMapper,
+    required LocalStickerPackageMapper localStickerPackageMapper,
+    required LocalStickerItemMapper localStickerItemMapper,
   })  : _chatService = chatService,
         _conversationDao = conversationDao,
         _messageDao = messageDao,
+        _stickerPackageDao = stickerPackageDao,
+        _stickerItemDao = stickerItemDao,
         _apiConversationMapper = apiConversationMapper,
         _apiMessageMapper = apiMessageMapper,
         _localConversationMapper = localConversationMapper,
-        _localMessageMapper = localMessageMapper;
+        _localMessageMapper = localMessageMapper,
+        _stickerPackageMapper = stickerPackageMapper,
+        _stickerItemMapper = stickerItemMapper,
+        _localStickerPackageMapper = localStickerPackageMapper,
+        _localStickerItemMapper = localStickerItemMapper;
 
   @override
   Future<Either<Failure, bool>> fetchConversations(int page, int limit) async {
@@ -156,6 +174,57 @@ class ChatRepoImpl implements ChatRepository {
       } catch (e) {
         yield Left(CacheFailure('Failed to map local messages: $e'));
       }
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<StickerPackage>>> getStickerPackages() async {
+    try {
+      // 1. Try to get from local database first
+      final localPackages = await _stickerPackageDao.getAllPackages();
+      if (localPackages.isNotEmpty) {
+        debugPrint('[ChatRepoImpl] fetchStickerPackages: retrieved from local db');
+        return Right(_localStickerPackageMapper.toDomainList(localPackages));
+      }
+
+      // 2. Fallback to API
+      final response = await _chatService.getStickerPackages();
+      final domainPackages = _stickerPackageMapper.toDomainList(response.packages);
+      
+      // 3. Save to local database
+      final entities = _localStickerPackageMapper.toEntityList(domainPackages);
+      debugPrint('[ChatRepoImpl] fetchStickerPackages: saved to local db');
+      await _stickerPackageDao.savePackages(entities);
+
+      return Right(domainPackages);
+    } catch (e) {
+      debugPrint('[ChatRepoImpl] getStickerPackages error: $e');
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<StickerItem>>> getStickersInPackage(String packageId, {int limit = 50, int offset = 0}) async {
+    try {
+      // 1. Try to get from local database first
+      final localItems = await _stickerItemDao.getItemsByPackageId(packageId);
+      if (localItems.isNotEmpty) {
+        debugPrint('[ChatRepoImpl] getStickersInPackage: retrieved from local db');
+        return Right(_localStickerItemMapper.toDomainList(localItems));
+      }
+
+      // 2. Fallback to API
+      final response = await _chatService.getStickersInPackage(packageId, limit: limit, offset: offset);
+      final domainItems = _stickerItemMapper.toDomainList(response.stickers);
+
+      // 3. Save to local database
+      final entities = domainItems.map((e) => _localStickerItemMapper.toEntityWithPackage(e, packageId)).toList();
+      await _stickerItemDao.saveItems(entities);
+
+      return Right(domainItems);
+    } catch (e) {
+      debugPrint('[ChatRepoImpl] getStickersInPackage error: $e');
+      return Left(ServerFailure(e.toString()));
     }
   }
 }

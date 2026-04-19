@@ -28,4 +28,12 @@ class AppPermission {
       debugPrint('User declined or has not accepted notification permission');
     }
   }
+
+  static Future<bool> requestVoiceRecordPermission() async {
+    Map<Permission, PermissionStatus> permissions = await [
+      Permission.microphone,
+    ].request();
+
+    return permissions[Permission.microphone] == PermissionStatus.granted;
+  }
 }
