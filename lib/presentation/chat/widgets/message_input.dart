@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../../app/app_permission.dart';
 import 'sticker_picker_sheet.dart';
 import '../../../features/chat/domain/entities/sticker_item.dart';
+import 'recording_panel.dart';
 
 class MessageInput extends StatefulWidget {
   final TextEditingController controller;
@@ -262,12 +263,6 @@ class _MessageInputState extends State<MessageInput> {
     });
   }
 
-  String _formatDuration(int seconds) {
-    final minutes = (seconds / 60).floor();
-    final remainingSeconds = seconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
-  }
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -313,117 +308,21 @@ class _MessageInputState extends State<MessageInput> {
                 ],
               ],
             ),
-            if (_showRecordingPanel) _buildRecordingPanel(),
+            if (_showRecordingPanel)
+              RecordingPanel(
+                isRecording: _isRecording,
+                recordedFilePath: _recordedFilePath,
+                isPlayingRecord: _isPlayingRecord,
+                playPosition: _playPosition,
+                recordDuration: _recordDuration,
+                onDeleteRecord: _deleteRecord,
+                onStopRecordingAndSend: () => _stopRecording(send: true),
+                onStartRecording: _startRecording,
+                onStopRecording: () => _stopRecording(send: false),
+                onPlayRecord: _playRecord,
+              ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildRecordingPanel() {
-    return Container(
-      padding: const EdgeInsets.only(top: 16, bottom: 8),
-      child: Column(
-        children: [
-          if (_isRecording || _recordedFilePath != null) ...[
-            Row(
-              children: [
-                Text(
-                  _isPlayingRecord
-                      ? _formatDuration(_playPosition)
-                      : _formatDuration(_recordDuration),
-                  style: const TextStyle(color: Colors.white),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: LinearProgressIndicator(
-                    value: _recordDuration > 0
-                        ? (_isRecording
-                            ? null
-                            : (_isPlayingRecord
-                                ? _playPosition / _recordDuration
-                                : 1.0))
-                        : 0.0,
-                    backgroundColor: Colors.white,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-          ],
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              if (_isRecording || _recordedFilePath != null)
-                IconButton(
-                  icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
-                  onPressed: _deleteRecord,
-                )
-              else
-                const SizedBox(width: 48),
-              if (!_isRecording && _recordedFilePath != null)
-                GestureDetector(
-                  onTap: () {
-                    _stopRecording(send: true);
-                  },
-                  child: Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    child: Icon(
-                      Icons.send,
-                      color: Theme.of(context).colorScheme.onSurface,
-                      size: 24,
-                    ),
-                  ),
-                )
-              else
-                GestureDetector(
-                  onTap: () {
-                    if (!_isRecording) {
-                      _startRecording();
-                    } else {
-                      _stopRecording(send: true);
-                    }
-                  },
-                  child: Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _isRecording ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.error,
-                    ),
-                    child: Icon(
-                      _isRecording ? Icons.send : Icons.mic,
-                      color: Theme.of(context).colorScheme.onSurface,
-                      size: 24,
-                    ),
-                  ),
-                ),
-
-              if (_recordedFilePath != null && !_isRecording)
-                IconButton(
-                  icon: Icon(
-                    _isPlayingRecord ? Icons.pause : Icons.play_arrow,
-                    color: Colors.white,
-                  ),
-                  onPressed: _playRecord,
-                )
-              else if (_isRecording)
-                IconButton(
-                  icon: Icon(Icons.stop, color: Theme.of(context).colorScheme.onSurface),
-                  onPressed: () => _stopRecording(send: false),
-                )
-              else
-                const SizedBox(width: 48),
-            ],
-          ),
-        ],
       ),
     );
   }
