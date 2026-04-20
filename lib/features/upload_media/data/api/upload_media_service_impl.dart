@@ -355,13 +355,21 @@ class PresignMediaServiceImpl implements PresignMediaService {
     String mediaId, {
     String? conversationId,
   }) async {
+    final normalizedMediaId = mediaId.trim();
+    final queryParameters = {
+      if (conversationId != null && conversationId.trim().isNotEmpty)
+        'conversationId': conversationId.trim(),
+    };
+
     try {
       final response = await _dio.get(
-        '$_baseUrl/media/${mediaId.trim()}/play-info',
-        queryParameters: {
-          if (conversationId != null && conversationId.trim().isNotEmpty)
-            'conversationId': conversationId.trim(),
-        },
+        '$_baseUrl/media/$normalizedMediaId/play-info',
+        queryParameters: queryParameters,
+      );
+
+      debugPrint(
+        'getMediaPlayInfo response: uri=${response.requestOptions.uri} '
+        'status=${response.statusCode} data=${response.data}',
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {

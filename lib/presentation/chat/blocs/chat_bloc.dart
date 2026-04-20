@@ -10,9 +10,9 @@ import 'package:flutter_chat/core/utils/waveform_utils.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/features/upload_media/export.dart';
+import 'package:flutter_chat/presentation/chat/chat_image_cache_manager.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter_chat/presentation/chat/chat_image_cache_manager.dart';
 import 'package:uuid/uuid.dart';
 
 part 'chat_event.dart';
@@ -32,13 +32,15 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final GetMediaUrlByMediaIdUseCase getMediaUrlByMediaIdUseCase;
   final WatchConversationsLocalUseCase watchConversationsLocalUseCase;
   final AudioCacheDao audioCacheDao;
+
   String? _currentUserId;
   String? _currentConversationId;
+  Conversation? _currentConversation;
 
   StreamSubscription<Either<Failure, List<Message>>>? _localSubscription;
   StreamSubscription<Either<Failure, List<Conversation>>>? _conversationSubscription;
+
   List<Message> _currentMessages = const [];
-  Conversation? _currentConversation;
   final Set<String> _uploadingImagePaths = <String>{};
   final Map<String, String> _imageUrlsByMediaId = <String, String>{};
   final Map<String, String> _audioUrlsByMediaId = <String, String>{};
@@ -70,6 +72,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<SendVoiceEvent>(_onSendVoice);
     on<FetchImageEvent>(_onFetchImageByMediaId);
     on<FetchAudioEvent>(_onFetchAudioByMediaId);
+
     on<_LocalMessagesChangedEvent>((event, emit) {
       _currentMessages = event.messages;
       _requestMissingMediaUrls(event.messages);
@@ -89,6 +92,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       imageUrlsByMediaId: Map<String, String>.from(_imageUrlsByMediaId),
       audioUrlsByMediaId: Map<String, String>.from(_audioUrlsByMediaId),
       resolvingImageMediaIds: Set<String>.from(_resolvingImageMediaIds),
+      resolvingAudioMediaIds: Set<String>.from(_resolvingAudioMediaIds),
       conversation: _currentConversation,
       currentUserId: _currentUserId,
     );
@@ -118,12 +122,34 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       return false;
     }
 
-    final uri = Uri.tryParse(resolvedUrl);
-    if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
+    if (_isRemoteUrl(resolvedUrl)) {
       return true;
     }
 
     return File(resolvedUrl).existsSync();
+  }
+
+  String? _extractPlayableLocalAudioPath(Message message) {
+    final metadata = message.metadata;
+    if (metadata == null) {
+      return null;
+    }
+
+    final candidate = metadata['localAudioPath'];
+    if (candidate is! String) {
+      return null;
+    }
+
+    final normalized = candidate.trim();
+    if (normalized.isEmpty) {
+      return null;
+    }
+
+    if (_isRemoteUrl(normalized)) {
+      return normalized;
+    }
+
+    return File(normalized).existsSync() ? normalized : null;
   }
 
   Future<String?> _resolveLocalAudioPath(String mediaId) async {
@@ -219,6 +245,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       }
 
       if (normalizedType == 'audio') {
+        final localAudioPath = _extractPlayableLocalAudioPath(message);
+        if (localAudioPath != null) {
+          _audioUrlsByMediaId[mediaId] = localAudioPath;
+          continue;
+        }
+
         final hasUsableResolvedAudio = _hasUsableResolvedAudio(mediaId);
         if (!hasUsableResolvedAudio) {
           _audioUrlsByMediaId.remove(mediaId);
@@ -228,6 +260,11 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
             _resolvingAudioMediaIds.contains(mediaId) ||
             _currentConversationId == null ||
             _currentConversationId!.trim().isEmpty) {
+          if (_currentConversationId == null || _currentConversationId!.trim().isEmpty) {
+            debugPrint(
+              '[VoiceHandle] getMediaPlayInfo skipped: missing conversationId mediaId=$mediaId',
+            );
+          }
           continue;
         }
 
@@ -253,12 +290,15 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   FutureOr<void> _onChatInitialLoad(ChatInitialLoadEvent event, Emitter<ChatState> emit) async {
     _currentConversationId = event.conversationId;
+
     final userIdResult = await getCurrentUserIdUseCase();
     _currentUserId = userIdResult.fold((_) => _currentUserId, (id) => id);
 
     _startMessagesLocalWatcher(event.conversationId);
     _startConversationLocalWatcher(event.conversationId);
+
     emit(ChatLoading());
+
     final result = await fetchMessagesUseCase(event.conversationId);
     result.fold(
       (failure) => emit(ChatError(failure.message)),
@@ -273,6 +313,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   FutureOr<void> _onSendText(SendTextEvent event, Emitter<ChatState> emit) async {
     final messageId = Uuid().v4();
     final localOffset = _nextLocalOffset();
+
     final message = Message(
       id: messageId,
       conversationId: event.conversationId,
@@ -305,7 +346,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     });
   }
 
-  Future<void> _onSendImage(SendImageEvent event, Emitter<ChatState> emit) async {
+  Future<void> _onSendImage(
+    SendImageEvent event,
+    Emitter<ChatState> emit,
+  ) async {
     _uploadingImagePaths.add(event.imagePath);
     emit(_buildChatLoaded(_currentMessages));
 
@@ -314,6 +358,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       'image',
       event.imageSize,
     );
+
     final mediaId = result.fold(
           (failure) {
             add(_LocalMessagesErrorEvent(failure.message));
@@ -337,6 +382,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
     final messageId = Uuid().v4();
     final localOffset = _nextLocalOffset();
+
     final message = Message(
       id: messageId,
       conversationId: event.conversationId,
@@ -371,6 +417,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
     final messageId = Uuid().v4();
     final localOffset = _nextLocalOffset();
+
     final message = Message(
       id: messageId,
       conversationId: event.conversationId,
@@ -396,23 +443,31 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     );
   }
 
-  FutureOr<void> _onEditMessage(EditMessageEvent event, Emitter<ChatState> emit) async {
+  FutureOr<void> _onEditMessage(
+    EditMessageEvent event,
+    Emitter<ChatState> emit,
+  ) async {
     final result = await editMessageUseCase(
       localId: event.localId,
       messageId: event.messageId,
       content: event.content,
     );
+
     result.fold(
       (failure) => add(_LocalMessagesErrorEvent(failure.message)),
       (_) {},
     );
   }
 
-  FutureOr<void> _onDeleteMessage(DeleteMessageEvent event, Emitter<ChatState> emit) async {
+  FutureOr<void> _onDeleteMessage(
+    DeleteMessageEvent event,
+    Emitter<ChatState> emit,
+  ) async {
     final result = await deleteMessageUseCase(
       localId: event.localId,
       messageId: event.messageId,
     );
+
     result.fold(
       (failure) => add(_LocalMessagesErrorEvent(failure.message)),
       (_) {},
@@ -429,6 +484,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       emoji: event.emoji,
       action: event.action,
     );
+
     result.fold(
       (failure) => add(_LocalMessagesErrorEvent(failure.message)),
       (_) {},
@@ -480,7 +536,6 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       maxBars: 64,
     );
     final localOffset = _nextLocalOffset();
-
     final messageId = Uuid().v4();
     final message = Message(
       id: messageId,
@@ -493,9 +548,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       mediaId: mediaId,
       serverId: messageId,
       metadata: <String, dynamic>{
-        'mediaId': mediaId,
         'durationMs': event.durationMs,
         'waveform': normalizedWaveform,
+        'localAudioPath': event.filePath,
       },
       createdAt: DateTime.now().toUtc(),
       editedAt: null,
@@ -600,7 +655,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         _audioUrlsByMediaId[mediaId] = resolvedAudioUrl;
       }
     } else {
-      add(_LocalMessagesErrorEvent('Cannot resolve playable audio URL')); 
+      add(_LocalMessagesErrorEvent('Cannot resolve playable audio URL'));
     }
 
     _resolvingAudioMediaIds.remove(mediaId);
@@ -626,10 +681,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         mediaId,
         conversationId: candidateConversationId,
       );
+
       final urlFromPlayInfo = playInfoResult.fold(
         (_) => '',
         (payload) => _extractMediaUrl(payload),
       );
+
       if (urlFromPlayInfo.trim().isNotEmpty) {
         return urlFromPlayInfo.trim();
       }
@@ -638,10 +695,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         mediaId,
         conversationId: candidateConversationId,
       );
+
       final urlFromMedia = mediaUrlResult.fold(
         (_) => '',
         (url) => url.trim(),
       );
+
       if (urlFromMedia.isNotEmpty) {
         return urlFromMedia;
       }
@@ -661,6 +720,20 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       return _extractUrlFromMap(Map<String, dynamic>.from(nestedData));
     }
 
+    for (final value in payload.values) {
+      if (value is Map<String, dynamic>) {
+        final nestedUrl = _extractMediaUrl(value);
+        if (nestedUrl.isNotEmpty) {
+          return nestedUrl;
+        }
+      } else if (value is Map) {
+        final nestedUrl = _extractMediaUrl(Map<String, dynamic>.from(value));
+        if (nestedUrl.isNotEmpty) {
+          return nestedUrl;
+        }
+      }
+    }
+
     return '';
   }
 
@@ -669,22 +742,28 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       'url',
       'audioUrl',
       'audio_url',
-      'downloadUrl',
-      'fileUrl',
-      'file_url',
-      'viewUrl',
-      'playUrl',
-      'streamUrl',
       'mediaUrl',
       'media_url',
-      'cdnUrl',
-      'cdn_url',
     ];
 
     for (final key in candidateKeys) {
       final value = source[key];
       if (value is String && value.trim().isNotEmpty) {
         return value.trim();
+      }
+    }
+
+    for (final value in source.values) {
+      if (value is Map<String, dynamic>) {
+        final nestedUrl = _extractUrlFromMap(value);
+        if (nestedUrl.isNotEmpty) {
+          return nestedUrl;
+        }
+      } else if (value is Map) {
+        final nestedUrl = _extractUrlFromMap(Map<String, dynamic>.from(value));
+        if (nestedUrl.isNotEmpty) {
+          return nestedUrl;
+        }
       }
     }
 
@@ -717,5 +796,3 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     await super.close();
   }
 }
-
-

@@ -257,19 +257,13 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                 },
                 onSendRecord: (filePath, durationSeconds, waveform) {
                   final durationMs = durationSeconds * 1000;
-                  final voiceMetadata = <String, dynamic>{
-                    'mediaId': null,
-                    'durationMs': durationMs,
-                    'waveform': waveform,
-                  };
 
                   debugPrint(
                     '[ChatPageVoice] Send voice record -> '
                         'conversationId=${widget.conversationId}, '
                         'filePath=$filePath, '
                         'durationMs=$durationMs, '
-                        'waveform=$waveform, '
-                        'metadata=$voiceMetadata',
+                        'waveform=$waveform',
                   );
 
                   ref.read(chatBlocProvider).add(
