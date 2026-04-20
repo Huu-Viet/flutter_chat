@@ -21,7 +21,7 @@ class MessageInput extends StatefulWidget {
     int durationSeconds,
     List<double> waveform,
   )?
-  onSendRecord; // Add this
+  onSendRecord;
 
   const MessageInput({
     super.key,
@@ -45,6 +45,7 @@ class _MessageInputState extends State<MessageInput> {
 
   final AudioRecorder _audioRecorder = AudioRecorder();
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final FocusNode _focusNode = FocusNode();
 
   Timer? _timer;
   int _recordDuration = 0;
@@ -53,8 +54,6 @@ class _MessageInputState extends State<MessageInput> {
   Timer? _playTimer;
   int _playPosition = 0;
 
-  // Simulate waveform generation for visual effect since we don't have a real audio processing library
-  // In a real app, you would generate this from the recorded audio file.
   List<double> _waveform = [];
 
   @override
@@ -62,6 +61,13 @@ class _MessageInputState extends State<MessageInput> {
     super.initState();
     _hasText = widget.controller.text.isNotEmpty;
     widget.controller.addListener(_onTextChanged);
+    _focusNode.addListener(_onFocusChanged);
+  }
+
+  void _onFocusChanged() {
+    if (_focusNode.hasFocus && _showRecordingPanel) {
+      _closeRecordingPanel();
+    }
   }
 
   @override
@@ -76,6 +82,8 @@ class _MessageInputState extends State<MessageInput> {
 
   @override
   void dispose() {
+    _focusNode.removeListener(_onFocusChanged);
+    _focusNode.dispose();
     widget.controller.removeListener(_onTextChanged);
     _timer?.cancel();
     _playTimer?.cancel();
@@ -174,6 +182,12 @@ class _MessageInputState extends State<MessageInput> {
   void _stopRecording({bool send = false}) async {
     _timer?.cancel();
     final path = await _audioRecorder.stop();
+
+    // Copy the waveform before clearing state
+    final submitWaveform = _waveform.isNotEmpty
+        ? List<double>.from(_waveform)
+        : <double>[0.0, 5.0, 12.0, 8.0, 25.0, 45.0, 10.0, 8.0, 2.0, 5.0, 15.0];
+
     setState(() {
       _isRecording = false;
       if (path != null) {
@@ -182,12 +196,11 @@ class _MessageInputState extends State<MessageInput> {
     });
 
     if (send && _recordedFilePath != null && widget.onSendRecord != null) {
+
       widget.onSendRecord!(
         _recordedFilePath!,
         _recordDuration,
-        _waveform.isNotEmpty
-            ? _waveform
-            : [0, 5, 12, 8, 25, 45, 10, 8, 2, 5, 15], // Dummy fallback
+        submitWaveform,
       );
       _closeRecordingPanel();
     }
@@ -200,9 +213,9 @@ class _MessageInputState extends State<MessageInput> {
         _recordDuration++;
         // Generate mock waveform logic
         if (_recordDuration % 2 == 0) {
-          _waveform.add((_recordDuration * 2).toDouble() % 50);
+          _waveform.add(((_recordDuration * 2) % 50).toDouble());
         } else {
-          _waveform.add(10.0 + (_recordDuration % 20));
+          _waveform.add((10 + (_recordDuration % 20)).toDouble());
         }
       });
     });
@@ -292,6 +305,7 @@ class _MessageInputState extends State<MessageInput> {
                       if (_showRecordingPanel) {
                         _closeRecordingPanel();
                       } else {
+                        _focusNode.unfocus();
                         setState(() {
                           _showRecordingPanel = true;
                         });
@@ -350,6 +364,7 @@ class _MessageInputState extends State<MessageInput> {
   Widget _buildTextField(BuildContext context) {
     return TextField(
       controller: widget.controller,
+      focusNode: _focusNode,
       style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
       decoration: InputDecoration(
         hintText: 'Tin nhắn',

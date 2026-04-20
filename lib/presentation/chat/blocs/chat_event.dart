@@ -43,6 +43,23 @@ final class SendImageEvent extends ChatEvent {
   List<Object> get props => [conversationId, imagePath, imageSize];
 }
 
+final class SendVoiceEvent extends ChatEvent {
+  final String conversationId;
+  final String filePath;
+  final int durationMs; // changed from durationSeconds
+  final List<double> waveform;
+
+  const SendVoiceEvent({
+    required this.conversationId,
+    required this.filePath,
+    required this.durationMs,
+    required this.waveform,
+  });
+
+  @override
+  List<Object> get props => [conversationId, filePath, durationMs, waveform];
+}
+
 final class FetchImageEvent extends ChatEvent {
   final String mediaId;
 

@@ -42,6 +42,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ChatInitialLoadEvent>(_onChatInitialLoad);
     on<SendTextEvent>(_onSendText);
     on<SendImageEvent>(_onSendImage);
+    on<SendVoiceEvent>(_onSendVoice);
     on<FetchImageEvent>(_onFetchImageByMediaId);
     on<_LocalMessagesChangedEvent>((event, emit) {
       _currentMessages = event.messages;
@@ -85,12 +86,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     }
 
     final normalizedType = message.type.trim().toLowerCase();
-    return normalizedType == 'image' || normalizedType == 'file';
+    return normalizedType == 'image' || normalizedType == 'file' || normalizedType == 'audio';
   }
 
   void _requestMissingImageUrls(List<Message> messages) {
     for (final message in messages) {
-      if (!_isImageLikeMessage(message)) {
+      if (!_isImageLikeMessage(message) && message.type.trim().toLowerCase() != 'audio') {
         continue;
       }
 
@@ -214,6 +215,66 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
     _uploadingImagePaths.remove(event.imagePath);
     emit(_buildChatLoaded(_currentMessages));
+  }
+
+  Future<void> _onSendVoice(SendVoiceEvent event, Emitter<ChatState> emit) async {
+    final file = File(event.filePath);
+    if (!file.existsSync()) {
+      add(_LocalMessagesErrorEvent('Voice file not found'));
+      return;
+    }
+
+    final fileSize = await file.length();
+    final result = await uploadMediaUseCase(
+      event.filePath,
+      'audio',
+      fileSize,
+    );
+
+    final mediaId = result.fold(
+      (failure) {
+        add(_LocalMessagesErrorEvent(failure.message));
+        return null;
+      },
+      (mediaInfo) {
+        if (mediaInfo.mediaId == null || mediaInfo.mediaId!.isEmpty) {
+          add(_LocalMessagesErrorEvent('Upload audio failed: missing mediaId'));
+          return null;
+        }
+
+        return mediaInfo.mediaId;
+      },
+    );
+
+    if (mediaId == null) {
+      return;
+    }
+
+    final messageId = Uuid().v4();
+    final message = Message(
+      id: messageId,
+      conversationId: event.conversationId,
+      senderId: currentUserId,
+      content: '',
+      type: 'audio',
+      offset: null,
+      isDeleted: false,
+      mediaId: mediaId,
+      serverId: messageId,
+      metadata: <String, dynamic>{
+        'mediaId': mediaId,
+        'durationMs': event.durationMs,
+        'waveform': event.waveform.map((e) => e.toInt()).toList(),
+      },
+      createdAt: DateTime.now(),
+      editedAt: null,
+    );
+
+    final sendResult = await sendMessageUseCase(message: message);
+    sendResult.fold(
+      (failure) => add(_LocalMessagesErrorEvent(failure.message)),
+      (_) {},
+    );
   }
 
   Future<void> _onFetchImageByMediaId(

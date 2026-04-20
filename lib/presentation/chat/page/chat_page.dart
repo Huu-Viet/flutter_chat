@@ -42,17 +42,28 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         .map(
           (message) {
             final isImageLikeMessage = _isImageLikeMessage(message);
+            final isAudioMessage = message.type.trim().toLowerCase() == 'audio';
             final mediaId = message.mediaId?.trim();
             final localPath = _isLikelyLocalImagePath(message.content) ? message.content : null;
             final resolvedRemoteUrl = mediaId != null && mediaId.isNotEmpty
                 ? imageUrlsByMediaId[mediaId]
                 : null;
             final imagePath = isImageLikeMessage ? (resolvedRemoteUrl ?? localPath) : null;
+            final metadata = message.metadata ?? const <String, dynamic>{};
+            final durationSeconds = isAudioMessage ? _extractAudioDurationSeconds(metadata) : null;
+            final waveform = isAudioMessage ? _parseWaveform(metadata['waveform']) : const <double>[];
+            final audioUrl = isAudioMessage ? _getAudioUrl(message, metadata, resolvedRemoteUrl) : null;
+
+            debugPrint('Message [${message.id}]: type=${message.type}, content=${message.content}, metadata=${message.metadata}');
 
             return ChatMessage(
-              text: imagePath == null && !isImageLikeMessage ? message.content : null,
+              text: imagePath == null && !isImageLikeMessage && !isAudioMessage ? message.content : null,
               imagePath: imagePath,
+              audioUrl: audioUrl,
               mediaId: mediaId,
+              messageType: message.type,
+              audioDurationSeconds: durationSeconds,
+              audioWaveform: waveform,
               isSentByMe: _currentUserId != null && message.senderId == _currentUserId,
               timestamp: message.createdAt,
               isUploading: localPath != null && uploadingImagePaths.contains(localPath),
@@ -90,6 +101,61 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     return mappedMessages;
   }
 
+  String? _getAudioUrl(
+    Message message,
+    Map<String, dynamic> metadata,
+    String? resolvedMediaUrl,
+  ) {
+    String? _asNonEmptyString(dynamic value) {
+      if (value is! String) return null;
+      final trimmed = value.trim();
+      return trimmed.isEmpty ? null : trimmed;
+    }
+
+    final metadataCandidates = <dynamic>[
+      metadata['url'],
+      metadata['audioUrl'],
+      metadata['audio_url'],
+      metadata['fileUrl'],
+      metadata['file_url'],
+      metadata['mediaUrl'],
+      metadata['media_url'],
+      metadata['cdnUrl'],
+      metadata['cdn_url'],
+    ];
+
+    for (final candidate in metadataCandidates) {
+      final value = _asNonEmptyString(candidate);
+      if (value != null) {
+        return value;
+      }
+    }
+
+    final content = message.content.trim();
+    if (content.isNotEmpty) {
+      final uri = Uri.tryParse(content);
+      final isRemote = uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+      final isLocal = content.startsWith('/') || content.contains(':/') || content.contains(':\\');
+      if (isRemote || isLocal) {
+        return content;
+      }
+    }
+
+    final resolved = resolvedMediaUrl?.trim();
+    if (resolved != null && resolved.isNotEmpty) {
+      return resolved;
+    }
+
+    // Fallback: build a media URL if there is a Media ID provided interna
+    // lly.
+    final mediaId = message.mediaId?.trim() ?? metadata['mediaId']?.toString().trim();
+    if (mediaId != null && mediaId.isNotEmpty) {
+      return 'https://api.bcn.id.vn/media/$mediaId';
+    }
+
+    return null;
+  }
+
   bool _isLikelyLocalImagePath(String value) {
     final uri = Uri.tryParse(value);
     if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
@@ -115,6 +181,47 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
     final normalizedType = message.type.trim().toLowerCase();
     return normalizedType == 'image' || normalizedType == 'file';
+  }
+
+  int? _parseDurationSeconds(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  int? _extractAudioDurationSeconds(Map<String, dynamic> metadata) {
+    final parsedMs = _parseDurationSeconds(metadata['durationMs']);
+    if (parsedMs != null && parsedMs >= 0) {
+      return (parsedMs / 1000).round();
+    }
+    return null;
+  }
+
+  List<double> _parseWaveform(dynamic value) {
+    if (value is List) {
+      return value
+          .map((item) {
+            if (item is double) return item;
+            if (item is int) return item.toDouble();
+            if (item is num) return item.toDouble();
+            if (item is String) return double.tryParse(item) ?? 0.0;
+            return 0.0;
+          })
+          .toList(growable: false);
+    }
+
+    // Generate fallback animated waveform when no data available
+    return _generateFallbackWaveform();
+  }
+
+  List<double> _generateFallbackWaveform({int barCount = 14}) {
+    // Generate random-looking but consistent waveform for visualization
+    final random = <double>[];
+    for (int i = 0; i < barCount; i++) {
+      random.add((4 + (i * 7) % 20).toDouble());
+    }
+    return random;
   }
 
   Future<void> _loadCurrentUserId() async {
@@ -276,6 +383,32 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   onEmojiSelected: (emoji) {
                     _messageController.text += emoji;
                   },
+                  onSendRecord: (filePath, durationSeconds, waveform) {
+                    final durationMs = durationSeconds * 1000;
+                    final voiceMetadata = <String, dynamic>{
+                      'mediaId': null,
+                      'durationMs': durationMs,
+                      'waveform': waveform,
+                    };
+
+                    debugPrint(
+                      '[ChatPageVoice] Send voice record -> '
+                      'conversationId=${widget.conversationId}, '
+                      'filePath=$filePath, '
+                      'durationMs=$durationMs, '
+                      'waveform=$waveform, '
+                      'metadata=$voiceMetadata',
+                    );
+
+                    ref.read(chatBlocProvider).add(
+                      SendVoiceEvent(
+                        conversationId: widget.conversationId,
+                        filePath: filePath,
+                        durationMs: durationMs,
+                        waveform: waveform,
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -288,7 +421,12 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 class ChatMessage {
   final String? text;
   final String? imagePath;
+  final String? stickerUrl;
+  final String? audioUrl;
   final String? mediaId;
+  final String messageType;
+  final int? audioDurationSeconds;
+  final List<double> audioWaveform;
   final bool isSentByMe;
   final DateTime timestamp;
   final bool isUploading;
@@ -297,7 +435,12 @@ class ChatMessage {
   ChatMessage({
     this.text,
     this.imagePath,
+    this.stickerUrl,
+    this.audioUrl,
     this.mediaId,
+    this.messageType = 'text',
+    this.audioDurationSeconds,
+    this.audioWaveform = const <double>[],
     required this.isSentByMe,
     required this.timestamp,
     this.isUploading = false,
