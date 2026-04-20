@@ -1,4 +1,5 @@
 import 'package:flutter_chat/app/app_providers.dart';
+import 'package:flutter_chat/core/platform_services/platform_service_providers.dart';
 import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/presentation/splash/bloc/splash_bloc.dart';
 import 'package:riverpod/riverpod.dart';
@@ -10,5 +11,6 @@ final splashBlocProvider = Provider<SplashBloc>((ref) {
     getRefreshTokenUseCase: ref.read(getRefreshTokenUseCaseProvider),
     refreshTokenUseCase: ref.read(refreshTokenUseCaseProvider),
     connectRealtimeGatewayUseCase: ref.read(connectRealtimeGatewayUseCaseProvider),
+    syncDeviceTokenUseCase: ref.read(syncDeviceTokenUseCaseProvider),
   );
 });

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_chat/application/notification/sync_device_token_usecase.dart';
 import 'package:flutter_chat/application/realtime/orchestrator.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 
@@ -15,6 +16,7 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
   final GetRefreshTokenUseCase getRefreshTokenUseCase;
   final RefreshTokenUseCase refreshTokenUseCase;
   final ConnectRealtimeGatewayUseCase connectRealtimeGatewayUseCase;
+  final SyncDeviceTokenUseCase syncDeviceTokenUseCase;
 
   SplashBloc({
     required this.checkAccessTokenUseCase,
@@ -22,6 +24,7 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
     required this.getRefreshTokenUseCase,
     required this.refreshTokenUseCase,
     required this.connectRealtimeGatewayUseCase,
+    required this.syncDeviceTokenUseCase,
   }) : super(SplashInitial()) {
     on<CheckAuthEvent>(_checkAuth);
   }
@@ -46,6 +49,11 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
       unawaited(
         connectRealtimeGatewayUseCase().catchError((e) {
           debugPrint('[SplashBloc] Realtime connect failed after auth check: $e');
+        }),
+      );
+      unawaited(
+        syncDeviceTokenUseCase().catchError((e) {
+          debugPrint('[SplashBloc] Device token sync failed: $e');
         }),
       );
       emit(SplashAuthenticated());

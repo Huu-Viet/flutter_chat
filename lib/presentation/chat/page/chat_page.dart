@@ -124,6 +124,103 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     super.dispose();
   }
 
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final chatBloc = ref.read(chatBlocProvider);
+
+    return BlocProvider<ChatBloc>.value(
+      value: chatBloc,
+      child: BlocConsumer<ChatBloc, ChatState>(
+        buildWhen: (previous, current) => current is! ChatError,
+        listener: (context, state) {
+          if (state is ChatError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(_mapChatErrorMessage(state.message, l10n))),
+            );
+          }
+        },
+        builder: (context, state) => Scaffold(
+          appBar: AppBar(
+            iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onSurface),
+            title: Container(
+              alignment: Alignment.centerLeft,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.friendName,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontWeight: FontWeight.bold
+                      ),
+                      textAlign: TextAlign.left,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            backgroundColor: Theme.of(context).colorScheme.surfaceBright,
+          ),
+          body: Column(
+            children: [
+              Expanded(
+                child: Builder(
+                  builder: (context) {
+                    final List<ChatMessage> displayMessages = state is ChatLoaded
+                        ? _uiMapper.mapStateMessagesToUI(
+                      state.messages,
+                      state.uploadingImagePaths,
+                      state.imageUrlsByMediaId,
+                      state.resolvingImageMediaIds,
+                      state.currentUserId,
+                      state.conversation?.avatarUrl,
+                      l10n.chat_deleted_message,
+                    )
+                        : _messages;
+
+                    return ListView.builder(
+                      reverse: true,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: displayMessages.length,
+                      itemBuilder: (context, index) {
+                        final message = displayMessages[displayMessages.length - 1 - index];
+                        return MessageBubble(
+                          message: message,
+                          showReactAction: message.isLastInGroup && _canReactToMessage(message),
+                          onReactPressed: message.isLastInGroup && _canReactToMessage(message)
+                              ? () => _handleReactionSelection(message, '❤️')
+                              : null,
+                          onLongPressStart: (details) => _showMessageActions(
+                            context,
+                            message,
+                            l10n,
+                            anchor: details.globalPosition,
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              MessageInput(
+                controller: _messageController,
+                onSendMessage: _sendMessage,
+                onPickImage: _pickImage,
+                onPickMultipleImages: _pickMultipleImages,
+                onEmojiSelected: (emoji) {
+                  _messageController.text += emoji;
+                },
+                onStickerSelected: _sendSticker,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _sendMessage() {
     final content = _messageController.text.trim();
     if (content.isEmpty) return;
@@ -210,11 +307,11 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   Future<void> _showMessageActions(
-    BuildContext context,
-    ChatMessage message,
-    AppLocalizations l10n, {
-    Offset? anchor,
-  }) async {
+      BuildContext context,
+      ChatMessage message,
+      AppLocalizations l10n,
+      {Offset? anchor,}
+      ) async {
     final canEdit = _canEditMessage(message);
     final canDelete = _canDeleteMessage(message);
     final canReact = _canReactToMessage(message);
@@ -354,102 +451,5 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       messageId: localId,
       content: newContent,
     ));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final chatBloc = ref.read(chatBlocProvider);
-
-    return BlocProvider<ChatBloc>.value(
-      value: chatBloc,
-      child: BlocConsumer<ChatBloc, ChatState>(
-        buildWhen: (previous, current) => current is! ChatError,
-        listener: (context, state) {
-          if (state is ChatError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(_mapChatErrorMessage(state.message, l10n))),
-            );
-          }
-        },
-        builder: (context, state) => Scaffold(
-            appBar: AppBar(
-              iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onSurface),
-              title: Container(
-                alignment: Alignment.centerLeft,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        widget.friendName,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface,
-                          fontWeight: FontWeight.bold
-                        ),
-                        textAlign: TextAlign.left,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              backgroundColor: Theme.of(context).colorScheme.surfaceBright,
-            ),
-            body: Column(
-              children: [
-                Expanded(
-                  child: Builder(
-                    builder: (context) {
-                      final List<ChatMessage> displayMessages = state is ChatLoaded
-                          ? _uiMapper.mapStateMessagesToUI(
-                              state.messages,
-                              state.uploadingImagePaths,
-                              state.imageUrlsByMediaId,
-                              state.resolvingImageMediaIds,
-                              state.currentUserId,
-                              state.conversation?.avatarUrl,
-                              l10n.chat_deleted_message,
-                            )
-                          : _messages;
-
-                      return ListView.builder(
-                        reverse: true,
-                        padding: const EdgeInsets.all(16),
-                        itemCount: displayMessages.length,
-                        itemBuilder: (context, index) {
-                          final message = displayMessages[displayMessages.length - 1 - index];
-                          return MessageBubble(
-                            message: message,
-                            showReactAction: message.isLastInGroup && _canReactToMessage(message),
-                            onReactPressed: message.isLastInGroup && _canReactToMessage(message)
-                                ? () => _handleReactionSelection(message, '❤️')
-                                : null,
-                            onLongPressStart: (details) => _showMessageActions(
-                              context,
-                              message,
-                              l10n,
-                              anchor: details.globalPosition,
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-                MessageInput(
-                  controller: _messageController,
-                  onSendMessage: _sendMessage,
-                  onPickImage: _pickImage,
-                  onPickMultipleImages: _pickMultipleImages,
-                  onEmojiSelected: (emoji) {
-                    _messageController.text += emoji;
-                  },
-                  onStickerSelected: _sendSticker,
-                ),
-              ],
-            ),
-        ),
-      ),
-    );
   }
 }

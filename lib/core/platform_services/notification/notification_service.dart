@@ -13,17 +13,42 @@ class NotificationService {
   static const String _tag = "CreateNotification";
 
   final FlutterLocalNotificationsPlugin _localNotiPlugin;
+  bool _initialized = false;
 
-  const NotificationService(this._localNotiPlugin);
+  NotificationService(this._localNotiPlugin);
+
+  Future<void> ensureInitialized() async {
+    if (_initialized) {
+      return;
+    }
+
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosSettings = DarwinInitializationSettings();
+    const initializationSettings = InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
+
+    await _localNotiPlugin.initialize(settings: initializationSettings);
+    _initialized = true;
+    debugPrint('$_tag: local notification plugin initialized');
+  }
 
   Future<void> createCallNotification(Map<String, dynamic> data) async {
+    await ensureInitialized();
+
     final String? callId = data[AppConstants.callRoomId];
     final String? deepLink = data[AppConstants.clickAction];
     final String? title = data[AppConstants.title];
     final String bodyMessage = data[AppConstants.bodyMessage] ?? 'Incoming call';
 
+    debugPrint('$_tag: createCallNotification title=$title callId=$callId deepLink=$deepLink data=$data');
+
     if (callId != null) {
       await showCallKitIncoming(callId, deepLink, bodyMessage);
+    }
+    else {
+      debugPrint('$_tag: skip call notification, missing callId');
     }
   }
 
@@ -83,6 +108,8 @@ class NotificationService {
   }
 
   Future<void> createChatNotification(Map<String, dynamic> data) async {
+    await ensureInitialized();
+
     int notificationId = 1;
     final String? title = data[AppConstants.title];
     final String? bodyMessage = data[AppConstants.bodyMessage];
@@ -95,6 +122,8 @@ class NotificationService {
       notificationId = chatId.hashCode;
       debugPrint("$_tag: notificationId: $notificationId");
     }
+
+    debugPrint('$_tag: createChatNotification title=$title chatId=$chatId deepLink=$deepLink data=$data');
 
     const AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
         AppConstants.chatChannelId,
@@ -134,12 +163,17 @@ class NotificationService {
         'deeplink': deepLink,
       }),
     );
+    debugPrint('$_tag: chat notification shown id=$notificationId');
   }
 
   Future<void> createFriendRequestNotification(Map<String, dynamic> data) async {
+    await ensureInitialized();
+
     final String? title = data[AppConstants.title];
     final String? bodyMessage = data[AppConstants.bodyMessage];
     final String? deepLink = data[AppConstants.clickAction];
+
+    debugPrint('$_tag: createFriendRequestNotification title=$title deepLink=$deepLink data=$data');
 
     // Android notification details
     const AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
@@ -193,5 +227,6 @@ class NotificationService {
         'type': 'friend_request',
       }),
     );
+    debugPrint('$_tag: friend request notification shown');
   }
 }

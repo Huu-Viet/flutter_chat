@@ -60,7 +60,25 @@ class DriftMessageDaoImpl implements MessageDao {
           return;
         }
 
-        await _database.deleteMessagesByServerId(clientMessageId);
+        await (_database.update(_database.chatMessages)
+              ..where((tbl) => tbl.id.equals(existing.id)))
+            .write(
+          ChatMessagesCompanion(
+            id: Value(item.id),
+            conversationId: Value(item.conversationId),
+            senderId: Value(item.senderId),
+            content: Value(item.content),
+            type: Value(item.type),
+            offset: Value(item.offset),
+            isDeleted: Value(item.isDeleted),
+            mediaId: Value(item.mediaId),
+            metadata: Value(item.metadata),
+            serverId: Value(item.serverId),
+            createdAt: Value(item.createdAt),
+            editedAt: Value(item.editedAt),
+          ),
+        );
+        return;
       }
 
       await _database.insertMessage(item);

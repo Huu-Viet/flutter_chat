@@ -11,6 +11,10 @@ class AppConstants {
   static const String accessTokenKey = 'access_token';
   static const String refreshTokenKey = 'refresh_token';
   static const String userIdKey = 'user_id';
+  static const String deviceTokenKey = 'DEVICE_TOKEN';
+  static const String notificationDeviceIdKey = 'notification_device_id';
+  static const String lastRegisteredDeviceTokenKey = 'last_registered_device_token';
+  static const String googleServicesAssetPath = 'assets/google-services.json';
 
   ///api object json key
   //for FCM
