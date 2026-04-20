@@ -3,17 +3,27 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_chat/core/utils/animated_sticker_sprite.dart';
 import 'package:flutter_chat/core/utils/date_utils.dart';
 import 'package:flutter_chat/core/utils/waveform_utils.dart';
 import 'package:flutter_chat/presentation/chat/chat_image_cache_manager.dart';
-import 'package:flutter_chat/presentation/chat/page/chat_page.dart';
+import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
+import 'package:flutter_chat/presentation/chat/widgets/message_reactions_bar.dart';
 
 class MessageBubble extends StatefulWidget {
   final ChatMessage message;
+  final VoidCallback? onLongPress;
+  final ValueChanged<LongPressStartDetails>? onLongPressStart;
+  final VoidCallback? onReactPressed;
+  final bool showReactAction;
 
   const MessageBubble({
     super.key,
     required this.message,
+    this.onLongPress,
+    this.onLongPressStart,
+    this.onReactPressed,
+    this.showReactAction = false,
   });
 
   @override
@@ -75,6 +85,100 @@ class _MessageBubbleState extends State<MessageBubble> {
 
   @override
   Widget build(BuildContext context) {
+    final hasVisualMedia = message.imagePath != null;
+    final bubble = Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: hasVisualMedia ? EdgeInsets.zero : const EdgeInsets.all(12),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.7,
+          ),
+          decoration: BoxDecoration(
+            color: hasVisualMedia
+                ? Colors.transparent
+                : message.isSentByMe
+                ? Theme.of(context).colorScheme.primary
+                : Colors.grey[300],
+            borderRadius: BorderRadius.circular(hasVisualMedia ? 8 : 16),
+          ),
+          child: _buildMessageContent(context),
+        ),
+        if (showReactAction)
+          Positioned(
+            right: message.isSentByMe ? null : -6,
+            left: message.isSentByMe ? -6 : null,
+            bottom: 2,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onReactPressed,
+                borderRadius: BorderRadius.circular(10),
+                child: Ink(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Theme.of(context).colorScheme.surfaceBright,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Theme.of(context).colorScheme.surfaceBright.withAlpha(20),
+                        blurRadius: 36,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.favorite_border_rounded,
+                    size: 11,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+
+    return Align(
+      alignment: message.isSentByMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: GestureDetector(
+        onLongPress: onLongPress,
+        onLongPressStart: onLongPressStart,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisAlignment: message.isSentByMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+          children: [
+            // Avatar for received messages — only on last in group
+            if (!message.isSentByMe)
+              Padding(
+                padding: const EdgeInsets.only(right: 8, bottom: 8),
+                child: message.isLastInGroup
+                    ? CircleAvatar(
+                        radius: 16,
+                        backgroundImage: message.conversationAvatarUrl != null && message.conversationAvatarUrl!.isNotEmpty
+                            ? CachedNetworkImageProvider(message.conversationAvatarUrl!)
+                            : null,
+                        child: message.conversationAvatarUrl == null || message.conversationAvatarUrl!.isEmpty
+                            ? const Icon(Icons.person, size: 18)
+                            : null,
+                      )
+                    : const SizedBox(width: 32),
+              ),
+            Column(
+              crossAxisAlignment:
+                  message.isSentByMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                bubble,
+                MessageReactionsBar(
+                  reactions: message.reactions,
+                  isSentByMe: message.isSentByMe,
+                ),
+              ],
+            ),
+          ],
+        ),
     final isAudio = widget.message.messageType.trim().toLowerCase() == 'audio';
 
     return Align(
@@ -95,27 +199,39 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
-  Widget _buildMessageContent() {
-    if (widget.message.imagePath != null) {
-      final imagePath = widget.message.imagePath!;
+  Widget _buildMessageContent(BuildContext context) {
+    if (message.imagePath != null) {
+      final imagePath = message.imagePath!;
+      final isStickerMessage = message.type.trim().toLowerCase() == 'sticker';
+      final isSpriteSticker = _isSpriteSticker();
       final uri = Uri.tryParse(imagePath);
       final isNetworkImage = uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+      final imageHeight = isStickerMessage ? 120.0 : 200.0;
+      final imageFit = isStickerMessage ? BoxFit.contain : BoxFit.cover;
 
       final imageWidget = ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: isNetworkImage
+        child: isSpriteSticker && isNetworkImage
+            ? AnimatedStickerSprite(
+                imageProvider: NetworkImage(imagePath),
+                width: imageHeight,
+                height: imageHeight,
+                fps: 12,
+                fit: BoxFit.contain,
+              )
+            : isNetworkImage
             ? CachedNetworkImage(
                 imageUrl: imagePath,
                 cacheKey: widget.message.mediaId,
-                height: 200,
-                fit: BoxFit.cover,
+                height: imageHeight,
+                fit: imageFit,
                 errorWidget: (context, url, error) => const Icon(Icons.broken_image),
                 cacheManager: chatImageCacheManager,
               )
             : Image.file(
                 File(imagePath),
-                height: 200,
-                fit: BoxFit.cover,
+                height: imageHeight,
+                fit: imageFit,
                 errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image),
               ),
       );
@@ -258,21 +374,37 @@ class _MessageBubbleState extends State<MessageBubble> {
         Text(
           widget.message.text ?? '',
           style: TextStyle(
-            color: widget.message.isSentByMe ? Colors.white : Colors.black,
+            color: widget.message.isDeleted
+                ? (widget.message.isSentByMe ? Colors.white70 : Colors.black45)
+                : widget.message.isSentByMe
+                ? Colors.white
+                : Colors.black,
+            fontStyle: widget.message.isDeleted ? FontStyle.italic : FontStyle.normal,
           ),
         ),
-        SizedBox(height: 4,),
-        Text(
-          AppDateUtils.formatTime(widget.message.timestamp),
-          style: TextStyle(
-            color: widget.message.isSentByMe ? Colors.grey[300] : Colors.grey[600],
-            fontSize: 10,
-          ),
-          textAlign: widget.message.isSentByMe ? TextAlign.right : TextAlign.left,
-        ),
+        // Timestamp + status badge only on last message in group
+        if (widget.message.isLastInGroup) ...
+          [
+            const SizedBox(height: 4),
+            Text(
+              AppDateUtils.formatTime(widget.message.timestamp),
+              style: TextStyle(
+                color: widget.message.isSentByMe ? Colors.grey[300] : Colors.grey[600],
+                fontSize: 10,
+              ),
+              textAlign: widget.message.isSentByMe ? TextAlign.right : TextAlign.left,
+            ),
+          ],
       ],
     );
   }
+
+  bool _isSpriteSticker() {
+    final stickerId = widget.message.stickerId?.toLowerCase() ?? '';
+    final imagePath = widget.message.imagePath?.toLowerCase() ?? '';
+    return stickerId.contains('sprite') || imagePath.contains('sprite');
+  }
+}
 
   Widget _buildWaveform(Color barColor) {
     final bars = WaveformUtils.normalize(widget.message.audioWaveform, maxBars: 64);

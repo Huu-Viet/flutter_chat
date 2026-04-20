@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_chat/core/platform_services/export.dart';
-import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
 import 'package:flutter_chat/presentation/chat/blocs/chat_bloc.dart';
 import 'package:flutter_chat/presentation/chat/chat_providers.dart';
+import 'package:flutter_chat/presentation/chat/mappers/chat_message_ui_mapper.dart';
+import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
 import 'package:flutter_chat/presentation/chat/widgets/image_send_confirmation_dialog.dart';
+import 'package:flutter_chat/presentation/chat/widgets/message_action_dialog.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_bubble.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_input.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,161 +30,76 @@ class ChatPage extends ConsumerStatefulWidget {
 }
 
 class _ChatPageState extends ConsumerState<ChatPage> {
+  static const List<String> _reactionEmojis = <String>['❤️', '👍', '🤣', '😮', '😭', '😡'];
+  static const double _messageActionDialogWidth = 280;
+  static const double _messageActionDialogMargin = 16;
   final TextEditingController _messageController = TextEditingController();
   final List<ChatMessage> _messages = [];
   final MediaService _mediaService = MediaService();
-  String? _currentUserId;
+  final ChatMessageUIMapper _uiMapper = ChatMessageUIMapper();
+  static const Duration _messageEditWindow = Duration(hours: 1);
+  static const Duration _messageDeleteWindow = Duration(hours: 24);
 
-  List<ChatMessage> _mapStateMessagesToUi(
-    List<Message> messages,
-    Set<String> uploadingImagePaths,
-    Map<String, String> imageUrlsByMediaId,
-    Set<String> resolvingImageMediaIds,
-  ) {
-    final mappedMessages = messages
-        .map(
-          (message) {
-            final isImageLikeMessage = _isImageLikeMessage(message);
-            final isAudioMessage = message.type.trim().toLowerCase() == 'audio';
-            final mediaId = message.mediaId?.trim();
-            final localPath = _isLikelyLocalImagePath(message.content) ? message.content : null;
-            final resolvedRemoteUrl = mediaId != null && mediaId.isNotEmpty
-                ? imageUrlsByMediaId[mediaId]
-                : null;
-            final imagePath = isImageLikeMessage ? (resolvedRemoteUrl ?? localPath) : null;
-            final metadata = message.metadata ?? const <String, dynamic>{};
-            final durationSeconds = isAudioMessage ? _extractAudioDurationSeconds(metadata) : null;
-            final waveform = isAudioMessage ? _parseWaveform(metadata['waveform']) : const <double>[];
-            final audioUrl = isAudioMessage ? _getAudioUrl(message, metadata, resolvedRemoteUrl) : null;
-
-            debugPrint('Message [${message.id}]: type=${message.type}, content=${message.content}, metadata=${message.metadata}');
-
-            return ChatMessage(
-              text: imagePath == null && !isImageLikeMessage && !isAudioMessage ? message.content : null,
-              imagePath: imagePath,
-              audioUrl: audioUrl,
-              mediaId: mediaId,
-              messageType: message.type,
-              audioDurationSeconds: durationSeconds,
-              audioWaveform: waveform,
-              isSentByMe: _currentUserId != null && message.senderId == _currentUserId,
-              timestamp: message.createdAt,
-              isUploading: localPath != null && uploadingImagePaths.contains(localPath),
-              isResolvingImage: isImageLikeMessage &&
-                  imagePath == null &&
-                  mediaId != null &&
-                  mediaId.isNotEmpty &&
-                  resolvingImageMediaIds.contains(mediaId),
-            );
-          },
-        )
-        .toList();
-
-    final existingImagePaths = mappedMessages
-        .where((message) => message.imagePath != null)
-        .map((message) => message.imagePath!)
-        .toSet();
-
-    for (final imagePath in uploadingImagePaths) {
-      if (existingImagePaths.contains(imagePath)) {
-        continue;
-      }
-
-      mappedMessages.add(
-        ChatMessage(
-          imagePath: imagePath,
-          mediaId: null,
-          isSentByMe: true,
-          timestamp: DateTime.now(),
-          isUploading: true,
-        ),
-      );
+  bool _canEditMessage(ChatMessage message) {
+    if (message.isDeleted) {
+      return false;
     }
 
-    return mappedMessages;
+    if (!message.isSentByMe) {
+      return false;
+    }
+
+    if (message.type.trim().toLowerCase() != 'text') {
+      return false;
+    }
+
+    final text = message.text?.trim();
+    if (text == null || text.isEmpty) {
+      return false;
+    }
+
+    return DateTime.now().difference(message.timestamp) <= _messageEditWindow;
   }
 
-  String? _getAudioUrl(
-    Message message,
-    Map<String, dynamic> metadata,
-    String? resolvedMediaUrl,
-  ) {
-    String? _asNonEmptyString(dynamic value) {
-      if (value is! String) return null;
-      final trimmed = value.trim();
-      return trimmed.isEmpty ? null : trimmed;
+  bool _canDeleteMessage(ChatMessage message) {
+    if (message.isDeleted) {
+      return false;
     }
 
-    final metadataCandidates = <dynamic>[
-      metadata['url'],
-      metadata['audioUrl'],
-      metadata['audio_url'],
-      metadata['fileUrl'],
-      metadata['file_url'],
-      metadata['mediaUrl'],
-      metadata['media_url'],
-      metadata['cdnUrl'],
-      metadata['cdn_url'],
-    ];
-
-    for (final candidate in metadataCandidates) {
-      final value = _asNonEmptyString(candidate);
-      if (value != null) {
-        return value;
-      }
+    if (!message.isSentByMe) {
+      return false;
     }
 
-    final content = message.content.trim();
-    if (content.isNotEmpty) {
-      final uri = Uri.tryParse(content);
-      final isRemote = uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
-      final isLocal = content.startsWith('/') || content.contains(':/') || content.contains(':\\');
-      if (isRemote || isLocal) {
-        return content;
-      }
+    return DateTime.now().difference(message.timestamp) <= _messageDeleteWindow;
+  }
+
+  bool _canReactToMessage(ChatMessage message) {
+    if (message.isDeleted || message.isUploading || message.isResolvingImage) {
+      return false;
     }
 
-    final resolved = resolvedMediaUrl?.trim();
-    if (resolved != null && resolved.isNotEmpty) {
-      return resolved;
+    final messageId = _resolveMessageIdForAction(message);
+    return messageId != null && messageId.isNotEmpty;
+  }
+
+  String? _resolveMessageIdForAction(ChatMessage message) {
+    final serverId = message.serverId?.trim();
+    if (serverId != null && serverId.isNotEmpty) {
+      return serverId;
     }
 
-    // Fallback: build a media URL if there is a Media ID provided interna
-    // lly.
-    final mediaId = message.mediaId?.trim() ?? metadata['mediaId']?.toString().trim();
-    if (mediaId != null && mediaId.isNotEmpty) {
-      return 'https://api.bcn.id.vn/media/$mediaId';
+    final localId = message.localId?.trim();
+    if (localId != null && localId.isNotEmpty) {
+      return localId;
     }
 
     return null;
   }
 
-  bool _isLikelyLocalImagePath(String value) {
-    final uri = Uri.tryParse(value);
-    if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
-      return false;
+  String _mapChatErrorMessage(String message, AppLocalizations l10n) {
+    if (message.contains('FORBIDDEN_EDIT_WINDOW_EXPIRED')) {
+      return l10n.error_edit_time_limited;
     }
-
-    final lowerValue = value.toLowerCase();
-    return value.startsWith('/') ||
-        value.contains(':/') ||
-        value.contains(':\\') ||
-        lowerValue.endsWith('.png') ||
-        lowerValue.endsWith('.jpg') ||
-        lowerValue.endsWith('.jpeg') ||
-        lowerValue.endsWith('.webp') ||
-        lowerValue.endsWith('.gif');
-  }
-
-  bool _isImageLikeMessage(Message message) {
-    final mediaId = message.mediaId?.trim();
-    if (mediaId == null || mediaId.isEmpty) {
-      return false;
-    }
-
-    final normalizedType = message.type.trim().toLowerCase();
-    return normalizedType == 'image' || normalizedType == 'file';
-  }
 
   int? _parseDurationSeconds(dynamic value) {
     if (value is int) return value;
@@ -228,18 +146,21 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     final result = await ref.read(getCurrentUserIdUseCaseProvider).call();
     if (!mounted) {
       return;
+    if (message.contains('FORBIDDEN_NOT_OWNER')) {
+      return l10n.error_cannot_edit_message;
     }
 
-    setState(() {
-      _currentUserId = result.fold((_) => null, (id) => id);
-    });
+    if (message.contains('MESSAGE_NOT_FOUND')) {
+      return l10n.error_message_not_found;
+    }
+
+    return message;
   }
 
   @override
   void initState() {
     super.initState();
     ref.read(chatBlocProvider).add(ChatInitialLoadEvent(widget.conversationId));
-    _loadCurrentUserId();
   }
 
   @override
@@ -257,6 +178,21 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       content: content,
     ));
     _messageController.clear();
+  }
+
+  void _sendSticker(StickerItem sticker) {
+    final stickerUrl = sticker.url.trim();
+    if (stickerUrl.isEmpty) {
+      return;
+    }
+
+    ref.read(chatBlocProvider).add(
+      SendStickerEvent(
+        conversationId: widget.conversationId,
+        stickerId: sticker.id,
+        stickerUrl: stickerUrl,
+      ),
+    );
   }
 
   Future<void> _pickImage() async {
@@ -311,17 +247,164 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             imagePath: image.path,
             isSentByMe: true,
             timestamp: DateTime.now(),
+            type: 'image',
           ));
         }
       });
     }
   }
 
+  Future<void> _showMessageActions(
+    BuildContext context,
+    ChatMessage message,
+    AppLocalizations l10n, {
+    Offset? anchor,
+  }) async {
+    final canEdit = _canEditMessage(message);
+    final canDelete = _canDeleteMessage(message);
+    final canReact = _canReactToMessage(message);
+    final hasText = !message.isDeleted && message.text != null && message.text!.isNotEmpty;
+
+    if (!hasText && !canEdit && !canDelete && !canReact) return;
+
+    final mediaSize = MediaQuery.of(context).size;
+    final dialogWidth = _messageActionDialogWidth
+        .clamp(
+          0,
+          mediaSize.width - (_messageActionDialogMargin * 2),
+        )
+        .toDouble();
+    final anchorPoint = anchor ?? Offset(mediaSize.width / 2, mediaSize.height / 2);
+    final dialogLeft = (message.isSentByMe
+        ? (anchorPoint.dx - dialogWidth + 40).clamp(
+            _messageActionDialogMargin,
+            mediaSize.width - dialogWidth - _messageActionDialogMargin,
+          )
+        : (anchorPoint.dx - 24).clamp(
+            _messageActionDialogMargin,
+            mediaSize.width - dialogWidth - _messageActionDialogMargin,
+          ))
+        .toDouble();
+    final dialogTop = (anchorPoint.dy - 120)
+        .clamp(
+          _messageActionDialogMargin,
+          mediaSize.height - 220,
+        )
+        .toDouble();
+
+    final result = await showGeneralDialog<MessageActionResult>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'message-actions',
+      barrierColor: Colors.black26,
+      pageBuilder: (dialogContext, _, __) => Stack(
+        children: [
+          Positioned(
+            left: dialogLeft,
+            top: dialogTop,
+            width: dialogWidth,
+            child: MessageActionDialog(
+              canCopy: hasText,
+              canEdit: canEdit,
+              canDelete: canDelete,
+              reactions: canReact ? _reactionEmojis : const <String>[],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted || result == null) return;
+
+    if (result.emoji != null) {
+      _handleReactionSelection(message, result.emoji!);
+      return;
+    }
+
+    final action = result.action;
+    if (action == null) return;
+
+    switch (action) {
+      case MessageAction.copy:
+        await Clipboard.setData(ClipboardData(text: message.text!));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.success_copied), duration: Duration(seconds: 1)),
+          );
+        }
+      case MessageAction.edit:
+        if (mounted) _showEditDialog(context, message, l10n);
+      case MessageAction.delete:
+        final localId = message.localId;
+        if (localId == null || localId.trim().isEmpty) return;
+
+        ref.read(chatBlocProvider).add(DeleteMessageEvent(
+          localId: localId,
+          messageId: localId,
+        ));
+    }
+  }
+
+  void _handleReactionSelection(ChatMessage message, String emoji) {
+    final messageId = _resolveMessageIdForAction(message);
+    if (messageId == null || messageId.isEmpty) {
+      return;
+    }
+
+    ref.read(chatBlocProvider).add(
+      UpdateMessageReactionEvent(
+        messageId: messageId,
+        conversationId: widget.conversationId,
+        emoji: emoji,
+      ),
+    );
+  }
+
+  Future<void> _showEditDialog(BuildContext context, ChatMessage message, AppLocalizations l10n) async {
+    final controller = TextEditingController(text: message.text ?? '');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(l10n.action_edit_message),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLines: null,
+            decoration: InputDecoration(hintText: l10n.input_new_content),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(l10n.close),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(l10n.accept),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) return;
+    final newContent = controller.text.trim();
+    if (newContent.isEmpty || newContent == message.text) return;
+
+    final localId = message.localId;
+    if (localId == null || localId.trim().isEmpty) return;
+
+    ref.read(chatBlocProvider).add(EditMessageEvent(
+      localId: localId,
+      messageId: localId,
+      content: newContent,
+    ));
+  }
 
   @override
   Widget build(BuildContext context) {
-    final chatBloc = ref.read(chatBlocProvider);
     final l10n = AppLocalizations.of(context)!;
+    final chatBloc = ref.read(chatBlocProvider);
 
     return BlocProvider<ChatBloc>.value(
       value: chatBloc,
@@ -330,21 +413,29 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         listener: (context, state) {
           if (state is ChatError) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(l10n.error_unknown)),
+              SnackBar(content: Text(_mapChatErrorMessage(state.message, l10n))),
             );
           }
         },
         builder: (context, state) => Scaffold(
             appBar: AppBar(
+              iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onSurface),
               title: Container(
                 alignment: Alignment.centerLeft,
-                child: Text(
-                  widget.friendName,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontWeight: FontWeight.bold
-                  ),
-                  textAlign: TextAlign.center,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.friendName,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontWeight: FontWeight.bold
+                        ),
+                        textAlign: TextAlign.left,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               backgroundColor: Theme.of(context).colorScheme.surfaceBright,
@@ -355,11 +446,14 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   child: Builder(
                     builder: (context) {
                       final List<ChatMessage> displayMessages = state is ChatLoaded
-                          ? _mapStateMessagesToUi(
+                          ? _uiMapper.mapStateMessagesToUI(
                               state.messages,
                               state.uploadingImagePaths,
                               state.imageUrlsByMediaId,
                               state.resolvingImageMediaIds,
+                              state.currentUserId,
+                              state.conversation?.avatarUrl,
+                              l10n.chat_deleted_message,
                             )
                           : _messages;
 
@@ -369,7 +463,19 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                         itemCount: displayMessages.length,
                         itemBuilder: (context, index) {
                           final message = displayMessages[displayMessages.length - 1 - index];
-                          return MessageBubble(message: message);
+                          return MessageBubble(
+                            message: message,
+                            showReactAction: message.isLastInGroup && _canReactToMessage(message),
+                            onReactPressed: message.isLastInGroup && _canReactToMessage(message)
+                                ? () => _handleReactionSelection(message, '❤️')
+                                : null,
+                            onLongPressStart: (details) => _showMessageActions(
+                              context,
+                              message,
+                              l10n,
+                              anchor: details.globalPosition,
+                            ),
+                          );
                         },
                       );
                     },
@@ -409,6 +515,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       ),
                     );
                   },
+                  onStickerSelected: _sendSticker,
                 ),
               ],
             ),
@@ -416,34 +523,4 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       ),
     );
   }
-}
-
-class ChatMessage {
-  final String? text;
-  final String? imagePath;
-  final String? stickerUrl;
-  final String? audioUrl;
-  final String? mediaId;
-  final String messageType;
-  final int? audioDurationSeconds;
-  final List<double> audioWaveform;
-  final bool isSentByMe;
-  final DateTime timestamp;
-  final bool isUploading;
-  final bool isResolvingImage;
-
-  ChatMessage({
-    this.text,
-    this.imagePath,
-    this.stickerUrl,
-    this.audioUrl,
-    this.mediaId,
-    this.messageType = 'text',
-    this.audioDurationSeconds,
-    this.audioWaveform = const <double>[],
-    required this.isSentByMe,
-    required this.timestamp,
-    this.isUploading = false,
-    this.isResolvingImage = false,
-  });
 }

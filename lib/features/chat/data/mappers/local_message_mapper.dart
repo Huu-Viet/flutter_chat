@@ -38,8 +38,8 @@ class LocalMessageMapper extends LocalMapper<ChatMessageEntity, Message> {
       mediaId: domain.mediaId,
       metadata: domain.metadata == null ? null : jsonEncode(domain.metadata),
       serverId: domain.serverId,
-      createdAt: domain.createdAt.toIso8601String(),
-      editedAt: domain.editedAt?.toIso8601String(),
+      createdAt: domain.createdAt.toUtc().toIso8601String(),
+      editedAt: domain.editedAt?.toUtc().toIso8601String(),
     );
   }
 }

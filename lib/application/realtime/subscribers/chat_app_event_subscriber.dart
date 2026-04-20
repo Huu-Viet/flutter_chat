@@ -6,15 +6,23 @@ import 'package:flutter_chat/application/realtime/subscribers/app_event_subscrib
 class ChatAppEventSubscriber extends AppEventSubscriber {
   final FetchConversationUseCase _fetchConversationUseCase;
   final FetchMessagesUseCase fetchMessagesUseCase;
+  final MarkMessageDeletedLocalUseCase _markMessageDeletedLocalUseCase;
+  final MarkMessageReactionsLocalUseCase _markMessageReactionsLocalUseCase;
 
   const ChatAppEventSubscriber({
     required FetchConversationUseCase fetchConversationUseCase,
     required this.fetchMessagesUseCase,
+    required MarkMessageDeletedLocalUseCase markMessageDeletedLocalUseCase,
+    required MarkMessageReactionsLocalUseCase markMessageReactionsLocalUseCase,
   })
-      : _fetchConversationUseCase = fetchConversationUseCase;
+      : _fetchConversationUseCase = fetchConversationUseCase,
+        _markMessageDeletedLocalUseCase = markMessageDeletedLocalUseCase,
+        _markMessageReactionsLocalUseCase = markMessageReactionsLocalUseCase;
 
   static const int _syncPage = 1;
   static const int _syncLimit = 20;
+  static const int _latestMessageSyncLimit = 1;
+  static const int _messageMutationSyncLimit = 30;
 
   @override
   bool supports(AppEvent event) => event.namespace == '/chat';
@@ -32,6 +40,15 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
       case 'message:saved':
       case 'message:notify':
         await _fetchLatestMessages(event.type, event.payload);
+        return;
+      case 'message:edited':
+      case 'message:revoked':
+      case 'message:deleted':
+      case 'message:deleted_for_me':
+      case 'message:updated':
+      case 'message:reaction_updated':
+      case 'message:media_ready':
+        await _syncRecentMessages(event.type, event.payload);
         return;
       default:
         return;
@@ -65,7 +82,7 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
       conversationId,
       before: null,
       after: null,
-      limit: 1,
+      limit: _latestMessageSyncLimit,
     );
     result.fold(
       (failure) {
@@ -73,6 +90,51 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
       },
       (messages) {
         debugPrint('[ChatAppEventSubscriber] fetch latest message ok: count=${messages.length}');
+      },
+    );
+  }
+
+  Future<void> _syncRecentMessages(String eventType, Map<String, dynamic> payload) async {
+    debugPrint('[ChatAppEventSubscriber] sync recent messages for $eventType: $payload');
+
+    if (eventType == 'message:deleted') {
+      final messageId = _resolveMessageId(payload);
+      if (messageId != null && messageId.isNotEmpty) {
+        await _markMessageDeletedLocalUseCase(messageIdentifier: messageId);
+      }
+    }
+
+    if (eventType == 'message:reaction_updated') {
+      final messageId = _resolveMessageId(payload);
+      if (messageId != null && messageId.isNotEmpty) {
+        final reactions = _resolveReactions(payload, messageId: messageId);
+        if (reactions.isNotEmpty) {
+          await _markMessageReactionsLocalUseCase(
+            messageIdentifier: messageId,
+            reactions: reactions,
+          );
+        }
+      }
+    }
+
+    final conversationId = _resolveConversationId(payload);
+    if (conversationId == null || conversationId.isEmpty) {
+      debugPrint('[ChatAppEventSubscriber] skip $eventType sync: missing conversationId');
+      return;
+    }
+
+    final result = await fetchMessagesUseCase(
+      conversationId,
+      before: null,
+      after: null,
+      limit: _messageMutationSyncLimit,
+    );
+    result.fold(
+      (failure) {
+        debugPrint('[ChatAppEventSubscriber] sync recent messages failed: ${failure.message}');
+      },
+      (messages) {
+        debugPrint('[ChatAppEventSubscriber] sync recent messages ok: count=${messages.length}');
       },
     );
   }
@@ -108,5 +170,89 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
     }
 
     return null;
+  }
+
+  String? _resolveMessageId(Map<String, dynamic> payload) {
+    final direct = payload['messageId']?.toString();
+    if (direct != null && direct.isNotEmpty) {
+      return direct;
+    }
+
+    final data = payload['data'];
+    if (data is Map<String, dynamic>) {
+      final nestedDirect = data['messageId']?.toString();
+      if (nestedDirect != null && nestedDirect.isNotEmpty) {
+        return nestedDirect;
+      }
+
+      final message = data['message'];
+      if (message is Map<String, dynamic>) {
+        final nestedMessageDirect = message['id']?.toString();
+        if (nestedMessageDirect != null && nestedMessageDirect.isNotEmpty) {
+          return nestedMessageDirect;
+        }
+      }
+    }
+
+    final message = payload['message'];
+    if (message is Map<String, dynamic>) {
+      final nestedMessageDirect = message['id']?.toString();
+      if (nestedMessageDirect != null && nestedMessageDirect.isNotEmpty) {
+        return nestedMessageDirect;
+      }
+    }
+
+    return null;
+  }
+
+  List<MessageReaction> _resolveReactions(
+    Map<String, dynamic> payload, {
+    required String messageId,
+  }) {
+    dynamic reactionsNode = payload['reactions'];
+
+    final data = payload['data'];
+    if (reactionsNode == null && data is Map<String, dynamic>) {
+      reactionsNode = data['reactions'];
+    }
+
+    if (reactionsNode == null) {
+      return const <MessageReaction>[];
+    }
+
+    if (reactionsNode is List<dynamic>) {
+      return reactionsNode
+          .whereType<Map<String, dynamic>>()
+          .map(MessageReactionDto.fromJson)
+          .where((dto) => dto.emoji.isNotEmpty)
+          .map(
+            (dto) => MessageReaction(
+              messageId: messageId,
+              emoji: dto.emoji,
+              count: dto.count,
+              reactors: dto.reactors,
+              myReaction: dto.myReaction,
+            ),
+          )
+          .toList(growable: false);
+    }
+
+    if (reactionsNode is Map<String, dynamic>) {
+      return reactionsNode.entries
+          .map((entry) => MessageReactionDto.fromMapEntry(entry.key, entry.value))
+          .where((dto) => dto.emoji.isNotEmpty)
+          .map(
+            (dto) => MessageReaction(
+              messageId: messageId,
+              emoji: dto.emoji,
+              count: dto.count,
+              reactors: dto.reactors,
+              myReaction: dto.myReaction,
+            ),
+          )
+          .toList(growable: false);
+    }
+
+    return const <MessageReaction>[];
   }
 }

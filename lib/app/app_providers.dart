@@ -55,6 +55,8 @@ final chatAppEventSubscriberProvider = Provider<AppEventSubscriber>((ref) {
   return ChatAppEventSubscriber(
     fetchConversationUseCase: ref.watch(fetchConversationUseCaseProvider),
     fetchMessagesUseCase: ref.watch(fetchMessagesUseCaseProvider),
+    markMessageDeletedLocalUseCase: ref.watch(markMessageDeletedLocalUseCaseProvider),
+    markMessageReactionsLocalUseCase: ref.watch(markMessageReactionsLocalUseCaseProvider),
   );
 });
 

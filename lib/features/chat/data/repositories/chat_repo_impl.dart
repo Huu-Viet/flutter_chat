@@ -14,6 +14,8 @@ class ChatRepoImpl implements ChatRepository {
   final ApiMessageMapper _apiMessageMapper;
   final LocalConversationMapper _localConversationMapper;
   final LocalMessageMapper _localMessageMapper;
+  final ApiMessageReactionMapper _apiMessageReactionMapper;
+  final LocalMessageReactionMapper _localMessageReactionMapper;
   final ApiStickerPackageMapper _stickerPackageMapper;
   final ApiStickerItemMapper _stickerItemMapper;
   final LocalStickerPackageMapper _localStickerPackageMapper;
@@ -29,6 +31,8 @@ class ChatRepoImpl implements ChatRepository {
     required ApiMessageMapper apiMessageMapper,
     required LocalConversationMapper localConversationMapper,
     required LocalMessageMapper localMessageMapper,
+    required ApiMessageReactionMapper apiMessageReactionMapper,
+    required LocalMessageReactionMapper localMessageReactionMapper,
     required ApiStickerPackageMapper stickerPackageMapper,
     required ApiStickerItemMapper stickerItemMapper,
     required LocalStickerPackageMapper localStickerPackageMapper,
@@ -42,6 +46,8 @@ class ChatRepoImpl implements ChatRepository {
         _apiMessageMapper = apiMessageMapper,
         _localConversationMapper = localConversationMapper,
         _localMessageMapper = localMessageMapper,
+        _apiMessageReactionMapper = apiMessageReactionMapper,
+        _localMessageReactionMapper = localMessageReactionMapper,
         _stickerPackageMapper = stickerPackageMapper,
         _stickerItemMapper = stickerItemMapper,
         _localStickerPackageMapper = localStickerPackageMapper,
@@ -136,6 +142,210 @@ class ChatRepoImpl implements ChatRepository {
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }
+  }
+
+  @override
+  Future<Either<Failure, Message>> editMessage({
+    required String localId,
+    required String messageId,
+    required String content,
+  }) async {
+    try {
+      final response = await _chatService.editMessage(
+        messageId: messageId,
+        content: content,
+      );
+
+      final editedAt = DateTime.tryParse(response.editedAt ?? '') ?? DateTime.now();
+      await _messageDao.updateMessageContent(
+        localId,
+        response.content ?? content,
+        editedAt,
+      );
+
+      final updated = await _messageDao.getMessageById(localId);
+      if (updated == null) {
+        throw Exception('Message not found after edit');
+      }
+
+      return Right(_localMessageMapper.toDomain(updated));
+    } catch (e) {
+      debugPrint('[ChatRepoImpl] editMessage error: $e');
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Message>> deleteMessage({
+    required String localId,
+    required String messageId,
+  }) async {
+    try {
+      await _chatService.deleteMessage(messageId);
+      await _messageDao.updateMessageDeleted(localId);
+
+      final updated = await _messageDao.getMessageById(localId);
+      if (updated == null) {
+        throw Exception('Message not found after delete');
+      }
+
+      return Right(_localMessageMapper.toDomain(updated));
+    } catch (e) {
+      debugPrint('[ChatRepoImpl] deleteMessage error: $e');
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> markMessageDeletedLocal({
+    required String messageIdentifier,
+  }) async {
+    try {
+      await _messageDao.updateMessageDeleted(messageIdentifier);
+      return const Right(null);
+    } catch (e) {
+      debugPrint('[ChatRepoImpl] markMessageDeletedLocal error: $e');
+      return Left(CacheFailure('Failed to mark message deleted locally: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<MessageReaction>>> updateMessageReaction({
+    required String messageId,
+    required String conversationId,
+    required String emoji,
+    String action = 'add',
+  }) async {
+    List<MessageReaction> previousLocal = const <MessageReaction>[];
+    try {
+      final previousLocalEntities = await _messageDao.getMessageReactions(messageId);
+      previousLocal = _localMessageReactionMapper.toDomainList(previousLocalEntities);
+      final optimisticLocal = _applyOptimisticReaction(
+        previousLocal,
+        messageId: messageId,
+        emoji: emoji,
+        action: action,
+      );
+
+      await _messageDao.saveMessageReactions(
+        messageId,
+        _localMessageReactionMapper.toEntityList(optimisticLocal),
+      );
+
+      final response = await _chatService.updateMessageReaction(
+        messageId: messageId,
+        conversationId: conversationId,
+        emoji: emoji,
+        action: action,
+      );
+
+      final remoteReactions = _apiMessageReactionMapper.fromResponse(response);
+      if (remoteReactions.isNotEmpty) {
+        await _messageDao.saveMessageReactions(
+          messageId,
+          _localMessageReactionMapper.toEntityList(remoteReactions),
+        );
+        return Right(remoteReactions);
+      }
+
+      return Right(optimisticLocal);
+    } catch (e) {
+      try {
+        await _messageDao.saveMessageReactions(
+          messageId,
+          _localMessageReactionMapper.toEntityList(previousLocal),
+        );
+      } catch (_) {}
+      debugPrint('[ChatRepoImpl] updateMessageReaction error: $e');
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<MessageReaction>>> markMessageReactionsLocal({
+    required String messageIdentifier,
+    required List<MessageReaction> reactions,
+  }) async {
+    try {
+      await _messageDao.saveMessageReactions(
+        messageIdentifier,
+        _localMessageReactionMapper.toEntityList(reactions),
+      );
+      return Right(reactions);
+    } catch (e) {
+      debugPrint('[ChatRepoImpl] markMessageReactionsLocal error: $e');
+      return Left(CacheFailure('Failed to mark message reactions locally: $e'));
+    }
+  }
+
+  List<MessageReaction> _applyOptimisticReaction(
+    List<MessageReaction> current,
+    {
+      required String messageId,
+      required String emoji,
+      required String action,
+    }
+  ) {
+    final normalizedEmoji = emoji.trim();
+    if (normalizedEmoji.isEmpty) {
+      return current;
+    }
+
+    final next = List<MessageReaction>.from(current);
+    final index = next.indexWhere((r) => r.emoji == normalizedEmoji);
+    final normalizedAction = action.trim().toLowerCase();
+
+    if (normalizedAction == 'remove') {
+      if (index < 0) {
+        return next;
+      }
+
+      final existing = next[index];
+      if (!existing.myReaction) {
+        return next;
+      }
+
+      final nextCount = existing.count > 0 ? existing.count - 1 : 0;
+      if (nextCount == 0) {
+        next.removeAt(index);
+      } else {
+        next[index] = MessageReaction(
+          messageId: existing.messageId,
+          emoji: existing.emoji,
+          count: nextCount,
+          reactors: existing.reactors,
+          myReaction: false,
+        );
+      }
+      return next;
+    }
+
+    if (index < 0) {
+      next.add(
+        MessageReaction(
+          messageId: messageId,
+          emoji: normalizedEmoji,
+          count: 1,
+          reactors: const <String>[],
+          myReaction: true,
+        ),
+      );
+      return next;
+    }
+
+    final existing = next[index];
+    if (existing.myReaction) {
+      return next;
+    }
+
+    next[index] = MessageReaction(
+      messageId: existing.messageId,
+      emoji: existing.emoji,
+      count: existing.count + 1,
+      reactors: existing.reactors,
+      myReaction: true,
+    );
+    return next;
   }
 
   @override

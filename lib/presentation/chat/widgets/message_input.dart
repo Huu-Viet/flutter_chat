@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_chat/l10n/app_localizations.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
@@ -21,7 +22,7 @@ class MessageInput extends StatefulWidget {
     int durationSeconds,
     List<double> waveform,
   )?
-  onSendRecord;
+  onSendRecord; // Add this
 
   const MessageInput({
     super.key,
@@ -196,7 +197,6 @@ class _MessageInputState extends State<MessageInput> {
     });
 
     if (send && _recordedFilePath != null && widget.onSendRecord != null) {
-
       widget.onSendRecord!(
         _recordedFilePath!,
         _recordDuration,
@@ -278,6 +278,7 @@ class _MessageInputState extends State<MessageInput> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return SafeArea(
       top: false,
       child: Container(
@@ -294,7 +295,7 @@ class _MessageInputState extends State<MessageInput> {
                   onPressed: () => _showEmojiPicker(context),
                 ),
                 const SizedBox(width: 8),
-                Expanded(child: _buildTextField(context)),
+                Expanded(child: _buildTextField(context, l10n)),
                 if (!_hasText) ...[
                   const SizedBox(width: 8),
                   _buildIconButton(icon: Icons.more_horiz, onPressed: () {}),
@@ -354,16 +355,18 @@ class _MessageInputState extends State<MessageInput> {
     Color? color,
   }) {
     return IconButton(
-      icon: Icon(icon, color: color ?? Colors.white),
+      icon: Icon(icon, color: Theme.of(context).colorScheme.onSurface),
       onPressed: onPressed,
       constraints: const BoxConstraints(),
       padding: const EdgeInsets.all(8),
     );
   }
 
-  Widget _buildTextField(BuildContext context) {
+  Widget _buildTextField(BuildContext context, AppLocalizations l10n) {
     return TextField(
       controller: widget.controller,
+      decoration: InputDecoration(
+        hintText: l10n.chat_hint,
       focusNode: _focusNode,
       style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
       decoration: InputDecoration(
