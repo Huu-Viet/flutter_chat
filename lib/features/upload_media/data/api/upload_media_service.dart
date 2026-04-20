@@ -4,6 +4,7 @@ abstract class PresignMediaService {
   Future<MediaInfo> presignFile(String filePath, int size);
   Future<MediaInfo> presignImage(String filePath, int size);
   Future<MediaInfo> presignVideo(String filePath, int size);
+  Future<MediaInfo> presignAudio(String filePath, int size);
   Future<String> getImageUrlByMediaId(String mediaId);
   Future<void> uploadMedia(String uploadUrl, String fileType, String filePath);
   Future<void> completeUpload({

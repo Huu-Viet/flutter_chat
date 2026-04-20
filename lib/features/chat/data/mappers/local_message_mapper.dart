@@ -16,7 +16,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageEntity, Message> {
       offset: entity.offset,
       isDeleted: entity.isDeleted,
       mediaId: entity.mediaId,
-      metadata: entity.metadata == null
+      metadata: entity.metadata == null || entity.metadata!.isEmpty
           ? null
           : jsonDecode(entity.metadata!) as Map<String, dynamic>,
       serverId: entity.serverId,
