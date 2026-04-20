@@ -19,6 +19,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final WatchMessagesLocalUseCase watchMessagesLocalUseCase;
   final SendMessageUseCase sendMessageUseCase;
   final EditMessageUseCase editMessageUseCase;
+  final DeleteMessageUseCase deleteMessageUseCase;
+  final UpdateMessageReactionUseCase updateMessageReactionUseCase;
   final GetCurrentUserIdUseCase getCurrentUserIdUseCase;
   final UploadMediaUseCase uploadMediaUseCase;
   final GetImageUrlByMediaIdUseCase getImageUrlByMediaIdUseCase;
@@ -38,6 +40,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     required this.watchMessagesLocalUseCase,
     required this.sendMessageUseCase,
     required this.editMessageUseCase,
+    required this.deleteMessageUseCase,
+    required this.updateMessageReactionUseCase,
     required this.getCurrentUserIdUseCase,
     required this.uploadMediaUseCase,
     required this.getImageUrlByMediaIdUseCase,
@@ -48,6 +52,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<SendImageEvent>(_onSendImage);
     on<SendStickerEvent>(_onSendSticker);
     on<EditMessageEvent>(_onEditMessage);
+    on<DeleteMessageEvent>(_onDeleteMessage);
+    on<UpdateMessageReactionEvent>(_onUpdateMessageReaction);
     on<FetchImageEvent>(_onFetchImageByMediaId);
     on<_LocalMessagesChangedEvent>((event, emit) {
       _currentMessages = event.messages;
@@ -284,6 +290,33 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       localId: event.localId,
       messageId: event.messageId,
       content: event.content,
+    );
+    result.fold(
+      (failure) => add(_LocalMessagesErrorEvent(failure.message)),
+      (_) {},
+    );
+  }
+
+  FutureOr<void> _onDeleteMessage(DeleteMessageEvent event, Emitter<ChatState> emit) async {
+    final result = await deleteMessageUseCase(
+      localId: event.localId,
+      messageId: event.messageId,
+    );
+    result.fold(
+      (failure) => add(_LocalMessagesErrorEvent(failure.message)),
+      (_) {},
+    );
+  }
+
+  FutureOr<void> _onUpdateMessageReaction(
+    UpdateMessageReactionEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final result = await updateMessageReactionUseCase(
+      messageId: event.messageId,
+      conversationId: event.conversationId,
+      emoji: event.emoji,
+      action: event.action,
     );
     result.fold(
       (failure) => add(_LocalMessagesErrorEvent(failure.message)),

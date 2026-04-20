@@ -10,6 +10,8 @@ final chatBlocProvider = Provider<ChatBloc>((ref) {
     watchMessagesLocalUseCase: ref.read(watchMessagesLocalUseCaseProvider),
     sendMessageUseCase: ref.read(sendMessageUseCaseProvider),
     editMessageUseCase: ref.read(editMessageUseCaseProvider),
+    deleteMessageUseCase: ref.read(deleteMessageUseCaseProvider),
+    updateMessageReactionUseCase: ref.read(updateMessageReactionUseCaseProvider),
     getCurrentUserIdUseCase: ref.read(getCurrentUserIdUseCaseProvider),
     uploadMediaUseCase: ref.read(uploadMediaUseCaseProvider),
     getImageUrlByMediaIdUseCase: ref.read(getImageUrlByMediaIdUseCaseProvider),

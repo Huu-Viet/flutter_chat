@@ -2,11 +2,7 @@ import 'package:flutter_chat/app/app_providers.dart';
 import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/chat/data/datasource/api/chat_service_impl.dart';
 import 'package:flutter_chat/features/chat/data/repositories/chat_repo_impl.dart';
-import 'package:flutter_chat/features/chat/data/mappers/api_sticker_item_mapper.dart';
-import 'package:flutter_chat/features/chat/data/mappers/api_sticker_package_mapper.dart';
 import 'package:flutter_chat/features/chat/domain/usecases/get_sticker_packages_usecase.dart';
-import 'package:flutter_chat/features/chat/domain/usecases/get_stickers_in_package_usecase.dart';
-import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/features/chat/domain/usecases/get_stickers_in_package_usecase.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:riverpod/riverpod.dart';
@@ -36,12 +32,20 @@ final apiMessageMapperProvider = Provider<ApiMessageMapper>((ref) {
   return ApiMessageMapper();
 });
 
+final apiMessageReactionMapperProvider = Provider<ApiMessageReactionMapper>((ref) {
+  return ApiMessageReactionMapper();
+});
+
 final localConversationMapperProvider = Provider<LocalConversationMapper>((ref) {
   return LocalConversationMapper();
 });
 
 final localMessageMapperProvider = Provider<LocalMessageMapper>((ref) {
   return LocalMessageMapper();
+});
+
+final localMessageReactionMapperProvider = Provider<LocalMessageReactionMapper>((ref) {
+  return LocalMessageReactionMapper();
 });
 
 final stickerPackageMapperProvider = Provider<ApiStickerPackageMapper>((ref) {
@@ -80,6 +84,8 @@ final chatRepoProvider = Provider<ChatRepository>((ref) {
     apiMessageMapper: ref.read(apiMessageMapperProvider),
     localConversationMapper: ref.read(localConversationMapperProvider),
     localMessageMapper: ref.read(localMessageMapperProvider),
+    apiMessageReactionMapper: ref.read(apiMessageReactionMapperProvider),
+    localMessageReactionMapper: ref.read(localMessageReactionMapperProvider),
     stickerPackageMapper: ref.read(stickerPackageMapperProvider),
     stickerItemMapper: ref.read(stickerItemMapperProvider),
     localStickerPackageMapper: ref.read(localStickerPackageMapperProvider),
@@ -122,4 +128,20 @@ final getStickersInPackageUseCaseProvider = Provider<GetStickersInPackageUseCase
 
 final editMessageUseCaseProvider = Provider<EditMessageUseCase>((ref) {
   return EditMessageUseCase(ref.read(chatRepoProvider));
+});
+
+final deleteMessageUseCaseProvider = Provider<DeleteMessageUseCase>((ref) {
+  return DeleteMessageUseCase(ref.read(chatRepoProvider));
+});
+
+final markMessageDeletedLocalUseCaseProvider = Provider<MarkMessageDeletedLocalUseCase>((ref) {
+  return MarkMessageDeletedLocalUseCase(ref.read(chatRepoProvider));
+});
+
+final updateMessageReactionUseCaseProvider = Provider<UpdateMessageReactionUseCase>((ref) {
+  return UpdateMessageReactionUseCase(ref.read(chatRepoProvider));
+});
+
+final markMessageReactionsLocalUseCaseProvider = Provider<MarkMessageReactionsLocalUseCase>((ref) {
+  return MarkMessageReactionsLocalUseCase(ref.read(chatRepoProvider));
 });

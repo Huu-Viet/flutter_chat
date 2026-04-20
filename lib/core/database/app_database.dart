@@ -233,6 +233,20 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  Future<void> updateMessageDeleted(String messageIdentifier) async {
+    await (update(chatMessages)
+          ..where(
+            (tbl) =>
+                tbl.id.equals(messageIdentifier) |
+                tbl.serverId.equals(messageIdentifier),
+          ))
+        .write(
+      const ChatMessagesCompanion(
+        isDeleted: Value(true),
+      ),
+    );
+  }
+
   Future<void> clearFriendships() async {
     await delete(friendships).go();
   }

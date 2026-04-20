@@ -8,6 +8,16 @@ class UploadMediaRepoImpl implements UploadMediaRepository {
   UploadMediaRepoImpl(this._presignMediaService);
 
   @override
+  Future<Either<Failure, List<Map<String, dynamic>>>> getMyMediaList() async {
+    try {
+      final mediaList = await _presignMediaService.getMyMediaList();
+      return Right(mediaList);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, MediaInfo>> uploadMedia(
     String filePath,
     String fileType,
@@ -58,6 +68,137 @@ class UploadMediaRepoImpl implements UploadMediaRepository {
     }
   }
 
+  @override
+  Future<Either<Failure, String>> getMediaUrlByMediaId(
+    String mediaId, {
+    String prefer = 'OPTIMIZED',
+    String? conversationId,
+  }) async {
+    try {
+      final mediaUrl = await _presignMediaService.getMediaUrlByMediaId(
+        mediaId,
+        prefer: prefer,
+        conversationId: conversationId,
+      );
+
+      if (mediaUrl.trim().isEmpty) {
+        return const Left(ServerFailure('Media URL is empty'));
+      }
+
+      return Right(mediaUrl);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Map<String, dynamic>>> getMediaPlayInfo(
+    String mediaId, {
+    String? conversationId,
+  }) async {
+    try {
+      final playInfo = await _presignMediaService.getMediaPlayInfo(
+        mediaId,
+        conversationId: conversationId,
+      );
+      return Right(playInfo);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteMedia(String mediaId) async {
+    try {
+      await _presignMediaService.deleteMedia(mediaId);
+      return const Right(null);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> crossShareMedia({
+    required String mediaId,
+    required String sourceConversationId,
+    required String targetConversationId,
+  }) async {
+    try {
+      await _presignMediaService.crossShareMedia(
+        mediaId: mediaId,
+        sourceConversationId: sourceConversationId,
+        targetConversationId: targetConversationId,
+      );
+      return const Right(null);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Map<String, dynamic>>> initMultipartUpload({
+    required String filename,
+    required String mimeType,
+    required String type,
+    required int totalSize,
+  }) async {
+    try {
+      final response = await _presignMediaService.initMultipartUpload(
+        filename: filename,
+        mimeType: mimeType,
+        type: type,
+        totalSize: totalSize,
+      );
+      return Right(response);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<Map<String, dynamic>>>> presignMultipartParts({
+    required String mediaId,
+    required List<int> partNumbers,
+    int? expiresIn,
+  }) async {
+    try {
+      final response = await _presignMediaService.presignMultipartParts(
+        mediaId: mediaId,
+        partNumbers: partNumbers,
+        expiresIn: expiresIn,
+      );
+      return Right(response);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Map<String, dynamic>>> completeMultipartUpload({
+    required String mediaId,
+    required List<Map<String, dynamic>> parts,
+  }) async {
+    try {
+      final response = await _presignMediaService.completeMultipartUpload(
+        mediaId: mediaId,
+        parts: parts,
+      );
+      return Right(response);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> abortMultipartUpload(String mediaId) async {
+    try {
+      await _presignMediaService.abortMultipartUpload(mediaId);
+      return const Right(null);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
   Future<MediaInfo> _presignMediaByType({
     required String filePath,
     required String fileType,
@@ -66,6 +207,8 @@ class UploadMediaRepoImpl implements UploadMediaRepository {
     switch (fileType) {
       case 'image':
         return _presignMediaService.presignImage(filePath, size);
+      case 'audio':
+        return _presignMediaService.presignAudio(filePath, size);
       case 'video':
         return _presignMediaService.presignVideo(filePath, size);
       case 'file':

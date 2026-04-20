@@ -2,6 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_chat/core/network/realtime_gateway.dart';
 import 'package:flutter_chat/features/chat/data/response/message_edit_response.dart';
+import 'package:flutter_chat/features/chat/data/response/message_media_precheck_response.dart';
+import 'package:flutter_chat/features/chat/data/response/message_reaction_response.dart';
 import 'package:flutter_chat/features/chat/data/response/message_send_response.dart';
 import 'package:flutter_chat/features/chat/data/response/sticker_item_response.dart';
 import 'package:flutter_chat/features/chat/data/response/sticker_package_response.dart';
@@ -187,6 +189,46 @@ class ChatServiceImpl implements ChatService {
   }
 
   @override
+  Future<MessageMediaPrecheckResponse> preCheckMedia({
+    required String conversationId,
+    required String mimeType,
+    required int fileSize,
+  }) async {
+    try {
+      final endpoint = '$_baseUrl/chat/pre-check-media';
+      final body = {
+        'conversationId': conversationId,
+        'mimeType': mimeType,
+        'fileSize': fileSize,
+      };
+      debugPrint('[ChatServiceImpl] Pre-check media request: endpoint=$endpoint, body=$body');
+
+      final response = await _dio.post(endpoint, data: body);
+
+      if (response.statusCode != 200 || response.data == null) {
+        throw Exception('Failed to pre-check media: ${response.statusCode}');
+      }
+
+      final responseBody = response.data;
+      if (responseBody is! Map<String, dynamic>) {
+        throw Exception('Invalid response body format');
+      }
+
+      return MessageMediaPrecheckResponse.fromJson(responseBody);
+    } on DioException catch (e) {
+      debugPrint(
+        '[ChatServiceImpl] Pre-check media Dio error: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+      throw Exception(
+        'Failed to pre-check media: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] Pre-check media error: $e');
+      throw Exception('Failed to pre-check media: $e');
+    }
+  }
+
+  @override
   Future<MessageEditResponse> editMessage({
     required String messageId,
     required String content,
@@ -223,6 +265,226 @@ class ChatServiceImpl implements ChatService {
     } catch (e) {
       debugPrint('[ChatServiceImpl] Edit message error: $e');
       throw Exception('Failed to edit message: $e');
+    }
+  }
+
+  @override
+  Future<void> deleteMessage(String messageId) async {
+    try {
+      final endpoint = '$_baseUrl/messages/$messageId';
+      debugPrint('[ChatServiceImpl] Delete message request: endpoint=$endpoint');
+
+      final response = await _dio.delete(endpoint);
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to delete message: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      debugPrint(
+        '[ChatServiceImpl] Delete message Dio error: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+      throw Exception(
+        'Failed to delete message: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] Delete message error: $e');
+      throw Exception('Failed to delete message: $e');
+    }
+  }
+
+  @override
+  Future<void> revokeMessage({
+    required String messageId,
+    required String conversationId,
+  }) async {
+    try {
+      final endpoint = '$_baseUrl/messages/$messageId/revoke';
+      debugPrint('[ChatServiceImpl] Revoke message request: endpoint=$endpoint');
+
+      final response = await _dio.post(
+        endpoint,
+        data: {'conversationId': conversationId},
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to revoke message: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      debugPrint(
+        '[ChatServiceImpl] Revoke message Dio error: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+      throw Exception(
+        'Failed to revoke message: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] Revoke message error: $e');
+      throw Exception('Failed to revoke message: $e');
+    }
+  }
+
+  @override
+  Future<void> deleteMessageForMe({
+    required String messageId,
+    required String conversationId,
+  }) async {
+    try {
+      final endpoint = '$_baseUrl/messages/$messageId/for-me';
+      debugPrint('[ChatServiceImpl] Delete message for me request: endpoint=$endpoint');
+
+      final response = await _dio.delete(
+        endpoint,
+        queryParameters: {'conversationId': conversationId},
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to delete message for me: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      debugPrint(
+        '[ChatServiceImpl] Delete message for me Dio error: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+      throw Exception(
+        'Failed to delete message for me: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] Delete message for me error: $e');
+      throw Exception('Failed to delete message for me: $e');
+    }
+  }
+
+  @override
+  Future<void> forwardMessage({
+    required String sourceMessageId,
+    required String sourceConversationId,
+    required List<String> targetConversationIds,
+    bool includeCaption = true,
+  }) async {
+    try {
+      final endpoint = '$_baseUrl/messages/forward';
+      final body = {
+        'sourceMessageId': sourceMessageId,
+        'sourceConversationId': sourceConversationId,
+        'targetConversationIds': targetConversationIds,
+        'includeCaption': includeCaption,
+      };
+      debugPrint('[ChatServiceImpl] Forward message request: endpoint=$endpoint, body=$body');
+
+      final response = await _dio.post(endpoint, data: body);
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('Failed to forward message: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      debugPrint(
+        '[ChatServiceImpl] Forward message Dio error: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+      throw Exception(
+        'Failed to forward message: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] Forward message error: $e');
+      throw Exception('Failed to forward message: $e');
+    }
+  }
+
+  @override
+  Future<void> pinMessage({
+    required String messageId,
+    required String conversationId,
+  }) async {
+    try {
+      final endpoint = '$_baseUrl/messages/$messageId/pin';
+      debugPrint('[ChatServiceImpl] Pin message request: endpoint=$endpoint, conversationId=$conversationId');
+
+      final response = await _dio.post(
+        endpoint,
+        data: {'conversationId': conversationId},
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('Failed to pin message: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      debugPrint(
+        '[ChatServiceImpl] Pin message Dio error: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+      throw Exception(
+        'Failed to pin message: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] Pin message error: $e');
+      throw Exception('Failed to pin message: $e');
+    }
+  }
+
+  @override
+  Future<void> unpinMessage({
+    required String messageId,
+    required String conversationId,
+  }) async {
+    try {
+      final endpoint = '$_baseUrl/messages/$messageId/pin';
+      debugPrint('[ChatServiceImpl] Unpin message request: endpoint=$endpoint, conversationId=$conversationId');
+
+      final response = await _dio.delete(
+        endpoint,
+        queryParameters: {'conversationId': conversationId},
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to unpin message: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      debugPrint(
+        '[ChatServiceImpl] Unpin message Dio error: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+      throw Exception(
+        'Failed to unpin message: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] Unpin message error: $e');
+      throw Exception('Failed to unpin message: $e');
+    }
+  }
+
+  @override
+  Future<MessageReactionResponse> updateMessageReaction({
+    required String messageId,
+    required String conversationId,
+    required String emoji,
+    String action = 'add',
+  }) async {
+    try {
+      final endpoint = '$_baseUrl/messages/$messageId/reactions';
+      final body = {
+        'conversationId': conversationId,
+        'emoji': emoji,
+        'action': action,
+      };
+      debugPrint('[ChatServiceImpl] Update reaction request: endpoint=$endpoint, body=$body');
+
+      final response = await _dio.post(endpoint, data: body);
+
+      if (response.statusCode != 200 || response.data == null) {
+        throw Exception('Failed to update message reaction: ${response.statusCode}');
+      }
+
+      final responseBody = response.data;
+      if (responseBody is! Map<String, dynamic>) {
+        throw Exception('Invalid response body format');
+      }
+
+      return MessageReactionResponse.fromJson(responseBody);
+    } on DioException catch (e) {
+      debugPrint(
+        '[ChatServiceImpl] Update reaction Dio error: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+      throw Exception(
+        'Failed to update message reaction: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] Update reaction error: $e');
+      throw Exception('Failed to update message reaction: $e');
     }
   }
 

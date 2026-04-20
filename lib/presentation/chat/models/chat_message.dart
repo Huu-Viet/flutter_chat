@@ -1,3 +1,5 @@
+import 'package:flutter_chat/presentation/chat/models/chat_message_reaction.dart';
+
 class ChatMessage {
   final String? text;
   final String? imagePath;
@@ -7,6 +9,7 @@ class ChatMessage {
   final bool isSentByMe;
   final String? senderId;
   final DateTime timestamp;
+  final bool isDeleted;
   final bool isUploading;
   final bool isResolvingImage;
   final String? localId;
@@ -14,6 +17,7 @@ class ChatMessage {
   final String? conversationAvatarUrl;
   final bool isFirstInGroup;
   final bool isLastInGroup;
+  final List<ChatMessageReaction> reactions;
 
   ChatMessage({
     this.text,
@@ -24,6 +28,7 @@ class ChatMessage {
     required this.isSentByMe,
     this.senderId,
     required this.timestamp,
+    this.isDeleted = false,
     this.isUploading = false,
     this.isResolvingImage = false,
     this.localId,
@@ -31,6 +36,7 @@ class ChatMessage {
     this.conversationAvatarUrl,
     this.isFirstInGroup = true,
     this.isLastInGroup = true,
+    this.reactions = const <ChatMessageReaction>[],
   });
 
   ChatMessage copyWith({
@@ -46,6 +52,7 @@ class ChatMessage {
       isSentByMe: isSentByMe,
       senderId: senderId,
       timestamp: timestamp,
+      isDeleted: isDeleted,
       isUploading: isUploading,
       isResolvingImage: isResolvingImage,
       localId: localId,
@@ -53,6 +60,7 @@ class ChatMessage {
       conversationAvatarUrl: conversationAvatarUrl,
       isFirstInGroup: isFirstInGroup ?? this.isFirstInGroup,
       isLastInGroup: isLastInGroup ?? this.isLastInGroup,
+      reactions: reactions,
     );
   }
 }

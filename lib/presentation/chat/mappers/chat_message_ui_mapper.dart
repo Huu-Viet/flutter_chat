@@ -1,5 +1,6 @@
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
+import 'package:flutter_chat/presentation/chat/models/chat_message_reaction.dart';
 import 'package:flutter_chat/presentation/chat/utils/message_helpers.dart';
 
 class ChatMessageUIMapper {
@@ -14,10 +15,28 @@ class ChatMessageUIMapper {
     Set<String> resolvingImageMediaIds,
     String? currentUserId,
     String? conversationAvatarUrl,
+    String deletedMessageText,
   ) {
     final mappedMessages = messages
         .map(
           (message) {
+            if (message.isDeleted) {
+              return ChatMessage(
+                text: deletedMessageText,
+                imagePath: null,
+                mediaId: null,
+                stickerId: null,
+                type: 'text',
+                isSentByMe: currentUserId != null && message.senderId == currentUserId,
+                senderId: message.senderId,
+                timestamp: message.createdAt,
+                isDeleted: true,
+                localId: message.id,
+                serverId: message.serverId,
+                conversationAvatarUrl: conversationAvatarUrl,
+              );
+            }
+
             final isImageLikeMessage = _helpers.isImageLikeMessage(message);
             final isStickerMessage = _helpers.isStickerMessage(message);
             final mediaId = message.mediaId?.trim();
@@ -32,6 +51,7 @@ class ChatMessageUIMapper {
                 : isImageLikeMessage
                 ? (resolvedRemoteUrl ?? localPath)
                 : null;
+            final reactions = _extractReactions(message.metadata);
 
             return ChatMessage(
               text: imagePath == null && !isImageLikeMessage && !isStickerMessage ? message.content : null,
@@ -42,6 +62,7 @@ class ChatMessageUIMapper {
               isSentByMe: currentUserId != null && message.senderId == currentUserId,
               senderId: message.senderId,
               timestamp: message.createdAt,
+              isDeleted: message.isDeleted,
               isUploading: localPath != null && uploadingImagePaths.contains(localPath),
               isResolvingImage: isImageLikeMessage &&
                   imagePath == null &&
@@ -51,6 +72,7 @@ class ChatMessageUIMapper {
               localId: message.id,
               serverId: message.serverId,
               conversationAvatarUrl: conversationAvatarUrl,
+              reactions: reactions,
             );
           },
         )
@@ -106,5 +128,35 @@ class ChatMessageUIMapper {
     }
 
     return result;
+  }
+
+  List<ChatMessageReaction> _extractReactions(Map<String, dynamic>? metadata) {
+    if (metadata == null) {
+      return const <ChatMessageReaction>[];
+    }
+
+    final raw = metadata['reactions'];
+    if (raw is! List) {
+      return const <ChatMessageReaction>[];
+    }
+
+    return raw
+        .whereType<Map<String, dynamic>>()
+        .map(
+          (item) => ChatMessageReaction(
+            emoji: (item['emoji'] ?? '').toString(),
+            count: _toInt(item['count']) ?? 0,
+            myReaction: item['myReaction'] == true,
+          ),
+        )
+        .where((reaction) => reaction.emoji.trim().isNotEmpty && reaction.count > 0)
+        .toList(growable: false);
+  }
+
+  int? _toInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 }

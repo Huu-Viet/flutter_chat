@@ -24,17 +24,31 @@ class PresignMediaServiceImpl implements PresignMediaService {
     return FileUtils.getMimeTypeFromExtension(filePath) ?? fallback;
   }
 
+  dynamic _extractEnvelopeData(dynamic responseData) {
+    if (responseData is Map<String, dynamic> && responseData.containsKey('data')) {
+      return responseData['data'];
+    }
+    return responseData;
+  }
+
   Map<String, dynamic> _extractMediaPayload(dynamic responseData) {
-    if (responseData is! Map<String, dynamic>) {
+    final data = _extractEnvelopeData(responseData);
+    if (data is! Map<String, dynamic>) {
       throw Exception('Invalid response body format');
     }
+    return data;
+  }
 
-    final nestedData = responseData['data'];
-    if (nestedData is Map<String, dynamic>) {
-      return nestedData;
+  List<Map<String, dynamic>> _extractMediaListPayload(dynamic responseData) {
+    final data = _extractEnvelopeData(responseData);
+    if (data is! List) {
+      throw Exception('Invalid response list format');
     }
 
-    return responseData;
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
   }
 
   String? _extractMediaUrl(Map<String, dynamic> payload) {
@@ -52,6 +66,25 @@ class PresignMediaServiceImpl implements PresignMediaService {
     }
 
     return null;
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getMyMediaList() async {
+    try {
+      final response = await _dio.get('$_baseUrl/media');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _extractMediaListPayload(response.data);
+      }
+
+      throw Exception('Failed to get media list: ${response.statusCode}');
+    } on DioException catch (e) {
+      debugPrint('Error getting media list: ${e.response?.statusCode} - ${e.response?.data}');
+      throw Exception('Failed to get media list: ${e.response?.data ?? e.message}');
+    } catch (e) {
+      debugPrint('Error getting media list: $e');
+      throw Exception('Failed to get media list: $e');
+    }
   }
 
   @override
@@ -166,51 +199,85 @@ class PresignMediaServiceImpl implements PresignMediaService {
   }
 
   @override
-  Future<String> getImageUrlByMediaId(String mediaId) async {
+  Future<MediaInfo> presignAudio(String filePath, int size) async {
+    try {
+      final fileName = _buildFileName(filePath);
+      final mimeType = _resolveMimeType(filePath, 'audio/mpeg');
+      final requestBody = {
+        'type': 'audio',
+        'mimeType': mimeType,
+        'size': size,
+        'filename': fileName,
+      };
+
+      final response = await _dio.post(
+        '$_baseUrl/media/upload',
+        data: requestBody,
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final payload = _extractMediaPayload(response.data);
+        return MediaInfo.fromJson(payload);
+      }
+
+      throw Exception('Failed to upload audio: ${response.statusCode}');
+    } on DioException catch (e) {
+      debugPrint('Error uploading audio: ${e.response?.statusCode} - ${e.response?.data}');
+      throw Exception('Failed to upload audio: ${e.response?.data ?? e.message}');
+    } catch (e) {
+      debugPrint('Error uploading audio: $e');
+      throw Exception('Failed to upload audio: $e');
+    }
+  }
+
+  @override
+  Future<String> getMediaUrlByMediaId(
+    String mediaId, {
+    String prefer = 'OPTIMIZED',
+    String? conversationId,
+  }) async {
     final normalizedMediaId = mediaId.trim();
     if (normalizedMediaId.isEmpty) {
       throw Exception('Media ID is empty');
     }
 
     try {
-      final response = await _dio.get('$_baseUrl/media/$normalizedMediaId');
+      final response = await _dio.get(
+        '$_baseUrl/media/$normalizedMediaId/url',
+        queryParameters: {
+          'prefer': prefer,
+          if (conversationId != null && conversationId.trim().isNotEmpty)
+            'conversationId': conversationId.trim(),
+        },
+      );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final payload = _extractMediaPayload(response.data);
         final mediaUrl = _extractMediaUrl(payload);
-        if (mediaUrl == null) {
-          throw Exception('Missing image url in media response');
+        if (mediaUrl == null || mediaUrl.trim().isEmpty) {
+          throw Exception('Missing media url in response');
         }
         return mediaUrl;
       }
 
       throw Exception('Failed to get media url: ${response.statusCode}');
     } on DioException catch (e) {
-      final statusCode = e.response?.statusCode;
-
-      // Backward-compatible fallback when backend exposes url endpoint.
-      if (statusCode == 404) {
-        try {
-          final fallbackResponse = await _dio.get('$_baseUrl/media/$normalizedMediaId/url');
-          if (fallbackResponse.statusCode == 200 || fallbackResponse.statusCode == 201) {
-            final payload = _extractMediaPayload(fallbackResponse.data);
-            final mediaUrl = _extractMediaUrl(payload);
-            if (mediaUrl != null) {
-              return mediaUrl;
-            }
-            throw Exception('Missing image url in fallback media response');
-          }
-        } on DioException catch (_) {
-          // Fall through to the main error below.
-        }
-      }
-
       debugPrint('Error getting media url: ${e.response?.statusCode} - ${e.response?.data}');
       throw Exception('Failed to get media url: ${e.response?.data ?? e.message}');
     } catch (e) {
       debugPrint('Error getting media url: $e');
       throw Exception('Failed to get media url: $e');
     }
+  }
+
+  @override
+  Future<String> getImageUrlByMediaId(String mediaId) async {
+    return getMediaUrlByMediaId(mediaId, prefer: 'OPTIMIZED');
   }
 
 
@@ -228,6 +295,8 @@ class PresignMediaServiceImpl implements PresignMediaService {
         contentType = _resolveMimeType(filePath, 'image/jpeg');
       } else if (fileType == 'video') {
         contentType = _resolveMimeType(filePath, 'video/mp4');
+      } else if (fileType == 'audio') {
+        contentType = _resolveMimeType(filePath, 'audio/mpeg');
       } else if (fileType == 'file') {
         contentType = _resolveMimeType(filePath, 'application/pdf');
       } else {
@@ -278,6 +347,183 @@ class PresignMediaServiceImpl implements PresignMediaService {
     } catch (e) {
       debugPrint('Error completing upload: $e');
       throw Exception('Failed to complete upload: $e');
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> getMediaPlayInfo(
+    String mediaId, {
+    String? conversationId,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '$_baseUrl/media/${mediaId.trim()}/play-info',
+        queryParameters: {
+          if (conversationId != null && conversationId.trim().isNotEmpty)
+            'conversationId': conversationId.trim(),
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _extractMediaPayload(response.data);
+      }
+
+      throw Exception('Failed to get media play info: ${response.statusCode}');
+    } on DioException catch (e) {
+      debugPrint('Error getting media play info: ${e.response?.statusCode} - ${e.response?.data}');
+      throw Exception('Failed to get media play info: ${e.response?.data ?? e.message}');
+    } catch (e) {
+      debugPrint('Error getting media play info: $e');
+      throw Exception('Failed to get media play info: $e');
+    }
+  }
+
+  @override
+  Future<void> deleteMedia(String mediaId) async {
+    try {
+      final response = await _dio.delete('$_baseUrl/media/${mediaId.trim()}');
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('Failed to delete media: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      debugPrint('Error deleting media: ${e.response?.statusCode} - ${e.response?.data}');
+      throw Exception('Failed to delete media: ${e.response?.data ?? e.message}');
+    } catch (e) {
+      debugPrint('Error deleting media: $e');
+      throw Exception('Failed to delete media: $e');
+    }
+  }
+
+  @override
+  Future<void> crossShareMedia({
+    required String mediaId,
+    required String sourceConversationId,
+    required String targetConversationId,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '$_baseUrl/media/${mediaId.trim()}/cross-share',
+        data: {
+          'sourceConversationId': sourceConversationId,
+          'targetConversationId': targetConversationId,
+        },
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('Failed to cross-share media: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      debugPrint('Error cross-sharing media: ${e.response?.statusCode} - ${e.response?.data}');
+      throw Exception('Failed to cross-share media: ${e.response?.data ?? e.message}');
+    } catch (e) {
+      debugPrint('Error cross-sharing media: $e');
+      throw Exception('Failed to cross-share media: $e');
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> initMultipartUpload({
+    required String filename,
+    required String mimeType,
+    required String type,
+    required int totalSize,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '$_baseUrl/media/multipart/init',
+        data: {
+          'filename': filename,
+          'mimeType': mimeType,
+          'type': type,
+          'totalSize': totalSize,
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _extractMediaPayload(response.data);
+      }
+
+      throw Exception('Failed to init multipart upload: ${response.statusCode}');
+    } on DioException catch (e) {
+      debugPrint('Error init multipart upload: ${e.response?.statusCode} - ${e.response?.data}');
+      throw Exception('Failed to init multipart upload: ${e.response?.data ?? e.message}');
+    } catch (e) {
+      debugPrint('Error init multipart upload: $e');
+      throw Exception('Failed to init multipart upload: $e');
+    }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> presignMultipartParts({
+    required String mediaId,
+    required List<int> partNumbers,
+    int? expiresIn,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '$_baseUrl/media/multipart/presign-parts',
+        data: {
+          'mediaId': mediaId,
+          'partNumbers': partNumbers,
+          if (expiresIn != null) 'expiresIn': expiresIn,
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _extractMediaListPayload(response.data);
+      }
+
+      throw Exception('Failed to presign multipart parts: ${response.statusCode}');
+    } on DioException catch (e) {
+      debugPrint('Error presign multipart parts: ${e.response?.statusCode} - ${e.response?.data}');
+      throw Exception('Failed to presign multipart parts: ${e.response?.data ?? e.message}');
+    } catch (e) {
+      debugPrint('Error presign multipart parts: $e');
+      throw Exception('Failed to presign multipart parts: $e');
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> completeMultipartUpload({
+    required String mediaId,
+    required List<Map<String, dynamic>> parts,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '$_baseUrl/media/multipart/complete',
+        data: {
+          'mediaId': mediaId,
+          'parts': parts,
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return _extractMediaPayload(response.data);
+      }
+
+      throw Exception('Failed to complete multipart upload: ${response.statusCode}');
+    } on DioException catch (e) {
+      debugPrint('Error complete multipart upload: ${e.response?.statusCode} - ${e.response?.data}');
+      throw Exception('Failed to complete multipart upload: ${e.response?.data ?? e.message}');
+    } catch (e) {
+      debugPrint('Error complete multipart upload: $e');
+      throw Exception('Failed to complete multipart upload: $e');
+    }
+  }
+
+  @override
+  Future<void> abortMultipartUpload(String mediaId) async {
+    try {
+      final response = await _dio.delete('$_baseUrl/media/multipart/${mediaId.trim()}');
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('Failed to abort multipart upload: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      debugPrint('Error abort multipart upload: ${e.response?.statusCode} - ${e.response?.data}');
+      throw Exception('Failed to abort multipart upload: ${e.response?.data ?? e.message}');
+    } catch (e) {
+      debugPrint('Error abort multipart upload: $e');
+      throw Exception('Failed to abort multipart upload: $e');
     }
   }
 }

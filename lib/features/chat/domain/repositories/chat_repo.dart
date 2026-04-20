@@ -27,6 +27,27 @@ abstract class ChatRepository {
     required String content,
   });
 
+  Future<Either<Failure, Message>> deleteMessage({
+    required String localId,
+    required String messageId,
+  });
+
+  Future<Either<Failure, void>> markMessageDeletedLocal({
+    required String messageIdentifier,
+  });
+
+  Future<Either<Failure, List<MessageReaction>>> updateMessageReaction({
+    required String messageId,
+    required String conversationId,
+    required String emoji,
+    String action,
+  });
+
+  Future<Either<Failure, List<MessageReaction>>> markMessageReactionsLocal({
+    required String messageIdentifier,
+    required List<MessageReaction> reactions,
+  });
+
   Future<Either<Failure, void>> clearLocalCache();
 
   Stream<Either<Failure, List<Conversation>>> watchConversationsLocal();

@@ -1,6 +1,8 @@
 import 'package:flutter_chat/features/chat/data/response/conversation_response.dart';
 import 'package:flutter_chat/features/chat/data/response/message_edit_response.dart';
 import 'package:flutter_chat/features/chat/data/response/message_list_response.dart';
+import 'package:flutter_chat/features/chat/data/response/message_media_precheck_response.dart';
+import 'package:flutter_chat/features/chat/data/response/message_reaction_response.dart';
 import 'package:flutter_chat/features/chat/data/response/message_send_response.dart';
 import 'package:flutter_chat/features/chat/data/response/sticker_package_response.dart';
 import 'package:flutter_chat/features/chat/data/response/sticker_item_response.dart';
@@ -27,9 +29,51 @@ abstract class ChatService {
     Map<String, dynamic>? metadata,
   });
 
+  Future<MessageMediaPrecheckResponse> preCheckMedia({
+    required String conversationId,
+    required String mimeType,
+    required int fileSize,
+  });
+
   Future<MessageEditResponse> editMessage({
     required String messageId,
     required String content,
+  });
+
+  Future<void> deleteMessage(String messageId);
+
+  Future<void> revokeMessage({
+    required String messageId,
+    required String conversationId,
+  });
+
+  Future<void> deleteMessageForMe({
+    required String messageId,
+    required String conversationId,
+  });
+
+  Future<void> forwardMessage({
+    required String sourceMessageId,
+    required String sourceConversationId,
+    required List<String> targetConversationIds,
+    bool includeCaption = true,
+  });
+
+  Future<void> pinMessage({
+    required String messageId,
+    required String conversationId,
+  });
+
+  Future<void> unpinMessage({
+    required String messageId,
+    required String conversationId,
+  });
+
+  Future<MessageReactionResponse> updateMessageReaction({
+    required String messageId,
+    required String conversationId,
+    required String emoji,
+    String action = 'add',
   });
 
   Future<StickerPackageResponse> getStickerPackages();

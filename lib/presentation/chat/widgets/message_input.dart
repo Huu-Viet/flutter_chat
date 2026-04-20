@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_chat/l10n/app_localizations.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
@@ -270,6 +271,7 @@ class _MessageInputState extends State<MessageInput> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return SafeArea(
       top: false,
       child: Container(
@@ -286,7 +288,7 @@ class _MessageInputState extends State<MessageInput> {
                   onPressed: () => _showEmojiPicker(context),
                 ),
                 const SizedBox(width: 8),
-                Expanded(child: _buildTextField(context)),
+                Expanded(child: _buildTextField(context, l10n)),
                 if (!_hasText) ...[
                   const SizedBox(width: 8),
                   _buildIconButton(icon: Icons.more_horiz, onPressed: () {}),
@@ -448,11 +450,11 @@ class _MessageInputState extends State<MessageInput> {
     );
   }
 
-  Widget _buildTextField(BuildContext context) {
+  Widget _buildTextField(BuildContext context, AppLocalizations l10n) {
     return TextField(
       controller: widget.controller,
-      decoration: const InputDecoration(
-        hintText: 'Tin nhắn',
+      decoration: InputDecoration(
+        hintText: l10n.chat_hint,
         border: InputBorder.none,
         contentPadding: EdgeInsets.symmetric(horizontal: 0, vertical: 10),
         hintStyle: TextStyle(color: Colors.grey),

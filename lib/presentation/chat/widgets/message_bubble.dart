@@ -5,25 +5,87 @@ import 'package:flutter_chat/core/utils/animated_sticker_sprite.dart';
 import 'package:flutter_chat/core/utils/date_utils.dart';
 import 'package:flutter_chat/presentation/chat/chat_image_cache_manager.dart';
 import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
+import 'package:flutter_chat/presentation/chat/widgets/message_reactions_bar.dart';
 
 class MessageBubble extends StatelessWidget {
   final ChatMessage message;
   final VoidCallback? onLongPress;
+  final ValueChanged<LongPressStartDetails>? onLongPressStart;
+  final VoidCallback? onReactPressed;
+  final bool showReactAction;
 
   const MessageBubble({
     super.key,
     required this.message,
     this.onLongPress,
+    this.onLongPressStart,
+    this.onReactPressed,
+    this.showReactAction = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final hasVisualMedia = message.imagePath != null;
+    final bubble = Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: hasVisualMedia ? EdgeInsets.zero : const EdgeInsets.all(12),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.7,
+          ),
+          decoration: BoxDecoration(
+            color: hasVisualMedia
+                ? Colors.transparent
+                : message.isSentByMe
+                ? Theme.of(context).colorScheme.primary
+                : Colors.grey[300],
+            borderRadius: BorderRadius.circular(hasVisualMedia ? 8 : 16),
+          ),
+          child: _buildMessageContent(context),
+        ),
+        if (showReactAction)
+          Positioned(
+            right: message.isSentByMe ? null : -6,
+            left: message.isSentByMe ? -6 : null,
+            bottom: 2,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onReactPressed,
+                borderRadius: BorderRadius.circular(10),
+                child: Ink(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Theme.of(context).colorScheme.surfaceBright,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Theme.of(context).colorScheme.surfaceBright.withAlpha(20),
+                        blurRadius: 36,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.favorite_border_rounded,
+                    size: 11,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
 
     return Align(
       alignment: message.isSentByMe ? Alignment.centerRight : Alignment.centerLeft,
       child: GestureDetector(
         onLongPress: onLongPress,
+        onLongPressStart: onLongPressStart,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           mainAxisAlignment: message.isSentByMe ? MainAxisAlignment.end : MainAxisAlignment.start,
@@ -44,21 +106,16 @@ class MessageBubble extends StatelessWidget {
                       )
                     : const SizedBox(width: 32),
               ),
-            Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: hasVisualMedia ? EdgeInsets.zero : const EdgeInsets.all(12),
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.7,
-              ),
-              decoration: BoxDecoration(
-                color: hasVisualMedia
-                    ? Colors.transparent
-                    : message.isSentByMe
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.grey[300],
-                borderRadius: BorderRadius.circular(hasVisualMedia ? 8 : 16),
-              ),
-              child: _buildMessageContent(),
+            Column(
+              crossAxisAlignment:
+                  message.isSentByMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                bubble,
+                MessageReactionsBar(
+                  reactions: message.reactions,
+                  isSentByMe: message.isSentByMe,
+                ),
+              ],
             ),
           ],
         ),
@@ -66,7 +123,7 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildMessageContent() {
+  Widget _buildMessageContent(BuildContext context) {
     if (message.imagePath != null) {
       final imagePath = message.imagePath!;
       final isStickerMessage = message.type.trim().toLowerCase() == 'sticker';
@@ -148,7 +205,12 @@ class MessageBubble extends StatelessWidget {
         Text(
           message.text ?? '',
           style: TextStyle(
-            color: message.isSentByMe ? Colors.white : Colors.black,
+            color: message.isDeleted
+                ? (message.isSentByMe ? Colors.white70 : Colors.black45)
+                : message.isSentByMe
+                ? Colors.white
+                : Colors.black,
+            fontStyle: message.isDeleted ? FontStyle.italic : FontStyle.normal,
           ),
         ),
         // Timestamp + status badge only on last message in group

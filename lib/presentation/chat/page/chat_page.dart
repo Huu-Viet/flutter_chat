@@ -30,13 +30,21 @@ class ChatPage extends ConsumerStatefulWidget {
 }
 
 class _ChatPageState extends ConsumerState<ChatPage> {
+  static const List<String> _reactionEmojis = <String>['❤️', '👍', '🤣', '😮', '😭', '😡'];
+  static const double _messageActionDialogWidth = 280;
+  static const double _messageActionDialogMargin = 16;
   final TextEditingController _messageController = TextEditingController();
   final List<ChatMessage> _messages = [];
   final MediaService _mediaService = MediaService();
   final ChatMessageUIMapper _uiMapper = ChatMessageUIMapper();
   static const Duration _messageEditWindow = Duration(hours: 1);
+  static const Duration _messageDeleteWindow = Duration(hours: 24);
 
   bool _canEditMessage(ChatMessage message) {
+    if (message.isDeleted) {
+      return false;
+    }
+
     if (!message.isSentByMe) {
       return false;
     }
@@ -51,6 +59,41 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
 
     return DateTime.now().difference(message.timestamp) <= _messageEditWindow;
+  }
+
+  bool _canDeleteMessage(ChatMessage message) {
+    if (message.isDeleted) {
+      return false;
+    }
+
+    if (!message.isSentByMe) {
+      return false;
+    }
+
+    return DateTime.now().difference(message.timestamp) <= _messageDeleteWindow;
+  }
+
+  bool _canReactToMessage(ChatMessage message) {
+    if (message.isDeleted || message.isUploading || message.isResolvingImage) {
+      return false;
+    }
+
+    final messageId = _resolveMessageIdForAction(message);
+    return messageId != null && messageId.isNotEmpty;
+  }
+
+  String? _resolveMessageIdForAction(ChatMessage message) {
+    final serverId = message.serverId?.trim();
+    if (serverId != null && serverId.isNotEmpty) {
+      return serverId;
+    }
+
+    final localId = message.localId?.trim();
+    if (localId != null && localId.isNotEmpty) {
+      return localId;
+    }
+
+    return null;
   }
 
   String _mapChatErrorMessage(String message, AppLocalizations l10n) {
@@ -166,24 +209,75 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
   }
 
-
-  Future<void> _showMessageActions(BuildContext context, ChatMessage message, AppLocalizations l10n) async {
+  Future<void> _showMessageActions(
+    BuildContext context,
+    ChatMessage message,
+    AppLocalizations l10n, {
+    Offset? anchor,
+  }) async {
     final canEdit = _canEditMessage(message);
-    final hasText = message.text != null && message.text!.isNotEmpty;
+    final canDelete = _canDeleteMessage(message);
+    final canReact = _canReactToMessage(message);
+    final hasText = !message.isDeleted && message.text != null && message.text!.isNotEmpty;
 
-    if (!hasText && !canEdit) return;
+    if (!hasText && !canEdit && !canDelete && !canReact) return;
 
-    final action = await showDialog<MessageAction>(
+    final mediaSize = MediaQuery.of(context).size;
+    final dialogWidth = _messageActionDialogWidth
+        .clamp(
+          0,
+          mediaSize.width - (_messageActionDialogMargin * 2),
+        )
+        .toDouble();
+    final anchorPoint = anchor ?? Offset(mediaSize.width / 2, mediaSize.height / 2);
+    final dialogLeft = (message.isSentByMe
+        ? (anchorPoint.dx - dialogWidth + 40).clamp(
+            _messageActionDialogMargin,
+            mediaSize.width - dialogWidth - _messageActionDialogMargin,
+          )
+        : (anchorPoint.dx - 24).clamp(
+            _messageActionDialogMargin,
+            mediaSize.width - dialogWidth - _messageActionDialogMargin,
+          ))
+        .toDouble();
+    final dialogTop = (anchorPoint.dy - 120)
+        .clamp(
+          _messageActionDialogMargin,
+          mediaSize.height - 220,
+        )
+        .toDouble();
+
+    final result = await showGeneralDialog<MessageActionResult>(
       context: context,
-      barrierColor: Colors.black38,
       barrierDismissible: true,
-      builder: (_) => MessageActionDialog(
-        canCopy: hasText,
-        canEdit: canEdit,
+      barrierLabel: 'message-actions',
+      barrierColor: Colors.black26,
+      pageBuilder: (dialogContext, _, __) => Stack(
+        children: [
+          Positioned(
+            left: dialogLeft,
+            top: dialogTop,
+            width: dialogWidth,
+            child: MessageActionDialog(
+              canCopy: hasText,
+              canEdit: canEdit,
+              canDelete: canDelete,
+              reactions: canReact ? _reactionEmojis : const <String>[],
+            ),
+          ),
+        ],
       ),
     );
 
-    if (!mounted || action == null) return;
+    if (!mounted || result == null) return;
+
+    if (result.emoji != null) {
+      _handleReactionSelection(message, result.emoji!);
+      return;
+    }
+
+    final action = result.action;
+    if (action == null) return;
 
     switch (action) {
       case MessageAction.copy:
@@ -195,7 +289,30 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         }
       case MessageAction.edit:
         if (mounted) _showEditDialog(context, message, l10n);
+      case MessageAction.delete:
+        final localId = message.localId;
+        if (localId == null || localId.trim().isEmpty) return;
+
+        ref.read(chatBlocProvider).add(DeleteMessageEvent(
+          localId: localId,
+          messageId: localId,
+        ));
     }
+  }
+
+  void _handleReactionSelection(ChatMessage message, String emoji) {
+    final messageId = _resolveMessageIdForAction(message);
+    if (messageId == null || messageId.isEmpty) {
+      return;
+    }
+
+    ref.read(chatBlocProvider).add(
+      UpdateMessageReactionEvent(
+        messageId: messageId,
+        conversationId: widget.conversationId,
+        emoji: emoji,
+      ),
+    );
   }
 
   Future<void> _showEditDialog(BuildContext context, ChatMessage message, AppLocalizations l10n) async {
@@ -291,6 +408,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                               state.resolvingImageMediaIds,
                               state.currentUserId,
                               state.conversation?.avatarUrl,
+                              l10n.chat_deleted_message,
                             )
                           : _messages;
 
@@ -302,7 +420,16 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                           final message = displayMessages[displayMessages.length - 1 - index];
                           return MessageBubble(
                             message: message,
-                            onLongPress: () => _showMessageActions(context, message, l10n),
+                            showReactAction: message.isLastInGroup && _canReactToMessage(message),
+                            onReactPressed: message.isLastInGroup && _canReactToMessage(message)
+                                ? () => _handleReactionSelection(message, '❤️')
+                                : null,
+                            onLongPressStart: (details) => _showMessageActions(
+                              context,
+                              message,
+                              l10n,
+                              anchor: details.globalPosition,
+                            ),
                           );
                         },
                       );

@@ -82,6 +82,36 @@ final class EditMessageEvent extends ChatEvent {
   List<Object> get props => [localId, messageId, content];
 }
 
+final class DeleteMessageEvent extends ChatEvent {
+  final String localId;
+  final String messageId;
+
+  const DeleteMessageEvent({
+    required this.localId,
+    required this.messageId,
+  });
+
+  @override
+  List<Object> get props => [localId, messageId];
+}
+
+final class UpdateMessageReactionEvent extends ChatEvent {
+  final String messageId;
+  final String conversationId;
+  final String emoji;
+  final String action;
+
+  const UpdateMessageReactionEvent({
+    required this.messageId,
+    required this.conversationId,
+    required this.emoji,
+    this.action = 'add',
+  });
+
+  @override
+  List<Object> get props => [messageId, conversationId, emoji, action];
+}
+
 final class _LocalMessagesErrorEvent extends ChatEvent {
   final String message;
 
