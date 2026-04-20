@@ -166,6 +166,43 @@ class PresignMediaServiceImpl implements PresignMediaService {
   }
 
   @override
+  Future<MediaInfo> presignAudio(String filePath, int size) async {
+    try {
+      final fileName = _buildFileName(filePath);
+      final mimeType = _resolveMimeType(filePath, 'audio/mp4');
+      final requestBody = {
+        'type': 'audio',
+        'mimeType': mimeType,
+        'size': size,
+        'filename': fileName,
+      };
+
+      final response = await _dio.post(
+        '$_baseUrl/media/upload',
+        data: requestBody,
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final payload = _extractMediaPayload(response.data);
+        return MediaInfo.fromJson(payload);
+      } else {
+        throw Exception('Failed to upload audio: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      debugPrint('Error uploading audio: ${e.response?.statusCode} - ${e.response?.data}');
+      throw Exception('Failed to upload audio: ${e.response?.data ?? e.message}');
+    } catch (e) {
+      debugPrint('Error uploading audio: $e');
+      throw Exception('Failed to upload audio: $e');
+    }
+  }
+
+  @override
   Future<String> getImageUrlByMediaId(String mediaId) async {
     final normalizedMediaId = mediaId.trim();
     if (normalizedMediaId.isEmpty) {
@@ -228,6 +265,8 @@ class PresignMediaServiceImpl implements PresignMediaService {
         contentType = _resolveMimeType(filePath, 'image/jpeg');
       } else if (fileType == 'video') {
         contentType = _resolveMimeType(filePath, 'video/mp4');
+      } else if (fileType == 'audio') {
+        contentType = _resolveMimeType(filePath, 'audio/mp4');
       } else if (fileType == 'file') {
         contentType = _resolveMimeType(filePath, 'application/pdf');
       } else {

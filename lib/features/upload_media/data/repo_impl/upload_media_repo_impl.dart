@@ -68,6 +68,8 @@ class UploadMediaRepoImpl implements UploadMediaRepository {
         return _presignMediaService.presignImage(filePath, size);
       case 'video':
         return _presignMediaService.presignVideo(filePath, size);
+      case 'audio':
+        return _presignMediaService.presignAudio(filePath, size);
       case 'file':
         return _presignMediaService.presignFile(filePath, size);
       default:
