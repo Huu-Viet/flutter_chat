@@ -12,6 +12,7 @@ class ChatMessageUIMapper {
     List<Message> messages,
     Set<String> uploadingImagePaths,
     Map<String, String> imageUrlsByMediaId,
+    Map<String, String> audioUrlsByMediaId,
     Set<String> resolvingImageMediaIds,
     String? currentUserId,
     String? conversationAvatarUrl,
@@ -43,6 +44,12 @@ class ChatMessageUIMapper {
             final stickerUrl = _helpers.extractStickerUrl(message);
             final stickerId = _helpers.extractStickerId(message);
             final localPath = _helpers.isLikelyLocalImagePath(message.content) ? message.content : null;
+            final audioUrl = mediaId != null && mediaId.isNotEmpty
+              ? audioUrlsByMediaId[mediaId]
+              : null;
+            final audioMetadata = message.metadata;
+            final audioDurationSeconds = _extractAudioDurationSeconds(audioMetadata);
+            final audioWaveform = _parseWaveform(audioMetadata?['waveform']);
             final resolvedRemoteUrl = mediaId != null && mediaId.isNotEmpty
                 ? imageUrlsByMediaId[mediaId]
                 : null;
@@ -58,6 +65,9 @@ class ChatMessageUIMapper {
               imagePath: imagePath,
               mediaId: mediaId,
               stickerId: stickerId,
+              audioUrl: audioUrl,
+              audioDurationSeconds: audioDurationSeconds,
+              audioWaveform: audioWaveform,
               type: message.type,
               isSentByMe: currentUserId != null && message.senderId == currentUserId,
               senderId: message.senderId,
@@ -158,5 +168,34 @@ class ChatMessageUIMapper {
     if (value is num) return value.toInt();
     if (value is String) return int.tryParse(value);
     return null;
+  }
+
+  int? _extractAudioDurationSeconds(Map<String, dynamic>? metadata) {
+    if (metadata == null) {
+      return null;
+    }
+
+    final durationMs = _toInt(metadata['durationMs']);
+    if (durationMs == null || durationMs < 0) {
+      return null;
+    }
+
+    return (durationMs / 1000).round();
+  }
+
+  List<double> _parseWaveform(dynamic value) {
+    if (value is! List) {
+      return const <double>[];
+    }
+
+    return value
+        .map((item) {
+          if (item is double) return item;
+          if (item is int) return item.toDouble();
+          if (item is num) return item.toDouble();
+          if (item is String) return double.tryParse(item) ?? 0.0;
+          return 0.0;
+        })
+        .toList(growable: false);
   }
 }

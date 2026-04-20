@@ -4,10 +4,14 @@ import 'dart:io';
 import 'package:bloc/bloc.dart';
 import 'package:dartz/dartz.dart';
 import 'package:equatable/equatable.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
+import 'package:flutter_chat/core/utils/waveform_utils.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/features/upload_media/export.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter_chat/presentation/chat/chat_image_cache_manager.dart';
 import 'package:uuid/uuid.dart';
 
@@ -24,8 +28,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final GetCurrentUserIdUseCase getCurrentUserIdUseCase;
   final UploadMediaUseCase uploadMediaUseCase;
   final GetImageUrlByMediaIdUseCase getImageUrlByMediaIdUseCase;
+  final GetMediaPlayInfoUseCase getMediaPlayInfoUseCase;
+  final GetMediaUrlByMediaIdUseCase getMediaUrlByMediaIdUseCase;
   final WatchConversationsLocalUseCase watchConversationsLocalUseCase;
+  final AudioCacheDao audioCacheDao;
   String? _currentUserId;
+  String? _currentConversationId;
 
   StreamSubscription<Either<Failure, List<Message>>>? _localSubscription;
   StreamSubscription<Either<Failure, List<Conversation>>>? _conversationSubscription;
@@ -33,7 +41,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   Conversation? _currentConversation;
   final Set<String> _uploadingImagePaths = <String>{};
   final Map<String, String> _imageUrlsByMediaId = <String, String>{};
+  final Map<String, String> _audioUrlsByMediaId = <String, String>{};
   final Set<String> _resolvingImageMediaIds = <String>{};
+  final Set<String> _resolvingAudioMediaIds = <String>{};
 
   ChatBloc({
     required this.fetchMessagesUseCase,
@@ -45,7 +55,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     required this.getCurrentUserIdUseCase,
     required this.uploadMediaUseCase,
     required this.getImageUrlByMediaIdUseCase,
+    required this.getMediaPlayInfoUseCase,
+    required this.getMediaUrlByMediaIdUseCase,
     required this.watchConversationsLocalUseCase,
+    required this.audioCacheDao,
   }) : super(ChatInitial()) {
     on<ChatInitialLoadEvent>(_onChatInitialLoad);
     on<SendTextEvent>(_onSendText);
@@ -56,9 +69,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<UpdateMessageReactionEvent>(_onUpdateMessageReaction);
     on<SendVoiceEvent>(_onSendVoice);
     on<FetchImageEvent>(_onFetchImageByMediaId);
+    on<FetchAudioEvent>(_onFetchAudioByMediaId);
     on<_LocalMessagesChangedEvent>((event, emit) {
       _currentMessages = event.messages;
-      _requestMissingImageUrls(event.messages);
+      _requestMissingMediaUrls(event.messages);
       emit(_buildChatLoaded(_currentMessages));
     });
     on<_LocalMessagesErrorEvent>((event, emit) => emit(ChatError(event.message)));
@@ -73,6 +87,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       messages,
       uploadingImagePaths: Set<String>.from(_uploadingImagePaths),
       imageUrlsByMediaId: Map<String, String>.from(_imageUrlsByMediaId),
+      audioUrlsByMediaId: Map<String, String>.from(_audioUrlsByMediaId),
       resolvingImageMediaIds: Set<String>.from(_resolvingImageMediaIds),
       conversation: _currentConversation,
       currentUserId: _currentUserId,
@@ -97,6 +112,79 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     return File(resolvedPath).existsSync();
   }
 
+  bool _hasUsableResolvedAudio(String mediaId) {
+    final resolvedUrl = _audioUrlsByMediaId[mediaId];
+    if (resolvedUrl == null || resolvedUrl.trim().isEmpty) {
+      return false;
+    }
+
+    final uri = Uri.tryParse(resolvedUrl);
+    if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
+      return true;
+    }
+
+    return File(resolvedUrl).existsSync();
+  }
+
+  Future<String?> _resolveLocalAudioPath(String mediaId) async {
+    final cachedPath = await audioCacheDao.getAudioPathByMediaId(mediaId);
+    if (cachedPath == null || cachedPath.trim().isEmpty) {
+      return null;
+    }
+
+    final file = File(cachedPath.trim());
+    if (!file.existsSync()) {
+      await audioCacheDao.deleteByMediaId(mediaId);
+      return null;
+    }
+
+    return file.path;
+  }
+
+  Future<String?> _downloadAudioToLocal(String mediaId, String remoteUrl) async {
+    final uri = Uri.tryParse(remoteUrl.trim());
+    if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
+      return null;
+    }
+
+    final rootDir = await getApplicationDocumentsDirectory();
+    final audioDir = Directory(p.join(rootDir.path, 'audio_cache'));
+    if (!audioDir.existsSync()) {
+      await audioDir.create(recursive: true);
+    }
+
+    final ext = p.extension(uri.path).trim();
+    final fileExt = ext.isNotEmpty ? ext : '.m4a';
+    final targetPath = p.join(audioDir.path, '$mediaId$fileExt');
+    final targetFile = File(targetPath);
+
+    final client = HttpClient();
+    try {
+      final request = await client.getUrl(uri);
+      final response = await request.close();
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return null;
+      }
+
+      final bytes = <int>[];
+      await for (final chunk in response) {
+        bytes.addAll(chunk);
+      }
+
+      if (bytes.isEmpty) {
+        return null;
+      }
+
+      await targetFile.writeAsBytes(bytes, flush: true);
+      return targetFile.path;
+    } catch (_) {
+      return null;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
   bool _isImageLikeMessage(Message message) {
     final mediaId = message.mediaId?.trim();
     if (mediaId == null || mediaId.isEmpty) {
@@ -118,14 +206,35 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     return maxOffset + 1;
   }
 
-  void _requestMissingImageUrls(List<Message> messages) {
+  void _requestMissingMediaUrls(List<Message> messages) {
     for (final message in messages) {
-      if (!_isImageLikeMessage(message) && message.type.trim().toLowerCase() != 'audio') {
+      final normalizedType = message.type.trim().toLowerCase();
+      if (!_isImageLikeMessage(message) && normalizedType != 'audio') {
         continue;
       }
 
       final mediaId = message.mediaId?.trim();
       if (mediaId == null || mediaId.isEmpty) {
+        continue;
+      }
+
+      if (normalizedType == 'audio') {
+        final hasUsableResolvedAudio = _hasUsableResolvedAudio(mediaId);
+        if (!hasUsableResolvedAudio) {
+          _audioUrlsByMediaId.remove(mediaId);
+        }
+
+        if (hasUsableResolvedAudio ||
+            _resolvingAudioMediaIds.contains(mediaId) ||
+            _currentConversationId == null ||
+            _currentConversationId!.trim().isEmpty) {
+          continue;
+        }
+
+        add(FetchAudioEvent(
+          mediaId: mediaId,
+          conversationId: _currentConversationId!,
+        ));
         continue;
       }
 
@@ -143,6 +252,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   }
 
   FutureOr<void> _onChatInitialLoad(ChatInitialLoadEvent event, Emitter<ChatState> emit) async {
+    _currentConversationId = event.conversationId;
     final userIdResult = await getCurrentUserIdUseCase();
     _currentUserId = userIdResult.fold((_) => _currentUserId, (id) => id);
 
@@ -154,7 +264,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       (failure) => emit(ChatError(failure.message)),
       (messages) {
         _currentMessages = messages;
-        _requestMissingImageUrls(messages);
+        _requestMissingMediaUrls(messages);
         emit(_buildChatLoaded(messages));
       },
     );
@@ -358,6 +468,19 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       return;
     }
 
+    await audioCacheDao.saveAudioPath(
+      mediaId: mediaId,
+      localPath: event.filePath,
+    );
+    _audioUrlsByMediaId[mediaId] = event.filePath;
+    emit(_buildChatLoaded(_currentMessages));
+
+    final normalizedWaveform = WaveformUtils.normalize(
+      event.waveform,
+      maxBars: 64,
+    );
+    final localOffset = _nextLocalOffset();
+
     final messageId = Uuid().v4();
     final message = Message(
       id: messageId,
@@ -365,18 +488,20 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       senderId: _currentUserId ?? '',
       content: '',
       type: 'audio',
-      offset: null,
+      offset: localOffset,
       isDeleted: false,
       mediaId: mediaId,
       serverId: messageId,
       metadata: <String, dynamic>{
         'mediaId': mediaId,
         'durationMs': event.durationMs,
-        'waveform': event.waveform.map((e) => e.toInt()).toList(),
+        'waveform': normalizedWaveform,
       },
-      createdAt: DateTime.now(),
+      createdAt: DateTime.now().toUtc(),
       editedAt: null,
     );
+
+    debugPrint("[ChatBloc] Send voice message -> ${message.metadata}");
 
     final sendResult = await sendMessageUseCase(message: message);
     sendResult.fold(
@@ -425,6 +550,145 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
     _resolvingImageMediaIds.remove(mediaId);
     emit(_buildChatLoaded(_currentMessages));
+  }
+
+  Future<void> _onFetchAudioByMediaId(
+    FetchAudioEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final mediaId = event.mediaId.trim();
+    if (mediaId.isEmpty) {
+      return;
+    }
+
+    final localAudioPath = await _resolveLocalAudioPath(mediaId);
+    if (localAudioPath != null) {
+      _audioUrlsByMediaId[mediaId] = localAudioPath;
+      emit(_buildChatLoaded(_currentMessages));
+      return;
+    }
+
+    final hasUsableResolvedAudio = _hasUsableResolvedAudio(mediaId);
+    if (!hasUsableResolvedAudio) {
+      _audioUrlsByMediaId.remove(mediaId);
+    }
+
+    if (hasUsableResolvedAudio) {
+      return;
+    }
+
+    if (_resolvingAudioMediaIds.contains(mediaId)) {
+      return;
+    }
+
+    _resolvingAudioMediaIds.add(mediaId);
+
+    final resolvedAudioUrl = await _resolveAudioUrlFromServer(
+      mediaId: mediaId,
+      conversationId: event.conversationId,
+    );
+
+    if (resolvedAudioUrl.isNotEmpty) {
+      final downloadedPath = await _downloadAudioToLocal(mediaId, resolvedAudioUrl);
+      if (downloadedPath != null && downloadedPath.trim().isNotEmpty) {
+        _audioUrlsByMediaId[mediaId] = downloadedPath;
+        await audioCacheDao.saveAudioPath(
+          mediaId: mediaId,
+          localPath: downloadedPath,
+        );
+      } else {
+        _audioUrlsByMediaId[mediaId] = resolvedAudioUrl;
+      }
+    } else {
+      add(_LocalMessagesErrorEvent('Cannot resolve playable audio URL')); 
+    }
+
+    _resolvingAudioMediaIds.remove(mediaId);
+
+    emit(_buildChatLoaded(_currentMessages));
+  }
+
+  Future<String> _resolveAudioUrlFromServer({
+    required String mediaId,
+    String? conversationId,
+  }) async {
+    final normalizedConversationId = conversationId?.trim();
+    final hasConversationId = normalizedConversationId != null &&
+        normalizedConversationId.isNotEmpty;
+
+    final candidates = <String?>[
+      if (hasConversationId) normalizedConversationId,
+      null,
+    ];
+
+    for (final candidateConversationId in candidates) {
+      final playInfoResult = await getMediaPlayInfoUseCase(
+        mediaId,
+        conversationId: candidateConversationId,
+      );
+      final urlFromPlayInfo = playInfoResult.fold(
+        (_) => '',
+        (payload) => _extractMediaUrl(payload),
+      );
+      if (urlFromPlayInfo.trim().isNotEmpty) {
+        return urlFromPlayInfo.trim();
+      }
+
+      final mediaUrlResult = await getMediaUrlByMediaIdUseCase(
+        mediaId,
+        conversationId: candidateConversationId,
+      );
+      final urlFromMedia = mediaUrlResult.fold(
+        (_) => '',
+        (url) => url.trim(),
+      );
+      if (urlFromMedia.isNotEmpty) {
+        return urlFromMedia;
+      }
+    }
+
+    return '';
+  }
+
+  String _extractMediaUrl(Map<String, dynamic> payload) {
+    final directUrl = _extractUrlFromMap(payload);
+    if (directUrl.isNotEmpty) {
+      return directUrl;
+    }
+
+    final nestedData = payload['data'];
+    if (nestedData is Map) {
+      return _extractUrlFromMap(Map<String, dynamic>.from(nestedData));
+    }
+
+    return '';
+  }
+
+  String _extractUrlFromMap(Map<String, dynamic> source) {
+    const candidateKeys = <String>[
+      'url',
+      'audioUrl',
+      'audio_url',
+      'downloadUrl',
+      'fileUrl',
+      'file_url',
+      'viewUrl',
+      'playUrl',
+      'streamUrl',
+      'mediaUrl',
+      'media_url',
+      'cdnUrl',
+      'cdn_url',
+    ];
+
+    for (final key in candidateKeys) {
+      final value = source[key];
+      if (value is String && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+    }
+
+    return '';
   }
 
   void _startConversationLocalWatcher(String conversationId) {

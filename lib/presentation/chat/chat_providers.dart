@@ -15,7 +15,10 @@ final chatBlocProvider = Provider<ChatBloc>((ref) {
     getCurrentUserIdUseCase: ref.read(getCurrentUserIdUseCaseProvider),
     uploadMediaUseCase: ref.read(uploadMediaUseCaseProvider),
     getImageUrlByMediaIdUseCase: ref.read(getImageUrlByMediaIdUseCaseProvider),
+    getMediaPlayInfoUseCase: ref.read(getMediaPlayInfoUseCaseProvider),
+    getMediaUrlByMediaIdUseCase: ref.read(getMediaUrlByMediaIdUseCaseProvider),
     watchConversationsLocalUseCase: ref.read(watchConversationsLocalUseCaseProvider),
+    audioCacheDao: ref.read(audioCacheDaoProvider),
   );
 
   ref.onDispose(bloc.close);

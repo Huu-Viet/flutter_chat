@@ -5,6 +5,9 @@ class ChatMessage {
   final String? imagePath;
   final String? mediaId;
   final String? stickerId;
+  final String? audioUrl;
+  final int? audioDurationSeconds;
+  final List<double> audioWaveform;
   final String type;
   final bool isSentByMe;
   final String? senderId;
@@ -23,6 +26,9 @@ class ChatMessage {
     this.text,
     this.imagePath,
     this.mediaId,
+    this.audioUrl,
+    this.audioDurationSeconds,
+    this.audioWaveform = const <double>[],
     this.stickerId,
     this.type = 'text',
     required this.isSentByMe,

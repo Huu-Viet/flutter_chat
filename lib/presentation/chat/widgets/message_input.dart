@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_chat/core/utils/waveform_utils.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -185,9 +186,11 @@ class _MessageInputState extends State<MessageInput> {
     final path = await _audioRecorder.stop();
 
     // Copy the waveform before clearing state
-    final submitWaveform = _waveform.isNotEmpty
-        ? List<double>.from(_waveform)
-        : <double>[0.0, 5.0, 12.0, 8.0, 25.0, 45.0, 10.0, 8.0, 2.0, 5.0, 15.0];
+    final submitWaveform = WaveformUtils.normalize(
+      _waveform,
+      fallback: const <double>[0.08, 0.22, 0.35, 0.26, 0.55, 0.82, 0.3, 0.24, 0.1, 0.2, 0.32],
+      maxBars: 64,
+    );
 
     setState(() {
       _isRecording = false;
@@ -211,11 +214,11 @@ class _MessageInputState extends State<MessageInput> {
     _timer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
       setState(() {
         _recordDuration++;
-        // Generate mock waveform logic
+        // Generate mock waveform in normalized range 0..1
         if (_recordDuration % 2 == 0) {
-          _waveform.add(((_recordDuration * 2) % 50).toDouble());
+          _waveform.add((((_recordDuration * 2) % 50) / 50.0).clamp(0.0, 1.0));
         } else {
-          _waveform.add((10 + (_recordDuration % 20)).toDouble());
+          _waveform.add(((10 + (_recordDuration % 20)) / 50.0).clamp(0.0, 1.0));
         }
       });
     });
@@ -365,12 +368,12 @@ class _MessageInputState extends State<MessageInput> {
   Widget _buildTextField(BuildContext context, AppLocalizations l10n) {
     return TextField(
       controller: widget.controller,
-      decoration: InputDecoration(
-        hintText: l10n.chat_hint,
+
+
       focusNode: _focusNode,
       style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
       decoration: InputDecoration(
-        hintText: 'Tin nhắn',
+        hintText: l10n.chat_hint,
         border: InputBorder.none,
         contentPadding: EdgeInsets.symmetric(horizontal: 0, vertical: 10),
         hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),

@@ -15,6 +15,7 @@ final class ChatLoaded extends ChatState {
   final List<Message> messages;
   final Set<String> uploadingImagePaths;
   final Map<String, String> imageUrlsByMediaId;
+  final Map<String, String> audioUrlsByMediaId;
   final Set<String> resolvingImageMediaIds;
   final Conversation? conversation;
   final String? currentUserId;
@@ -23,6 +24,7 @@ final class ChatLoaded extends ChatState {
     this.messages, {
     this.uploadingImagePaths = const <String>{},
     this.imageUrlsByMediaId = const <String, String>{},
+    this.audioUrlsByMediaId = const <String, String>{},
     this.resolvingImageMediaIds = const <String>{},
     this.conversation,
     this.currentUserId,
@@ -33,6 +35,7 @@ final class ChatLoaded extends ChatState {
     messages,
     uploadingImagePaths,
     imageUrlsByMediaId,
+    audioUrlsByMediaId,
     resolvingImageMediaIds,
     if (conversation != null) conversation!,
     if (currentUserId != null) currentUserId!,

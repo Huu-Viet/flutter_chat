@@ -4,44 +4,65 @@ class WaveformUtils {
     List<double> fallback = const <double>[0.2, 0.4, 0.3, 0.5, 0.7, 0.35, 0.6],
     int maxBars = 35,
   }) {
+    if (maxBars <= 0) {
+      return const <double>[];
+    }
+
     final source = waveform.isNotEmpty ? waveform : fallback;
+
+    final sanitized = source
+        .map((value) {
+          if (value.isNaN || value.isInfinite) {
+            return 0.0;
+          }
+          return value.abs();
+        })
+        .toList(growable: false);
 
     // Scale properties based on input volume
     double maxSource = 0.01; // Avoid divide by zero
-    for (var value in source) {
-      if (value.abs() > maxSource) {
-        maxSource = value.abs();
+    for (final value in sanitized) {
+      if (value > maxSource) {
+        maxSource = value;
       }
     }
 
-    final dataList = source.map((e) => (e.abs() / maxSource)).toList();
+    final dataList = sanitized
+        .map((value) => (value / maxSource).clamp(0.0, 1.0).toDouble())
+        .toList(growable: false);
 
-    // Resample to exactly maxBars (upsample or downsample) so it stretches evenly
-    final result = <double>[];
-    final step = dataList.length / maxBars;
-    for (var i = 0; i < maxBars; i++) {
-      int start = (i * step).floor();
-      int end = ((i + 1) * step).floor();
-      if (end > dataList.length) end = dataList.length;
-
-      if (start == end) {
-        result.add(dataList[start.clamp(0, dataList.length - 1)]);
-      } else {
-        double sum = 0;
-        for (int j = start; j < end; j++) {
-          sum += dataList[j];
-        }
-        result.add(sum / (end - start));
-      }
+    // Resample to exactly maxBars using linear interpolation to reduce jagged changes.
+    final result = List<double>.filled(maxBars, 0.0, growable: false);
+    final sourceLength = dataList.length;
+    if (sourceLength == 1) {
+      return List<double>.filled(maxBars, dataList.first, growable: false);
     }
 
-    // Apply a moving average filter to smooth the transitions between bars
-    final smoothed = <double>[];
-    for (int i = 0; i < result.length; i++) {
-      double prev = i > 0 ? result[i - 1] : result[i];
-      double next = i < result.length - 1 ? result[i + 1] : result[i];
-      // Weighted average: 1/4 from prev, 1/2 from current, 1/4 from next
-      smoothed.add((prev + result[i] * 2 + next) / 4);
+    for (int i = 0; i < maxBars; i++) {
+      final t = maxBars == 1 ? 0.0 : i / (maxBars - 1);
+      final position = t * (sourceLength - 1);
+      final left = position.floor();
+      final right = (left + 1).clamp(0, sourceLength - 1);
+      final fraction = position - left;
+      final value = (dataList[left] * (1 - fraction)) + (dataList[right] * fraction);
+      result[i] = value.clamp(0.0, 1.0).toDouble();
+    }
+
+    // Two-pass weighted smoothing makes pitch transitions feel more natural.
+    List<double> smoothed = List<double>.from(result, growable: false);
+    for (int pass = 0; pass < 2; pass++) {
+      final next = List<double>.filled(maxBars, 0.0, growable: false);
+      for (int i = 0; i < maxBars; i++) {
+        final m2 = smoothed[(i - 2).clamp(0, maxBars - 1)];
+        final m1 = smoothed[(i - 1).clamp(0, maxBars - 1)];
+        final c = smoothed[i];
+        final p1 = smoothed[(i + 1).clamp(0, maxBars - 1)];
+        final p2 = smoothed[(i + 2).clamp(0, maxBars - 1)];
+        next[i] = ((m2 + (m1 * 4) + (c * 6) + (p1 * 4) + p2) / 16)
+            .clamp(0.0, 1.0)
+            .toDouble();
+      }
+      smoothed = next;
     }
 
     return smoothed;

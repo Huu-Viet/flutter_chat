@@ -96,10 +96,22 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     return null;
   }
 
+
   String _mapChatErrorMessage(String message, AppLocalizations l10n) {
     if (message.contains('FORBIDDEN_EDIT_WINDOW_EXPIRED')) {
       return l10n.error_edit_time_limited;
     }
+
+    if (message.contains('FORBIDDEN_NOT_OWNER')) {
+      return l10n.error_cannot_edit_message;
+    }
+
+    if (message.contains('MESSAGE_NOT_FOUND')) {
+      return l10n.error_message_not_found;
+    }
+
+    return message;
+  }
 
   int? _parseDurationSeconds(dynamic value) {
     if (value is int) return value;
@@ -142,21 +154,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     return random;
   }
 
-  Future<void> _loadCurrentUserId() async {
-    final result = await ref.read(getCurrentUserIdUseCaseProvider).call();
-    if (!mounted) {
-      return;
-    if (message.contains('FORBIDDEN_NOT_OWNER')) {
-      return l10n.error_cannot_edit_message;
-    }
-
-    if (message.contains('MESSAGE_NOT_FOUND')) {
-      return l10n.error_message_not_found;
-    }
-
-    return message;
-  }
-
   @override
   void initState() {
     super.initState();
@@ -168,6 +165,131 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     _messageController.dispose();
     super.dispose();
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final chatBloc = ref.read(chatBlocProvider);
+
+    return BlocProvider<ChatBloc>.value(
+      value: chatBloc,
+      child: BlocConsumer<ChatBloc, ChatState>(
+        buildWhen: (previous, current) => current is! ChatError,
+        listener: (context, state) {
+          if (state is ChatError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(_mapChatErrorMessage(state.message, l10n))),
+            );
+          }
+        },
+        builder: (context, state) => Scaffold(
+          appBar: AppBar(
+            iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onSurface),
+            title: Container(
+              alignment: Alignment.centerLeft,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.friendName,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontWeight: FontWeight.bold
+                      ),
+                      textAlign: TextAlign.left,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            backgroundColor: Theme.of(context).colorScheme.surfaceBright,
+          ),
+          body: Column(
+            children: [
+              Expanded(
+                child: Builder(
+                  builder: (context) {
+                    final List<ChatMessage> displayMessages = state is ChatLoaded
+                        ? _uiMapper.mapStateMessagesToUI(
+                      state.messages,
+                      state.uploadingImagePaths,
+                      state.imageUrlsByMediaId,
+                      state.audioUrlsByMediaId,
+                      state.resolvingImageMediaIds,
+                      state.currentUserId,
+                      state.conversation?.avatarUrl,
+                      l10n.chat_deleted_message,
+                    )
+                        : _messages;
+
+                    return ListView.builder(
+                      reverse: true,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: displayMessages.length,
+                      itemBuilder: (context, index) {
+                        final message = displayMessages[displayMessages.length - 1 - index];
+                        return MessageBubble(
+                          message: message,
+                          showReactAction: message.isLastInGroup && _canReactToMessage(message),
+                          onReactPressed: message.isLastInGroup && _canReactToMessage(message)
+                              ? () => _handleReactionSelection(message, '❤️')
+                              : null,
+                          onLongPressStart: (details) => _showMessageActions(
+                            context,
+                            message,
+                            l10n,
+                            anchor: details.globalPosition,
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              MessageInput(
+                controller: _messageController,
+                onSendMessage: _sendMessage,
+                onPickImage: _pickImage,
+                onPickMultipleImages: _pickMultipleImages,
+                onEmojiSelected: (emoji) {
+                  _messageController.text += emoji;
+                },
+                onSendRecord: (filePath, durationSeconds, waveform) {
+                  final durationMs = durationSeconds * 1000;
+                  final voiceMetadata = <String, dynamic>{
+                    'mediaId': null,
+                    'durationMs': durationMs,
+                    'waveform': waveform,
+                  };
+
+                  debugPrint(
+                    '[ChatPageVoice] Send voice record -> '
+                        'conversationId=${widget.conversationId}, '
+                        'filePath=$filePath, '
+                        'durationMs=$durationMs, '
+                        'waveform=$waveform, '
+                        'metadata=$voiceMetadata',
+                  );
+
+                  ref.read(chatBlocProvider).add(
+                    SendVoiceEvent(
+                      conversationId: widget.conversationId,
+                      filePath: filePath,
+                      durationMs: durationMs,
+                      waveform: waveform,
+                    ),
+                  );
+                },
+                onStickerSelected: _sendSticker,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
 
   void _sendMessage() {
     final content = _messageController.text.trim();
@@ -254,12 +376,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
   }
 
-  Future<void> _showMessageActions(
-    BuildContext context,
-    ChatMessage message,
-    AppLocalizations l10n, {
-    Offset? anchor,
-  }) async {
+  Future<void> _showMessageActions(BuildContext context, ChatMessage message, AppLocalizations l10n, {Offset? anchor,}) async {
     final canEdit = _canEditMessage(message);
     final canDelete = _canDeleteMessage(message);
     final canReact = _canReactToMessage(message);
@@ -399,128 +516,5 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       messageId: localId,
       content: newContent,
     ));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final chatBloc = ref.read(chatBlocProvider);
-
-    return BlocProvider<ChatBloc>.value(
-      value: chatBloc,
-      child: BlocConsumer<ChatBloc, ChatState>(
-        buildWhen: (previous, current) => current is! ChatError,
-        listener: (context, state) {
-          if (state is ChatError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(_mapChatErrorMessage(state.message, l10n))),
-            );
-          }
-        },
-        builder: (context, state) => Scaffold(
-            appBar: AppBar(
-              iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onSurface),
-              title: Container(
-                alignment: Alignment.centerLeft,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        widget.friendName,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface,
-                          fontWeight: FontWeight.bold
-                        ),
-                        textAlign: TextAlign.left,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              backgroundColor: Theme.of(context).colorScheme.surfaceBright,
-            ),
-            body: Column(
-              children: [
-                Expanded(
-                  child: Builder(
-                    builder: (context) {
-                      final List<ChatMessage> displayMessages = state is ChatLoaded
-                          ? _uiMapper.mapStateMessagesToUI(
-                              state.messages,
-                              state.uploadingImagePaths,
-                              state.imageUrlsByMediaId,
-                              state.resolvingImageMediaIds,
-                              state.currentUserId,
-                              state.conversation?.avatarUrl,
-                              l10n.chat_deleted_message,
-                            )
-                          : _messages;
-
-                      return ListView.builder(
-                        reverse: true,
-                        padding: const EdgeInsets.all(16),
-                        itemCount: displayMessages.length,
-                        itemBuilder: (context, index) {
-                          final message = displayMessages[displayMessages.length - 1 - index];
-                          return MessageBubble(
-                            message: message,
-                            showReactAction: message.isLastInGroup && _canReactToMessage(message),
-                            onReactPressed: message.isLastInGroup && _canReactToMessage(message)
-                                ? () => _handleReactionSelection(message, '❤️')
-                                : null,
-                            onLongPressStart: (details) => _showMessageActions(
-                              context,
-                              message,
-                              l10n,
-                              anchor: details.globalPosition,
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-                MessageInput(
-                  controller: _messageController,
-                  onSendMessage: _sendMessage,
-                  onPickImage: _pickImage,
-                  onPickMultipleImages: _pickMultipleImages,
-                  onEmojiSelected: (emoji) {
-                    _messageController.text += emoji;
-                  },
-                  onSendRecord: (filePath, durationSeconds, waveform) {
-                    final durationMs = durationSeconds * 1000;
-                    final voiceMetadata = <String, dynamic>{
-                      'mediaId': null,
-                      'durationMs': durationMs,
-                      'waveform': waveform,
-                    };
-
-                    debugPrint(
-                      '[ChatPageVoice] Send voice record -> '
-                      'conversationId=${widget.conversationId}, '
-                      'filePath=$filePath, '
-                      'durationMs=$durationMs, '
-                      'waveform=$waveform, '
-                      'metadata=$voiceMetadata',
-                    );
-
-                    ref.read(chatBlocProvider).add(
-                      SendVoiceEvent(
-                        conversationId: widget.conversationId,
-                        filePath: filePath,
-                        durationMs: durationMs,
-                        waveform: waveform,
-                      ),
-                    );
-                  },
-                  onStickerSelected: _sendSticker,
-                ),
-              ],
-            ),
-        ),
-      ),
-    );
   }
 }
