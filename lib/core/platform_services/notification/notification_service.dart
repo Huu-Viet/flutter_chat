@@ -166,6 +166,54 @@ class NotificationService {
     debugPrint('$_tag: chat notification shown id=$notificationId');
   }
 
+  Future<void> createGenericNotification(Map<String, dynamic> data) async {
+    await ensureInitialized();
+
+    final String? title = data[AppConstants.title];
+    final String? bodyMessage = data[AppConstants.bodyMessage];
+    final String? deepLink = data[AppConstants.clickAction];
+
+    debugPrint('$_tag: createGenericNotification title=$title deepLink=$deepLink data=$data');
+
+    const AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
+      AppConstants.systemChannelId,
+      AppConstants.systemChannelName,
+      channelDescription: 'General system notifications',
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
+      largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+      autoCancel: true,
+      playSound: true,
+      enableVibration: true,
+    );
+
+    const DarwinNotificationDetails iosNotificationDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      sound: 'default',
+      threadIdentifier: 'system_notifications',
+    );
+
+    const NotificationDetails notificationDetails = NotificationDetails(
+      android: androidNotificationDetails,
+      iOS: iosNotificationDetails,
+    );
+
+    await _localNotiPlugin.show(
+      id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title: title ?? 'Notification',
+      body: bodyMessage ?? '',
+      notificationDetails: notificationDetails,
+      payload: jsonEncode({
+        'deeplink': deepLink,
+        'type': 'generic_notification',
+      }),
+    );
+    debugPrint('$_tag: generic notification shown');
+  }
+
   Future<void> createFriendRequestNotification(Map<String, dynamic> data) async {
     await ensureInitialized();
 

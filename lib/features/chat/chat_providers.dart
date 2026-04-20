@@ -1,5 +1,6 @@
 import 'package:flutter_chat/app/app_providers.dart';
 import 'package:flutter_chat/features/auth/auth_providers.dart';
+import 'package:flutter_chat/features/auth/user_providers.dart';
 import 'package:flutter_chat/features/chat/data/datasource/api/chat_service_impl.dart';
 import 'package:flutter_chat/features/chat/data/repositories/chat_repo_impl.dart';
 import 'package:flutter_chat/features/chat/domain/usecases/get_sticker_packages_usecase.dart';
@@ -18,6 +19,10 @@ final chatServiceProvider = Provider<ChatService>((ref) {
 
 final conversationDaoProvider = Provider<ConversationDao>((ref) {
   return DriftConversationDaoImpl(ref.watch(databaseProvider));
+});
+
+final conversationUserDaoProvider = Provider<ConversationUserDao>((ref) {
+  return DriftConversationUserDaoImpl(ref.watch(databaseProvider));
 });
 
 final messageDaoProvider = Provider<MessageDao>((ref) {
@@ -77,7 +82,9 @@ final chatRepoProvider = Provider<ChatRepository>((ref) {
   return ChatRepoImpl(
     chatService: ref.read(chatServiceProvider),
     conversationDao: ref.read(conversationDaoProvider),
+    conversationUserDao: ref.read(conversationUserDaoProvider),
     messageDao: ref.read(messageDaoProvider),
+    userDao: ref.read(userDaoProvider),
     stickerPackageDao: ref.read(stickerPackageDaoProvider),
     stickerItemDao: ref.read(stickerItemDaoProvider),
     apiConversationMapper: ref.read(apiConversationMapperProvider),
@@ -112,6 +119,10 @@ final sendMessageUseCaseProvider = Provider<SendMessageUseCase>((ref) {
 
 final watchConversationsLocalUseCaseProvider = Provider<WatchConversationsLocalUseCase>((ref) {
   return WatchConversationsLocalUseCase(ref.read(chatRepoProvider));
+});
+
+final watchConversationsWithUsersUseCaseProvider = Provider<WatchConversationsWithUsersUseCase>((ref) {
+  return WatchConversationsWithUsersUseCase(ref.read(chatRepoProvider));
 });
 
 final watchMessagesLocalUseCaseProvider = Provider<WatchMessagesLocalUseCase>((ref) {

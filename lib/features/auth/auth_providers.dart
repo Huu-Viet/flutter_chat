@@ -111,6 +111,10 @@ final syncCurrentUserFromRemoteUseCaseProvider = Provider<SyncCurrentUserFromRem
   return SyncCurrentUserFromRemoteUseCase(ref.watch(authRemoteRepoProvider));
 });
 
+final updateUserPresenceLocalUseCaseProvider = Provider<UpdateUserPresenceLocalUseCase>((ref) {
+  return UpdateUserPresenceLocalUseCase(ref.watch(authLocalRepoProvider));
+});
+
 final refreshTokenUseCaseProvider = Provider<RefreshTokenUseCase>((ref) {
   return RefreshTokenUseCase(ref.watch(authRemoteRepoProvider));
 });

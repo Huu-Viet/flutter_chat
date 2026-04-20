@@ -169,15 +169,34 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                 child: Builder(
                   builder: (context) {
                     final List<ChatMessage> displayMessages = state is ChatLoaded
-                        ? _uiMapper.mapStateMessagesToUI(
-                      state.messages,
-                      state.uploadingImagePaths,
-                      state.imageUrlsByMediaId,
-                      state.resolvingImageMediaIds,
-                      state.currentUserId,
-                      state.conversation?.avatarUrl,
-                      l10n.chat_deleted_message,
-                    )
+                        ? (() {
+                            final participants = state.conversation?.participants ?? const <ConversationParticipant>[];
+                            final senderDisplayNameByUserId = <String, String>{
+                              for (final participant in participants)
+                                participant.userId.trim(): participant.displayName.trim().isNotEmpty
+                                    ? participant.displayName
+                                    : participant.username,
+                            };
+                            final senderAvatarUrlByUserId = <String, String>{
+                              for (final participant in participants)
+                                participant.userId.trim(): participant.avatarUrl,
+                            };
+                            final normalizedType = state.conversation?.type.toLowerCase() ?? '';
+                            final isGroupConversation = normalizedType == 'group';
+
+                            return _uiMapper.mapStateMessagesToUI(
+                              state.messages,
+                              state.uploadingImagePaths,
+                              state.imageUrlsByMediaId,
+                              state.resolvingImageMediaIds,
+                              state.currentUserId,
+                              senderDisplayNameByUserId,
+                              senderAvatarUrlByUserId,
+                              isGroupConversation,
+                              state.conversation?.avatarUrl,
+                              l10n.chat_deleted_message,
+                            );
+                          })()
                         : _messages;
 
                     return ListView.builder(

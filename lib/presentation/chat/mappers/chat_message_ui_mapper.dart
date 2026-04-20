@@ -14,32 +14,46 @@ class ChatMessageUIMapper {
     Map<String, String> imageUrlsByMediaId,
     Set<String> resolvingImageMediaIds,
     String? currentUserId,
+    Map<String, String> senderDisplayNameByUserId,
+    Map<String, String> senderAvatarUrlByUserId,
+    bool isGroupConversation,
     String? conversationAvatarUrl,
     String deletedMessageText,
   ) {
+    final normalizedCurrentUserId = _normalizeId(currentUserId);
+
     final mappedMessages = messages
         .map(
           (message) {
+            final normalizedSenderId = _normalizeId(message.senderId);
             if (message.isDeleted) {
+              final senderDisplayName = senderDisplayNameByUserId[normalizedSenderId];
+              final senderAvatarUrl = senderAvatarUrlByUserId[normalizedSenderId];
               return ChatMessage(
                 text: deletedMessageText,
                 imagePath: null,
                 mediaId: null,
                 stickerId: null,
                 type: 'text',
-                isSentByMe: currentUserId != null && message.senderId == currentUserId,
-                senderId: message.senderId,
+                isSentByMe: normalizedCurrentUserId.isNotEmpty &&
+                    normalizedSenderId == normalizedCurrentUserId,
+                senderId: normalizedSenderId,
+                senderDisplayName: senderDisplayName,
+                senderAvatarUrl: senderAvatarUrl,
                 timestamp: message.createdAt,
                 isDeleted: true,
                 localId: message.id,
                 serverId: message.serverId,
                 conversationAvatarUrl: conversationAvatarUrl,
+                isGroupConversation: isGroupConversation,
               );
             }
 
             final isImageLikeMessage = _helpers.isImageLikeMessage(message);
             final isStickerMessage = _helpers.isStickerMessage(message);
             final mediaId = message.mediaId?.trim();
+            final senderDisplayName = senderDisplayNameByUserId[normalizedSenderId];
+            final senderAvatarUrl = senderAvatarUrlByUserId[normalizedSenderId];
             final stickerUrl = _helpers.extractStickerUrl(message);
             final stickerId = _helpers.extractStickerId(message);
             final localPath = _helpers.isLikelyLocalImagePath(message.content) ? message.content : null;
@@ -59,8 +73,11 @@ class ChatMessageUIMapper {
               mediaId: mediaId,
               stickerId: stickerId,
               type: message.type,
-              isSentByMe: currentUserId != null && message.senderId == currentUserId,
-              senderId: message.senderId,
+                isSentByMe: normalizedCurrentUserId.isNotEmpty &&
+                  normalizedSenderId == normalizedCurrentUserId,
+                senderId: normalizedSenderId,
+              senderDisplayName: senderDisplayName,
+              senderAvatarUrl: senderAvatarUrl,
               timestamp: message.createdAt,
               isDeleted: message.isDeleted,
               isUploading: localPath != null && uploadingImagePaths.contains(localPath),
@@ -72,6 +89,7 @@ class ChatMessageUIMapper {
               localId: message.id,
               serverId: message.serverId,
               conversationAvatarUrl: conversationAvatarUrl,
+              isGroupConversation: isGroupConversation,
               reactions: reactions,
             );
           },
@@ -96,6 +114,7 @@ class ChatMessageUIMapper {
           timestamp: DateTime.now(),
           isUploading: true,
           conversationAvatarUrl: conversationAvatarUrl,
+          isGroupConversation: isGroupConversation,
         ),
       );
     }
@@ -114,11 +133,11 @@ class ChatMessageUIMapper {
       final next = i < messages.length - 1 ? messages[i + 1] : null;
 
       final bool sameAsPrev = prev != null &&
-          prev.senderId == current.senderId &&
+          _normalizeId(prev.senderId) == _normalizeId(current.senderId) &&
           current.timestamp.difference(prev.timestamp) <= _groupingWindow;
 
       final bool sameAsNext = next != null &&
-          next.senderId == current.senderId &&
+          _normalizeId(next.senderId) == _normalizeId(current.senderId) &&
           next.timestamp.difference(current.timestamp) <= _groupingWindow;
 
       result.add(current.copyWith(
@@ -158,5 +177,9 @@ class ChatMessageUIMapper {
     if (value is num) return value.toInt();
     if (value is String) return int.tryParse(value);
     return null;
+  }
+
+  String _normalizeId(String? value) {
+    return value?.trim() ?? '';
   }
 }

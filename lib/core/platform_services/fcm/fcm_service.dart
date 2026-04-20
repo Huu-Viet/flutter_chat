@@ -33,7 +33,7 @@ class FCMService {
   }
 
   Future<void> _onForegroundMessageReceived(RemoteMessage message) async {
-    final data = message.data;
+    final data = _buildRoutableData(message);
     debugPrint('$_tag: foreground message received data=$data notification=${message.notification?.title}/${message.notification?.body}');
 
     final preferences = await _preferencesResolver.getCurrentPreferences();
@@ -46,6 +46,21 @@ class FCMService {
 
     await _notiRouter.route(data);
     debugPrint('$_tag: foreground message routed successfully');
+  }
+
+  Map<String, dynamic> _buildRoutableData(RemoteMessage message) {
+    final data = Map<String, dynamic>.from(message.data);
+    final title = message.notification?.title;
+    final body = message.notification?.body;
+
+    if (!data.containsKey(AppConstants.title) && title != null && title.trim().isNotEmpty) {
+      data[AppConstants.title] = title;
+    }
+    if (!data.containsKey(AppConstants.bodyMessage) && body != null && body.trim().isNotEmpty) {
+      data[AppConstants.bodyMessage] = body;
+    }
+
+    return data;
   }
 
   void _onMessageOpenedApp(RemoteMessage message) {

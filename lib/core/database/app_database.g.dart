@@ -22,9 +22,9 @@ class $UsersTable extends Users with TableInfo<$UsersTable, UserEntity> {
   late final GeneratedColumn<String> email = GeneratedColumn<String>(
     'email',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
     defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
   );
   static const VerificationMeta _usernameMeta = const VerificationMeta(
@@ -282,8 +282,6 @@ class $UsersTable extends Users with TableInfo<$UsersTable, UserEntity> {
         _emailMeta,
         email.isAcceptableOrUnknown(data['email']!, _emailMeta),
       );
-    } else if (isInserting) {
-      context.missing(_emailMeta);
     }
     if (data.containsKey('username')) {
       context.handle(
@@ -441,7 +439,7 @@ class $UsersTable extends Users with TableInfo<$UsersTable, UserEntity> {
       email: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}email'],
-      )!,
+      ),
       username: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}username'],
@@ -525,7 +523,7 @@ class $UsersTable extends Users with TableInfo<$UsersTable, UserEntity> {
 
 class UserEntity extends DataClass implements Insertable<UserEntity> {
   final String id;
-  final String email;
+  final String? email;
   final String username;
   final String? firstName;
   final String? lastName;
@@ -546,7 +544,7 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
   final String updatedAt;
   const UserEntity({
     required this.id,
-    required this.email,
+    this.email,
     required this.username,
     this.firstName,
     this.lastName,
@@ -570,7 +568,9 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
-    map['email'] = Variable<String>(email);
+    if (!nullToAbsent || email != null) {
+      map['email'] = Variable<String>(email);
+    }
     map['username'] = Variable<String>(username);
     if (!nullToAbsent || firstName != null) {
       map['first_name'] = Variable<String>(firstName);
@@ -625,7 +625,9 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
   UsersCompanion toCompanion(bool nullToAbsent) {
     return UsersCompanion(
       id: Value(id),
-      email: Value(email),
+      email: email == null && nullToAbsent
+          ? const Value.absent()
+          : Value(email),
       username: Value(username),
       firstName: firstName == null && nullToAbsent
           ? const Value.absent()
@@ -676,7 +678,7 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return UserEntity(
       id: serializer.fromJson<String>(json['id']),
-      email: serializer.fromJson<String>(json['email']),
+      email: serializer.fromJson<String?>(json['email']),
       username: serializer.fromJson<String>(json['username']),
       firstName: serializer.fromJson<String?>(json['firstName']),
       lastName: serializer.fromJson<String?>(json['lastName']),
@@ -710,7 +712,7 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
-      'email': serializer.toJson<String>(email),
+      'email': serializer.toJson<String?>(email),
       'username': serializer.toJson<String>(username),
       'firstName': serializer.toJson<String?>(firstName),
       'lastName': serializer.toJson<String?>(lastName),
@@ -742,7 +744,7 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
 
   UserEntity copyWith({
     String? id,
-    String? email,
+    Value<String?> email = const Value.absent(),
     String? username,
     Value<String?> firstName = const Value.absent(),
     Value<String?> lastName = const Value.absent(),
@@ -763,7 +765,7 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
     String? updatedAt,
   }) => UserEntity(
     id: id ?? this.id,
-    email: email ?? this.email,
+    email: email.present ? email.value : this.email,
     username: username ?? this.username,
     firstName: firstName.present ? firstName.value : this.firstName,
     lastName: lastName.present ? lastName.value : this.lastName,
@@ -917,7 +919,7 @@ class UserEntity extends DataClass implements Insertable<UserEntity> {
 
 class UsersCompanion extends UpdateCompanion<UserEntity> {
   final Value<String> id;
-  final Value<String> email;
+  final Value<String?> email;
   final Value<String> username;
   final Value<String?> firstName;
   final Value<String?> lastName;
@@ -962,7 +964,7 @@ class UsersCompanion extends UpdateCompanion<UserEntity> {
   });
   UsersCompanion.insert({
     required String id,
-    required String email,
+    this.email = const Value.absent(),
     required String username,
     this.firstName = const Value.absent(),
     this.lastName = const Value.absent(),
@@ -983,7 +985,6 @@ class UsersCompanion extends UpdateCompanion<UserEntity> {
     required String updatedAt,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
-       email = Value(email),
        username = Value(username),
        isActive = Value(isActive),
        createdAt = Value(createdAt),
@@ -1042,7 +1043,7 @@ class UsersCompanion extends UpdateCompanion<UserEntity> {
 
   UsersCompanion copyWith({
     Value<String>? id,
-    Value<String>? email,
+    Value<String?>? email,
     Value<String>? username,
     Value<String?>? firstName,
     Value<String?>? lastName,
@@ -1761,6 +1762,328 @@ class ChatConversationsCompanion
           ..write('maxOffset: $maxOffset, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('avatarUrl: $avatarUrl, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ConversationUsersTable extends ConversationUsers
+    with TableInfo<$ConversationUsersTable, ConversationUserEntity> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ConversationUsersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _conversationIdMeta = const VerificationMeta(
+    'conversationId',
+  );
+  @override
+  late final GeneratedColumn<String> conversationId = GeneratedColumn<String>(
+    'conversation_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _roleMeta = const VerificationMeta('role');
+  @override
+  late final GeneratedColumn<String> role = GeneratedColumn<String>(
+    'role',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    conversationId,
+    userId,
+    role,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'conversation_users';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ConversationUserEntity> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('conversation_id')) {
+      context.handle(
+        _conversationIdMeta,
+        conversationId.isAcceptableOrUnknown(
+          data['conversation_id']!,
+          _conversationIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_conversationIdMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('role')) {
+      context.handle(
+        _roleMeta,
+        role.isAcceptableOrUnknown(data['role']!, _roleMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {conversationId, userId};
+  @override
+  ConversationUserEntity map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ConversationUserEntity(
+      conversationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}conversation_id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      role: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}role'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ConversationUsersTable createAlias(String alias) {
+    return $ConversationUsersTable(attachedDatabase, alias);
+  }
+}
+
+class ConversationUserEntity extends DataClass
+    implements Insertable<ConversationUserEntity> {
+  final String conversationId;
+  final String userId;
+  final String? role;
+  final String updatedAt;
+  const ConversationUserEntity({
+    required this.conversationId,
+    required this.userId,
+    this.role,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['conversation_id'] = Variable<String>(conversationId);
+    map['user_id'] = Variable<String>(userId);
+    if (!nullToAbsent || role != null) {
+      map['role'] = Variable<String>(role);
+    }
+    map['updated_at'] = Variable<String>(updatedAt);
+    return map;
+  }
+
+  ConversationUsersCompanion toCompanion(bool nullToAbsent) {
+    return ConversationUsersCompanion(
+      conversationId: Value(conversationId),
+      userId: Value(userId),
+      role: role == null && nullToAbsent ? const Value.absent() : Value(role),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ConversationUserEntity.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ConversationUserEntity(
+      conversationId: serializer.fromJson<String>(json['conversationId']),
+      userId: serializer.fromJson<String>(json['userId']),
+      role: serializer.fromJson<String?>(json['role']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'conversationId': serializer.toJson<String>(conversationId),
+      'userId': serializer.toJson<String>(userId),
+      'role': serializer.toJson<String?>(role),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+    };
+  }
+
+  ConversationUserEntity copyWith({
+    String? conversationId,
+    String? userId,
+    Value<String?> role = const Value.absent(),
+    String? updatedAt,
+  }) => ConversationUserEntity(
+    conversationId: conversationId ?? this.conversationId,
+    userId: userId ?? this.userId,
+    role: role.present ? role.value : this.role,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  ConversationUserEntity copyWithCompanion(ConversationUsersCompanion data) {
+    return ConversationUserEntity(
+      conversationId: data.conversationId.present
+          ? data.conversationId.value
+          : this.conversationId,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      role: data.role.present ? data.role.value : this.role,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ConversationUserEntity(')
+          ..write('conversationId: $conversationId, ')
+          ..write('userId: $userId, ')
+          ..write('role: $role, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(conversationId, userId, role, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ConversationUserEntity &&
+          other.conversationId == this.conversationId &&
+          other.userId == this.userId &&
+          other.role == this.role &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ConversationUsersCompanion
+    extends UpdateCompanion<ConversationUserEntity> {
+  final Value<String> conversationId;
+  final Value<String> userId;
+  final Value<String?> role;
+  final Value<String> updatedAt;
+  final Value<int> rowid;
+  const ConversationUsersCompanion({
+    this.conversationId = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.role = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ConversationUsersCompanion.insert({
+    required String conversationId,
+    required String userId,
+    this.role = const Value.absent(),
+    required String updatedAt,
+    this.rowid = const Value.absent(),
+  }) : conversationId = Value(conversationId),
+       userId = Value(userId),
+       updatedAt = Value(updatedAt);
+  static Insertable<ConversationUserEntity> custom({
+    Expression<String>? conversationId,
+    Expression<String>? userId,
+    Expression<String>? role,
+    Expression<String>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (conversationId != null) 'conversation_id': conversationId,
+      if (userId != null) 'user_id': userId,
+      if (role != null) 'role': role,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ConversationUsersCompanion copyWith({
+    Value<String>? conversationId,
+    Value<String>? userId,
+    Value<String?>? role,
+    Value<String>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return ConversationUsersCompanion(
+      conversationId: conversationId ?? this.conversationId,
+      userId: userId ?? this.userId,
+      role: role ?? this.role,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (conversationId.present) {
+      map['conversation_id'] = Variable<String>(conversationId.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (role.present) {
+      map['role'] = Variable<String>(role.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ConversationUsersCompanion(')
+          ..write('conversationId: $conversationId, ')
+          ..write('userId: $userId, ')
+          ..write('role: $role, ')
+          ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3478,6 +3801,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $UsersTable users = $UsersTable(this);
   late final $ChatConversationsTable chatConversations =
       $ChatConversationsTable(this);
+  late final $ConversationUsersTable conversationUsers =
+      $ConversationUsersTable(this);
   late final $ChatMessagesTable chatMessages = $ChatMessagesTable(this);
   late final $FriendshipsTable friendships = $FriendshipsTable(this);
   late final $StickerPackagesTable stickerPackages = $StickerPackagesTable(
@@ -3491,6 +3816,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     users,
     chatConversations,
+    conversationUsers,
     chatMessages,
     friendships,
     stickerPackages,
@@ -3501,7 +3827,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
 typedef $$UsersTableCreateCompanionBuilder =
     UsersCompanion Function({
       required String id,
-      required String email,
+      Value<String?> email,
       required String username,
       Value<String?> firstName,
       Value<String?> lastName,
@@ -3525,7 +3851,7 @@ typedef $$UsersTableCreateCompanionBuilder =
 typedef $$UsersTableUpdateCompanionBuilder =
     UsersCompanion Function({
       Value<String> id,
-      Value<String> email,
+      Value<String?> email,
       Value<String> username,
       Value<String?> firstName,
       Value<String?> lastName,
@@ -3883,7 +4209,7 @@ class $$UsersTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
-                Value<String> email = const Value.absent(),
+                Value<String?> email = const Value.absent(),
                 Value<String> username = const Value.absent(),
                 Value<String?> firstName = const Value.absent(),
                 Value<String?> lastName = const Value.absent(),
@@ -3929,7 +4255,7 @@ class $$UsersTableTableManager
           createCompanionCallback:
               ({
                 required String id,
-                required String email,
+                Value<String?> email = const Value.absent(),
                 required String username,
                 Value<String?> firstName = const Value.absent(),
                 Value<String?> lastName = const Value.absent(),
@@ -4285,6 +4611,202 @@ typedef $$ChatConversationsTableProcessedTableManager =
         >,
       ),
       ChatConversationEntity,
+      PrefetchHooks Function()
+    >;
+typedef $$ConversationUsersTableCreateCompanionBuilder =
+    ConversationUsersCompanion Function({
+      required String conversationId,
+      required String userId,
+      Value<String?> role,
+      required String updatedAt,
+      Value<int> rowid,
+    });
+typedef $$ConversationUsersTableUpdateCompanionBuilder =
+    ConversationUsersCompanion Function({
+      Value<String> conversationId,
+      Value<String> userId,
+      Value<String?> role,
+      Value<String> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$ConversationUsersTableFilterComposer
+    extends Composer<_$AppDatabase, $ConversationUsersTable> {
+  $$ConversationUsersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get conversationId => $composableBuilder(
+    column: $table.conversationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ConversationUsersTableOrderingComposer
+    extends Composer<_$AppDatabase, $ConversationUsersTable> {
+  $$ConversationUsersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get conversationId => $composableBuilder(
+    column: $table.conversationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ConversationUsersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ConversationUsersTable> {
+  $$ConversationUsersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get conversationId => $composableBuilder(
+    column: $table.conversationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$ConversationUsersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ConversationUsersTable,
+          ConversationUserEntity,
+          $$ConversationUsersTableFilterComposer,
+          $$ConversationUsersTableOrderingComposer,
+          $$ConversationUsersTableAnnotationComposer,
+          $$ConversationUsersTableCreateCompanionBuilder,
+          $$ConversationUsersTableUpdateCompanionBuilder,
+          (
+            ConversationUserEntity,
+            BaseReferences<
+              _$AppDatabase,
+              $ConversationUsersTable,
+              ConversationUserEntity
+            >,
+          ),
+          ConversationUserEntity,
+          PrefetchHooks Function()
+        > {
+  $$ConversationUsersTableTableManager(
+    _$AppDatabase db,
+    $ConversationUsersTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ConversationUsersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ConversationUsersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ConversationUsersTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> conversationId = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String?> role = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ConversationUsersCompanion(
+                conversationId: conversationId,
+                userId: userId,
+                role: role,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String conversationId,
+                required String userId,
+                Value<String?> role = const Value.absent(),
+                required String updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => ConversationUsersCompanion.insert(
+                conversationId: conversationId,
+                userId: userId,
+                role: role,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ConversationUsersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ConversationUsersTable,
+      ConversationUserEntity,
+      $$ConversationUsersTableFilterComposer,
+      $$ConversationUsersTableOrderingComposer,
+      $$ConversationUsersTableAnnotationComposer,
+      $$ConversationUsersTableCreateCompanionBuilder,
+      $$ConversationUsersTableUpdateCompanionBuilder,
+      (
+        ConversationUserEntity,
+        BaseReferences<
+          _$AppDatabase,
+          $ConversationUsersTable,
+          ConversationUserEntity
+        >,
+      ),
+      ConversationUserEntity,
       PrefetchHooks Function()
     >;
 typedef $$ChatMessagesTableCreateCompanionBuilder =
@@ -5433,6 +5955,8 @@ class $AppDatabaseManager {
       $$UsersTableTableManager(_db, _db.users);
   $$ChatConversationsTableTableManager get chatConversations =>
       $$ChatConversationsTableTableManager(_db, _db.chatConversations);
+  $$ConversationUsersTableTableManager get conversationUsers =>
+      $$ConversationUsersTableTableManager(_db, _db.conversationUsers);
   $$ChatMessagesTableTableManager get chatMessages =>
       $$ChatMessagesTableTableManager(_db, _db.chatMessages);
   $$FriendshipsTableTableManager get friendships =>

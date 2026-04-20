@@ -9,15 +9,16 @@ import '../../features/chat/data/entities/message_entity.dart';
 import '../../features/friendship/data/entities/friendship_entity.dart';
 import '../../features/chat/data/entities/sticker_package_entity.dart';
 import '../../features/chat/data/entities/sticker_item_entity.dart';
+import '../../features/chat/data/entities/conversation_user_entity.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: [Users, ChatConversations, ChatMessages, Friendships, StickerPackages, StickerItems])
+@DriftDatabase(tables: [Users, ChatConversations, ConversationUsers, ChatMessages, Friendships, StickerPackages, StickerItems])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -26,6 +27,7 @@ class AppDatabase extends _$AppDatabase {
           await m.deleteTable('sticker_items');
           await m.deleteTable('sticker_packages');
           await m.deleteTable('chat_messages');
+          await m.deleteTable('conversation_users');
           await m.deleteTable('chat_conversations');
           await m.deleteTable('friendships');
           await m.deleteTable('users');
@@ -33,6 +35,7 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(users);
           await m.createTable(friendships);
           await m.createTable(chatConversations);
+          await m.createTable(conversationUsers);
           await m.createTable(chatMessages);
           await m.createTable(stickerPackages);
           await m.createTable(stickerItems);
@@ -61,6 +64,7 @@ class AppDatabase extends _$AppDatabase {
       await delete(stickerItems).go();
       await delete(stickerPackages).go();
       await delete(chatMessages).go();
+      await delete(conversationUsers).go();
       await delete(chatConversations).go();
       await delete(friendships).go();
       await delete(users).go();
@@ -110,6 +114,29 @@ class AppDatabase extends _$AppDatabase {
             (tbl) => OrderingTerm.desc(tbl.updatedAt),
           ]))
         .watch();
+  }
+
+  Future<void> insertConversationUsers(List<ConversationUserEntity> items) async {
+    if (items.isEmpty) return;
+    await batch((b) {
+      b.insertAllOnConflictUpdate(conversationUsers, items);
+    });
+  }
+
+  Future<List<ConversationUserEntity>> getConversationUsers(String conversationId) {
+    return (select(conversationUsers)
+          ..where((tbl) => tbl.conversationId.equals(conversationId)))
+        .get();
+  }
+
+  Stream<List<ConversationUserEntity>> watchConversationUsers(String conversationId) {
+    return (select(conversationUsers)
+          ..where((tbl) => tbl.conversationId.equals(conversationId)))
+        .watch();
+  }
+
+  Future<void> clearConversationUsers() async {
+    await delete(conversationUsers).go();
   }
 
   Future<void> clearChatConversations() async {

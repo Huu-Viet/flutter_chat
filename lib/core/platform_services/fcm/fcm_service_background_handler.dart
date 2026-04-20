@@ -11,6 +11,15 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final plugin = FlutterLocalNotificationsPlugin();
   final notificationService = NotificationService(plugin);
   final router = NotificationRouter(notificationService);
-  await router.route(message.data);
+  final data = Map<String, dynamic>.from(message.data);
+  final title = message.notification?.title;
+  final body = message.notification?.body;
+  if (!data.containsKey('title') && title != null && title.trim().isNotEmpty) {
+    data['title'] = title;
+  }
+  if (!data.containsKey('body') && body != null && body.trim().isNotEmpty) {
+    data['body'] = body;
+  }
+  await router.route(data);
   debugPrint('FCMBackgroundHandler: background message routed successfully');
 }

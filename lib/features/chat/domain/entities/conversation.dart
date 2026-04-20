@@ -1,3 +1,5 @@
+import 'package:flutter_chat/features/chat/domain/entities/conversation_participant.dart';
+
 class Conversation {
   final String id;
   final String orgId;
@@ -8,6 +10,7 @@ class Conversation {
   final String maxOffset;
   final DateTime updatedAt;
   final String avatarUrl;
+  final List<ConversationParticipant> participants;
 
   const Conversation({
     required this.id,
@@ -19,5 +22,6 @@ class Conversation {
     required this.maxOffset,
     required this.updatedAt,
     required this.avatarUrl,
+    this.participants = const <ConversationParticipant>[],
   });
 }

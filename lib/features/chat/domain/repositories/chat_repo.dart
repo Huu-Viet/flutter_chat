@@ -51,6 +51,7 @@ abstract class ChatRepository {
   Future<Either<Failure, void>> clearLocalCache();
 
   Stream<Either<Failure, List<Conversation>>> watchConversationsLocal();
+  Stream<Either<Failure, List<Conversation>>> watchConversationsWithUsersLocal();
   Stream<Either<Failure, List<Message>>> watchMessagesLocal(String conversationId);
 
   Future<Either<Failure, List<StickerPackage>>> getStickerPackages();

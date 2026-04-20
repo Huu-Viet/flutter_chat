@@ -14,7 +14,10 @@ class ChatMessage {
   final bool isResolvingImage;
   final String? localId;
   final String? serverId;
+  final String? senderDisplayName;
+  final String? senderAvatarUrl;
   final String? conversationAvatarUrl;
+  final bool isGroupConversation;
   final bool isFirstInGroup;
   final bool isLastInGroup;
   final List<ChatMessageReaction> reactions;
@@ -33,7 +36,10 @@ class ChatMessage {
     this.isResolvingImage = false,
     this.localId,
     this.serverId,
+    this.senderDisplayName,
+    this.senderAvatarUrl,
     this.conversationAvatarUrl,
+    this.isGroupConversation = false,
     this.isFirstInGroup = true,
     this.isLastInGroup = true,
     this.reactions = const <ChatMessageReaction>[],
@@ -57,7 +63,10 @@ class ChatMessage {
       isResolvingImage: isResolvingImage,
       localId: localId,
       serverId: serverId,
+      senderDisplayName: senderDisplayName,
+      senderAvatarUrl: senderAvatarUrl,
       conversationAvatarUrl: conversationAvatarUrl,
+      isGroupConversation: isGroupConversation,
       isFirstInGroup: isFirstInGroup ?? this.isFirstInGroup,
       isLastInGroup: isLastInGroup ?? this.isLastInGroup,
       reactions: reactions,

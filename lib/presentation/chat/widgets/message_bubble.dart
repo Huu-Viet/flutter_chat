@@ -26,6 +26,16 @@ class MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasVisualMedia = message.imagePath != null;
+    final senderAvatarUrl = message.senderAvatarUrl?.trim();
+    final effectiveAvatarUrl =
+      senderAvatarUrl != null && senderAvatarUrl.isNotEmpty ? senderAvatarUrl : null;
+    final senderDisplayName = message.senderDisplayName?.trim();
+    final canShowSenderName =
+      message.isGroupConversation &&
+      !message.isSentByMe &&
+      message.isFirstInGroup &&
+      senderDisplayName != null &&
+      senderDisplayName.isNotEmpty;
     final bubble = Stack(
       clipBehavior: Clip.none,
       children: [
@@ -87,6 +97,7 @@ class MessageBubble extends StatelessWidget {
         onLongPress: onLongPress,
         onLongPressStart: onLongPressStart,
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.end,
           mainAxisAlignment: message.isSentByMe ? MainAxisAlignment.end : MainAxisAlignment.start,
           children: [
@@ -97,10 +108,10 @@ class MessageBubble extends StatelessWidget {
                 child: message.isLastInGroup
                     ? CircleAvatar(
                         radius: 16,
-                        backgroundImage: message.conversationAvatarUrl != null && message.conversationAvatarUrl!.isNotEmpty
-                            ? CachedNetworkImageProvider(message.conversationAvatarUrl!)
+                  backgroundImage: effectiveAvatarUrl != null
+                    ? CachedNetworkImageProvider(effectiveAvatarUrl)
                             : null,
-                        child: message.conversationAvatarUrl == null || message.conversationAvatarUrl!.isEmpty
+                  child: effectiveAvatarUrl == null
                             ? const Icon(Icons.person, size: 18)
                             : null,
                       )
@@ -110,6 +121,17 @@ class MessageBubble extends StatelessWidget {
               crossAxisAlignment:
                   message.isSentByMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
+                if (canShowSenderName)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4, bottom: 4),
+                    child: Text(
+                      senderDisplayName,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.75),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 bubble,
                 MessageReactionsBar(
                   reactions: message.reactions,

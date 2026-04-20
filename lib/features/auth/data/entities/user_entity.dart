@@ -4,7 +4,7 @@ import 'package:drift/drift.dart';
 class Users extends Table {
   // Keep domain user id as the only primary key.
   TextColumn get id => text()();
-  TextColumn get email => text().unique()();
+  TextColumn? get email => text().unique().nullable()();
   TextColumn get username => text()();
   TextColumn? get firstName => text().named('first_name').nullable()();
   TextColumn? get lastName => text().named('last_name').nullable()();

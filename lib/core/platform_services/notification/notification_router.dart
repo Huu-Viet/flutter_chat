@@ -12,14 +12,27 @@ class NotificationRouter {
     if (data.containsKey(AppConstants.chatId)) {
       debugPrint('$_tag: routing chat notification data=$data');
       await _notificationService.createChatNotification(data);
+      return;
     }
-    else if (data.containsKey(AppConstants.callRoomId)) {
+
+    if (data.containsKey(AppConstants.callRoomId)) {
       debugPrint('$_tag: routing call notification data=$data');
       await _notificationService.createCallNotification(data);
+      return;
     }
-    else {
+
+    if (_isFriendRequest(data)) {
       debugPrint('$_tag: routing friend-request notification data=$data');
       await _notificationService.createFriendRequestNotification(data);
+      return;
     }
+
+    debugPrint('$_tag: routing generic notification data=$data');
+    await _notificationService.createGenericNotification(data);
+  }
+
+  bool _isFriendRequest(Map<String, dynamic> data) {
+    final type = (data['type'] ?? data['notification_type'] ?? '').toString().toLowerCase();
+    return type == 'friend_request' || type == 'friend-request';
   }
 }

@@ -27,6 +27,8 @@ class AppConstants {
   static const String chatChannelName = 'Chat Notification';
   static const String friendRequestChannelId = 'friend_requests';
   static const String friendRequestChannelName = 'Friend Requests';
+  static const String systemChannelId = 'system_notifications';
+  static const String systemChannelName = 'System Notifications';
   //chat
   static const String chatId = 'chat_id';
   //for firestore collection
