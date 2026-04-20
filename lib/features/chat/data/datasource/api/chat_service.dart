@@ -1,4 +1,5 @@
 import 'package:flutter_chat/features/chat/data/response/conversation_response.dart';
+import 'package:flutter_chat/features/chat/data/response/message_edit_response.dart';
 import 'package:flutter_chat/features/chat/data/response/message_list_response.dart';
 import 'package:flutter_chat/features/chat/data/response/message_send_response.dart';
 import 'package:flutter_chat/features/chat/data/response/sticker_package_response.dart';
@@ -24,6 +25,11 @@ abstract class ChatService {
     String? clientMessageId,
     String? replyToMessageId,
     Map<String, dynamic>? metadata,
+  });
+
+  Future<MessageEditResponse> editMessage({
+    required String messageId,
+    required String content,
   });
 
   Future<StickerPackageResponse> getStickerPackages();

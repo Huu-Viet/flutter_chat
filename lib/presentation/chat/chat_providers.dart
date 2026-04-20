@@ -9,9 +9,11 @@ final chatBlocProvider = Provider<ChatBloc>((ref) {
     fetchMessagesUseCase: ref.read(fetchMessagesUseCaseProvider),
     watchMessagesLocalUseCase: ref.read(watchMessagesLocalUseCaseProvider),
     sendMessageUseCase: ref.read(sendMessageUseCaseProvider),
+    editMessageUseCase: ref.read(editMessageUseCaseProvider),
     getCurrentUserIdUseCase: ref.read(getCurrentUserIdUseCaseProvider),
     uploadMediaUseCase: ref.read(uploadMediaUseCaseProvider),
     getImageUrlByMediaIdUseCase: ref.read(getImageUrlByMediaIdUseCaseProvider),
+    watchConversationsLocalUseCase: ref.read(watchConversationsLocalUseCaseProvider),
   );
 
   ref.onDispose(bloc.close);

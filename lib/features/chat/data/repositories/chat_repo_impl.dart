@@ -139,6 +139,37 @@ class ChatRepoImpl implements ChatRepository {
   }
 
   @override
+  Future<Either<Failure, Message>> editMessage({
+    required String localId,
+    required String messageId,
+    required String content,
+  }) async {
+    try {
+      final response = await _chatService.editMessage(
+        messageId: messageId,
+        content: content,
+      );
+
+      final editedAt = DateTime.tryParse(response.editedAt ?? '') ?? DateTime.now();
+      await _messageDao.updateMessageContent(
+        localId,
+        response.content ?? content,
+        editedAt,
+      );
+
+      final updated = await _messageDao.getMessageById(localId);
+      if (updated == null) {
+        throw Exception('Message not found after edit');
+      }
+
+      return Right(_localMessageMapper.toDomain(updated));
+    } catch (e) {
+      debugPrint('[ChatRepoImpl] editMessage error: $e');
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, void>> clearLocalCache() async {
     try {
       await _conversationDao.clearConversations();

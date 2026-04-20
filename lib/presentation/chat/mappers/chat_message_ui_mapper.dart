@@ -1,0 +1,110 @@
+import 'package:flutter_chat/features/chat/export.dart';
+import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
+import 'package:flutter_chat/presentation/chat/utils/message_helpers.dart';
+
+class ChatMessageUIMapper {
+  final MessageHelpers _helpers = MessageHelpers();
+
+  static const Duration _groupingWindow = Duration(minutes: 1);
+
+  List<ChatMessage> mapStateMessagesToUI(
+    List<Message> messages,
+    Set<String> uploadingImagePaths,
+    Map<String, String> imageUrlsByMediaId,
+    Set<String> resolvingImageMediaIds,
+    String? currentUserId,
+    String? conversationAvatarUrl,
+  ) {
+    final mappedMessages = messages
+        .map(
+          (message) {
+            final isImageLikeMessage = _helpers.isImageLikeMessage(message);
+            final isStickerMessage = _helpers.isStickerMessage(message);
+            final mediaId = message.mediaId?.trim();
+            final stickerUrl = _helpers.extractStickerUrl(message);
+            final stickerId = _helpers.extractStickerId(message);
+            final localPath = _helpers.isLikelyLocalImagePath(message.content) ? message.content : null;
+            final resolvedRemoteUrl = mediaId != null && mediaId.isNotEmpty
+                ? imageUrlsByMediaId[mediaId]
+                : null;
+            final imagePath = isStickerMessage
+                ? stickerUrl
+                : isImageLikeMessage
+                ? (resolvedRemoteUrl ?? localPath)
+                : null;
+
+            return ChatMessage(
+              text: imagePath == null && !isImageLikeMessage && !isStickerMessage ? message.content : null,
+              imagePath: imagePath,
+              mediaId: mediaId,
+              stickerId: stickerId,
+              type: message.type,
+              isSentByMe: currentUserId != null && message.senderId == currentUserId,
+              senderId: message.senderId,
+              timestamp: message.createdAt,
+              isUploading: localPath != null && uploadingImagePaths.contains(localPath),
+              isResolvingImage: isImageLikeMessage &&
+                  imagePath == null &&
+                  mediaId != null &&
+                  mediaId.isNotEmpty &&
+                  resolvingImageMediaIds.contains(mediaId),
+              localId: message.id,
+              serverId: message.serverId,
+              conversationAvatarUrl: conversationAvatarUrl,
+            );
+          },
+        )
+        .toList();
+
+    final existingImagePaths = mappedMessages
+        .where((message) => message.imagePath != null)
+        .map((message) => message.imagePath!)
+        .toSet();
+
+    for (final imagePath in uploadingImagePaths) {
+      if (existingImagePaths.contains(imagePath)) {
+        continue;
+      }
+
+      mappedMessages.add(
+        ChatMessage(
+          imagePath: imagePath,
+          mediaId: null,
+          isSentByMe: true,
+          timestamp: DateTime.now(),
+          isUploading: true,
+          conversationAvatarUrl: conversationAvatarUrl,
+        ),
+      );
+    }
+
+    return _applyGrouping(mappedMessages);
+  }
+
+  List<ChatMessage> _applyGrouping(List<ChatMessage> messages) {
+    if (messages.isEmpty) return messages;
+
+    final result = <ChatMessage>[];
+
+    for (var i = 0; i < messages.length; i++) {
+      final current = messages[i];
+      final prev = i > 0 ? messages[i - 1] : null;
+      final next = i < messages.length - 1 ? messages[i + 1] : null;
+
+      final bool sameAsPrev = prev != null &&
+          prev.senderId == current.senderId &&
+          current.timestamp.difference(prev.timestamp) <= _groupingWindow;
+
+      final bool sameAsNext = next != null &&
+          next.senderId == current.senderId &&
+          next.timestamp.difference(current.timestamp) <= _groupingWindow;
+
+      result.add(current.copyWith(
+        isFirstInGroup: !sameAsPrev,
+        isLastInGroup: !sameAsNext,
+      ));
+    }
+
+    return result;
+  }
+}

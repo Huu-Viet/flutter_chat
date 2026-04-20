@@ -146,13 +146,17 @@ class AddFriendBloc extends Bloc<AddFriendEvent, AddFriendState> {
         friendAndPendingUserIds: state.friendAndPendingUserIds,
       )),
       (_) {
-        final remainingUsers = state.users.where((user) => user.id != targetUserId).toList(growable: false);
+        final updatedFriendAndPendingIds = {
+          ...state.friendAndPendingUserIds,
+          targetUserId,
+        }.toList(growable: false);
+
         emit(AddFriendLoaded(
           query: state.query,
-          users: remainingUsers,
+          users: state.users,
           hasSearched: state.hasSearched,
           busyUserId: null,
-          friendAndPendingUserIds: [...state.friendAndPendingUserIds, targetUserId],
+          friendAndPendingUserIds: updatedFriendAndPendingIds,
         ));
       },
     );

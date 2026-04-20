@@ -181,6 +181,10 @@ class AppDatabase extends _$AppDatabase {
     return (select(chatMessages)..where((tbl) => tbl.serverId.equals(serverId))).getSingleOrNull();
   }
 
+  Future<ChatMessageEntity?> getMessageById(String id) async {
+    return (select(chatMessages)..where((tbl) => tbl.id.equals(id))).getSingleOrNull();
+  }
+
   Future<void> deleteMessagesByServerId(String serverId) async {
     await (delete(chatMessages)..where((tbl) => tbl.serverId.equals(serverId))).go();
   }
@@ -214,6 +218,19 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> clearMessagesByConversationId(String conversationId) async {
     await (delete(chatMessages)..where((tbl) => tbl.conversationId.equals(conversationId))).go();
+  }
+
+  Future<void> updateMessageContent(
+    String id,
+    String content,
+    DateTime editedAt,
+  ) async {
+    await (update(chatMessages)..where((tbl) => tbl.id.equals(id))).write(
+      ChatMessagesCompanion(
+        content: Value(content),
+        editedAt: Value(editedAt.toIso8601String()),
+      ),
+    );
   }
 
   Future<void> clearFriendships() async {

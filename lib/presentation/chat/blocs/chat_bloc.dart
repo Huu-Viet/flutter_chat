@@ -18,13 +18,17 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final FetchMessagesUseCase fetchMessagesUseCase;
   final WatchMessagesLocalUseCase watchMessagesLocalUseCase;
   final SendMessageUseCase sendMessageUseCase;
+  final EditMessageUseCase editMessageUseCase;
   final GetCurrentUserIdUseCase getCurrentUserIdUseCase;
   final UploadMediaUseCase uploadMediaUseCase;
   final GetImageUrlByMediaIdUseCase getImageUrlByMediaIdUseCase;
-  late final String currentUserId;
+  final WatchConversationsLocalUseCase watchConversationsLocalUseCase;
+  String? _currentUserId;
 
   StreamSubscription<Either<Failure, List<Message>>>? _localSubscription;
+  StreamSubscription<Either<Failure, List<Conversation>>>? _conversationSubscription;
   List<Message> _currentMessages = const [];
+  Conversation? _currentConversation;
   final Set<String> _uploadingImagePaths = <String>{};
   final Map<String, String> _imageUrlsByMediaId = <String, String>{};
   final Set<String> _resolvingImageMediaIds = <String>{};
@@ -33,22 +37,28 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     required this.fetchMessagesUseCase,
     required this.watchMessagesLocalUseCase,
     required this.sendMessageUseCase,
+    required this.editMessageUseCase,
     required this.getCurrentUserIdUseCase,
     required this.uploadMediaUseCase,
     required this.getImageUrlByMediaIdUseCase,
+    required this.watchConversationsLocalUseCase,
   }) : super(ChatInitial()) {
-    _signUpCurrentUserId();
-
     on<ChatInitialLoadEvent>(_onChatInitialLoad);
     on<SendTextEvent>(_onSendText);
     on<SendImageEvent>(_onSendImage);
+    on<SendStickerEvent>(_onSendSticker);
+    on<EditMessageEvent>(_onEditMessage);
     on<FetchImageEvent>(_onFetchImageByMediaId);
     on<_LocalMessagesChangedEvent>((event, emit) {
       _currentMessages = event.messages;
       _requestMissingImageUrls(event.messages);
-      emit(_buildChatLoaded(event.messages));
+      emit(_buildChatLoaded(_currentMessages));
     });
     on<_LocalMessagesErrorEvent>((event, emit) => emit(ChatError(event.message)));
+    on<_LocalConversationChangedEvent>((event, emit) {
+      _currentConversation = event.conversation;
+      emit(_buildChatLoaded(_currentMessages));
+    });
   }
 
   ChatLoaded _buildChatLoaded(List<Message> messages) {
@@ -57,6 +67,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       uploadingImagePaths: Set<String>.from(_uploadingImagePaths),
       imageUrlsByMediaId: Map<String, String>.from(_imageUrlsByMediaId),
       resolvingImageMediaIds: Set<String>.from(_resolvingImageMediaIds),
+      conversation: _currentConversation,
+      currentUserId: _currentUserId,
     );
   }
 
@@ -88,6 +100,17 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     return normalizedType == 'image' || normalizedType == 'file';
   }
 
+  int _nextLocalOffset() {
+    var maxOffset = -1;
+    for (final message in _currentMessages) {
+      final offset = message.offset;
+      if (offset != null && offset > maxOffset) {
+        maxOffset = offset;
+      }
+    }
+    return maxOffset + 1;
+  }
+
   void _requestMissingImageUrls(List<Message> messages) {
     for (final message in messages) {
       if (!_isImageLikeMessage(message)) {
@@ -113,7 +136,11 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   }
 
   FutureOr<void> _onChatInitialLoad(ChatInitialLoadEvent event, Emitter<ChatState> emit) async {
+    final userIdResult = await getCurrentUserIdUseCase();
+    _currentUserId = userIdResult.fold((_) => _currentUserId, (id) => id);
+
     _startMessagesLocalWatcher(event.conversationId);
+    _startConversationLocalWatcher(event.conversationId);
     emit(ChatLoading());
     final result = await fetchMessagesUseCase(event.conversationId);
     result.fold(
@@ -128,18 +155,19 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   FutureOr<void> _onSendText(SendTextEvent event, Emitter<ChatState> emit) async {
     final messageId = Uuid().v4();
+    final localOffset = _nextLocalOffset();
     final message = Message(
       id: messageId,
       conversationId: event.conversationId,
-      senderId: currentUserId,
+      senderId: _currentUserId ?? '',
       content: event.content,
       type: 'text',
-      offset: null,
+      offset: localOffset,
       isDeleted: false,
       mediaId: event.mediaId,
       serverId: messageId,
       metadata: null,
-      createdAt: DateTime.now(),
+      createdAt: DateTime.now().toUtc(),
       editedAt: null,
     );
 
@@ -191,18 +219,19 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     }
 
     final messageId = Uuid().v4();
+    final localOffset = _nextLocalOffset();
     final message = Message(
       id: messageId,
       conversationId: event.conversationId,
-      senderId: currentUserId,
+      senderId: _currentUserId ?? '',
       content: event.imagePath,
       type: 'file',
-      offset: null,
+      offset: localOffset,
       isDeleted: false,
       mediaId: mediaId,
       serverId: messageId,
       metadata: null,
-      createdAt: DateTime.now(),
+      createdAt: DateTime.now().toUtc(),
       editedAt: null,
     );
 
@@ -214,6 +243,52 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
     _uploadingImagePaths.remove(event.imagePath);
     emit(_buildChatLoaded(_currentMessages));
+  }
+
+  FutureOr<void> _onSendSticker(SendStickerEvent event, Emitter<ChatState> emit) async {
+    final stickerUrl = event.stickerUrl.trim();
+    if (stickerUrl.isEmpty) {
+      add(const _LocalMessagesErrorEvent('Send sticker failed: missing sticker url'));
+      return;
+    }
+
+    final messageId = Uuid().v4();
+    final localOffset = _nextLocalOffset();
+    final message = Message(
+      id: messageId,
+      conversationId: event.conversationId,
+      senderId: _currentUserId ?? '',
+      content: '',
+      type: 'sticker',
+      offset: localOffset,
+      isDeleted: false,
+      mediaId: null,
+      serverId: messageId,
+      metadata: <String, dynamic>{
+        'url': stickerUrl,
+        'stickerId': event.stickerId,
+      },
+      createdAt: DateTime.now().toUtc(),
+      editedAt: null,
+    );
+
+    final sendResult = await sendMessageUseCase(message: message);
+    sendResult.fold(
+      (failure) => add(_LocalMessagesErrorEvent(failure.message)),
+      (_) {},
+    );
+  }
+
+  FutureOr<void> _onEditMessage(EditMessageEvent event, Emitter<ChatState> emit) async {
+    final result = await editMessageUseCase(
+      localId: event.localId,
+      messageId: event.messageId,
+      content: event.content,
+    );
+    result.fold(
+      (failure) => add(_LocalMessagesErrorEvent(failure.message)),
+      (_) {},
+    );
   }
 
   Future<void> _onFetchImageByMediaId(
@@ -258,13 +333,30 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     emit(_buildChatLoaded(_currentMessages));
   }
 
-  void _signUpCurrentUserId() {
-      getCurrentUserIdUseCase().then((result) {
-        result.fold(
-          (failure) => null,
-          (userId) => currentUserId = userId,
-        );
-      });
+  void _startConversationLocalWatcher(String conversationId) {
+    _conversationSubscription?.cancel();
+    _conversationSubscription = watchConversationsLocalUseCase().listen((result) {
+      if (isClosed) {
+        return;
+      }
+
+      result.fold(
+        (failure) => null,
+        (conversations) {
+          final matchingConversations = conversations.where((c) => c.id == conversationId);
+          if (matchingConversations.isNotEmpty) {
+            add(_LocalConversationChangedEvent(matchingConversations.first));
+          }
+        },
+      );
+    });
+  }
+
+  @override
+  Future<void> close() async {
+    _localSubscription?.cancel();
+    _conversationSubscription?.cancel();
+    await super.close();
   }
 }
 

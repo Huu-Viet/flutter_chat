@@ -54,7 +54,7 @@ class _MessageInputState extends State<MessageInput> {
 
   // Simulate waveform generation for visual effect since we don't have a real audio processing library
   // In a real app, you would generate this from the recorded audio file.
-  List<double> _waveform = [];
+  final List<double> _waveform = [];
 
   @override
   void initState() {
@@ -410,7 +410,7 @@ class _MessageInputState extends State<MessageInput> {
                 IconButton(
                   icon: Icon(
                     _isPlayingRecord ? Icons.pause : Icons.play_arrow,
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                   onPressed: _playRecord,
                 )
@@ -441,7 +441,7 @@ class _MessageInputState extends State<MessageInput> {
     Color? color,
   }) {
     return IconButton(
-      icon: Icon(icon, color: color ?? Colors.white),
+      icon: Icon(icon, color: Theme.of(context).colorScheme.onSurface),
       onPressed: onPressed,
       constraints: const BoxConstraints(),
       padding: const EdgeInsets.all(8),
@@ -451,12 +451,11 @@ class _MessageInputState extends State<MessageInput> {
   Widget _buildTextField(BuildContext context) {
     return TextField(
       controller: widget.controller,
-      style: const TextStyle(color: Colors.white),
       decoration: const InputDecoration(
         hintText: 'Tin nhắn',
         border: InputBorder.none,
         contentPadding: EdgeInsets.symmetric(horizontal: 0, vertical: 10),
-        hintStyle: TextStyle(color: Colors.white),
+        hintStyle: TextStyle(color: Colors.grey),
         isDense: true,
       ),
       minLines: 1,

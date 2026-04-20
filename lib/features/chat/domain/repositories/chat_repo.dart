@@ -21,6 +21,12 @@ abstract class ChatRepository {
     String? replyToMessageId,
   });
 
+  Future<Either<Failure, Message>> editMessage({
+    required String localId,
+    required String messageId,
+    required String content,
+  });
+
   Future<Either<Failure, void>> clearLocalCache();
 
   Stream<Either<Failure, List<Conversation>>> watchConversationsLocal();

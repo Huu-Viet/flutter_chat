@@ -119,3 +119,7 @@ final getStickerPackagesUseCaseProvider = Provider<GetStickerPackagesUseCase>((r
 final getStickersInPackageUseCaseProvider = Provider<GetStickersInPackageUseCase>((ref) {
   return GetStickersInPackageUseCase(ref.read(chatRepoProvider));
 });
+
+final editMessageUseCaseProvider = Provider<EditMessageUseCase>((ref) {
+  return EditMessageUseCase(ref.read(chatRepoProvider));
+});

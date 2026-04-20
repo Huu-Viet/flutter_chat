@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_chat/core/platform_services/export.dart';
-import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
 import 'package:flutter_chat/presentation/chat/blocs/chat_bloc.dart';
 import 'package:flutter_chat/presentation/chat/chat_providers.dart';
+import 'package:flutter_chat/presentation/chat/mappers/chat_message_ui_mapper.dart';
+import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
 import 'package:flutter_chat/presentation/chat/widgets/image_send_confirmation_dialog.dart';
+import 'package:flutter_chat/presentation/chat/widgets/message_action_dialog.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_bubble.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_input.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,109 +33,46 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   final TextEditingController _messageController = TextEditingController();
   final List<ChatMessage> _messages = [];
   final MediaService _mediaService = MediaService();
-  String? _currentUserId;
+  final ChatMessageUIMapper _uiMapper = ChatMessageUIMapper();
+  static const Duration _messageEditWindow = Duration(hours: 1);
 
-  List<ChatMessage> _mapStateMessagesToUi(
-    List<Message> messages,
-    Set<String> uploadingImagePaths,
-    Map<String, String> imageUrlsByMediaId,
-    Set<String> resolvingImageMediaIds,
-  ) {
-    final mappedMessages = messages
-        .map(
-          (message) {
-            final isImageLikeMessage = _isImageLikeMessage(message);
-            final mediaId = message.mediaId?.trim();
-            final localPath = _isLikelyLocalImagePath(message.content) ? message.content : null;
-            final resolvedRemoteUrl = mediaId != null && mediaId.isNotEmpty
-                ? imageUrlsByMediaId[mediaId]
-                : null;
-            final imagePath = isImageLikeMessage ? (resolvedRemoteUrl ?? localPath) : null;
-
-            return ChatMessage(
-              text: imagePath == null && !isImageLikeMessage ? message.content : null,
-              imagePath: imagePath,
-              mediaId: mediaId,
-              isSentByMe: _currentUserId != null && message.senderId == _currentUserId,
-              timestamp: message.createdAt,
-              isUploading: localPath != null && uploadingImagePaths.contains(localPath),
-              isResolvingImage: isImageLikeMessage &&
-                  imagePath == null &&
-                  mediaId != null &&
-                  mediaId.isNotEmpty &&
-                  resolvingImageMediaIds.contains(mediaId),
-            );
-          },
-        )
-        .toList();
-
-    final existingImagePaths = mappedMessages
-        .where((message) => message.imagePath != null)
-        .map((message) => message.imagePath!)
-        .toSet();
-
-    for (final imagePath in uploadingImagePaths) {
-      if (existingImagePaths.contains(imagePath)) {
-        continue;
-      }
-
-      mappedMessages.add(
-        ChatMessage(
-          imagePath: imagePath,
-          mediaId: null,
-          isSentByMe: true,
-          timestamp: DateTime.now(),
-          isUploading: true,
-        ),
-      );
-    }
-
-    return mappedMessages;
-  }
-
-  bool _isLikelyLocalImagePath(String value) {
-    final uri = Uri.tryParse(value);
-    if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
+  bool _canEditMessage(ChatMessage message) {
+    if (!message.isSentByMe) {
       return false;
     }
 
-    final lowerValue = value.toLowerCase();
-    return value.startsWith('/') ||
-        value.contains(':/') ||
-        value.contains(':\\') ||
-        lowerValue.endsWith('.png') ||
-        lowerValue.endsWith('.jpg') ||
-        lowerValue.endsWith('.jpeg') ||
-        lowerValue.endsWith('.webp') ||
-        lowerValue.endsWith('.gif');
-  }
-
-  bool _isImageLikeMessage(Message message) {
-    final mediaId = message.mediaId?.trim();
-    if (mediaId == null || mediaId.isEmpty) {
+    if (message.type.trim().toLowerCase() != 'text') {
       return false;
     }
 
-    final normalizedType = message.type.trim().toLowerCase();
-    return normalizedType == 'image' || normalizedType == 'file';
-  }
-
-  Future<void> _loadCurrentUserId() async {
-    final result = await ref.read(getCurrentUserIdUseCaseProvider).call();
-    if (!mounted) {
-      return;
+    final text = message.text?.trim();
+    if (text == null || text.isEmpty) {
+      return false;
     }
 
-    setState(() {
-      _currentUserId = result.fold((_) => null, (id) => id);
-    });
+    return DateTime.now().difference(message.timestamp) <= _messageEditWindow;
+  }
+
+  String _mapChatErrorMessage(String message, AppLocalizations l10n) {
+    if (message.contains('FORBIDDEN_EDIT_WINDOW_EXPIRED')) {
+      return l10n.error_edit_time_limited;
+    }
+
+    if (message.contains('FORBIDDEN_NOT_OWNER')) {
+      return l10n.error_cannot_edit_message;
+    }
+
+    if (message.contains('MESSAGE_NOT_FOUND')) {
+      return l10n.error_message_not_found;
+    }
+
+    return message;
   }
 
   @override
   void initState() {
     super.initState();
     ref.read(chatBlocProvider).add(ChatInitialLoadEvent(widget.conversationId));
-    _loadCurrentUserId();
   }
 
   @override
@@ -150,6 +90,21 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       content: content,
     ));
     _messageController.clear();
+  }
+
+  void _sendSticker(StickerItem sticker) {
+    final stickerUrl = sticker.url.trim();
+    if (stickerUrl.isEmpty) {
+      return;
+    }
+
+    ref.read(chatBlocProvider).add(
+      SendStickerEvent(
+        conversationId: widget.conversationId,
+        stickerId: sticker.id,
+        stickerUrl: stickerUrl,
+      ),
+    );
   }
 
   Future<void> _pickImage() async {
@@ -204,6 +159,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             imagePath: image.path,
             isSentByMe: true,
             timestamp: DateTime.now(),
+            type: 'image',
           ));
         }
       });
@@ -211,10 +167,82 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
 
+  Future<void> _showMessageActions(BuildContext context, ChatMessage message, AppLocalizations l10n) async {
+    final canEdit = _canEditMessage(message);
+    final hasText = message.text != null && message.text!.isNotEmpty;
+
+    if (!hasText && !canEdit) return;
+
+    final action = await showDialog<MessageAction>(
+      context: context,
+      barrierColor: Colors.black38,
+      barrierDismissible: true,
+      builder: (_) => MessageActionDialog(
+        canCopy: hasText,
+        canEdit: canEdit,
+      ),
+    );
+
+    if (!mounted || action == null) return;
+
+    switch (action) {
+      case MessageAction.copy:
+        await Clipboard.setData(ClipboardData(text: message.text!));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.success_copied), duration: Duration(seconds: 1)),
+          );
+        }
+      case MessageAction.edit:
+        if (mounted) _showEditDialog(context, message, l10n);
+    }
+  }
+
+  Future<void> _showEditDialog(BuildContext context, ChatMessage message, AppLocalizations l10n) async {
+    final controller = TextEditingController(text: message.text ?? '');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(l10n.action_edit_message),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLines: null,
+            decoration: InputDecoration(hintText: l10n.input_new_content),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(l10n.close),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(l10n.accept),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) return;
+    final newContent = controller.text.trim();
+    if (newContent.isEmpty || newContent == message.text) return;
+
+    final localId = message.localId;
+    if (localId == null || localId.trim().isEmpty) return;
+
+    ref.read(chatBlocProvider).add(EditMessageEvent(
+      localId: localId,
+      messageId: localId,
+      content: newContent,
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
-    final chatBloc = ref.read(chatBlocProvider);
     final l10n = AppLocalizations.of(context)!;
+    final chatBloc = ref.read(chatBlocProvider);
 
     return BlocProvider<ChatBloc>.value(
       value: chatBloc,
@@ -223,21 +251,29 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         listener: (context, state) {
           if (state is ChatError) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(l10n.error_unknown)),
+              SnackBar(content: Text(_mapChatErrorMessage(state.message, l10n))),
             );
           }
         },
         builder: (context, state) => Scaffold(
             appBar: AppBar(
+              iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onSurface),
               title: Container(
                 alignment: Alignment.centerLeft,
-                child: Text(
-                  widget.friendName,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontWeight: FontWeight.bold
-                  ),
-                  textAlign: TextAlign.center,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.friendName,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontWeight: FontWeight.bold
+                        ),
+                        textAlign: TextAlign.left,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               backgroundColor: Theme.of(context).colorScheme.surfaceBright,
@@ -248,11 +284,13 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   child: Builder(
                     builder: (context) {
                       final List<ChatMessage> displayMessages = state is ChatLoaded
-                          ? _mapStateMessagesToUi(
+                          ? _uiMapper.mapStateMessagesToUI(
                               state.messages,
                               state.uploadingImagePaths,
                               state.imageUrlsByMediaId,
                               state.resolvingImageMediaIds,
+                              state.currentUserId,
+                              state.conversation?.avatarUrl,
                             )
                           : _messages;
 
@@ -262,7 +300,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                         itemCount: displayMessages.length,
                         itemBuilder: (context, index) {
                           final message = displayMessages[displayMessages.length - 1 - index];
-                          return MessageBubble(message: message);
+                          return MessageBubble(
+                            message: message,
+                            onLongPress: () => _showMessageActions(context, message, l10n),
+                          );
                         },
                       );
                     },
@@ -276,6 +317,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   onEmojiSelected: (emoji) {
                     _messageController.text += emoji;
                   },
+                  onStickerSelected: _sendSticker,
                 ),
               ],
             ),
@@ -283,24 +325,4 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       ),
     );
   }
-}
-
-class ChatMessage {
-  final String? text;
-  final String? imagePath;
-  final String? mediaId;
-  final bool isSentByMe;
-  final DateTime timestamp;
-  final bool isUploading;
-  final bool isResolvingImage;
-
-  ChatMessage({
-    this.text,
-    this.imagePath,
-    this.mediaId,
-    required this.isSentByMe,
-    required this.timestamp,
-    this.isUploading = false,
-    this.isResolvingImage = false,
-  });
 }

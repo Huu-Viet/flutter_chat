@@ -15,6 +15,8 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
 
   static const int _syncPage = 1;
   static const int _syncLimit = 20;
+  static const int _latestMessageSyncLimit = 1;
+  static const int _messageMutationSyncLimit = 30;
 
   @override
   bool supports(AppEvent event) => event.namespace == '/chat';
@@ -32,6 +34,13 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
       case 'message:saved':
       case 'message:notify':
         await _fetchLatestMessages(event.type, event.payload);
+        return;
+      case 'message:edited':
+      case 'message:revoked':
+      case 'message:deleted':
+      case 'message:deleted_for_me':
+      case 'message:updated':
+        await _syncRecentMessages(event.type, event.payload);
         return;
       default:
         return;
@@ -65,7 +74,7 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
       conversationId,
       before: null,
       after: null,
-      limit: 1,
+      limit: _latestMessageSyncLimit,
     );
     result.fold(
       (failure) {
@@ -73,6 +82,31 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
       },
       (messages) {
         debugPrint('[ChatAppEventSubscriber] fetch latest message ok: count=${messages.length}');
+      },
+    );
+  }
+
+  Future<void> _syncRecentMessages(String eventType, Map<String, dynamic> payload) async {
+    debugPrint('[ChatAppEventSubscriber] sync recent messages for $eventType: $payload');
+
+    final conversationId = _resolveConversationId(payload);
+    if (conversationId == null || conversationId.isEmpty) {
+      debugPrint('[ChatAppEventSubscriber] skip $eventType sync: missing conversationId');
+      return;
+    }
+
+    final result = await fetchMessagesUseCase(
+      conversationId,
+      before: null,
+      after: null,
+      limit: _messageMutationSyncLimit,
+    );
+    result.fold(
+      (failure) {
+        debugPrint('[ChatAppEventSubscriber] sync recent messages failed: ${failure.message}');
+      },
+      (messages) {
+        debugPrint('[ChatAppEventSubscriber] sync recent messages ok: count=${messages.length}');
       },
     );
   }

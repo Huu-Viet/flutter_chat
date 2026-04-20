@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_chat/core/network/realtime_gateway.dart';
+import 'package:flutter_chat/features/chat/data/response/message_edit_response.dart';
 import 'package:flutter_chat/features/chat/data/response/message_send_response.dart';
 import 'package:flutter_chat/features/chat/data/response/sticker_item_response.dart';
 import 'package:flutter_chat/features/chat/data/response/sticker_package_response.dart';
@@ -182,6 +183,46 @@ class ChatServiceImpl implements ChatService {
     } catch (e) {
       debugPrint('[ChatServiceImpl] Send message error: $e');
       throw Exception('Failed to send message: $e');
+    }
+  }
+
+  @override
+  Future<MessageEditResponse> editMessage({
+    required String messageId,
+    required String content,
+  }) async {
+    try {
+      final endpoint = '$_baseUrl/messages/$messageId';
+      debugPrint('[ChatServiceImpl] Edit message request: endpoint=$endpoint, content=$content');
+
+      final response = await _dio.patch(endpoint, data: {'content': content});
+
+      if ((response.statusCode != 200 && response.statusCode != 201) ||
+          response.data == null) {
+        throw Exception('Failed to edit message: ${response.statusCode}');
+      }
+
+      final responseBody = response.data;
+      if (responseBody is! Map<String, dynamic>) {
+        throw Exception('Invalid response body format');
+      }
+
+      final data = responseBody['data'];
+      if (data is Map<String, dynamic>) {
+        return MessageEditResponse.fromJson(data);
+      }
+
+      return MessageEditResponse(messageId: messageId, content: content);
+    } on DioException catch (e) {
+      debugPrint(
+        '[ChatServiceImpl] Edit message Dio error: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+      throw Exception(
+        'Failed to edit message: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] Edit message error: $e');
+      throw Exception('Failed to edit message: $e');
     }
   }
 

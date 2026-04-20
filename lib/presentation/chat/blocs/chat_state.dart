@@ -16,12 +16,16 @@ final class ChatLoaded extends ChatState {
   final Set<String> uploadingImagePaths;
   final Map<String, String> imageUrlsByMediaId;
   final Set<String> resolvingImageMediaIds;
+  final Conversation? conversation;
+  final String? currentUserId;
 
   const ChatLoaded(
     this.messages, {
     this.uploadingImagePaths = const <String>{},
     this.imageUrlsByMediaId = const <String, String>{},
     this.resolvingImageMediaIds = const <String>{},
+    this.conversation,
+    this.currentUserId,
   });
 
   @override
@@ -30,6 +34,8 @@ final class ChatLoaded extends ChatState {
     uploadingImagePaths,
     imageUrlsByMediaId,
     resolvingImageMediaIds,
+    if (conversation != null) conversation!,
+    if (currentUserId != null) currentUserId!,
   ];
 }
 

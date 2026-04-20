@@ -6,12 +6,14 @@ import 'package:flutter_chat/core/database/app_database.dart';
 abstract class MessageDao {
   Future<void> saveMessages(List<ChatMessageEntity> items);
   Future<void> saveMessage(ChatMessageEntity item);
+  Future<ChatMessageEntity?> getMessageById(String id);
   Future<ChatMessageEntity?> getMessageByClientMessageId(String clientMessageId);
   Future<List<ChatMessageEntity>> getMessagesByConversationId(String conversationId);
   Stream<List<ChatMessageEntity>> watchMessagesByConversationId(String conversationId);
   Future<void> clearMessagesByConversationId(String conversationId);
   Future<void> clearAllMessages();
   Future<void> updateServerId(String localId, String serverId);
+  Future<void> updateMessageContent(String id, String content, DateTime editedAt);
 }
 
 class DriftMessageDaoImpl implements MessageDao {
@@ -54,6 +56,16 @@ class DriftMessageDaoImpl implements MessageDao {
       }
 
       await _database.insertMessage(item);
+    } catch (e) {
+      log(e.toString());
+      rethrow;
+    }
+  }
+
+  @override
+  Future<ChatMessageEntity?> getMessageById(String id) async {
+    try {
+      return await _database.getMessageById(id);
     } catch (e) {
       log(e.toString());
       rethrow;
@@ -113,6 +125,20 @@ class DriftMessageDaoImpl implements MessageDao {
           .write(ChatMessagesCompanion(
           serverId: Value(serverId),),
       );
+    } catch (e) {
+      log(e.toString());
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> updateMessageContent(
+    String id,
+    String content,
+    DateTime editedAt,
+  ) async {
+    try {
+      await _database.updateMessageContent(id, content, editedAt);
     } catch (e) {
       log(e.toString());
       rethrow;
