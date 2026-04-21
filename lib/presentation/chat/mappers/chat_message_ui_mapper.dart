@@ -1,13 +1,10 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
 import 'package:flutter_chat/presentation/chat/models/chat_message_reaction.dart';
 import 'package:flutter_chat/presentation/chat/utils/message_helpers.dart';
-import 'dart:io';
 
 class ChatMessageUIMapper {
   final MessageHelpers _helpers = MessageHelpers();
-
   static const Duration _groupingWindow = Duration(minutes: 1);
 
   List<ChatMessage> mapStateMessagesToUI(
@@ -16,6 +13,7 @@ class ChatMessageUIMapper {
     Map<String, String> imageUrlsByMediaId,
     Map<String, String> audioUrlsByMediaId,
     Set<String> resolvingImageMediaIds,
+    Set<String> resolvingAudioMediaIds,
     String? currentUserId,
     Map<String, String> senderDisplayNameByUserId,
     Map<String, String> senderAvatarUrlByUserId,
@@ -25,136 +23,56 @@ class ChatMessageUIMapper {
   ) {
     final normalizedCurrentUserId = _normalizeId(currentUserId);
 
-    final mappedMessages = messages
-        .map(
-          (message) {
-            final normalizedSenderId = _normalizeId(message.senderId);
-            final isSentByMe = normalizedCurrentUserId.isNotEmpty &&
-                normalizedSenderId == normalizedCurrentUserId;
-            final senderDisplayName = senderDisplayNameByUserId[normalizedSenderId];
-            final senderAvatarUrl = senderAvatarUrlByUserId[normalizedSenderId];
-            
-            if (message.isDeleted) {
-<<<<<<< feature/integrate-emoji
-              _logMessageMediaDebug(
-                message: message,
-                mediaId: null,
-                metadataMediaId: _extractMetadataMediaId(message.metadata),
-                resolvedAudioUrl: null,
-              );
+    final mappedMessages = messages.map((message) {
+      final normalizedSenderId = _normalizeId(message.senderId);
+      final isSentByMe = normalizedCurrentUserId.isNotEmpty &&
+          normalizedSenderId == normalizedCurrentUserId;
+      final senderDisplayName = senderDisplayNameByUserId[normalizedSenderId];
+      final senderAvatarUrl = senderAvatarUrlByUserId[normalizedSenderId];
 
-              return ChatMessage(
-=======
-              return TextChatMessage(
->>>>>>> main
-                text: deletedMessageText,
-                isSentByMe: isSentByMe,
-                senderId: normalizedSenderId,
-                senderDisplayName: senderDisplayName,
-                senderAvatarUrl: senderAvatarUrl,
-                timestamp: message.createdAt,
-                isDeleted: true,
-                localId: message.id,
-                serverId: message.serverId,
-                conversationAvatarUrl: conversationAvatarUrl,
-                isGroupConversation: isGroupConversation,
-              );
-            }
+      if (message.isDeleted) {
+        return TextChatMessage(
+          text: deletedMessageText,
+          isSentByMe: isSentByMe,
+          senderId: normalizedSenderId,
+          senderDisplayName: senderDisplayName,
+          senderAvatarUrl: senderAvatarUrl,
+          timestamp: message.createdAt,
+          isDeleted: true,
+          localId: message.id,
+          serverId: message.serverId,
+          conversationAvatarUrl: conversationAvatarUrl,
+          isGroupConversation: isGroupConversation,
+        );
+      }
 
-<<<<<<< feature/integrate-emoji
-            final isImageLikeMessage = _helpers.isImageLikeMessage(message);
-            final isStickerMessage = _helpers.isStickerMessage(message);
-            final mediaId = message.mediaId?.trim();
-            final stickerUrl = _helpers.extractStickerUrl(message);
-            final stickerId = _helpers.extractStickerId(message);
-            final localPath = _helpers.isLikelyLocalImagePath(message.content) ? message.content : null;
-            final audioMetadata = message.metadata;
-            final metadataMediaId = _extractMetadataMediaId(audioMetadata);
-            final audioDurationSeconds = _extractAudioDurationSeconds(audioMetadata);
-            final audioWaveform = _parseWaveform(audioMetadata?['waveform']);
-            final audioUrl = _resolveAudioUrl(
-              message: message,
-              mediaId: mediaId,
-              audioUrlsByMediaId: audioUrlsByMediaId,
-            );
+      final reactions = message.reactions
+          .map(
+            (item) => ChatMessageReaction(
+              emoji: item.emoji,
+              count: item.count,
+              myReaction: item.myReaction,
+            ),
+          )
+          .where((reaction) => reaction.emoji.trim().isNotEmpty && reaction.count > 0)
+          .toList(growable: false);
 
-            _logMessageMediaDebug(
-              message: message,
-              mediaId: mediaId,
-              metadataMediaId: metadataMediaId,
-              resolvedAudioUrl: audioUrl,
-            );
-
-            final resolvedRemoteUrl = mediaId != null && mediaId.isNotEmpty
-                ? imageUrlsByMediaId[mediaId]
-                : null;
-            final imagePath = isStickerMessage
-                ? stickerUrl
-                : isImageLikeMessage
-                ? (resolvedRemoteUrl ?? localPath)
-                : null;
-            final reactions = _extractReactions(message.metadata);
-
-            return ChatMessage(
-              text: imagePath == null && !isImageLikeMessage && !isStickerMessage ? message.content : null,
-              imagePath: imagePath,
-              mediaId: mediaId,
-              stickerId: stickerId,
-              audioUrl: audioUrl,
-              audioDurationSeconds: audioDurationSeconds,
-              audioWaveform: audioWaveform,
-              type: message.type,
-              isSentByMe: currentUserId != null && message.senderId == currentUserId,
-              senderId: message.senderId,
-              timestamp: message.createdAt,
-              isDeleted: message.isDeleted,
-              isUploading: localPath != null && uploadingImagePaths.contains(localPath),
-              isResolvingImage: isImageLikeMessage &&
-                  imagePath == null &&
-                  mediaId != null &&
-                  mediaId.isNotEmpty &&
-                  resolvingImageMediaIds.contains(mediaId),
-              localId: message.id,
-              serverId: message.serverId,
-              conversationAvatarUrl: conversationAvatarUrl,
-              reactions: reactions,
-=======
-            final reactions = message.reactions
-                .map(
-                  (item) => ChatMessageReaction(
-                    emoji: item.emoji,
-                    count: item.count,
-                    myReaction: item.myReaction,
-                  ),
-                )
-                .where((reaction) => reaction.emoji.trim().isNotEmpty && reaction.count > 0)
-                .toList(growable: false);
-
-            final baseParams = {
-              'isSentByMe': isSentByMe,
-              'senderId': normalizedSenderId,
-              'timestamp': message.createdAt,
-              'isDeleted': message.isDeleted,
-              'localId': message.id,
-              'serverId': message.serverId,
-              'senderDisplayName': senderDisplayName,
-              'senderAvatarUrl': senderAvatarUrl,
-              'conversationAvatarUrl': conversationAvatarUrl,
-              'isGroupConversation': isGroupConversation,
-              'reactions': reactions,
-            };
-
-            return _createMessageByType(
-              message,
-              uploadingImagePaths,
-              imageUrlsByMediaId,
-              resolvingImageMediaIds,
-              baseParams,
->>>>>>> main
-            );
-          },
-        )
-        .toList();
+      return _createMessageByType(
+        domainMessage: message,
+        uploadingImagePaths: uploadingImagePaths,
+        imageUrlsByMediaId: imageUrlsByMediaId,
+        audioUrlsByMediaId: audioUrlsByMediaId,
+        resolvingImageMediaIds: resolvingImageMediaIds,
+        resolvingAudioMediaIds: resolvingAudioMediaIds,
+        isSentByMe: isSentByMe,
+        senderId: normalizedSenderId,
+        senderDisplayName: senderDisplayName,
+        senderAvatarUrl: senderAvatarUrl,
+        conversationAvatarUrl: conversationAvatarUrl,
+        isGroupConversation: isGroupConversation,
+        reactions: reactions,
+      );
+    }).toList();
 
     final existingImagePaths = mappedMessages
         .whereType<ImageChatMessage>()
@@ -183,51 +101,22 @@ class ChatMessageUIMapper {
     return _applyGrouping(mappedMessages);
   }
 
-  List<ChatMessage> _applyGrouping(List<ChatMessage> messages) {
-    if (messages.isEmpty) return messages;
-
-    final result = <ChatMessage>[];
-
-    for (var i = 0; i < messages.length; i++) {
-      final current = messages[i];
-      final prev = i > 0 ? messages[i - 1] : null;
-      final next = i < messages.length - 1 ? messages[i + 1] : null;
-
-      final bool sameAsPrev = prev != null &&
-          _normalizeId(prev.senderId) == _normalizeId(current.senderId) &&
-          current.timestamp.difference(prev.timestamp) <= _groupingWindow;
-
-      final bool sameAsNext = next != null &&
-          _normalizeId(next.senderId) == _normalizeId(current.senderId) &&
-          next.timestamp.difference(current.timestamp) <= _groupingWindow;
-
-      result.add(current.copyWithGrouping(
-        isFirstInGroup: !sameAsPrev,
-        isLastInGroup: !sameAsNext,
-      ));
-    }
-
-    return result;
-  }
-
-  ChatMessage _createMessageByType(
-    Message domainMessage,
-    Set<String> uploadingImagePaths,
-    Map<String, String> imageUrlsByMediaId,
-    Set<String> resolvingImageMediaIds,
-    Map<String, dynamic> baseParams,
-  ) {
-    final bool isSentByMe = baseParams['isSentByMe'] as bool;
-    final String senderId = baseParams['senderId'] as String;
-    final DateTime timestamp = baseParams['timestamp'] as DateTime;
-    final bool isDeleted = baseParams['isDeleted'] as bool;
-    final String? localId = baseParams['localId'] as String?;
-    final String? serverId = baseParams['serverId'] as String?;
-    final String? senderDisplayName = baseParams['senderDisplayName'] as String?;
-    final String? senderAvatarUrl = baseParams['senderAvatarUrl'] as String?;
-    final String? conversationAvatarUrl = baseParams['conversationAvatarUrl'] as String?;
-    final bool isGroupConversation = baseParams['isGroupConversation'] as bool;
-    final List<ChatMessageReaction> reactions = baseParams['reactions'] as List<ChatMessageReaction>;
+  ChatMessage _createMessageByType({
+    required Message domainMessage,
+    required Set<String> uploadingImagePaths,
+    required Map<String, String> imageUrlsByMediaId,
+    required Map<String, String> audioUrlsByMediaId,
+    required Set<String> resolvingImageMediaIds,
+    required Set<String> resolvingAudioMediaIds,
+    required bool isSentByMe,
+    required String senderId,
+    required String? senderDisplayName,
+    required String? senderAvatarUrl,
+    required String? conversationAvatarUrl,
+    required bool isGroupConversation,
+    required List<ChatMessageReaction> reactions,
+  }) {
+    final timestamp = domainMessage.createdAt;
 
     if (domainMessage is TextMessage) {
       return TextChatMessage(
@@ -235,9 +124,9 @@ class ChatMessageUIMapper {
         isSentByMe: isSentByMe,
         senderId: senderId,
         timestamp: timestamp,
-        isDeleted: isDeleted,
-        localId: localId,
-        serverId: serverId,
+        isDeleted: domainMessage.isDeleted,
+        localId: domainMessage.id,
+        serverId: domainMessage.serverId,
         senderDisplayName: senderDisplayName,
         senderAvatarUrl: senderAvatarUrl,
         conversationAvatarUrl: conversationAvatarUrl,
@@ -267,9 +156,9 @@ class ChatMessageUIMapper {
         isSentByMe: isSentByMe,
         senderId: senderId,
         timestamp: timestamp,
-        isDeleted: isDeleted,
-        localId: localId,
-        serverId: serverId,
+        isDeleted: domainMessage.isDeleted,
+        localId: domainMessage.id,
+        serverId: domainMessage.serverId,
         senderDisplayName: senderDisplayName,
         senderAvatarUrl: senderAvatarUrl,
         conversationAvatarUrl: conversationAvatarUrl,
@@ -281,18 +170,25 @@ class ChatMessageUIMapper {
     if (domainMessage is AudioMessage) {
       final mediaId = domainMessage.mediaId?.trim();
       final media = domainMessage.media;
+      final resolvedAudioUrl = mediaId != null && mediaId.isNotEmpty
+          ? audioUrlsByMediaId[mediaId]
+          : null;
+      final audioUrl = (resolvedAudioUrl != null && resolvedAudioUrl.trim().isNotEmpty)
+          ? resolvedAudioUrl.trim()
+          : media.url;
 
       return AudioChatMessage(
         mediaId: mediaId,
+        audioUrl: audioUrl,
         durationMs: media.durationMs,
         waveform: media.waveform,
         isUploading: false,
         isSentByMe: isSentByMe,
         senderId: senderId,
         timestamp: timestamp,
-        isDeleted: isDeleted,
-        localId: localId,
-        serverId: serverId,
+        isDeleted: domainMessage.isDeleted,
+        localId: domainMessage.id,
+        serverId: domainMessage.serverId,
         senderDisplayName: senderDisplayName,
         senderAvatarUrl: senderAvatarUrl,
         conversationAvatarUrl: conversationAvatarUrl,
@@ -304,20 +200,22 @@ class ChatMessageUIMapper {
     if (domainMessage is VideoMessage) {
       final mediaId = domainMessage.mediaId?.trim();
       final media = domainMessage.media;
-      final thumbnailPath = media.url;
 
       return VideoChatMessage(
-        thumbnailPath: thumbnailPath,
+        thumbnailPath: media.url,
         mediaId: mediaId,
         durationMs: media.durationMs,
         isUploading: false,
-        isResolvingImage: false,
+        isResolvingImage: mediaId != null &&
+            mediaId.isNotEmpty &&
+            media.url == null &&
+            resolvingImageMediaIds.contains(mediaId),
         isSentByMe: isSentByMe,
         senderId: senderId,
         timestamp: timestamp,
-        isDeleted: isDeleted,
-        localId: localId,
-        serverId: serverId,
+        isDeleted: domainMessage.isDeleted,
+        localId: domainMessage.id,
+        serverId: domainMessage.serverId,
         senderDisplayName: senderDisplayName,
         senderAvatarUrl: senderAvatarUrl,
         conversationAvatarUrl: conversationAvatarUrl,
@@ -333,9 +231,9 @@ class ChatMessageUIMapper {
         isSentByMe: isSentByMe,
         senderId: senderId,
         timestamp: timestamp,
-        isDeleted: isDeleted,
-        localId: localId,
-        serverId: serverId,
+        isDeleted: domainMessage.isDeleted,
+        localId: domainMessage.id,
+        serverId: domainMessage.serverId,
         senderDisplayName: senderDisplayName,
         senderAvatarUrl: senderAvatarUrl,
         conversationAvatarUrl: conversationAvatarUrl,
@@ -357,9 +255,9 @@ class ChatMessageUIMapper {
         isSentByMe: isSentByMe,
         senderId: senderId,
         timestamp: timestamp,
-        isDeleted: isDeleted,
-        localId: localId,
-        serverId: serverId,
+        isDeleted: domainMessage.isDeleted,
+        localId: domainMessage.id,
+        serverId: domainMessage.serverId,
         senderDisplayName: senderDisplayName,
         senderAvatarUrl: senderAvatarUrl,
         conversationAvatarUrl: conversationAvatarUrl,
@@ -368,15 +266,14 @@ class ChatMessageUIMapper {
       );
     }
 
-    // Fallback for unknown message types
     return UnknownChatMessage(
       content: domainMessage.content,
       isSentByMe: isSentByMe,
       senderId: senderId,
       timestamp: timestamp,
-      isDeleted: isDeleted,
-      localId: localId,
-      serverId: serverId,
+      isDeleted: domainMessage.isDeleted,
+      localId: domainMessage.id,
+      serverId: domainMessage.serverId,
       senderDisplayName: senderDisplayName,
       senderAvatarUrl: senderAvatarUrl,
       conversationAvatarUrl: conversationAvatarUrl,
@@ -385,110 +282,34 @@ class ChatMessageUIMapper {
     );
   }
 
+  List<ChatMessage> _applyGrouping(List<ChatMessage> messages) {
+    if (messages.isEmpty) return messages;
+
+    final result = <ChatMessage>[];
+
+    for (var i = 0; i < messages.length; i++) {
+      final current = messages[i];
+      final prev = i > 0 ? messages[i - 1] : null;
+      final next = i < messages.length - 1 ? messages[i + 1] : null;
+
+      final sameAsPrev = prev != null &&
+          _normalizeId(prev.senderId) == _normalizeId(current.senderId) &&
+          current.timestamp.difference(prev.timestamp) <= _groupingWindow;
+
+      final sameAsNext = next != null &&
+          _normalizeId(next.senderId) == _normalizeId(current.senderId) &&
+          next.timestamp.difference(current.timestamp) <= _groupingWindow;
+
+      result.add(current.copyWithGrouping(
+        isFirstInGroup: !sameAsPrev,
+        isLastInGroup: !sameAsNext,
+      ));
+    }
+
+    return result;
+  }
+
   String _normalizeId(String? value) {
     return value?.trim() ?? '';
-  }
-
-  void _logMessageMediaDebug({
-    required Message message,
-    required String? mediaId,
-    required String? metadataMediaId,
-    required String? resolvedAudioUrl,
-  }) {
-    assert(() {
-      debugPrint(
-        '[ChatMessageUIMapper] load message '
-        'id=${message.id} type=${message.type} '
-        'topMediaId=${mediaId ?? 'null'} '
-        'metadataMediaId=${metadataMediaId ?? 'null'} '
-        'hasTopMediaId=${mediaId != null && mediaId.isNotEmpty} '
-        'hasMetadataMediaId=${metadataMediaId != null && metadataMediaId.isNotEmpty} '
-        'resolvedAudioUrl=${resolvedAudioUrl ?? 'null'}',
-      );
-      return true;
-    }());
-  }
-
-  String? _extractMetadataMediaId(Map<String, dynamic>? metadata) {
-    if (metadata == null) {
-      return null;
-    }
-
-    final direct = metadata['mediaId'];
-    if (direct is String && direct.trim().isNotEmpty) {
-      return direct.trim();
-    }
-
-    final snakeCase = metadata['media_id'];
-    if (snakeCase is String && snakeCase.trim().isNotEmpty) {
-      return snakeCase.trim();
-    }
-
-    return null;
-  }
-
-  int? _extractAudioDurationSeconds(Map<String, dynamic>? metadata) {
-    if (metadata == null) {
-      return null;
-    }
-
-    final durationMs = _toInt(metadata['durationMs']);
-    if (durationMs == null || durationMs < 0) {
-      return null;
-    }
-
-    return (durationMs / 1000).round();
-  }
-
-  List<double> _parseWaveform(dynamic value) {
-    if (value is! List) {
-      return const <double>[];
-    }
-
-    return value
-        .map((item) {
-          if (item is double) return item;
-          if (item is int) return item.toDouble();
-          if (item is num) return item.toDouble();
-          if (item is String) return double.tryParse(item) ?? 0.0;
-          return 0.0;
-        })
-        .toList(growable: false);
-  }
-
-  String? _resolveAudioUrl({
-    required Message message,
-    required String? mediaId,
-    required Map<String, String> audioUrlsByMediaId,
-  }) {
-    if (mediaId != null && mediaId.isNotEmpty) {
-      final resolvedAudioUrl = audioUrlsByMediaId[mediaId];
-      if (resolvedAudioUrl != null && resolvedAudioUrl.trim().isNotEmpty) {
-        return resolvedAudioUrl.trim();
-      }
-    }
-
-    final metadata = message.metadata;
-    if (metadata == null) {
-      return null;
-    }
-
-    final localAudioPath = metadata['localAudioPath'];
-    if (localAudioPath is! String) {
-      return null;
-    }
-
-    final normalized = localAudioPath.trim();
-    if (normalized.isEmpty) {
-      return null;
-    }
-
-    final uri = Uri.tryParse(normalized);
-    final isRemote = uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
-    if (isRemote) {
-      return normalized;
-    }
-
-    return File(normalized).existsSync() ? normalized : null;
   }
 }

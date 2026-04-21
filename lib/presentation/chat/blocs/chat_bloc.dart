@@ -72,7 +72,6 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<EditMessageEvent>(_onEditMessage);
     on<DeleteMessageEvent>(_onDeleteMessage);
     on<UpdateMessageReactionEvent>(_onUpdateMessageReaction);
-    on<SendVoiceEvent>(_onSendVoice);
     on<FetchImageEvent>(_onFetchImageByMediaId);
     on<FetchAudioEvent>(_onFetchAudioByMediaId);
 
@@ -133,26 +132,20 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   }
 
   String? _extractPlayableLocalAudioPath(Message message) {
-    final metadata = message.metadata;
-    if (metadata == null) {
+    if (message is! AudioMessage) {
       return null;
     }
 
-    final candidate = metadata['localAudioPath'];
-    if (candidate is! String) {
+    final candidate = message.media.url?.trim();
+    if (candidate == null || candidate.isEmpty) {
       return null;
     }
 
-    final normalized = candidate.trim();
-    if (normalized.isEmpty) {
-      return null;
+    if (_isRemoteUrl(candidate)) {
+      return candidate;
     }
 
-    if (_isRemoteUrl(normalized)) {
-      return normalized;
-    }
-
-    return File(normalized).existsSync() ? normalized : null;
+    return File(candidate).existsSync() ? candidate : null;
   }
 
   Future<String?> _resolveLocalAudioPath(String mediaId) async {
@@ -221,7 +214,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     }
 
     final normalizedType = message.type.trim().toLowerCase();
-    return normalizedType == 'image' || normalizedType == 'file' || normalizedType == 'audio';
+    return normalizedType == 'image' || normalizedType == 'file';
   }
 
   int _nextLocalOffset() {
@@ -440,17 +433,48 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       return;
     }
 
-    final messageId = Uuid().v4();
+    final file = File(audioPath);
+    if (!file.existsSync()) {
+      add(const _LocalMessagesErrorEvent('Voice file not found'));
+      return;
+    }
+
+    final fileSize = await file.length();
+    final uploadResult = await uploadMediaUseCase(audioPath, 'audio', fileSize);
+    final mediaId = uploadResult.fold(
+      (failure) {
+        add(_LocalMessagesErrorEvent(failure.message));
+        return null;
+      },
+      (mediaInfo) {
+        if (mediaInfo.mediaId == null || mediaInfo.mediaId!.isEmpty) {
+          add(const _LocalMessagesErrorEvent('Upload audio failed: missing mediaId'));
+          return null;
+        }
+        return mediaInfo.mediaId;
+      },
+    );
+
+    if (mediaId == null) {
+      return;
+    }
+
+    await audioCacheDao.saveAudioPath(mediaId: mediaId, localPath: audioPath);
+    _audioUrlsByMediaId[mediaId] = audioPath;
+    emit(_buildChatLoaded(_currentMessages));
+
+    final normalizedWaveform = WaveformUtils.normalize(event.waveform, maxBars: 64);
     final localOffset = _nextLocalOffset();
-    
+    final messageId = Uuid().v4();
     final message = AudioMessage(
       id: messageId,
       conversationId: event.conversationId,
       senderId: _currentUserId ?? '',
       media: AudioMedia(
-        id: messageId,
+        id: mediaId,
+        url: audioPath,
         durationMs: event.durationMs,
-        waveform: event.waveform,
+        waveform: normalizedWaveform,
       ),
       offset: localOffset,
       isDeleted: false,
@@ -509,80 +533,6 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     );
 
     result.fold(
-      (failure) => add(_LocalMessagesErrorEvent(failure.message)),
-      (_) {},
-    );
-  }
-
-  Future<void> _onSendVoice(SendVoiceEvent event, Emitter<ChatState> emit) async {
-    final file = File(event.filePath);
-    if (!file.existsSync()) {
-      add(_LocalMessagesErrorEvent('Voice file not found'));
-      return;
-    }
-
-    final fileSize = await file.length();
-    final result = await uploadMediaUseCase(
-      event.filePath,
-      'audio',
-      fileSize,
-    );
-
-    final mediaId = result.fold(
-      (failure) {
-        add(_LocalMessagesErrorEvent(failure.message));
-        return null;
-      },
-      (mediaInfo) {
-        if (mediaInfo.mediaId == null || mediaInfo.mediaId!.isEmpty) {
-          add(_LocalMessagesErrorEvent('Upload audio failed: missing mediaId'));
-          return null;
-        }
-
-        return mediaInfo.mediaId;
-      },
-    );
-
-    if (mediaId == null) {
-      return;
-    }
-
-    await audioCacheDao.saveAudioPath(
-      mediaId: mediaId,
-      localPath: event.filePath,
-    );
-    _audioUrlsByMediaId[mediaId] = event.filePath;
-    emit(_buildChatLoaded(_currentMessages));
-
-    final normalizedWaveform = WaveformUtils.normalize(
-      event.waveform,
-      maxBars: 64,
-    );
-    final localOffset = _nextLocalOffset();
-    final messageId = Uuid().v4();
-    final message = Message(
-      id: messageId,
-      conversationId: event.conversationId,
-      senderId: _currentUserId ?? '',
-      content: '',
-      type: 'audio',
-      offset: localOffset,
-      isDeleted: false,
-      mediaId: mediaId,
-      serverId: messageId,
-      metadata: <String, dynamic>{
-        'durationMs': event.durationMs,
-        'waveform': normalizedWaveform,
-        'localAudioPath': event.filePath,
-      },
-      createdAt: DateTime.now().toUtc(),
-      editedAt: null,
-    );
-
-    debugPrint("[ChatBloc] Send voice message -> ${message.metadata}");
-
-    final sendResult = await sendMessageUseCase(message: message);
-    sendResult.fold(
       (failure) => add(_LocalMessagesErrorEvent(failure.message)),
       (_) {},
     );
