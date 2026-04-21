@@ -149,6 +149,8 @@ class ChatRepoImpl implements ChatRepository {
         response.clientMessageId ?? message.serverId ?? message.id,
       );
 
+      debugPrint('[ChatRepoImpl] sendMessage: metadata=${message.metadata}');
+
       return Right(message);
     } catch (e) {
       return Left(ServerFailure(e.toString()));

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_chat/core/utils/waveform_utils.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -8,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import '../../../app/app_permission.dart';
 import 'sticker_picker_sheet.dart';
 import '../../../features/chat/domain/entities/sticker_item.dart';
+import 'recording_panel.dart';
 
 class MessageInput extends StatefulWidget {
   final TextEditingController controller;
@@ -45,6 +47,7 @@ class _MessageInputState extends State<MessageInput> {
 
   final AudioRecorder _audioRecorder = AudioRecorder();
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final FocusNode _focusNode = FocusNode();
 
   Timer? _timer;
   int _recordDuration = 0;
@@ -53,15 +56,20 @@ class _MessageInputState extends State<MessageInput> {
   Timer? _playTimer;
   int _playPosition = 0;
 
-  // Simulate waveform generation for visual effect since we don't have a real audio processing library
-  // In a real app, you would generate this from the recorded audio file.
-  final List<double> _waveform = [];
+  List<double> _waveform = [];
 
   @override
   void initState() {
     super.initState();
     _hasText = widget.controller.text.isNotEmpty;
     widget.controller.addListener(_onTextChanged);
+    _focusNode.addListener(_onFocusChanged);
+  }
+
+  void _onFocusChanged() {
+    if (_focusNode.hasFocus && _showRecordingPanel) {
+      _closeRecordingPanel();
+    }
   }
 
   @override
@@ -76,6 +84,8 @@ class _MessageInputState extends State<MessageInput> {
 
   @override
   void dispose() {
+    _focusNode.removeListener(_onFocusChanged);
+    _focusNode.dispose();
     widget.controller.removeListener(_onTextChanged);
     _timer?.cancel();
     _playTimer?.cancel();
@@ -174,6 +184,14 @@ class _MessageInputState extends State<MessageInput> {
   void _stopRecording({bool send = false}) async {
     _timer?.cancel();
     final path = await _audioRecorder.stop();
+
+    // Copy the waveform before clearing state
+    final submitWaveform = WaveformUtils.normalize(
+      _waveform,
+      fallback: const <double>[0.08, 0.22, 0.35, 0.26, 0.55, 0.82, 0.3, 0.24, 0.1, 0.2, 0.32],
+      maxBars: 64,
+    );
+
     setState(() {
       _isRecording = false;
       if (path != null) {
@@ -185,9 +203,7 @@ class _MessageInputState extends State<MessageInput> {
       widget.onSendRecord!(
         _recordedFilePath!,
         _recordDuration,
-        _waveform.isNotEmpty
-            ? _waveform
-            : [0, 5, 12, 8, 25, 45, 10, 8, 2, 5, 15], // Dummy fallback
+        submitWaveform,
       );
       _closeRecordingPanel();
     }
@@ -198,11 +214,11 @@ class _MessageInputState extends State<MessageInput> {
     _timer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
       setState(() {
         _recordDuration++;
-        // Generate mock waveform logic
+        // Generate mock waveform in normalized range 0..1
         if (_recordDuration % 2 == 0) {
-          _waveform.add((_recordDuration * 2).toDouble() % 50);
+          _waveform.add((((_recordDuration * 2) % 50) / 50.0).clamp(0.0, 1.0));
         } else {
-          _waveform.add(10.0 + (_recordDuration % 20));
+          _waveform.add(((10 + (_recordDuration % 20)) / 50.0).clamp(0.0, 1.0));
         }
       });
     });
@@ -263,12 +279,6 @@ class _MessageInputState extends State<MessageInput> {
     });
   }
 
-  String _formatDuration(int seconds) {
-    final minutes = (seconds / 60).floor();
-    final remainingSeconds = seconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -299,6 +309,7 @@ class _MessageInputState extends State<MessageInput> {
                       if (_showRecordingPanel) {
                         _closeRecordingPanel();
                       } else {
+                        _focusNode.unfocus();
                         setState(() {
                           _showRecordingPanel = true;
                         });
@@ -315,117 +326,21 @@ class _MessageInputState extends State<MessageInput> {
                 ],
               ],
             ),
-            if (_showRecordingPanel) _buildRecordingPanel(),
+            if (_showRecordingPanel)
+              RecordingPanel(
+                isRecording: _isRecording,
+                recordedFilePath: _recordedFilePath,
+                isPlayingRecord: _isPlayingRecord,
+                playPosition: _playPosition,
+                recordDuration: _recordDuration,
+                onDeleteRecord: _deleteRecord,
+                onStopRecordingAndSend: () => _stopRecording(send: true),
+                onStartRecording: _startRecording,
+                onStopRecording: () => _stopRecording(send: false),
+                onPlayRecord: _playRecord,
+              ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildRecordingPanel() {
-    return Container(
-      padding: const EdgeInsets.only(top: 16, bottom: 8),
-      child: Column(
-        children: [
-          if (_isRecording || _recordedFilePath != null) ...[
-            Row(
-              children: [
-                Text(
-                  _isPlayingRecord
-                      ? _formatDuration(_playPosition)
-                      : _formatDuration(_recordDuration),
-                  style: const TextStyle(color: Colors.white),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: LinearProgressIndicator(
-                    value: _recordDuration > 0
-                        ? (_isRecording
-                            ? null
-                            : (_isPlayingRecord
-                                ? _playPosition / _recordDuration
-                                : 1.0))
-                        : 0.0,
-                    backgroundColor: Colors.white,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-          ],
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              if (_isRecording || _recordedFilePath != null)
-                IconButton(
-                  icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
-                  onPressed: _deleteRecord,
-                )
-              else
-                const SizedBox(width: 48),
-              if (!_isRecording && _recordedFilePath != null)
-                GestureDetector(
-                  onTap: () {
-                    _stopRecording(send: true);
-                  },
-                  child: Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    child: Icon(
-                      Icons.send,
-                      color: Theme.of(context).colorScheme.onSurface,
-                      size: 24,
-                    ),
-                  ),
-                )
-              else
-                GestureDetector(
-                  onTap: () {
-                    if (!_isRecording) {
-                      _startRecording();
-                    } else {
-                      _stopRecording(send: true);
-                    }
-                  },
-                  child: Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _isRecording ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.error,
-                    ),
-                    child: Icon(
-                      _isRecording ? Icons.send : Icons.mic,
-                      color: Theme.of(context).colorScheme.onSurface,
-                      size: 24,
-                    ),
-                  ),
-                ),
-
-              if (_recordedFilePath != null && !_isRecording)
-                IconButton(
-                  icon: Icon(
-                    _isPlayingRecord ? Icons.pause : Icons.play_arrow,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                  onPressed: _playRecord,
-                )
-              else if (_isRecording)
-                IconButton(
-                  icon: Icon(Icons.stop, color: Theme.of(context).colorScheme.onSurface),
-                  onPressed: () => _stopRecording(send: false),
-                )
-              else
-                const SizedBox(width: 48),
-            ],
-          ),
-        ],
       ),
     );
   }
@@ -453,11 +368,15 @@ class _MessageInputState extends State<MessageInput> {
   Widget _buildTextField(BuildContext context, AppLocalizations l10n) {
     return TextField(
       controller: widget.controller,
+
+
+      focusNode: _focusNode,
+      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
       decoration: InputDecoration(
         hintText: l10n.chat_hint,
         border: InputBorder.none,
         contentPadding: EdgeInsets.symmetric(horizontal: 0, vertical: 10),
-        hintStyle: TextStyle(color: Colors.grey),
+        hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),
         isDense: true,
       ),
       minLines: 1,

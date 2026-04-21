@@ -84,6 +84,19 @@ final class FetchImageEvent extends ChatEvent {
   List<Object> get props => [mediaId];
 }
 
+final class FetchAudioEvent extends ChatEvent {
+  final String mediaId;
+  final String conversationId;
+
+  const FetchAudioEvent({
+    required this.mediaId,
+    required this.conversationId,
+  });
+
+  @override
+  List<Object> get props => [mediaId, conversationId];
+}
+
 final class EditMessageEvent extends ChatEvent {
   final String localId;
   final String messageId;

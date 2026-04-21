@@ -24,6 +24,14 @@ class FileUtils {
     'video/3gpp',
   ];
 
+  // Supported audio MIME types
+  static const List<String> _supportedAudioMimeTypes = [
+    'audio/m4a',
+    'audio/mp4',
+    'audio/aac',
+    'audio/x-m4a',
+  ];
+
   // Supported document MIME types
   static const List<String> _supportedDocumentMimeTypes = [
     'application/pdf',
@@ -68,6 +76,12 @@ class FileUtils {
       case '.3gp':
         return 'video/3gpp';
 
+    // Audio
+      case '.m4a':
+        return 'audio/mp4';
+      case '.aac':
+        return 'audio/aac';
+
     // Documents
       case '.pdf':
         return 'application/pdf';
@@ -99,6 +113,12 @@ class FileUtils {
     return mimeType != null && _supportedVideoMimeTypes.contains(mimeType);
   }
 
+  /// Check if file is a valid audio
+  static bool isValidAudio(File file) {
+    final mimeType = getMimeTypeFromExtension(file.path);
+    return mimeType != null && _supportedAudioMimeTypes.contains(mimeType);
+  }
+
   /// Check if file is a valid document
   static bool isValidDocument(File file) {
     final mimeType = getMimeTypeFromExtension(file.path);
@@ -107,7 +127,7 @@ class FileUtils {
 
   /// Check if file type is supported for media (image or video)
   static bool isValidMedia(File file) {
-    return isValidImage(file) || isValidVideo(file);
+    return isValidImage(file) || isValidVideo(file) || isValidAudio(file);
   }
 
   /// Get file extension without dot
@@ -173,7 +193,7 @@ class FileUtils {
     if (!isValidMedia(file)) {
       return FileValidationResult(
         isValid: false,
-        errorMessage: 'File must be an image or video',
+        errorMessage: 'File must be an image, video, or audio',
       );
     }
 
@@ -226,6 +246,7 @@ class FileValidationResult {
 enum FileType {
   image,
   video,
+  audio,
   document,
   unknown,
 }
@@ -234,6 +255,7 @@ extension FileTypeExtension on FileType {
   static FileType fromFile(File file) {
     if (FileUtils.isValidImage(file)) return FileType.image;
     if (FileUtils.isValidVideo(file)) return FileType.video;
+    if (FileUtils.isValidAudio(file)) return FileType.audio;
     if (FileUtils.isValidDocument(file)) return FileType.document;
     return FileType.unknown;
   }

@@ -15,6 +15,7 @@ export '../chat/data/datasource/api/chat_service.dart';
 export '../chat/data/datasource/local/conversation_dao.dart';
 export '../chat/data/datasource/local/conversation_user_dao.dart';
 export '../chat/data/datasource/local/message_dao.dart';
+export '../chat/data/datasource/local/audio_cache_dao.dart';
 export '../chat/data/datasource/local/sticker_package_dao.dart';
 export '../chat/data/datasource/local/sticker_item_dao.dart';
 

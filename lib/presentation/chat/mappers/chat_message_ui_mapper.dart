@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
 import 'package:flutter_chat/presentation/chat/models/chat_message_reaction.dart';
 import 'package:flutter_chat/presentation/chat/utils/message_helpers.dart';
+import 'dart:io';
 
 class ChatMessageUIMapper {
   final MessageHelpers _helpers = MessageHelpers();
@@ -12,6 +14,7 @@ class ChatMessageUIMapper {
     List<Message> messages,
     Set<String> uploadingImagePaths,
     Map<String, String> imageUrlsByMediaId,
+    Map<String, String> audioUrlsByMediaId,
     Set<String> resolvingImageMediaIds,
     String? currentUserId,
     Map<String, String> senderDisplayNameByUserId,
@@ -32,7 +35,18 @@ class ChatMessageUIMapper {
             final senderAvatarUrl = senderAvatarUrlByUserId[normalizedSenderId];
             
             if (message.isDeleted) {
+<<<<<<< feature/integrate-emoji
+              _logMessageMediaDebug(
+                message: message,
+                mediaId: null,
+                metadataMediaId: _extractMetadataMediaId(message.metadata),
+                resolvedAudioUrl: null,
+              );
+
+              return ChatMessage(
+=======
               return TextChatMessage(
+>>>>>>> main
                 text: deletedMessageText,
                 isSentByMe: isSentByMe,
                 senderId: normalizedSenderId,
@@ -47,6 +61,64 @@ class ChatMessageUIMapper {
               );
             }
 
+<<<<<<< feature/integrate-emoji
+            final isImageLikeMessage = _helpers.isImageLikeMessage(message);
+            final isStickerMessage = _helpers.isStickerMessage(message);
+            final mediaId = message.mediaId?.trim();
+            final stickerUrl = _helpers.extractStickerUrl(message);
+            final stickerId = _helpers.extractStickerId(message);
+            final localPath = _helpers.isLikelyLocalImagePath(message.content) ? message.content : null;
+            final audioMetadata = message.metadata;
+            final metadataMediaId = _extractMetadataMediaId(audioMetadata);
+            final audioDurationSeconds = _extractAudioDurationSeconds(audioMetadata);
+            final audioWaveform = _parseWaveform(audioMetadata?['waveform']);
+            final audioUrl = _resolveAudioUrl(
+              message: message,
+              mediaId: mediaId,
+              audioUrlsByMediaId: audioUrlsByMediaId,
+            );
+
+            _logMessageMediaDebug(
+              message: message,
+              mediaId: mediaId,
+              metadataMediaId: metadataMediaId,
+              resolvedAudioUrl: audioUrl,
+            );
+
+            final resolvedRemoteUrl = mediaId != null && mediaId.isNotEmpty
+                ? imageUrlsByMediaId[mediaId]
+                : null;
+            final imagePath = isStickerMessage
+                ? stickerUrl
+                : isImageLikeMessage
+                ? (resolvedRemoteUrl ?? localPath)
+                : null;
+            final reactions = _extractReactions(message.metadata);
+
+            return ChatMessage(
+              text: imagePath == null && !isImageLikeMessage && !isStickerMessage ? message.content : null,
+              imagePath: imagePath,
+              mediaId: mediaId,
+              stickerId: stickerId,
+              audioUrl: audioUrl,
+              audioDurationSeconds: audioDurationSeconds,
+              audioWaveform: audioWaveform,
+              type: message.type,
+              isSentByMe: currentUserId != null && message.senderId == currentUserId,
+              senderId: message.senderId,
+              timestamp: message.createdAt,
+              isDeleted: message.isDeleted,
+              isUploading: localPath != null && uploadingImagePaths.contains(localPath),
+              isResolvingImage: isImageLikeMessage &&
+                  imagePath == null &&
+                  mediaId != null &&
+                  mediaId.isNotEmpty &&
+                  resolvingImageMediaIds.contains(mediaId),
+              localId: message.id,
+              serverId: message.serverId,
+              conversationAvatarUrl: conversationAvatarUrl,
+              reactions: reactions,
+=======
             final reactions = message.reactions
                 .map(
                   (item) => ChatMessageReaction(
@@ -78,6 +150,7 @@ class ChatMessageUIMapper {
               imageUrlsByMediaId,
               resolvingImageMediaIds,
               baseParams,
+>>>>>>> main
             );
           },
         )
@@ -314,5 +387,108 @@ class ChatMessageUIMapper {
 
   String _normalizeId(String? value) {
     return value?.trim() ?? '';
+  }
+
+  void _logMessageMediaDebug({
+    required Message message,
+    required String? mediaId,
+    required String? metadataMediaId,
+    required String? resolvedAudioUrl,
+  }) {
+    assert(() {
+      debugPrint(
+        '[ChatMessageUIMapper] load message '
+        'id=${message.id} type=${message.type} '
+        'topMediaId=${mediaId ?? 'null'} '
+        'metadataMediaId=${metadataMediaId ?? 'null'} '
+        'hasTopMediaId=${mediaId != null && mediaId.isNotEmpty} '
+        'hasMetadataMediaId=${metadataMediaId != null && metadataMediaId.isNotEmpty} '
+        'resolvedAudioUrl=${resolvedAudioUrl ?? 'null'}',
+      );
+      return true;
+    }());
+  }
+
+  String? _extractMetadataMediaId(Map<String, dynamic>? metadata) {
+    if (metadata == null) {
+      return null;
+    }
+
+    final direct = metadata['mediaId'];
+    if (direct is String && direct.trim().isNotEmpty) {
+      return direct.trim();
+    }
+
+    final snakeCase = metadata['media_id'];
+    if (snakeCase is String && snakeCase.trim().isNotEmpty) {
+      return snakeCase.trim();
+    }
+
+    return null;
+  }
+
+  int? _extractAudioDurationSeconds(Map<String, dynamic>? metadata) {
+    if (metadata == null) {
+      return null;
+    }
+
+    final durationMs = _toInt(metadata['durationMs']);
+    if (durationMs == null || durationMs < 0) {
+      return null;
+    }
+
+    return (durationMs / 1000).round();
+  }
+
+  List<double> _parseWaveform(dynamic value) {
+    if (value is! List) {
+      return const <double>[];
+    }
+
+    return value
+        .map((item) {
+          if (item is double) return item;
+          if (item is int) return item.toDouble();
+          if (item is num) return item.toDouble();
+          if (item is String) return double.tryParse(item) ?? 0.0;
+          return 0.0;
+        })
+        .toList(growable: false);
+  }
+
+  String? _resolveAudioUrl({
+    required Message message,
+    required String? mediaId,
+    required Map<String, String> audioUrlsByMediaId,
+  }) {
+    if (mediaId != null && mediaId.isNotEmpty) {
+      final resolvedAudioUrl = audioUrlsByMediaId[mediaId];
+      if (resolvedAudioUrl != null && resolvedAudioUrl.trim().isNotEmpty) {
+        return resolvedAudioUrl.trim();
+      }
+    }
+
+    final metadata = message.metadata;
+    if (metadata == null) {
+      return null;
+    }
+
+    final localAudioPath = metadata['localAudioPath'];
+    if (localAudioPath is! String) {
+      return null;
+    }
+
+    final normalized = localAudioPath.trim();
+    if (normalized.isEmpty) {
+      return null;
+    }
+
+    final uri = Uri.tryParse(normalized);
+    final isRemote = uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+    if (isRemote) {
+      return normalized;
+    }
+
+    return File(normalized).existsSync() ? normalized : null;
   }
 }

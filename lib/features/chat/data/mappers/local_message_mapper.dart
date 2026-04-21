@@ -12,6 +12,25 @@ import 'package:flutter_chat/features/chat/export.dart';
 
 class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Message> {
   @override
+<<<<<<< feature/integrate-emoji
+  Message toDomain(ChatMessageEntity entity) {
+    return Message(
+      id: entity.id,
+      conversationId: entity.conversationId,
+      senderId: entity.senderId,
+      content: entity.content,
+      type: entity.type,
+      offset: entity.offset,
+      isDeleted: entity.isDeleted,
+      mediaId: entity.mediaId,
+      metadata: entity.metadata == null || entity.metadata!.isEmpty
+          ? null
+          : jsonDecode(entity.metadata!) as Map<String, dynamic>,
+      serverId: entity.serverId,
+      createdAt: DateTime.tryParse(entity.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
+      editedAt: entity.editedAt == null ? null : DateTime.tryParse(entity.editedAt!),
+    );
+=======
   Message toDomain(ChatMessageWithMediasEntity entity) {
     final message = entity.message;
     final metadata = message.metadata == null
@@ -136,6 +155,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           reactions: reactions,
         );
     }
+>>>>>>> main
   }
 
   @override

@@ -114,7 +114,12 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     return null;
   }
 
+<<<<<<< feature/integrate-emoji
+
+  String _mapChatErrorMessage(String message, AppLocalizations l10n) {
+=======
   String? _mapChatErrorMessage(String message, AppLocalizations l10n) {
+>>>>>>> main
     if (message.contains('FORBIDDEN_EDIT_WINDOW_EXPIRED')) {
       return l10n.error_edit_time_limited;
     }
@@ -130,6 +135,47 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     // Ignore non-status-code errors (especially network/socket lookup issues)
     // to avoid noisy raw exception text in chat UI.
     return null;
+  }
+
+  int? _parseDurationSeconds(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  int? _extractAudioDurationSeconds(Map<String, dynamic> metadata) {
+    final parsedMs = _parseDurationSeconds(metadata['durationMs']);
+    if (parsedMs != null && parsedMs >= 0) {
+      return (parsedMs / 1000).round();
+    }
+    return null;
+  }
+
+  List<double> _parseWaveform(dynamic value) {
+    if (value is List) {
+      return value
+          .map((item) {
+            if (item is double) return item;
+            if (item is int) return item.toDouble();
+            if (item is num) return item.toDouble();
+            if (item is String) return double.tryParse(item) ?? 0.0;
+            return 0.0;
+          })
+          .toList(growable: false);
+    }
+
+    // Generate fallback animated waveform when no data available
+    return _generateFallbackWaveform();
+  }
+
+  List<double> _generateFallbackWaveform({int barCount = 14}) {
+    // Generate random-looking but consistent waveform for visualization
+    final random = <double>[];
+    for (int i = 0; i < barCount; i++) {
+      random.add((4 + (i * 7) % 20).toDouble());
+    }
+    return random;
   }
 
   @override
@@ -155,6 +201,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         buildWhen: (previous, current) => current is! ChatError,
         listener: (context, state) {
           if (state is ChatError) {
+<<<<<<< feature/integrate-emoji
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(_mapChatErrorMessage(state.message, l10n))),
+=======
             final mappedMessage = _mapChatErrorMessage(state.message, l10n);
             if (mappedMessage == null || mappedMessage.trim().isEmpty) {
               return;
@@ -162,6 +212,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(mappedMessage)),
+>>>>>>> main
             );
           }
         },
@@ -194,6 +245,18 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                 child: Builder(
                   builder: (context) {
                     final List<ChatMessage> displayMessages = state is ChatLoaded
+<<<<<<< feature/integrate-emoji
+                        ? _uiMapper.mapStateMessagesToUI(
+                      state.messages,
+                      state.uploadingImagePaths,
+                      state.imageUrlsByMediaId,
+                      state.audioUrlsByMediaId,
+                      state.resolvingImageMediaIds,
+                      state.currentUserId,
+                      state.conversation?.avatarUrl,
+                      l10n.chat_deleted_message,
+                    )
+=======
                         ? (() {
                             final participants = state.conversation?.participants ?? const <ConversationParticipant>[];
                             final senderDisplayNameByUserId = <String, String>{
@@ -222,6 +285,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                               l10n.chat_deleted_message,
                             );
                           })()
+>>>>>>> main
                         : _messages;
 
                     return ListView.builder(
@@ -251,11 +315,47 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               MessageInput(
                 controller: _messageController,
                 onSendMessage: _sendMessage,
+<<<<<<< feature/integrate-emoji
+                onPickImage: _pickImage,
+=======
                 onPickImage: pickImage,
+>>>>>>> main
                 onPickMultipleImages: _pickMultipleImages,
                 onEmojiSelected: (emoji) {
                   _messageController.text += emoji;
                 },
+<<<<<<< feature/integrate-emoji
+                onSendRecord: (filePath, durationSeconds, waveform) {
+                  final durationMs = durationSeconds * 1000;
+
+                  debugPrint(
+                    '[ChatPageVoice] Send voice record -> '
+                        'conversationId=${widget.conversationId}, '
+                        'filePath=$filePath, '
+                        'durationMs=$durationMs, '
+                        'waveform=$waveform',
+                  );
+
+                  ref.read(chatBlocProvider).add(
+                    SendVoiceEvent(
+                      conversationId: widget.conversationId,
+                      filePath: filePath,
+                      durationMs: durationMs,
+                      waveform: waveform,
+                    ),
+                  );
+                },
+                onStickerSelected: _sendSticker,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+
+=======
                 onStickerSelected: _sendSticker,
                 onSendRecord: _sendAudio,
               ),
@@ -266,6 +366,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     );
   }
 
+>>>>>>> main
   void _sendMessage() {
     final content = _messageController.text.trim();
     if (content.isEmpty) return;
@@ -365,12 +466,16 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
   }
 
+<<<<<<< feature/integrate-emoji
+  Future<void> _showMessageActions(BuildContext context, ChatMessage message, AppLocalizations l10n, {Offset? anchor,}) async {
+=======
   Future<void> _showMessageActions(
       BuildContext context,
       ChatMessage message,
       AppLocalizations l10n,
       {Offset? anchor,}
       ) async {
+>>>>>>> main
     final canEdit = _canEditMessage(message);
     final canDelete = _canDeleteMessage(message);
     final canReact = _canReactToMessage(message);

@@ -29,6 +29,10 @@ final messageDaoProvider = Provider<MessageDao>((ref) {
   return DriftMessageDaoImpl(ref.watch(databaseProvider));
 });
 
+final audioCacheDaoProvider = Provider<AudioCacheDao>((ref) {
+  return FileAudioCacheDaoImpl();
+});
+
 final apiConversationMapperProvider = Provider<ApiConversationMapper>((ref) {
   return ApiConversationMapper();
 });

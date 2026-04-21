@@ -109,12 +109,12 @@ class ChatServiceImpl implements ChatService {
           (clientMessageId?.trim().isNotEmpty ?? false) ? clientMessageId!.trim() : Uuid().v4();
 
       final body = <String, dynamic>{
-        'content': content,
         'type': type,
         if (mediaId != null) 'mediaId': mediaId,
         'clientMessageId': normalizedClientMessageId,
         if (replyToMessageId != null) 'replyToMessageId': replyToMessageId,
         if (metadata != null) 'metadata': metadata,
+        if (content.trim().isNotEmpty) 'content': content,
       };
 
       final endpoint = '$_baseUrl/conversations/$normalizedConversationId/messages';
@@ -144,12 +144,12 @@ class ChatServiceImpl implements ChatService {
             : content;
 
         final legacyBody = <String, dynamic>{
-          'content': legacyContent,
           'type': type,
           'clientMessageId': normalizedClientMessageId,
           if (replyToMessageId != null) 'replyToMessageId': replyToMessageId,
           if (legacyMetadata.isNotEmpty) 'metadata': legacyMetadata,
           'conversationId': normalizedConversationId,
+          if (legacyContent.trim().isNotEmpty) 'content': legacyContent,
         };
         debugPrint(
           '[ChatServiceImpl] Send message fallback request: endpoint=$legacyEndpoint, body=$legacyBody',

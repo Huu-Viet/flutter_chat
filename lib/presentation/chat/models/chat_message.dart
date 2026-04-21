@@ -1,7 +1,19 @@
 import 'package:flutter_chat/presentation/chat/models/chat_message_reaction.dart';
 
+<<<<<<< feature/integrate-emoji
+class ChatMessage {
+  final String? text;
+  final String? imagePath;
+  final String? mediaId;
+  final String? stickerId;
+  final String? audioUrl;
+  final int? audioDurationSeconds;
+  final List<double> audioWaveform;
+  final String type;
+=======
 /// Base sealed class for all chat message types
 sealed class ChatMessage {
+>>>>>>> main
   final bool isSentByMe;
   final String? senderId;
   final DateTime timestamp;
@@ -16,7 +28,19 @@ sealed class ChatMessage {
   final bool isLastInGroup;
   final List<ChatMessageReaction> reactions;
 
+<<<<<<< feature/integrate-emoji
+  ChatMessage({
+    this.text,
+    this.imagePath,
+    this.mediaId,
+    this.audioUrl,
+    this.audioDurationSeconds,
+    this.audioWaveform = const <double>[],
+    this.stickerId,
+    this.type = 'text',
+=======
   const ChatMessage({
+>>>>>>> main
     required this.isSentByMe,
     this.senderId,
     required this.timestamp,
@@ -126,8 +150,16 @@ final class ImageChatMessage extends ChatMessage {
     return ImageChatMessage(
       imagePath: imagePath,
       mediaId: mediaId,
+<<<<<<< feature/integrate-emoji
+      audioUrl: audioUrl,
+      audioDurationSeconds: audioDurationSeconds,
+      audioWaveform: audioWaveform,
+      stickerId: stickerId,
+      type: type,
+=======
       isUploading: isUploading,
       isResolvingImage: isResolvingImage,
+>>>>>>> main
       isSentByMe: isSentByMe,
       senderId: senderId,
       timestamp: timestamp,
