@@ -127,11 +127,13 @@ class ChatRepoImpl implements ChatRepository {
   }) async {
     try {
       await _messageDao.saveMessage(_localMessageMapper.toEntity(message));
+      final outboundDto = _apiMessageMapper.toDto(message);
 
-      final isImageMessage = message.type.trim().toLowerCase() == 'image';
+      final normalizedType = message.type.trim().toLowerCase();
+      final isImageMessage = normalizedType == 'image' || normalizedType == 'file';
       final hasMediaId = message.mediaId?.trim().isNotEmpty ?? false;
       final outboundContent = (isImageMessage && hasMediaId) ? '' : message.content;
-      final outboundType = (isImageMessage && hasMediaId) ? 'file' : message.type;
+      final outboundType = (isImageMessage && hasMediaId) ? 'file' : normalizedType;
 
       final response = await _chatService.sendMessage(
         conversationId: message.conversationId,
@@ -140,7 +142,7 @@ class ChatRepoImpl implements ChatRepository {
         mediaId: message.mediaId,
         clientMessageId: message.serverId ?? const Uuid().v4(),
         replyToMessageId: replyToMessageId,
-        metadata: message.metadata,
+        metadata: outboundDto?.metadata,
       );
       await _messageDao.updateServerId(
         message.id,

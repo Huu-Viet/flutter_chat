@@ -13,12 +13,12 @@ import '../../features/chat/data/entities/conversation_user_entity.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: [Users, ChatConversations, ConversationUsers, ChatMessages, Friendships, StickerPackages, StickerItems])
+@DriftDatabase(tables: [Users, ChatConversations, ConversationUsers, ChatMessages, MessageMedias, Friendships, StickerPackages, StickerItems])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -37,6 +37,7 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(chatConversations);
           await m.createTable(conversationUsers);
           await m.createTable(chatMessages);
+          await m.createTable(messageMedias);
           await m.createTable(stickerPackages);
           await m.createTable(stickerItems);
         },
@@ -63,6 +64,7 @@ class AppDatabase extends _$AppDatabase {
     await transaction(() async {
       await delete(stickerItems).go();
       await delete(stickerPackages).go();
+      await delete(messageMedias).go();
       await delete(chatMessages).go();
       await delete(conversationUsers).go();
       await delete(chatConversations).go();
@@ -144,6 +146,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> clearAllMessages() async {
+    await delete(messageMedias).go();
     await delete(chatMessages).go();
   }
 
@@ -213,6 +216,11 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> deleteMessagesByServerId(String serverId) async {
+    final messages = await (select(chatMessages)..where((tbl) => tbl.serverId.equals(serverId))).get();
+    final messageIds = messages.map((e) => e.id).toList(growable: false);
+    if (messageIds.isNotEmpty) {
+      await (delete(messageMedias)..where((tbl) => tbl.messageId.isIn(messageIds))).go();
+    }
     await (delete(chatMessages)..where((tbl) => tbl.serverId.equals(serverId))).go();
   }
 
@@ -244,7 +252,37 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> clearMessagesByConversationId(String conversationId) async {
+    final messages = await (select(chatMessages)..where((tbl) => tbl.conversationId.equals(conversationId))).get();
+    final messageIds = messages.map((e) => e.id).toList(growable: false);
+    if (messageIds.isNotEmpty) {
+      await (delete(messageMedias)..where((tbl) => tbl.messageId.isIn(messageIds))).go();
+    }
     await (delete(chatMessages)..where((tbl) => tbl.conversationId.equals(conversationId))).go();
+  }
+
+  Future<List<MessageMediaEntity>> getMessageMediasByMessageIds(List<String> messageIds) async {
+    if (messageIds.isEmpty) {
+      return const <MessageMediaEntity>[];
+    }
+
+    return (select(messageMedias)
+          ..where((tbl) => tbl.messageId.isIn(messageIds))
+          ..orderBy([
+            (tbl) => OrderingTerm.asc(tbl.messageId),
+            (tbl) => OrderingTerm.asc(tbl.orderIndex),
+          ]))
+        .get();
+  }
+
+  Future<void> replaceMessageMedias(String messageId, List<MessageMediaEntity> medias) async {
+    await transaction(() async {
+      await (delete(messageMedias)..where((tbl) => tbl.messageId.equals(messageId))).go();
+      if (medias.isNotEmpty) {
+        await batch((b) {
+          b.insertAllOnConflictUpdate(messageMedias, medias);
+        });
+      }
+    });
   }
 
   Future<void> updateMessageContent(

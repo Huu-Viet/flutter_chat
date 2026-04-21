@@ -1,7 +1,7 @@
 import 'package:flutter_chat/core/mappers/remote_mapper.dart';
 import 'package:flutter_chat/features/chat/data/dtos/message_reaction_dto.dart';
 import 'package:flutter_chat/features/chat/data/response/message_reaction_response.dart';
-import 'package:flutter_chat/features/chat/domain/entities/message_reaction.dart';
+import 'package:flutter_chat/features/chat/domain/entities/messages/message_reaction.dart';
 
 class ApiMessageReactionMapper extends RemoteMapper<MessageReactionDto, MessageReaction> {
   ApiMessageReactionMapper();

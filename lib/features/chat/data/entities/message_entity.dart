@@ -18,3 +18,21 @@ class ChatMessages extends Table {
   @override
   Set<Column> get primaryKey => {id};
 }
+
+@DataClassName('MessageMediaEntity')
+class MessageMedias extends Table {
+  TextColumn get id => text()();
+  TextColumn get messageId => text().named('message_id')();
+  TextColumn get mediaType => text().named('media_type').nullable()();
+  TextColumn get url => text().nullable()();
+  TextColumn get mimeType => text().named('mime_type').nullable()();
+  IntColumn get size => integer().nullable()();
+  IntColumn get durationMs => integer().named('duration_ms').nullable()();
+  IntColumn get width => integer().nullable()();
+  IntColumn get height => integer().nullable()();
+  IntColumn get orderIndex => integer().named('order_index').withDefault(const Constant(0))();
+  TextColumn get waveform => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {messageId, id};
+}

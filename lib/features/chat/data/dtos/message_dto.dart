@@ -1,3 +1,5 @@
+import 'package:flutter_chat/features/chat/data/dtos/message_attachment_dto.dart';
+
 class MessageDto {
   final String? id;
   final String? conversationId;
@@ -7,6 +9,7 @@ class MessageDto {
   final int? offset;
   final bool? isDeleted;
   final String? mediaId;
+  final List<MessageAttachmentDto> attachments;
   final Map<String, dynamic>? metadata;
   final String? clientMessageId;
   final String? createdAt;
@@ -21,6 +24,7 @@ class MessageDto {
     this.offset,
     this.isDeleted,
     this.mediaId,
+    this.attachments = const <MessageAttachmentDto>[],
     this.metadata,
     this.clientMessageId,
     this.createdAt,
@@ -33,10 +37,24 @@ class MessageDto {
         ? rawMetadata
         : null;
 
-    final topLevelMediaId = json['mediaId'] as String?;
+    final topLevelMediaId = json['mediaId']?.toString();
     final metadataMediaId = parsedMetadata == null
         ? null
         : (parsedMetadata['mediaId'] ?? parsedMetadata['media_id'])?.toString();
+    final rawAttachments = json['attachments'];
+    final attachments = (rawAttachments is List)
+      ? rawAttachments
+        .whereType<Map>()
+        .map((entry) => MessageAttachmentDto.fromJson(
+            entry.map((key, value) => MapEntry(key.toString(), value)),
+          ))
+        .where((entry) => entry.mediaId.isNotEmpty)
+        .toList(growable: false)
+      : const <MessageAttachmentDto>[];
+
+    final effectiveMediaId = (topLevelMediaId != null && topLevelMediaId.trim().isNotEmpty)
+      ? topLevelMediaId.trim()
+      : metadataMediaId;
 
     return MessageDto(
       id: json['id'] as String?,
@@ -44,11 +62,19 @@ class MessageDto {
       senderId: json['senderId'] as String?,
       content: json['content']?.toString(),
       type: json['type']?.toString(),
-      offset: _asInt(json['offset']),
+      offset: asInt(json['offset']),
       isDeleted: json['isDeleted'] as bool?,
-      mediaId: (topLevelMediaId != null && topLevelMediaId.trim().isNotEmpty)
-          ? topLevelMediaId
-          : metadataMediaId,
+      mediaId: effectiveMediaId,
+      attachments: attachments.isNotEmpty
+          ? attachments
+          : (effectiveMediaId != null && effectiveMediaId.isNotEmpty)
+              ? <MessageAttachmentDto>[
+                  MessageAttachmentDto(
+                    mediaId: effectiveMediaId,
+                    type: json['type']?.toString(),
+                  ),
+                ]
+              : const <MessageAttachmentDto>[],
       metadata: parsedMetadata,
       clientMessageId: json['clientMessageId'] as String?,
       createdAt: json['createdAt']?.toString(),
@@ -56,7 +82,7 @@ class MessageDto {
     );
   }
 
-  static int? _asInt(dynamic value) {
+  static int? asInt(dynamic value) {
     if (value is int) return value;
     if (value is num) return value.toInt();
     if (value is String) return int.tryParse(value);
@@ -72,6 +98,7 @@ class MessageDto {
         'offset': offset,
         'isDeleted': isDeleted,
         'mediaId': mediaId,
+        'attachments': attachments.map((entry) => entry.toJson()).toList(growable: false),
         'metadata': metadata,
         'clientMessageId': clientMessageId,
         'createdAt': createdAt,

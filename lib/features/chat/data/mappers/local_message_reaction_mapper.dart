@@ -1,6 +1,6 @@
 import 'package:flutter_chat/core/mappers/local_mapper.dart';
 import 'package:flutter_chat/features/chat/data/entities/message_reaction_entity.dart';
-import 'package:flutter_chat/features/chat/domain/entities/message_reaction.dart';
+import 'package:flutter_chat/features/chat/domain/entities/messages/message_reaction.dart';
 
 class LocalMessageReactionMapper extends LocalMapper<MessageReactionEntity, MessageReaction> {
   LocalMessageReactionMapper();

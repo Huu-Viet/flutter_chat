@@ -28,7 +28,8 @@ class RealtimeGatewayService implements RealtimeGateway {
   bool _chatAuthenticated = false;
   bool _callAuthenticated = false;
   Timer? _reconnectTimer;
-  Timer? _heartbeatTimer;
+  Timer? _chatHeartbeatTimer;
+  Timer? _callHeartbeatTimer;
 
   final StreamController<RealtimeGatewayEvent> _eventsController =
       StreamController<RealtimeGatewayEvent>.broadcast();
@@ -119,7 +120,7 @@ class RealtimeGatewayService implements RealtimeGateway {
     _chatSocket = socket;
     _attachBaseListeners(socket: socket, namespace: '/chat', onDisconnected: () {
       _chatAuthenticated = false;
-      _stopHeartbeat();
+      _stopChatHeartbeat();
     });
 
     await _waitForConnected(socket, '/chat');
@@ -159,6 +160,7 @@ class RealtimeGatewayService implements RealtimeGateway {
     _callSocket = socket;
     _attachBaseListeners(socket: socket, namespace: '/call', onDisconnected: () {
       _callAuthenticated = false;
+      _stopCallHeartbeat();
     });
 
     await _waitForConnected(socket, '/call');
@@ -170,6 +172,7 @@ class RealtimeGatewayService implements RealtimeGateway {
       payload: {'token': accessToken},
       onAuthenticated: () {
         _callAuthenticated = true;
+        _startCallHeartbeat();
         debugPrint('[RealtimeGatewayService] /call authenticated');
       },
     );
@@ -405,7 +408,7 @@ class RealtimeGatewayService implements RealtimeGateway {
     debugPrint('[RealtimeGatewayService] dispose start');
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
-    _stopHeartbeat();
+    _stopAllHeartbeats();
     _disposeSockets();
     await _eventsController.close();
     _chatAuthenticated = false;
@@ -415,22 +418,43 @@ class RealtimeGatewayService implements RealtimeGateway {
   }
 
   void _startHeartbeat() {
-    _stopHeartbeat();
-    _heartbeatTimer = Timer.periodic(const Duration(seconds: 25), (_) {
+    _stopChatHeartbeat();
+    _chatHeartbeatTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (!_chatAuthenticated || _chatSocket == null) {
         return;
       }
+      // debugPrint('[RealtimeGatewayService] /chat heartbeat -> emit');
       _chatSocket.emit('heartbeat');
     });
   }
 
-  void _stopHeartbeat() {
-    _heartbeatTimer?.cancel();
-    _heartbeatTimer = null;
+  void _startCallHeartbeat() {
+    _stopCallHeartbeat();
+    _callHeartbeatTimer = Timer.periodic(const Duration(seconds: 25), (_) {
+      if (!_callAuthenticated || _callSocket == null) {
+        return;
+      }
+      _callSocket.emit('heartbeat');
+    });
+  }
+
+  void _stopChatHeartbeat() {
+    _chatHeartbeatTimer?.cancel();
+    _chatHeartbeatTimer = null;
+  }
+
+  void _stopCallHeartbeat() {
+    _callHeartbeatTimer?.cancel();
+    _callHeartbeatTimer = null;
+  }
+
+  void _stopAllHeartbeats() {
+    _stopChatHeartbeat();
+    _stopCallHeartbeat();
   }
 
   void _disposeSockets() {
-    _stopHeartbeat();
+    _stopAllHeartbeats();
 
     if (_chatSocket != null) {
       debugPrint('[RealtimeGatewayService] closing /chat socket');

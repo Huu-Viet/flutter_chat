@@ -2803,6 +2803,661 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
   }
 }
 
+class $MessageMediasTable extends MessageMedias
+    with TableInfo<$MessageMediasTable, MessageMediaEntity> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MessageMediasTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _messageIdMeta = const VerificationMeta(
+    'messageId',
+  );
+  @override
+  late final GeneratedColumn<String> messageId = GeneratedColumn<String>(
+    'message_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _mediaTypeMeta = const VerificationMeta(
+    'mediaType',
+  );
+  @override
+  late final GeneratedColumn<String> mediaType = GeneratedColumn<String>(
+    'media_type',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _urlMeta = const VerificationMeta('url');
+  @override
+  late final GeneratedColumn<String> url = GeneratedColumn<String>(
+    'url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _mimeTypeMeta = const VerificationMeta(
+    'mimeType',
+  );
+  @override
+  late final GeneratedColumn<String> mimeType = GeneratedColumn<String>(
+    'mime_type',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sizeMeta = const VerificationMeta('size');
+  @override
+  late final GeneratedColumn<int> size = GeneratedColumn<int>(
+    'size',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _durationMsMeta = const VerificationMeta(
+    'durationMs',
+  );
+  @override
+  late final GeneratedColumn<int> durationMs = GeneratedColumn<int>(
+    'duration_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _widthMeta = const VerificationMeta('width');
+  @override
+  late final GeneratedColumn<int> width = GeneratedColumn<int>(
+    'width',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _heightMeta = const VerificationMeta('height');
+  @override
+  late final GeneratedColumn<int> height = GeneratedColumn<int>(
+    'height',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _orderIndexMeta = const VerificationMeta(
+    'orderIndex',
+  );
+  @override
+  late final GeneratedColumn<int> orderIndex = GeneratedColumn<int>(
+    'order_index',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _waveformMeta = const VerificationMeta(
+    'waveform',
+  );
+  @override
+  late final GeneratedColumn<String> waveform = GeneratedColumn<String>(
+    'waveform',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    messageId,
+    mediaType,
+    url,
+    mimeType,
+    size,
+    durationMs,
+    width,
+    height,
+    orderIndex,
+    waveform,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'message_medias';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MessageMediaEntity> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('message_id')) {
+      context.handle(
+        _messageIdMeta,
+        messageId.isAcceptableOrUnknown(data['message_id']!, _messageIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_messageIdMeta);
+    }
+    if (data.containsKey('media_type')) {
+      context.handle(
+        _mediaTypeMeta,
+        mediaType.isAcceptableOrUnknown(data['media_type']!, _mediaTypeMeta),
+      );
+    }
+    if (data.containsKey('url')) {
+      context.handle(
+        _urlMeta,
+        url.isAcceptableOrUnknown(data['url']!, _urlMeta),
+      );
+    }
+    if (data.containsKey('mime_type')) {
+      context.handle(
+        _mimeTypeMeta,
+        mimeType.isAcceptableOrUnknown(data['mime_type']!, _mimeTypeMeta),
+      );
+    }
+    if (data.containsKey('size')) {
+      context.handle(
+        _sizeMeta,
+        size.isAcceptableOrUnknown(data['size']!, _sizeMeta),
+      );
+    }
+    if (data.containsKey('duration_ms')) {
+      context.handle(
+        _durationMsMeta,
+        durationMs.isAcceptableOrUnknown(data['duration_ms']!, _durationMsMeta),
+      );
+    }
+    if (data.containsKey('width')) {
+      context.handle(
+        _widthMeta,
+        width.isAcceptableOrUnknown(data['width']!, _widthMeta),
+      );
+    }
+    if (data.containsKey('height')) {
+      context.handle(
+        _heightMeta,
+        height.isAcceptableOrUnknown(data['height']!, _heightMeta),
+      );
+    }
+    if (data.containsKey('order_index')) {
+      context.handle(
+        _orderIndexMeta,
+        orderIndex.isAcceptableOrUnknown(data['order_index']!, _orderIndexMeta),
+      );
+    }
+    if (data.containsKey('waveform')) {
+      context.handle(
+        _waveformMeta,
+        waveform.isAcceptableOrUnknown(data['waveform']!, _waveformMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {messageId, id};
+  @override
+  MessageMediaEntity map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MessageMediaEntity(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      messageId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}message_id'],
+      )!,
+      mediaType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}media_type'],
+      ),
+      url: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}url'],
+      ),
+      mimeType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mime_type'],
+      ),
+      size: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}size'],
+      ),
+      durationMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_ms'],
+      ),
+      width: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}width'],
+      ),
+      height: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}height'],
+      ),
+      orderIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}order_index'],
+      )!,
+      waveform: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}waveform'],
+      ),
+    );
+  }
+
+  @override
+  $MessageMediasTable createAlias(String alias) {
+    return $MessageMediasTable(attachedDatabase, alias);
+  }
+}
+
+class MessageMediaEntity extends DataClass
+    implements Insertable<MessageMediaEntity> {
+  final String id;
+  final String messageId;
+  final String? mediaType;
+  final String? url;
+  final String? mimeType;
+  final int? size;
+  final int? durationMs;
+  final int? width;
+  final int? height;
+  final int orderIndex;
+  final String? waveform;
+  const MessageMediaEntity({
+    required this.id,
+    required this.messageId,
+    this.mediaType,
+    this.url,
+    this.mimeType,
+    this.size,
+    this.durationMs,
+    this.width,
+    this.height,
+    required this.orderIndex,
+    this.waveform,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['message_id'] = Variable<String>(messageId);
+    if (!nullToAbsent || mediaType != null) {
+      map['media_type'] = Variable<String>(mediaType);
+    }
+    if (!nullToAbsent || url != null) {
+      map['url'] = Variable<String>(url);
+    }
+    if (!nullToAbsent || mimeType != null) {
+      map['mime_type'] = Variable<String>(mimeType);
+    }
+    if (!nullToAbsent || size != null) {
+      map['size'] = Variable<int>(size);
+    }
+    if (!nullToAbsent || durationMs != null) {
+      map['duration_ms'] = Variable<int>(durationMs);
+    }
+    if (!nullToAbsent || width != null) {
+      map['width'] = Variable<int>(width);
+    }
+    if (!nullToAbsent || height != null) {
+      map['height'] = Variable<int>(height);
+    }
+    map['order_index'] = Variable<int>(orderIndex);
+    if (!nullToAbsent || waveform != null) {
+      map['waveform'] = Variable<String>(waveform);
+    }
+    return map;
+  }
+
+  MessageMediasCompanion toCompanion(bool nullToAbsent) {
+    return MessageMediasCompanion(
+      id: Value(id),
+      messageId: Value(messageId),
+      mediaType: mediaType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mediaType),
+      url: url == null && nullToAbsent ? const Value.absent() : Value(url),
+      mimeType: mimeType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mimeType),
+      size: size == null && nullToAbsent ? const Value.absent() : Value(size),
+      durationMs: durationMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(durationMs),
+      width: width == null && nullToAbsent
+          ? const Value.absent()
+          : Value(width),
+      height: height == null && nullToAbsent
+          ? const Value.absent()
+          : Value(height),
+      orderIndex: Value(orderIndex),
+      waveform: waveform == null && nullToAbsent
+          ? const Value.absent()
+          : Value(waveform),
+    );
+  }
+
+  factory MessageMediaEntity.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MessageMediaEntity(
+      id: serializer.fromJson<String>(json['id']),
+      messageId: serializer.fromJson<String>(json['messageId']),
+      mediaType: serializer.fromJson<String?>(json['mediaType']),
+      url: serializer.fromJson<String?>(json['url']),
+      mimeType: serializer.fromJson<String?>(json['mimeType']),
+      size: serializer.fromJson<int?>(json['size']),
+      durationMs: serializer.fromJson<int?>(json['durationMs']),
+      width: serializer.fromJson<int?>(json['width']),
+      height: serializer.fromJson<int?>(json['height']),
+      orderIndex: serializer.fromJson<int>(json['orderIndex']),
+      waveform: serializer.fromJson<String?>(json['waveform']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'messageId': serializer.toJson<String>(messageId),
+      'mediaType': serializer.toJson<String?>(mediaType),
+      'url': serializer.toJson<String?>(url),
+      'mimeType': serializer.toJson<String?>(mimeType),
+      'size': serializer.toJson<int?>(size),
+      'durationMs': serializer.toJson<int?>(durationMs),
+      'width': serializer.toJson<int?>(width),
+      'height': serializer.toJson<int?>(height),
+      'orderIndex': serializer.toJson<int>(orderIndex),
+      'waveform': serializer.toJson<String?>(waveform),
+    };
+  }
+
+  MessageMediaEntity copyWith({
+    String? id,
+    String? messageId,
+    Value<String?> mediaType = const Value.absent(),
+    Value<String?> url = const Value.absent(),
+    Value<String?> mimeType = const Value.absent(),
+    Value<int?> size = const Value.absent(),
+    Value<int?> durationMs = const Value.absent(),
+    Value<int?> width = const Value.absent(),
+    Value<int?> height = const Value.absent(),
+    int? orderIndex,
+    Value<String?> waveform = const Value.absent(),
+  }) => MessageMediaEntity(
+    id: id ?? this.id,
+    messageId: messageId ?? this.messageId,
+    mediaType: mediaType.present ? mediaType.value : this.mediaType,
+    url: url.present ? url.value : this.url,
+    mimeType: mimeType.present ? mimeType.value : this.mimeType,
+    size: size.present ? size.value : this.size,
+    durationMs: durationMs.present ? durationMs.value : this.durationMs,
+    width: width.present ? width.value : this.width,
+    height: height.present ? height.value : this.height,
+    orderIndex: orderIndex ?? this.orderIndex,
+    waveform: waveform.present ? waveform.value : this.waveform,
+  );
+  MessageMediaEntity copyWithCompanion(MessageMediasCompanion data) {
+    return MessageMediaEntity(
+      id: data.id.present ? data.id.value : this.id,
+      messageId: data.messageId.present ? data.messageId.value : this.messageId,
+      mediaType: data.mediaType.present ? data.mediaType.value : this.mediaType,
+      url: data.url.present ? data.url.value : this.url,
+      mimeType: data.mimeType.present ? data.mimeType.value : this.mimeType,
+      size: data.size.present ? data.size.value : this.size,
+      durationMs: data.durationMs.present
+          ? data.durationMs.value
+          : this.durationMs,
+      width: data.width.present ? data.width.value : this.width,
+      height: data.height.present ? data.height.value : this.height,
+      orderIndex: data.orderIndex.present
+          ? data.orderIndex.value
+          : this.orderIndex,
+      waveform: data.waveform.present ? data.waveform.value : this.waveform,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MessageMediaEntity(')
+          ..write('id: $id, ')
+          ..write('messageId: $messageId, ')
+          ..write('mediaType: $mediaType, ')
+          ..write('url: $url, ')
+          ..write('mimeType: $mimeType, ')
+          ..write('size: $size, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('width: $width, ')
+          ..write('height: $height, ')
+          ..write('orderIndex: $orderIndex, ')
+          ..write('waveform: $waveform')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    messageId,
+    mediaType,
+    url,
+    mimeType,
+    size,
+    durationMs,
+    width,
+    height,
+    orderIndex,
+    waveform,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MessageMediaEntity &&
+          other.id == this.id &&
+          other.messageId == this.messageId &&
+          other.mediaType == this.mediaType &&
+          other.url == this.url &&
+          other.mimeType == this.mimeType &&
+          other.size == this.size &&
+          other.durationMs == this.durationMs &&
+          other.width == this.width &&
+          other.height == this.height &&
+          other.orderIndex == this.orderIndex &&
+          other.waveform == this.waveform);
+}
+
+class MessageMediasCompanion extends UpdateCompanion<MessageMediaEntity> {
+  final Value<String> id;
+  final Value<String> messageId;
+  final Value<String?> mediaType;
+  final Value<String?> url;
+  final Value<String?> mimeType;
+  final Value<int?> size;
+  final Value<int?> durationMs;
+  final Value<int?> width;
+  final Value<int?> height;
+  final Value<int> orderIndex;
+  final Value<String?> waveform;
+  final Value<int> rowid;
+  const MessageMediasCompanion({
+    this.id = const Value.absent(),
+    this.messageId = const Value.absent(),
+    this.mediaType = const Value.absent(),
+    this.url = const Value.absent(),
+    this.mimeType = const Value.absent(),
+    this.size = const Value.absent(),
+    this.durationMs = const Value.absent(),
+    this.width = const Value.absent(),
+    this.height = const Value.absent(),
+    this.orderIndex = const Value.absent(),
+    this.waveform = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MessageMediasCompanion.insert({
+    required String id,
+    required String messageId,
+    this.mediaType = const Value.absent(),
+    this.url = const Value.absent(),
+    this.mimeType = const Value.absent(),
+    this.size = const Value.absent(),
+    this.durationMs = const Value.absent(),
+    this.width = const Value.absent(),
+    this.height = const Value.absent(),
+    this.orderIndex = const Value.absent(),
+    this.waveform = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       messageId = Value(messageId);
+  static Insertable<MessageMediaEntity> custom({
+    Expression<String>? id,
+    Expression<String>? messageId,
+    Expression<String>? mediaType,
+    Expression<String>? url,
+    Expression<String>? mimeType,
+    Expression<int>? size,
+    Expression<int>? durationMs,
+    Expression<int>? width,
+    Expression<int>? height,
+    Expression<int>? orderIndex,
+    Expression<String>? waveform,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (messageId != null) 'message_id': messageId,
+      if (mediaType != null) 'media_type': mediaType,
+      if (url != null) 'url': url,
+      if (mimeType != null) 'mime_type': mimeType,
+      if (size != null) 'size': size,
+      if (durationMs != null) 'duration_ms': durationMs,
+      if (width != null) 'width': width,
+      if (height != null) 'height': height,
+      if (orderIndex != null) 'order_index': orderIndex,
+      if (waveform != null) 'waveform': waveform,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MessageMediasCompanion copyWith({
+    Value<String>? id,
+    Value<String>? messageId,
+    Value<String?>? mediaType,
+    Value<String?>? url,
+    Value<String?>? mimeType,
+    Value<int?>? size,
+    Value<int?>? durationMs,
+    Value<int?>? width,
+    Value<int?>? height,
+    Value<int>? orderIndex,
+    Value<String?>? waveform,
+    Value<int>? rowid,
+  }) {
+    return MessageMediasCompanion(
+      id: id ?? this.id,
+      messageId: messageId ?? this.messageId,
+      mediaType: mediaType ?? this.mediaType,
+      url: url ?? this.url,
+      mimeType: mimeType ?? this.mimeType,
+      size: size ?? this.size,
+      durationMs: durationMs ?? this.durationMs,
+      width: width ?? this.width,
+      height: height ?? this.height,
+      orderIndex: orderIndex ?? this.orderIndex,
+      waveform: waveform ?? this.waveform,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (messageId.present) {
+      map['message_id'] = Variable<String>(messageId.value);
+    }
+    if (mediaType.present) {
+      map['media_type'] = Variable<String>(mediaType.value);
+    }
+    if (url.present) {
+      map['url'] = Variable<String>(url.value);
+    }
+    if (mimeType.present) {
+      map['mime_type'] = Variable<String>(mimeType.value);
+    }
+    if (size.present) {
+      map['size'] = Variable<int>(size.value);
+    }
+    if (durationMs.present) {
+      map['duration_ms'] = Variable<int>(durationMs.value);
+    }
+    if (width.present) {
+      map['width'] = Variable<int>(width.value);
+    }
+    if (height.present) {
+      map['height'] = Variable<int>(height.value);
+    }
+    if (orderIndex.present) {
+      map['order_index'] = Variable<int>(orderIndex.value);
+    }
+    if (waveform.present) {
+      map['waveform'] = Variable<String>(waveform.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MessageMediasCompanion(')
+          ..write('id: $id, ')
+          ..write('messageId: $messageId, ')
+          ..write('mediaType: $mediaType, ')
+          ..write('url: $url, ')
+          ..write('mimeType: $mimeType, ')
+          ..write('size: $size, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('width: $width, ')
+          ..write('height: $height, ')
+          ..write('orderIndex: $orderIndex, ')
+          ..write('waveform: $waveform, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $FriendshipsTable extends Friendships
     with TableInfo<$FriendshipsTable, FriendshipEntity> {
   @override
@@ -3804,6 +4459,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ConversationUsersTable conversationUsers =
       $ConversationUsersTable(this);
   late final $ChatMessagesTable chatMessages = $ChatMessagesTable(this);
+  late final $MessageMediasTable messageMedias = $MessageMediasTable(this);
   late final $FriendshipsTable friendships = $FriendshipsTable(this);
   late final $StickerPackagesTable stickerPackages = $StickerPackagesTable(
     this,
@@ -3818,6 +4474,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     chatConversations,
     conversationUsers,
     chatMessages,
+    messageMedias,
     friendships,
     stickerPackages,
     stickerItems,
@@ -5148,6 +5805,328 @@ typedef $$ChatMessagesTableProcessedTableManager =
       ChatMessageEntity,
       PrefetchHooks Function()
     >;
+typedef $$MessageMediasTableCreateCompanionBuilder =
+    MessageMediasCompanion Function({
+      required String id,
+      required String messageId,
+      Value<String?> mediaType,
+      Value<String?> url,
+      Value<String?> mimeType,
+      Value<int?> size,
+      Value<int?> durationMs,
+      Value<int?> width,
+      Value<int?> height,
+      Value<int> orderIndex,
+      Value<String?> waveform,
+      Value<int> rowid,
+    });
+typedef $$MessageMediasTableUpdateCompanionBuilder =
+    MessageMediasCompanion Function({
+      Value<String> id,
+      Value<String> messageId,
+      Value<String?> mediaType,
+      Value<String?> url,
+      Value<String?> mimeType,
+      Value<int?> size,
+      Value<int?> durationMs,
+      Value<int?> width,
+      Value<int?> height,
+      Value<int> orderIndex,
+      Value<String?> waveform,
+      Value<int> rowid,
+    });
+
+class $$MessageMediasTableFilterComposer
+    extends Composer<_$AppDatabase, $MessageMediasTable> {
+  $$MessageMediasTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get messageId => $composableBuilder(
+    column: $table.messageId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mediaType => $composableBuilder(
+    column: $table.mediaType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mimeType => $composableBuilder(
+    column: $table.mimeType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get size => $composableBuilder(
+    column: $table.size,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get width => $composableBuilder(
+    column: $table.width,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get height => $composableBuilder(
+    column: $table.height,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get orderIndex => $composableBuilder(
+    column: $table.orderIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get waveform => $composableBuilder(
+    column: $table.waveform,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MessageMediasTableOrderingComposer
+    extends Composer<_$AppDatabase, $MessageMediasTable> {
+  $$MessageMediasTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get messageId => $composableBuilder(
+    column: $table.messageId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mediaType => $composableBuilder(
+    column: $table.mediaType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mimeType => $composableBuilder(
+    column: $table.mimeType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get size => $composableBuilder(
+    column: $table.size,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get width => $composableBuilder(
+    column: $table.width,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get height => $composableBuilder(
+    column: $table.height,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get orderIndex => $composableBuilder(
+    column: $table.orderIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get waveform => $composableBuilder(
+    column: $table.waveform,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MessageMediasTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MessageMediasTable> {
+  $$MessageMediasTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get messageId =>
+      $composableBuilder(column: $table.messageId, builder: (column) => column);
+
+  GeneratedColumn<String> get mediaType =>
+      $composableBuilder(column: $table.mediaType, builder: (column) => column);
+
+  GeneratedColumn<String> get url =>
+      $composableBuilder(column: $table.url, builder: (column) => column);
+
+  GeneratedColumn<String> get mimeType =>
+      $composableBuilder(column: $table.mimeType, builder: (column) => column);
+
+  GeneratedColumn<int> get size =>
+      $composableBuilder(column: $table.size, builder: (column) => column);
+
+  GeneratedColumn<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get width =>
+      $composableBuilder(column: $table.width, builder: (column) => column);
+
+  GeneratedColumn<int> get height =>
+      $composableBuilder(column: $table.height, builder: (column) => column);
+
+  GeneratedColumn<int> get orderIndex => $composableBuilder(
+    column: $table.orderIndex,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get waveform =>
+      $composableBuilder(column: $table.waveform, builder: (column) => column);
+}
+
+class $$MessageMediasTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MessageMediasTable,
+          MessageMediaEntity,
+          $$MessageMediasTableFilterComposer,
+          $$MessageMediasTableOrderingComposer,
+          $$MessageMediasTableAnnotationComposer,
+          $$MessageMediasTableCreateCompanionBuilder,
+          $$MessageMediasTableUpdateCompanionBuilder,
+          (
+            MessageMediaEntity,
+            BaseReferences<
+              _$AppDatabase,
+              $MessageMediasTable,
+              MessageMediaEntity
+            >,
+          ),
+          MessageMediaEntity,
+          PrefetchHooks Function()
+        > {
+  $$MessageMediasTableTableManager(_$AppDatabase db, $MessageMediasTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MessageMediasTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MessageMediasTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MessageMediasTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> messageId = const Value.absent(),
+                Value<String?> mediaType = const Value.absent(),
+                Value<String?> url = const Value.absent(),
+                Value<String?> mimeType = const Value.absent(),
+                Value<int?> size = const Value.absent(),
+                Value<int?> durationMs = const Value.absent(),
+                Value<int?> width = const Value.absent(),
+                Value<int?> height = const Value.absent(),
+                Value<int> orderIndex = const Value.absent(),
+                Value<String?> waveform = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MessageMediasCompanion(
+                id: id,
+                messageId: messageId,
+                mediaType: mediaType,
+                url: url,
+                mimeType: mimeType,
+                size: size,
+                durationMs: durationMs,
+                width: width,
+                height: height,
+                orderIndex: orderIndex,
+                waveform: waveform,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String messageId,
+                Value<String?> mediaType = const Value.absent(),
+                Value<String?> url = const Value.absent(),
+                Value<String?> mimeType = const Value.absent(),
+                Value<int?> size = const Value.absent(),
+                Value<int?> durationMs = const Value.absent(),
+                Value<int?> width = const Value.absent(),
+                Value<int?> height = const Value.absent(),
+                Value<int> orderIndex = const Value.absent(),
+                Value<String?> waveform = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MessageMediasCompanion.insert(
+                id: id,
+                messageId: messageId,
+                mediaType: mediaType,
+                url: url,
+                mimeType: mimeType,
+                size: size,
+                durationMs: durationMs,
+                width: width,
+                height: height,
+                orderIndex: orderIndex,
+                waveform: waveform,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MessageMediasTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MessageMediasTable,
+      MessageMediaEntity,
+      $$MessageMediasTableFilterComposer,
+      $$MessageMediasTableOrderingComposer,
+      $$MessageMediasTableAnnotationComposer,
+      $$MessageMediasTableCreateCompanionBuilder,
+      $$MessageMediasTableUpdateCompanionBuilder,
+      (
+        MessageMediaEntity,
+        BaseReferences<_$AppDatabase, $MessageMediasTable, MessageMediaEntity>,
+      ),
+      MessageMediaEntity,
+      PrefetchHooks Function()
+    >;
 typedef $$FriendshipsTableCreateCompanionBuilder =
     FriendshipsCompanion Function({
       required String userId,
@@ -5959,6 +6938,8 @@ class $AppDatabaseManager {
       $$ConversationUsersTableTableManager(_db, _db.conversationUsers);
   $$ChatMessagesTableTableManager get chatMessages =>
       $$ChatMessagesTableTableManager(_db, _db.chatMessages);
+  $$MessageMediasTableTableManager get messageMedias =>
+      $$MessageMediasTableTableManager(_db, _db.messageMedias);
   $$FriendshipsTableTableManager get friendships =>
       $$FriendshipsTableTableManager(_db, _db.friendships);
   $$StickerPackagesTableTableManager get stickerPackages =>

@@ -39,8 +39,8 @@ export '../chat/data/mappers/local_sticker_item_mapper.dart';
 //domain entities
 export '../chat/domain/entities/conversation.dart';
 export '../chat/domain/entities/conversation_participant.dart';
-export '../chat/domain/entities/message.dart';
-export '../chat/domain/entities/message_reaction.dart';
+export '../chat/domain/entities/messages/message.dart';
+export 'domain/entities/messages/message_reaction.dart';
 export '../chat/domain/entities/sticker_item.dart';
 export '../chat/domain/entities/sticker_package.dart';
 

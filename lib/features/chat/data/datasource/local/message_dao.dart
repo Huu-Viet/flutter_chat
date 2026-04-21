@@ -5,13 +5,23 @@ import 'package:drift/drift.dart';
 import 'package:flutter_chat/core/database/app_database.dart';
 import 'package:flutter_chat/features/chat/data/entities/message_reaction_entity.dart';
 
+class ChatMessageWithMediasEntity {
+  final ChatMessageEntity message;
+  final List<MessageMediaEntity> medias;
+
+  const ChatMessageWithMediasEntity({
+    required this.message,
+    required this.medias,
+  });
+}
+
 abstract class MessageDao {
-  Future<void> saveMessages(List<ChatMessageEntity> items);
-  Future<void> saveMessage(ChatMessageEntity item);
-  Future<ChatMessageEntity?> getMessageById(String id);
-  Future<ChatMessageEntity?> getMessageByClientMessageId(String clientMessageId);
-  Future<List<ChatMessageEntity>> getMessagesByConversationId(String conversationId);
-  Stream<List<ChatMessageEntity>> watchMessagesByConversationId(String conversationId);
+  Future<void> saveMessages(List<ChatMessageWithMediasEntity> items);
+  Future<void> saveMessage(ChatMessageWithMediasEntity item);
+  Future<ChatMessageWithMediasEntity?> getMessageById(String id);
+  Future<ChatMessageWithMediasEntity?> getMessageByClientMessageId(String clientMessageId);
+  Future<List<ChatMessageWithMediasEntity>> getMessagesByConversationId(String conversationId);
+  Stream<List<ChatMessageWithMediasEntity>> watchMessagesByConversationId(String conversationId);
   Future<void> clearMessagesByConversationId(String conversationId);
   Future<void> clearAllMessages();
   Future<void> updateServerId(String localId, String serverId);
@@ -30,7 +40,7 @@ class DriftMessageDaoImpl implements MessageDao {
   DriftMessageDaoImpl(this._database);
 
   @override
-  Future<void> saveMessages(List<ChatMessageEntity> items) async {
+  Future<void> saveMessages(List<ChatMessageWithMediasEntity> items) async {
     try {
       for (final item in items) {
         await saveMessage(item);
@@ -42,19 +52,21 @@ class DriftMessageDaoImpl implements MessageDao {
   }
 
   @override
-  Future<void> saveMessage(ChatMessageEntity item) async {
+  Future<void> saveMessage(ChatMessageWithMediasEntity item) async {
     try {
-      final clientMessageId = item.serverId?.trim();
+      final message = item.message;
+      final clientMessageId = message.serverId?.trim();
       if (clientMessageId == null || clientMessageId.isEmpty) {
-        await _database.insertMessage(item);
+        await _database.insertMessage(message);
+        await _database.replaceMessageMedias(message.id, item.medias);
         return;
       }
 
       final existing = await _database.getMessageByServerId(clientMessageId);
       if (existing != null) {
         final existingContent = existing.content.trim();
-        final incomingContent = item.content.trim();
-        final type = item.type.trim().toLowerCase();
+        final incomingContent = message.content.trim();
+        final type = message.type.trim().toLowerCase();
 
         if (existingContent.isNotEmpty && incomingContent.isEmpty && type != 'image') {
           return;
@@ -64,24 +76,25 @@ class DriftMessageDaoImpl implements MessageDao {
               ..where((tbl) => tbl.id.equals(existing.id)))
             .write(
           ChatMessagesCompanion(
-            id: Value(item.id),
-            conversationId: Value(item.conversationId),
-            senderId: Value(item.senderId),
-            content: Value(item.content),
-            type: Value(item.type),
-            offset: Value(item.offset),
-            isDeleted: Value(item.isDeleted),
-            mediaId: Value(item.mediaId),
-            metadata: Value(item.metadata),
-            serverId: Value(item.serverId),
-            createdAt: Value(item.createdAt),
-            editedAt: Value(item.editedAt),
+            id: Value(message.id),
+            conversationId: Value(message.conversationId),
+            senderId: Value(message.senderId),
+            content: Value(message.content),
+            type: Value(message.type),
+            offset: Value(message.offset),
+            isDeleted: Value(message.isDeleted),
+            metadata: Value(message.metadata),
+            serverId: Value(message.serverId),
+            createdAt: Value(message.createdAt),
+            editedAt: Value(message.editedAt),
           ),
         );
+        await _database.replaceMessageMedias(existing.id, item.medias);
         return;
       }
 
-      await _database.insertMessage(item);
+      await _database.insertMessage(message);
+      await _database.replaceMessageMedias(message.id, item.medias);
     } catch (e) {
       log(e.toString());
       rethrow;
@@ -89,9 +102,14 @@ class DriftMessageDaoImpl implements MessageDao {
   }
 
   @override
-  Future<ChatMessageEntity?> getMessageById(String id) async {
+  Future<ChatMessageWithMediasEntity?> getMessageById(String id) async {
     try {
-      return await _database.getMessageById(id);
+      final message = await _database.getMessageById(id);
+      if (message == null) {
+        return null;
+      }
+      final medias = await _database.getMessageMediasByMessageIds(<String>[message.id]);
+      return ChatMessageWithMediasEntity(message: message, medias: medias);
     } catch (e) {
       log(e.toString());
       rethrow;
@@ -99,9 +117,14 @@ class DriftMessageDaoImpl implements MessageDao {
   }
 
   @override
-  Future<ChatMessageEntity?> getMessageByClientMessageId(String clientMessageId) async {
+  Future<ChatMessageWithMediasEntity?> getMessageByClientMessageId(String clientMessageId) async {
     try {
-      return await _database.getMessageByServerId(clientMessageId);
+      final message = await _database.getMessageByServerId(clientMessageId);
+      if (message == null) {
+        return null;
+      }
+      final medias = await _database.getMessageMediasByMessageIds(<String>[message.id]);
+      return ChatMessageWithMediasEntity(message: message, medias: medias);
     } catch (e) {
       log(e.toString());
       rethrow;
@@ -109,9 +132,10 @@ class DriftMessageDaoImpl implements MessageDao {
   }
 
   @override
-  Future<List<ChatMessageEntity>> getMessagesByConversationId(String conversationId) async {
+  Future<List<ChatMessageWithMediasEntity>> getMessagesByConversationId(String conversationId) async {
     try {
-      return await _database.getMessagesByConversationId(conversationId);
+      final messages = await _database.getMessagesByConversationId(conversationId);
+      return _attachMedias(messages);
     } catch (e) {
       log(e.toString());
       rethrow;
@@ -119,8 +143,8 @@ class DriftMessageDaoImpl implements MessageDao {
   }
 
   @override
-  Stream<List<ChatMessageEntity>> watchMessagesByConversationId(String conversationId) {
-    return _database.watchMessagesByConversationId(conversationId);
+  Stream<List<ChatMessageWithMediasEntity>> watchMessagesByConversationId(String conversationId) {
+    return _database.watchMessagesByConversationId(conversationId).asyncMap(_attachMedias);
   }
 
   @override
@@ -185,11 +209,12 @@ class DriftMessageDaoImpl implements MessageDao {
   Future<List<MessageReactionEntity>> getMessageReactions(String messageIdentifier) async {
     try {
       final message = await _resolveMessageByIdentifier(messageIdentifier);
-      if (message == null) {
+      final rawMessage = message?.message;
+      if (rawMessage == null) {
         return const <MessageReactionEntity>[];
       }
 
-      final metadataMap = _decodeMetadata(message.metadata);
+      final metadataMap = _decodeMetadata(rawMessage.metadata);
       final reactionsNode = metadataMap['reactions'];
       if (reactionsNode is! List) {
         return const <MessageReactionEntity>[];
@@ -199,7 +224,7 @@ class DriftMessageDaoImpl implements MessageDao {
           .whereType<Map<String, dynamic>>()
           .map(
             (node) => MessageReactionEntity(
-              messageId: (node['messageId'] ?? message.id).toString(),
+              messageId: (node['messageId'] ?? rawMessage.id).toString(),
               emoji: (node['emoji'] ?? '').toString(),
               count: _asInt(node['count']) ?? 0,
               reactors: (node['reactors'] as List<dynamic>?)
@@ -225,11 +250,12 @@ class DriftMessageDaoImpl implements MessageDao {
   ) async {
     try {
       final message = await _resolveMessageByIdentifier(messageIdentifier);
-      if (message == null) {
+      final rawMessage = message?.message;
+      if (rawMessage == null) {
         return;
       }
 
-      final metadataMap = _decodeMetadata(message.metadata);
+      final metadataMap = _decodeMetadata(rawMessage.metadata);
       metadataMap['reactions'] = reactions
           .map(
             (reaction) => <String, dynamic>{
@@ -245,7 +271,7 @@ class DriftMessageDaoImpl implements MessageDao {
       await (_database.update(_database.chatMessages)
             ..where(
               (tbl) =>
-                  tbl.id.equals(message.id) |
+                  tbl.id.equals(rawMessage.id) |
                   tbl.serverId.equals(messageIdentifier),
             ))
           .write(
@@ -259,12 +285,43 @@ class DriftMessageDaoImpl implements MessageDao {
     }
   }
 
-  Future<ChatMessageEntity?> _resolveMessageByIdentifier(String messageIdentifier) async {
+  Future<ChatMessageWithMediasEntity?> _resolveMessageByIdentifier(String messageIdentifier) async {
     final byId = await _database.getMessageById(messageIdentifier);
     if (byId != null) {
-      return byId;
+      final medias = await _database.getMessageMediasByMessageIds(<String>[byId.id]);
+      return ChatMessageWithMediasEntity(message: byId, medias: medias);
     }
-    return _database.getMessageByServerId(messageIdentifier);
+    final byServerId = await _database.getMessageByServerId(messageIdentifier);
+    if (byServerId == null) {
+      return null;
+    }
+    final medias = await _database.getMessageMediasByMessageIds(<String>[byServerId.id]);
+    return ChatMessageWithMediasEntity(message: byServerId, medias: medias);
+  }
+
+  Future<List<ChatMessageWithMediasEntity>> _attachMedias(List<ChatMessageEntity> messages) async {
+    if (messages.isEmpty) {
+      return const <ChatMessageWithMediasEntity>[];
+    }
+
+    final messageIds = messages.map((entry) => entry.id).toList(growable: false);
+    final medias = await _database.getMessageMediasByMessageIds(messageIds);
+    final mediasByMessageId = <String, List<MessageMediaEntity>>{};
+    for (final media in medias) {
+      final bucket = mediasByMessageId.putIfAbsent(media.messageId, () => <MessageMediaEntity>[]);
+      bucket.add(media);
+    }
+
+    return messages
+        .map(
+          (message) => ChatMessageWithMediasEntity(
+            message: message,
+            medias: List<MessageMediaEntity>.unmodifiable(
+              mediasByMessageId[message.id] ?? const <MessageMediaEntity>[],
+            ),
+          ),
+        )
+        .toList(growable: false);
   }
 
   Map<String, dynamic> _decodeMetadata(String? rawMetadata) {

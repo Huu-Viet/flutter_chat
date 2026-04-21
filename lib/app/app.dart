@@ -24,6 +24,22 @@ class MyApp extends ConsumerWidget {
       if (previous == next) {
         return;
       }
+
+      final currentPath = router.routeInformationProvider.value.uri.path;
+      const authRoutes = <String>{
+        '/splash',
+        '/login',
+        '/forgot-password',
+        '/register',
+        '/set-profile',
+      };
+      final isOnAuthRoute = authRoutes.contains(currentPath);
+
+      if (isOnAuthRoute) {
+        debugPrint('[MyApp] forceLogoutTick changed: $previous -> $next; skip dialog on auth route $currentPath');
+        return;
+      }
+
       final currentContext = router.routerDelegate.navigatorKey.currentContext;
       if (currentContext == null) {
         debugPrint('[MyApp] forceLogoutTick changed: $previous -> $next; navigator context unavailable, going to /login');

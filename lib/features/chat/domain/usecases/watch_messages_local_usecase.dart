@@ -1,6 +1,6 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
-import 'package:flutter_chat/features/chat/domain/entities/message.dart';
+import 'package:flutter_chat/features/chat/domain/entities/messages/message.dart';
 import 'package:flutter_chat/features/chat/domain/repositories/chat_repo.dart';
 
 class WatchMessagesLocalUseCase {

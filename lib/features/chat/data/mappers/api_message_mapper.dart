@@ -1,6 +1,14 @@
 import 'package:flutter_chat/core/mappers/remote_mapper.dart';
+import 'package:flutter_chat/features/chat/data/dtos/message_attachment_dto.dart';
 import 'package:flutter_chat/features/chat/data/dtos/message_dto.dart';
-import 'package:flutter_chat/features/chat/domain/entities/message.dart';
+import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/audio_media.dart';
+import 'package:flutter_chat/features/chat/domain/entities/messages/message.dart';
+import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/file_media.dart';
+import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/generic_media.dart';
+import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/image_media.dart';
+import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/message_media.dart';
+import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/video_media.dart';
+import 'package:flutter_chat/features/chat/domain/entities/messages/message_reaction.dart';
 
 class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
   DateTime _parseDate(String? value) {
@@ -9,20 +17,128 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
 
   @override
   Message toDomain(MessageDto dto) {
-    return Message(
-      id: dto.id ?? '',
-      conversationId: dto.conversationId ?? '',
-      senderId: dto.senderId ?? '',
-      content: dto.content ?? '',
-      type: dto.type ?? 'text',
-      offset: dto.offset,
-      isDeleted: dto.isDeleted ?? false,
-      mediaId: dto.mediaId,
-      metadata: dto.metadata,
-      serverId: dto.clientMessageId,
-      createdAt: _parseDate(dto.createdAt),
-      editedAt: dto.editedAt == null ? null : _parseDate(dto.editedAt),
-    );
+    final normalizedType = (dto.type ?? 'text').trim().toLowerCase();
+    final createdAt = _parseDate(dto.createdAt);
+    final editedAt = dto.editedAt == null ? null : _parseDate(dto.editedAt);
+    final metadata = dto.metadata;
+    final reactions = _extractReactions(metadata, dto.id ?? '');
+    final medias = _mapAttachmentDtos(dto.attachments, fallbackType: normalizedType);
+
+    switch (normalizedType) {
+      case 'text':
+        return TextMessage(
+          id: dto.id ?? '',
+          conversationId: dto.conversationId ?? '',
+          senderId: dto.senderId ?? '',
+          text: dto.content ?? '',
+          offset: dto.offset,
+          isDeleted: dto.isDeleted ?? false,
+          serverId: dto.clientMessageId,
+          createdAt: createdAt,
+          editedAt: editedAt,
+          reactions: reactions,
+        );
+      case 'sticker':
+        return StickerMessage(
+          id: dto.id ?? '',
+          conversationId: dto.conversationId ?? '',
+          senderId: dto.senderId ?? '',
+          stickerUrl: _extractStickerUrl(metadata, medias),
+          stickerId: _extractStickerId(metadata),
+          stickerText: dto.content ?? '',
+          offset: dto.offset,
+          isDeleted: dto.isDeleted ?? false,
+          serverId: dto.clientMessageId,
+          createdAt: createdAt,
+          editedAt: editedAt,
+          reactions: reactions,
+        );
+      case 'audio':
+        return AudioMessage(
+          id: dto.id ?? '',
+          conversationId: dto.conversationId ?? '',
+          senderId: dto.senderId ?? '',
+          media: _toAudioMedia(medias, dto.mediaId, metadata),
+          caption: dto.content,
+          offset: dto.offset,
+          isDeleted: dto.isDeleted ?? false,
+          serverId: dto.clientMessageId,
+          createdAt: createdAt,
+          editedAt: editedAt,
+          reactions: reactions,
+        );
+      case 'video':
+        return VideoMessage(
+          id: dto.id ?? '',
+          conversationId: dto.conversationId ?? '',
+          senderId: dto.senderId ?? '',
+          media: _toVideoMedia(medias, dto.mediaId, metadata),
+          caption: dto.content,
+          offset: dto.offset,
+          isDeleted: dto.isDeleted ?? false,
+          serverId: dto.clientMessageId,
+          createdAt: createdAt,
+          editedAt: editedAt,
+          reactions: reactions,
+        );
+      case 'image':
+        return ImageMessage(
+          id: dto.id ?? '',
+          conversationId: dto.conversationId ?? '',
+          senderId: dto.senderId ?? '',
+          medias: _toImageMedias(medias, dto.mediaId),
+          caption: dto.content,
+          offset: dto.offset,
+          isDeleted: dto.isDeleted ?? false,
+          serverId: dto.clientMessageId,
+          createdAt: createdAt,
+          editedAt: editedAt,
+          reactions: reactions,
+        );
+      case 'file':
+        return FileMessage(
+          id: dto.id ?? '',
+          conversationId: dto.conversationId ?? '',
+          senderId: dto.senderId ?? '',
+          medias: _toFileMedias(medias, dto.mediaId),
+          caption: dto.content,
+          offset: dto.offset,
+          isDeleted: dto.isDeleted ?? false,
+          serverId: dto.clientMessageId,
+          createdAt: createdAt,
+          editedAt: editedAt,
+          reactions: reactions,
+        );
+      case 'media':
+        return MultiMediaMessage(
+          id: dto.id ?? '',
+          conversationId: dto.conversationId ?? '',
+          senderId: dto.senderId ?? '',
+          medias: medias,
+          caption: dto.content,
+          offset: dto.offset,
+          isDeleted: dto.isDeleted ?? false,
+          serverId: dto.clientMessageId,
+          createdAt: createdAt,
+          editedAt: editedAt,
+          reactions: reactions,
+        );
+      default:
+        return UnknownMessage(
+          id: dto.id ?? '',
+          conversationId: dto.conversationId ?? '',
+          senderId: dto.senderId ?? '',
+          rawType: normalizedType,
+          rawContent: dto.content ?? '',
+          rawAttachments: medias,
+          offset: dto.offset,
+          isDeleted: dto.isDeleted ?? false,
+          serverId: dto.clientMessageId,
+          createdAt: createdAt,
+          editedAt: editedAt,
+          reactions: reactions,
+        );
+    }
   }
 
   @override
@@ -36,7 +152,21 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
       offset: domain.offset,
       isDeleted: domain.isDeleted,
       mediaId: domain.mediaId,
-      metadata: domain.metadata,
+      attachments: domain.attachments
+          .map(
+            (entry) => MessageAttachmentDto(
+              mediaId: entry.mediaId,
+              type: entry.type,
+              url: entry.url,
+              mimeType: entry.mimeType,
+              size: entry.size,
+              durationMs: _durationMsOf(entry),
+              width: _widthOf(entry),
+              height: _heightOf(entry),
+            ),
+          )
+          .toList(growable: false),
+      metadata: _buildMetadata(domain),
       clientMessageId: domain.serverId,
       createdAt: domain.createdAt.toIso8601String(),
       editedAt: domain.editedAt?.toIso8601String(),
@@ -51,5 +181,261 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
   @override
   List<MessageDto> toDtoList(List<Message> domains) {
     return domains.map((d) => toDto(d)!).toList(growable: false);
+  }
+
+  List<MessageMedia> _mapAttachmentDtos(List<MessageAttachmentDto> dtos, {required String fallbackType}) {
+    return dtos
+        .where((entry) => entry.mediaId.trim().isNotEmpty)
+        .map(
+          (entry) => _mapAttachmentDto(entry, fallbackType: fallbackType),
+        )
+        .toList(growable: false);
+  }
+
+  MessageMedia _mapAttachmentDto(MessageAttachmentDto dto, {required String fallbackType}) {
+    final mediaType = (dto.type ?? fallbackType).trim().toLowerCase();
+    switch (mediaType) {
+      case 'audio':
+        return AudioMedia(
+          id: dto.mediaId,
+          url: dto.url,
+          mimeType: dto.mimeType,
+          size: dto.size,
+          durationMs: dto.durationMs,
+        );
+      case 'video':
+        return VideoMedia(
+          id: dto.mediaId,
+          url: dto.url,
+          mimeType: dto.mimeType,
+          size: dto.size,
+          durationMs: dto.durationMs,
+          width: dto.width,
+          height: dto.height,
+        );
+      case 'image':
+        return ImageMedia(
+          id: dto.mediaId,
+          url: dto.url,
+          mimeType: dto.mimeType,
+          size: dto.size,
+          width: dto.width,
+          height: dto.height,
+        );
+      case 'file':
+        return FileMedia(
+          id: dto.mediaId,
+          url: dto.url,
+          mimeType: dto.mimeType,
+          size: dto.size,
+          mediaType: dto.type,
+        );
+      default:
+        return GenericMedia(
+          id: dto.mediaId,
+          mediaType: mediaType,
+          url: dto.url,
+          mimeType: dto.mimeType,
+          size: dto.size,
+          durationMs: dto.durationMs,
+          width: dto.width,
+          height: dto.height,
+        );
+    }
+  }
+
+  AudioMedia _toAudioMedia(List<MessageMedia> medias, String? mediaId, Map<String, dynamic>? metadata) {
+    if (medias.isNotEmpty && medias.first is AudioMedia) {
+      return medias.first as AudioMedia;
+    }
+    final fallbackId = mediaId?.trim() ?? '';
+    final waveform = _extractWaveform(metadata);
+    return AudioMedia(
+      id: fallbackId,
+      waveform: waveform,
+    );
+  }
+
+  VideoMedia _toVideoMedia(List<MessageMedia> medias, String? mediaId, Map<String, dynamic>? metadata) {
+    if (medias.isNotEmpty && medias.first is VideoMedia) {
+      return medias.first as VideoMedia;
+    }
+    final first = medias.isNotEmpty ? medias.first : null;
+    final fallbackId = (first?.mediaId ?? mediaId ?? '').trim();
+    final waveform = _extractWaveform(metadata);
+    return VideoMedia(
+      id: fallbackId,
+      url: first?.url,
+      mimeType: first?.mimeType,
+      size: first?.size,
+      durationMs: first is GenericMedia ? first.durationMs : null,
+      width: first is GenericMedia ? first.width : null,
+      height: first is GenericMedia ? first.height : null,
+      waveform: waveform,
+    );
+  }
+
+  List<ImageMedia> _toImageMedias(List<MessageMedia> medias, String? mediaId) {
+    final imageMedias = medias.whereType<ImageMedia>().toList(growable: false);
+    if (imageMedias.isNotEmpty) {
+      return imageMedias;
+    }
+
+    final fallbackId = mediaId?.trim();
+    if (fallbackId == null || fallbackId.isEmpty) {
+      return const <ImageMedia>[];
+    }
+
+    return <ImageMedia>[ImageMedia(id: fallbackId)];
+  }
+
+  List<FileMedia> _toFileMedias(List<MessageMedia> medias, String? mediaId) {
+    final fileMedias = medias.whereType<FileMedia>().toList(growable: false);
+    if (fileMedias.isNotEmpty) {
+      return fileMedias;
+    }
+
+    final fallbackId = mediaId?.trim();
+    if (fallbackId == null || fallbackId.isEmpty) {
+      return const <FileMedia>[];
+    }
+
+    return <FileMedia>[FileMedia(id: fallbackId)];
+  }
+
+  List<MessageReaction> _extractReactions(Map<String, dynamic>? metadata, String fallbackMessageId) {
+    if (metadata == null) {
+      return const <MessageReaction>[];
+    }
+
+    final raw = metadata['reactions'];
+    if (raw is! List) {
+      return const <MessageReaction>[];
+    }
+
+    return raw
+        .whereType<Map>()
+        .map((entry) => entry.map((key, value) => MapEntry(key.toString(), value)))
+        .map(
+          (entry) => MessageReaction(
+            messageId: (entry['messageId'] ?? fallbackMessageId).toString(),
+            emoji: (entry['emoji'] ?? '').toString(),
+            count: _toInt(entry['count']) ?? 0,
+            reactors: (entry['reactors'] as List?)
+                    ?.map((reactor) => reactor.toString())
+                    .toList(growable: false) ??
+                const <String>[],
+            myReaction: entry['myReaction'] == true,
+          ),
+        )
+        .where((reaction) => reaction.emoji.trim().isNotEmpty && reaction.count > 0)
+        .toList(growable: false);
+  }
+
+  Map<String, dynamic>? _buildMetadata(Message message) {
+    final metadata = <String, dynamic>{};
+
+    if (message is StickerMessage) {
+      metadata['url'] = message.stickerUrl;
+      if (message.stickerId != null && message.stickerId!.trim().isNotEmpty) {
+        metadata['stickerId'] = message.stickerId!.trim();
+      }
+    }
+
+    // Extract waveform from audio/video messages
+    final waveform = _extractWaveformFromMessage(message);
+    if (waveform != null && waveform.isNotEmpty) {
+      metadata['waveform'] = waveform;
+    }
+
+    if (message.reactions.isNotEmpty) {
+      metadata['reactions'] = message.reactions
+          .map(
+            (reaction) => <String, dynamic>{
+              'messageId': reaction.messageId,
+              'emoji': reaction.emoji,
+              'count': reaction.count,
+              'reactors': reaction.reactors,
+              'myReaction': reaction.myReaction,
+            },
+          )
+          .toList(growable: false);
+    }
+
+    if (metadata.isEmpty) {
+      return null;
+    }
+
+    return metadata;
+  }
+
+  String _extractStickerUrl(Map<String, dynamic>? metadata, List<MessageMedia> medias) {
+    final candidate = metadata?['url']?.toString().trim();
+    if (candidate != null && candidate.isNotEmpty) {
+      return candidate;
+    }
+
+    if (medias.isNotEmpty && medias.first.url != null && medias.first.url!.trim().isNotEmpty) {
+      return medias.first.url!.trim();
+    }
+
+    return '';
+  }
+
+  String? _extractStickerId(Map<String, dynamic>? metadata) {
+    final id = metadata?['stickerId']?.toString().trim();
+    if (id == null || id.isEmpty) {
+      return null;
+    }
+    return id;
+  }
+
+  int? _toInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  int? _durationMsOf(MessageMedia media) {
+    if (media is AudioMedia) return media.durationMs;
+    if (media is VideoMedia) return media.durationMs;
+    if (media is GenericMedia) return media.durationMs;
+    return null;
+  }
+
+  int? _widthOf(MessageMedia media) {
+    if (media is ImageMedia) return media.width;
+    if (media is VideoMedia) return media.width;
+    if (media is GenericMedia) return media.width;
+    return null;
+  }
+
+  int? _heightOf(MessageMedia media) {
+    if (media is ImageMedia) return media.height;
+    if (media is VideoMedia) return media.height;
+    if (media is GenericMedia) return media.height;
+    return null;
+  }
+
+  List<double>? _extractWaveform(Map<String, dynamic>? metadata) {
+    if (metadata == null) {
+      return null;
+    }
+    final waveformRaw = metadata['waveform'];
+    if (waveformRaw is List) {
+      return waveformRaw.map((e) => (e as num).toDouble()).toList();
+    }
+    return null;
+  }
+
+  List<double>? _extractWaveformFromMessage(Message message) {
+    if (message is AudioMessage) {
+      return message.media.waveform;
+    }
+    if (message is VideoMessage) {
+      return message.media.waveform;
+    }
+    return null;
   }
 }

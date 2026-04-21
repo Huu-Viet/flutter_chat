@@ -180,10 +180,6 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
     if (updatedRows == 0) {
       await userDao.saveUser(userEntity);
     }
-
-    if (user.id.isNotEmpty) {
-      await authLocalDataSource.saveCurrentUserId(user.id);
-    }
   }
 
   @override
