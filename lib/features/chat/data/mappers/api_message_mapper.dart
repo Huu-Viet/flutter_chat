@@ -202,6 +202,7 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
           mimeType: dto.mimeType,
           size: dto.size,
           durationMs: dto.durationMs,
+          waveform: dto.waveform,
         );
       case 'video':
         return VideoMedia(
@@ -212,6 +213,7 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
           durationMs: dto.durationMs,
           width: dto.width,
           height: dto.height,
+          waveform: dto.waveform,
         );
       case 'image':
         return ImageMedia(
@@ -245,11 +247,19 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
   }
 
   AudioMedia _toAudioMedia(List<MessageMedia> medias, String? mediaId, Map<String, dynamic>? metadata) {
+    final waveform = _extractWaveform(metadata);
     if (medias.isNotEmpty && medias.first is AudioMedia) {
-      return medias.first as AudioMedia;
+      final existing = medias.first as AudioMedia;
+      return AudioMedia(
+        id: existing.mediaId,
+        url: existing.url,
+        mimeType: existing.mimeType,
+        size: existing.size,
+        durationMs: existing.durationMs,
+        waveform: existing.waveform ?? waveform,
+      );
     }
     final fallbackId = mediaId?.trim() ?? '';
-    final waveform = _extractWaveform(metadata);
     return AudioMedia(
       id: fallbackId,
       waveform: waveform,
@@ -257,12 +267,22 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
   }
 
   VideoMedia _toVideoMedia(List<MessageMedia> medias, String? mediaId, Map<String, dynamic>? metadata) {
+    final waveform = _extractWaveform(metadata);
     if (medias.isNotEmpty && medias.first is VideoMedia) {
-      return medias.first as VideoMedia;
+      final existing = medias.first as VideoMedia;
+      return VideoMedia(
+        id: existing.mediaId,
+        url: existing.url,
+        mimeType: existing.mimeType,
+        size: existing.size,
+        durationMs: existing.durationMs,
+        width: existing.width,
+        height: existing.height,
+        waveform: existing.waveform ?? waveform,
+      );
     }
     final first = medias.isNotEmpty ? medias.first : null;
     final fallbackId = (first?.mediaId ?? mediaId ?? '').trim();
-    final waveform = _extractWaveform(metadata);
     return VideoMedia(
       id: fallbackId,
       url: first?.url,
@@ -422,10 +442,29 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
     if (metadata == null) {
       return null;
     }
+
     final waveformRaw = metadata['waveform'];
     if (waveformRaw is List) {
-      return waveformRaw.map((e) => (e as num).toDouble()).toList();
+      return waveformRaw
+          .where((e) => e is num || e is String)
+          .map((e) => e is num ? e.toDouble() : double.tryParse(e.toString()))
+          .whereType<double>()
+          .toList(growable: false);
     }
+
+    // Some backends nest waveform under media payload.
+    final mediaNode = metadata['media'];
+    if (mediaNode is Map<String, dynamic>) {
+      final nested = mediaNode['waveform'];
+      if (nested is List) {
+        return nested
+            .where((e) => e is num || e is String)
+            .map((e) => e is num ? e.toDouble() : double.tryParse(e.toString()))
+            .whereType<double>()
+            .toList(growable: false);
+      }
+    }
+
     return null;
   }
 

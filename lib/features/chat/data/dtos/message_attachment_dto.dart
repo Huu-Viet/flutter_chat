@@ -9,6 +9,7 @@ class MessageAttachmentDto {
   final int? durationMs;
   final int? width;
   final int? height;
+  final List<double>? waveform;
 
   const MessageAttachmentDto({
     required this.mediaId,
@@ -19,6 +20,7 @@ class MessageAttachmentDto {
     this.durationMs,
     this.width,
     this.height,
+    this.waveform,
   });
 
   factory MessageAttachmentDto.fromJson(Map<String, dynamic> json) {
@@ -32,6 +34,13 @@ class MessageAttachmentDto {
       durationMs: MessageDto.asInt(json['durationMs'] ?? json['duration_ms']),
       width: MessageDto.asInt(json['width']),
       height: MessageDto.asInt(json['height']),
+      waveform: (json['waveform'] is List)
+          ? (json['waveform'] as List)
+              .where((e) => e is num || e is String)
+              .map((e) => e is num ? e.toDouble() : double.tryParse(e.toString()))
+              .whereType<double>()
+              .toList(growable: false)
+          : null,
     );
   }
 
@@ -44,5 +53,6 @@ class MessageAttachmentDto {
     'durationMs': durationMs,
     'width': width,
     'height': height,
+    'waveform': waveform,
   };
 }
