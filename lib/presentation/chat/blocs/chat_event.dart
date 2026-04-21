@@ -58,21 +58,21 @@ final class SendStickerEvent extends ChatEvent {
   List<Object> get props => [conversationId, stickerId, stickerUrl];
 }
 
-final class SendVoiceEvent extends ChatEvent {
+final class SendAudioEvent extends ChatEvent {
   final String conversationId;
-  final String filePath;
-  final int durationMs; // changed from durationSeconds
+  final String audioPath;
+  final int durationMs;
   final List<double> waveform;
 
-  const SendVoiceEvent({
+  const SendAudioEvent({
     required this.conversationId,
-    required this.filePath,
+    required this.audioPath,
     required this.durationMs,
     required this.waveform,
   });
 
   @override
-  List<Object> get props => [conversationId, filePath, durationMs, waveform];
+  List<Object> get props => [conversationId, audioPath, durationMs, waveform];
 }
 
 final class FetchImageEvent extends ChatEvent {

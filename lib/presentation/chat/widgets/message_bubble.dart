@@ -10,9 +10,55 @@ import 'package:flutter_chat/core/utils/waveform_utils.dart';
 import 'package:flutter_chat/presentation/chat/chat_image_cache_manager.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_reactions_bar.dart';
 
+<<<<<<< feature/integrate-emoji
 import '../models/chat_message.dart';
 
 class MessageBubble extends StatefulWidget {
+=======
+class WaveformPainter extends CustomPainter {
+  final List<double> waveform;
+  final Color color;
+
+  WaveformPainter({
+    required this.waveform,
+    this.color = Colors.white70,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (waveform.isEmpty) return;
+
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+
+    final width = size.width;
+    final height = size.height;
+    final centerY = height / 2;
+    final barWidth = width / waveform.length;
+
+    for (int i = 0; i < waveform.length; i++) {
+      final x = i * barWidth + barWidth / 2;
+      final normalizedValue = (waveform[i] * 100).clamp(0, 100) / 100;
+      final barHeight = (height / 2) * normalizedValue;
+
+      canvas.drawLine(
+        Offset(x, centerY - barHeight),
+        Offset(x, centerY + barHeight),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(WaveformPainter oldDelegate) {
+    return oldDelegate.waveform != waveform || oldDelegate.color != color;
+  }
+}
+
+class MessageBubble extends StatelessWidget {
+>>>>>>> main
   final ChatMessage message;
   final VoidCallback? onLongPress;
   final ValueChanged<LongPressStartDetails>? onLongPressStart;
@@ -87,9 +133,29 @@ class _MessageBubbleState extends State<MessageBubble> {
 
   @override
   Widget build(BuildContext context) {
+<<<<<<< feature/integrate-emoji
     final hasVisualMedia = widget.message.imagePath != null;
     final isAudio = widget.message.type.trim().toLowerCase() == 'audio';
 
+=======
+    final hasVisualMedia = switch (message) {
+      ImageChatMessage(:final imagePath) => imagePath != null,
+      VideoChatMessage(:final thumbnailPath) => thumbnailPath != null,
+      StickerChatMessage(:final stickerPath) => stickerPath != null,
+      _ => false,
+    };
+    
+    final senderAvatarUrl = message.senderAvatarUrl?.trim();
+    final effectiveAvatarUrl =
+      senderAvatarUrl != null && senderAvatarUrl.isNotEmpty ? senderAvatarUrl : null;
+    final senderDisplayName = message.senderDisplayName?.trim();
+    final canShowSenderName =
+      message.isGroupConversation &&
+      !message.isSentByMe &&
+      message.isFirstInGroup &&
+      senderDisplayName != null &&
+      senderDisplayName.isNotEmpty;
+>>>>>>> main
     final bubble = Stack(
       clipBehavior: Clip.none,
       children: [
@@ -152,6 +218,7 @@ class _MessageBubbleState extends State<MessageBubble> {
         onLongPress: widget.onLongPress,
         onLongPressStart: widget.onLongPressStart,
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.end,
           mainAxisAlignment:
           widget.message.isSentByMe ? MainAxisAlignment.end : MainAxisAlignment.start,
@@ -161,6 +228,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                 padding: const EdgeInsets.only(right: 8, bottom: 8),
                 child: widget.message.isLastInGroup
                     ? CircleAvatar(
+<<<<<<< feature/integrate-emoji
                   radius: 16,
                   backgroundImage: widget.message.conversationAvatarUrl != null &&
                       widget.message.conversationAvatarUrl!.isNotEmpty
@@ -171,6 +239,16 @@ class _MessageBubbleState extends State<MessageBubble> {
                       ? const Icon(Icons.person, size: 18)
                       : null,
                 )
+=======
+                        radius: 16,
+                  backgroundImage: effectiveAvatarUrl != null
+                    ? CachedNetworkImageProvider(effectiveAvatarUrl)
+                            : null,
+                  child: effectiveAvatarUrl == null
+                            ? const Icon(Icons.person, size: 18)
+                            : null,
+                      )
+>>>>>>> main
                     : const SizedBox(width: 32),
               ),
             Column(
@@ -178,6 +256,17 @@ class _MessageBubbleState extends State<MessageBubble> {
                   ? CrossAxisAlignment.end
                   : CrossAxisAlignment.start,
               children: [
+                if (canShowSenderName)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4, bottom: 4),
+                    child: Text(
+                      senderDisplayName,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.75),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 bubble,
                 MessageReactionsBar(
                   reactions: widget.message.reactions,
@@ -192,6 +281,7 @@ class _MessageBubbleState extends State<MessageBubble> {
   }
 
   Widget _buildMessageContent(BuildContext context) {
+<<<<<<< feature/integrate-emoji
     if (widget.message.imagePath != null) {
       final imagePath = widget.message.imagePath!;
       final isStickerMessage = widget.message.type.trim().toLowerCase() == 'sticker';
@@ -230,29 +320,135 @@ class _MessageBubbleState extends State<MessageBubble> {
 
       if (!widget.message.isUploading) {
         return imageWidget;
-      }
+=======
+    debugPrint('[MessageBubble] message type: ${message.runtimeType}, content: ${message.toString()}');
+    return switch (message) {
+      ImageChatMessage(:final imagePath, :final mediaId, :final isUploading, :final isResolvingImage) =>
+        _buildImageContent(context, imagePath, mediaId, isUploading, isResolvingImage, false),
+      VideoChatMessage(:final thumbnailPath, :final mediaId, :final durationMs, :final isUploading, :final isResolvingImage) =>
+        _buildVideoContent(context, thumbnailPath, mediaId, durationMs, isUploading, isResolvingImage),
+      StickerChatMessage(:final stickerPath) =>
+        _buildStickerContent(context, stickerPath),
+      AudioChatMessage(:final durationMs, :final waveform) =>
+        _buildAudioContent(context, durationMs, waveform),
+      FileChatMessage(:final fileName) =>
+        _buildFileContent(context, fileName),
+      TextChatMessage(:final text) =>
+        _buildTextContent(context, text),
+      _ => _buildTextContent(context, ''),
+    };
+  }
 
-      return Stack(
-        alignment: Alignment.center,
-        children: [
-          imageWidget,
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.25),
-                borderRadius: BorderRadius.circular(8),
-              ),
+  Widget _buildImageContent(
+    BuildContext context,
+    String? imagePath,
+    String? mediaId,
+    bool isUploading,
+    bool isResolvingImage,
+    bool isSticker,
+  ) {
+    if (imagePath == null) {
+      if (isResolvingImage) {
+        return SizedBox(
+          height: 160,
+          width: 160,
+          child: Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2.2),
             ),
           ),
-          const SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(strokeWidth: 2.2),
-          ),
-        ],
-      );
+        );
+>>>>>>> main
+      }
+      return const SizedBox.shrink();
     }
 
+    final isSpriteSticker = isSticker && _isSpriteSticker(imagePath);
+    final uri = Uri.tryParse(imagePath);
+    final isNetworkImage = uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+    final imageHeight = isSticker ? 120.0 : 200.0;
+    final imageFit = isSticker ? BoxFit.contain : BoxFit.cover;
+
+    final imageWidget = ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: isSpriteSticker && isNetworkImage
+          ? AnimatedStickerSprite(
+              imageProvider: NetworkImage(imagePath),
+              width: imageHeight,
+              height: imageHeight,
+              fps: 12,
+              fit: BoxFit.contain,
+            )
+          : isNetworkImage
+          ? CachedNetworkImage(
+              imageUrl: imagePath,
+              cacheKey: mediaId,
+              height: imageHeight,
+              fit: imageFit,
+              errorWidget: (context, url, error) => const Icon(Icons.broken_image),
+              cacheManager: chatImageCacheManager,
+            )
+          : Image.file(
+              File(imagePath),
+              height: imageHeight,
+              fit: imageFit,
+              errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image),
+            ),
+    );
+
+    if (!isUploading) {
+      return imageWidget;
+    }
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        imageWidget,
+        Positioned.fill(
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.25),
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+        const SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(strokeWidth: 2.2),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVideoContent(
+    BuildContext context,
+    String? thumbnailPath,
+    String? mediaId,
+    int? durationMs,
+    bool isUploading,
+    bool isResolvingImage,
+  ) {
+    if (thumbnailPath == null) {
+      if (isResolvingImage) {
+        return SizedBox(
+          height: 160,
+          width: 160,
+          child: Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2.2),
+            ),
+          ),
+        );
+      }
+      return const SizedBox.shrink();
+    }
+
+<<<<<<< feature/integrate-emoji
     if (widget.message.type.trim().toLowerCase() == 'audio') {
       final hasValidAudioUrl =
           widget.message.audioUrl != null && widget.message.audioUrl!.isNotEmpty;
@@ -350,16 +546,106 @@ class _MessageBubbleState extends State<MessageBubble> {
             width: 24,
             height: 24,
             child: CircularProgressIndicator(strokeWidth: 2.2),
+=======
+    final uri = Uri.tryParse(thumbnailPath);
+    final isNetworkImage = uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+
+    final imageWidget = ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: isNetworkImage
+          ? CachedNetworkImage(
+              imageUrl: thumbnailPath,
+              cacheKey: mediaId,
+              height: 200.0,
+              fit: BoxFit.cover,
+              errorWidget: (context, url, error) => const Icon(Icons.broken_image),
+              cacheManager: chatImageCacheManager,
+            )
+          : Image.file(
+              File(thumbnailPath),
+              height: 200.0,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image),
+            ),
+    );
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        imageWidget,
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(8),
+>>>>>>> main
           ),
         ),
-      );
-    }
+        const Icon(Icons.play_circle_filled, color: Colors.white, size: 48),
+      ],
+    );
+  }
 
+  Widget _buildStickerContent(BuildContext context, String? stickerPath) {
+    if (stickerPath == null) return const SizedBox.shrink();
+    return _buildImageContent(context, stickerPath, null, false, false, true);
+  }
+
+  Widget _buildAudioContent(BuildContext context, int? durationMs, List<double>? waveform) {
+    final durationSeconds = (durationMs ?? 0) ~/ 1000;
+    final durationText = '$durationSeconds s';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.play_circle_filled, size: 32),
+          const SizedBox(width: 8),
+          if (waveform != null && waveform.isNotEmpty)
+            SizedBox(
+              width: 100,
+              height: 30,
+              child: CustomPaint(
+                painter: WaveformPainter(waveform: waveform),
+              ),
+            )
+          else
+            Text(durationText),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFileContent(BuildContext context, String? fileName) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.file_present, size: 32),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              fileName ?? 'File',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextContent(BuildContext context, String text) {
     return Column(
       crossAxisAlignment: widget.message.isSentByMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
         Text(
+<<<<<<< feature/integrate-emoji
           widget.message.text ?? '',
+=======
+          text,
+>>>>>>> main
           style: TextStyle(
             color: widget.message.isDeleted
                 ? (widget.message.isSentByMe ? Colors.white70 : Colors.black45)
@@ -384,6 +670,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
+<<<<<<< feature/integrate-emoji
   Widget _buildWaveform(Color barColor) {
     final bars = WaveformUtils.normalize(widget.message.audioWaveform, maxBars: 64);
 
@@ -423,5 +710,10 @@ class _MessageBubbleState extends State<MessageBubble> {
     final stickerId = widget.message.stickerId?.toLowerCase() ?? '';
     final imagePath = widget.message.imagePath?.toLowerCase() ?? '';
     return stickerId.contains('sprite') || imagePath.contains('sprite');
+=======
+  bool _isSpriteSticker(String imagePath) {
+    final lowerPath = imagePath.toLowerCase();
+    return lowerPath.contains('sprite');
+>>>>>>> main
   }
 }

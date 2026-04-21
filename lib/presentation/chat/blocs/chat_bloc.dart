@@ -8,6 +8,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
 import 'package:flutter_chat/core/utils/waveform_utils.dart';
 import 'package:flutter_chat/features/auth/export.dart';
+import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/audio_media.dart';
+import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/image_media.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/features/upload_media/export.dart';
 import 'package:flutter_chat/presentation/chat/chat_image_cache_manager.dart';
@@ -66,6 +68,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<SendTextEvent>(_onSendText);
     on<SendImageEvent>(_onSendImage);
     on<SendStickerEvent>(_onSendSticker);
+    on<SendAudioEvent>(_onSendAudio);
     on<EditMessageEvent>(_onEditMessage);
     on<DeleteMessageEvent>(_onDeleteMessage);
     on<UpdateMessageReactionEvent>(_onUpdateMessageReaction);
@@ -313,18 +316,14 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   FutureOr<void> _onSendText(SendTextEvent event, Emitter<ChatState> emit) async {
     final messageId = Uuid().v4();
     final localOffset = _nextLocalOffset();
-
-    final message = Message(
+    final message = TextMessage(
       id: messageId,
       conversationId: event.conversationId,
       senderId: _currentUserId ?? '',
-      content: event.content,
-      type: 'text',
+      text: event.content,
       offset: localOffset,
       isDeleted: false,
-      mediaId: event.mediaId,
       serverId: messageId,
-      metadata: null,
       createdAt: DateTime.now().toUtc(),
       editedAt: null,
     );
@@ -382,18 +381,14 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
     final messageId = Uuid().v4();
     final localOffset = _nextLocalOffset();
-
-    final message = Message(
+    final message = ImageMessage(
       id: messageId,
       conversationId: event.conversationId,
       senderId: _currentUserId ?? '',
-      content: event.imagePath,
-      type: 'file',
+      medias: <ImageMedia>[ImageMedia(id: mediaId)],
       offset: localOffset,
       isDeleted: false,
-      mediaId: mediaId,
       serverId: messageId,
-      metadata: null,
       createdAt: DateTime.now().toUtc(),
       editedAt: null,
     );
@@ -417,21 +412,49 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
     final messageId = Uuid().v4();
     final localOffset = _nextLocalOffset();
-
-    final message = Message(
+    final message = StickerMessage(
       id: messageId,
       conversationId: event.conversationId,
       senderId: _currentUserId ?? '',
-      content: '',
-      type: 'sticker',
+      stickerUrl: stickerUrl,
+      stickerId: event.stickerId,
+      stickerText: '',
       offset: localOffset,
       isDeleted: false,
-      mediaId: null,
       serverId: messageId,
-      metadata: <String, dynamic>{
-        'url': stickerUrl,
-        'stickerId': event.stickerId,
-      },
+      createdAt: DateTime.now().toUtc(),
+      editedAt: null,
+    );
+
+    final sendResult = await sendMessageUseCase(message: message);
+    sendResult.fold(
+      (failure) => add(_LocalMessagesErrorEvent(failure.message)),
+      (_) {},
+    );
+  }
+
+  FutureOr<void> _onSendAudio(SendAudioEvent event, Emitter<ChatState> emit) async {
+    final audioPath = event.audioPath.trim();
+    if (audioPath.isEmpty) {
+      add(const _LocalMessagesErrorEvent('Send audio failed: missing audio path'));
+      return;
+    }
+
+    final messageId = Uuid().v4();
+    final localOffset = _nextLocalOffset();
+    
+    final message = AudioMessage(
+      id: messageId,
+      conversationId: event.conversationId,
+      senderId: _currentUserId ?? '',
+      media: AudioMedia(
+        id: messageId,
+        durationMs: event.durationMs,
+        waveform: event.waveform,
+      ),
+      offset: localOffset,
+      isDeleted: false,
+      serverId: messageId,
       createdAt: DateTime.now().toUtc(),
       editedAt: null,
     );

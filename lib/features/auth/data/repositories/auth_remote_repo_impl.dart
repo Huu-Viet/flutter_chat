@@ -180,10 +180,6 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
     if (updatedRows == 0) {
       await userDao.saveUser(userEntity);
     }
-
-    if (user.id.isNotEmpty) {
-      await authLocalDataSource.saveCurrentUserId(user.id);
-    }
   }
 
   @override
@@ -211,6 +207,36 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
   Future<void> writeUserDataToLocal(MyUser userInfo) async {
     final userEntity = localMapper.toEntity(userInfo);
     await userDao.saveUser(userEntity);
+  }
+
+  @override
+  Future<Either<Failure, void>> updateUserPresence(String userId, bool isActive) async {
+    try {
+      final normalizedUserId = userId.trim();
+      if (normalizedUserId.isEmpty) {
+        return Left(CacheFailure('User id is required to update presence'));
+      }
+
+      final cachedUser = await userDao.getUserById(normalizedUserId);
+      if (cachedUser == null) {
+        return Left(CacheFailure('User $normalizedUserId not found in local storage'));
+      }
+
+      final updatedRows = await userDao.updateUser(
+        cachedUser.copyWith(
+          isActive: isActive,
+          updatedAt: DateTime.now().toIso8601String(),
+        ),
+      );
+
+      if (updatedRows == 0) {
+        return Left(CacheFailure('Failed to update presence for user $normalizedUserId'));
+      }
+
+      return const Right(null);
+    } catch (e) {
+      return Left(CacheFailure('Failed to update user presence: $e'));
+    }
   }
 
   @override

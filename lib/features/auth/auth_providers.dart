@@ -30,9 +30,15 @@ final authDioProvider = Provider<Dio>((ref) {
     AuthInterceptor(
         authPrefDataSource: tokenDts,
         onUnauthorized: () async {
+          final hadAccessToken = (await tokenDts.getAccessToken())?.trim().isNotEmpty == true;
+          final hadRefreshToken = (await tokenDts.getRefreshToken())?.trim().isNotEmpty == true;
+
           await tokenDts.clearToken();
           await tokenDts.clearCache();
-          ref.read(forceLogoutTickProvider.notifier).state++;
+
+          if (hadAccessToken || hadRefreshToken) {
+            ref.read(forceLogoutTickProvider.notifier).state++;
+          }
         },
     )
   );
@@ -109,6 +115,10 @@ final getCurrentUserIdUseCaseProvider = Provider<GetCurrentUserIdUseCase>((ref) 
 
 final syncCurrentUserFromRemoteUseCaseProvider = Provider<SyncCurrentUserFromRemoteUseCase>((ref) {
   return SyncCurrentUserFromRemoteUseCase(ref.watch(authRemoteRepoProvider));
+});
+
+final updateUserPresenceLocalUseCaseProvider = Provider<UpdateUserPresenceLocalUseCase>((ref) {
+  return UpdateUserPresenceLocalUseCase(ref.watch(authLocalRepoProvider));
 });
 
 final refreshTokenUseCaseProvider = Provider<RefreshTokenUseCase>((ref) {

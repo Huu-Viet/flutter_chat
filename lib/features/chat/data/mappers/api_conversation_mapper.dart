@@ -8,6 +8,22 @@ class ApiConversationMapper implements RemoteMapper<ConversationDto, Conversatio
     return DateTime.tryParse(value ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
   }
 
+  List<ConversationParticipant> _mapParticipants(List<UserInRoomDto> participants) {
+    return participants
+        .where((item) => (item.userId ?? '').trim().isNotEmpty)
+        .map(
+          (item) => ConversationParticipant(
+            userId: (item.userId ?? '').trim(),
+            username: (item.username ?? '').trim(),
+            displayName: (item.displayName ?? '').trim(),
+            avatarUrl: (item.avatarUrl ?? '').trim(),
+            role: (item.role ?? '').trim(),
+            isActive: item.isActive ?? false,
+          ),
+        )
+        .toList(growable: false);
+  }
+
   @override
   Conversation toDomain(ConversationDto dto) {
     return Conversation(
@@ -20,6 +36,7 @@ class ApiConversationMapper implements RemoteMapper<ConversationDto, Conversatio
       maxOffset: dto.maxOffset ?? '',
       updatedAt: _parseUpdatedAt(dto.updatedAt),
       avatarUrl: dto.avatarUrl ?? '',
+      participants: _mapParticipants(dto.participants),
     );
   }
 
@@ -40,6 +57,18 @@ class ApiConversationMapper implements RemoteMapper<ConversationDto, Conversatio
       maxOffset: domain.maxOffset,
       updatedAt: domain.updatedAt.toIso8601String(),
       avatarUrl: domain.avatarUrl,
+      participants: domain.participants
+          .map(
+            (participant) => UserInRoomDto(
+              userId: participant.userId,
+              username: participant.username,
+              displayName: participant.displayName,
+              avatarUrl: participant.avatarUrl,
+              role: participant.role,
+              isActive: participant.isActive,
+            ),
+          )
+          .toList(growable: false),
     );
   }
 

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_chat/application/notification/sync_device_token_usecase.dart';
 import 'package:flutter_chat/application/realtime/orchestrator.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 
@@ -12,6 +13,7 @@ part 'account_state.dart';
 class AccountBloc extends Bloc<AccountEvent, AccountState> {
   final LogInWithEmailUseCase logInWithEmailUseCase;
   final ConnectRealtimeGatewayUseCase connectRealtimeGatewayUseCase;
+  final SyncDeviceTokenUseCase syncDeviceTokenUseCase;
   final ForgotPasswordUseCase forgotPasswordUseCase;
   final VerifyResetPassUseCase verifyOtpUseCase;
   final ResetPasswordUseCase resetPasswordUseCase;
@@ -19,6 +21,7 @@ class AccountBloc extends Bloc<AccountEvent, AccountState> {
   AccountBloc({
     required this.logInWithEmailUseCase,
     required this.connectRealtimeGatewayUseCase,
+    required this.syncDeviceTokenUseCase,
     required this.forgotPasswordUseCase,
     required this.verifyOtpUseCase,
     required this.resetPasswordUseCase,
@@ -49,6 +52,11 @@ class AccountBloc extends Bloc<AccountEvent, AccountState> {
       unawaited(
         connectRealtimeGatewayUseCase().catchError((e) {
           debugPrint('[AccountBloc] Realtime connect failed after login: $e');
+        }),
+      );
+      unawaited(
+        syncDeviceTokenUseCase().catchError((e) {
+          debugPrint('[AccountBloc] Device token sync failed after login: $e');
         }),
       );
 

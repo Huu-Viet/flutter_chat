@@ -1,5 +1,6 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
+import 'package:flutter_chat/features/chat/domain/entities/messages/message.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/features/chat/domain/entities/sticker_package.dart';
 import 'package:flutter_chat/features/chat/domain/entities/sticker_item.dart';
@@ -51,6 +52,7 @@ abstract class ChatRepository {
   Future<Either<Failure, void>> clearLocalCache();
 
   Stream<Either<Failure, List<Conversation>>> watchConversationsLocal();
+  Stream<Either<Failure, List<Conversation>>> watchConversationsWithUsersLocal();
   Stream<Either<Failure, List<Message>>> watchMessagesLocal(String conversationId);
 
   Future<Either<Failure, List<StickerPackage>>> getStickerPackages();

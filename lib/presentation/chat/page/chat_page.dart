@@ -49,12 +49,12 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       return false;
     }
 
-    if (message.type.trim().toLowerCase() != 'text') {
+    if (message is! TextChatMessage) {
       return false;
     }
 
-    final text = message.text?.trim();
-    if (text == null || text.isEmpty) {
+    final text = message.text.trim();
+    if (text.isEmpty) {
       return false;
     }
 
@@ -74,7 +74,25 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   bool _canReactToMessage(ChatMessage message) {
-    if (message.isDeleted || message.isUploading || message.isResolvingImage) {
+    if (message.isDeleted) {
+      return false;
+    }
+
+    final isUploading = switch (message) {
+      ImageChatMessage(:final isUploading) => isUploading,
+      VideoChatMessage(:final isUploading) => isUploading,
+      AudioChatMessage(:final isUploading) => isUploading,
+      FileChatMessage(:final isUploading) => isUploading,
+      _ => false,
+    };
+
+    final isResolvingImage = switch (message) {
+      ImageChatMessage(:final isResolvingImage) => isResolvingImage,
+      VideoChatMessage(:final isResolvingImage) => isResolvingImage,
+      _ => false,
+    };
+
+    if (isUploading || isResolvingImage) {
       return false;
     }
 
@@ -96,8 +114,12 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     return null;
   }
 
+<<<<<<< feature/integrate-emoji
 
   String _mapChatErrorMessage(String message, AppLocalizations l10n) {
+=======
+  String? _mapChatErrorMessage(String message, AppLocalizations l10n) {
+>>>>>>> main
     if (message.contains('FORBIDDEN_EDIT_WINDOW_EXPIRED')) {
       return l10n.error_edit_time_limited;
     }
@@ -110,7 +132,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       return l10n.error_message_not_found;
     }
 
-    return message;
+    // Ignore non-status-code errors (especially network/socket lookup issues)
+    // to avoid noisy raw exception text in chat UI.
+    return null;
   }
 
   int? _parseDurationSeconds(dynamic value) {
@@ -177,8 +201,18 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         buildWhen: (previous, current) => current is! ChatError,
         listener: (context, state) {
           if (state is ChatError) {
+<<<<<<< feature/integrate-emoji
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(_mapChatErrorMessage(state.message, l10n))),
+=======
+            final mappedMessage = _mapChatErrorMessage(state.message, l10n);
+            if (mappedMessage == null || mappedMessage.trim().isEmpty) {
+              return;
+            }
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(mappedMessage)),
+>>>>>>> main
             );
           }
         },
@@ -211,6 +245,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                 child: Builder(
                   builder: (context) {
                     final List<ChatMessage> displayMessages = state is ChatLoaded
+<<<<<<< feature/integrate-emoji
                         ? _uiMapper.mapStateMessagesToUI(
                       state.messages,
                       state.uploadingImagePaths,
@@ -221,6 +256,36 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       state.conversation?.avatarUrl,
                       l10n.chat_deleted_message,
                     )
+=======
+                        ? (() {
+                            final participants = state.conversation?.participants ?? const <ConversationParticipant>[];
+                            final senderDisplayNameByUserId = <String, String>{
+                              for (final participant in participants)
+                                participant.userId.trim(): participant.displayName.trim().isNotEmpty
+                                    ? participant.displayName
+                                    : participant.username,
+                            };
+                            final senderAvatarUrlByUserId = <String, String>{
+                              for (final participant in participants)
+                                participant.userId.trim(): participant.avatarUrl,
+                            };
+                            final normalizedType = state.conversation?.type.toLowerCase() ?? '';
+                            final isGroupConversation = normalizedType == 'group';
+
+                            return _uiMapper.mapStateMessagesToUI(
+                              state.messages,
+                              state.uploadingImagePaths,
+                              state.imageUrlsByMediaId,
+                              state.resolvingImageMediaIds,
+                              state.currentUserId,
+                              senderDisplayNameByUserId,
+                              senderAvatarUrlByUserId,
+                              isGroupConversation,
+                              state.conversation?.avatarUrl,
+                              l10n.chat_deleted_message,
+                            );
+                          })()
+>>>>>>> main
                         : _messages;
 
                     return ListView.builder(
@@ -250,11 +315,16 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               MessageInput(
                 controller: _messageController,
                 onSendMessage: _sendMessage,
+<<<<<<< feature/integrate-emoji
                 onPickImage: _pickImage,
+=======
+                onPickImage: pickImage,
+>>>>>>> main
                 onPickMultipleImages: _pickMultipleImages,
                 onEmojiSelected: (emoji) {
                   _messageController.text += emoji;
                 },
+<<<<<<< feature/integrate-emoji
                 onSendRecord: (filePath, durationSeconds, waveform) {
                   final durationMs = durationSeconds * 1000;
 
@@ -285,6 +355,18 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
 
+=======
+                onStickerSelected: _sendSticker,
+                onSendRecord: _sendAudio,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+>>>>>>> main
   void _sendMessage() {
     final content = _messageController.text.trim();
     if (content.isEmpty) return;
@@ -311,7 +393,22 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     );
   }
 
-  Future<void> _pickImage() async {
+  void _sendAudio(String filePath, int durationSeconds, List<double> waveform) {
+    if (filePath.trim().isEmpty) {
+      return;
+    }
+
+    ref.read(chatBlocProvider).add(
+      SendAudioEvent(
+        conversationId: widget.conversationId,
+        audioPath: filePath,
+        durationMs: durationSeconds * 1000,
+        waveform: waveform,
+      ),
+    );
+  }
+
+  Future<void> pickImage() async {
     try {
       final File? image = await _mediaService.pickImage(
         source: ImageSource.gallery,
@@ -359,22 +456,32 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     if (images.isNotEmpty) {
       setState(() {
         for (var image in images) {
-          _messages.add(ChatMessage(
+          _messages.add(ImageChatMessage(
             imagePath: image.path,
             isSentByMe: true,
             timestamp: DateTime.now(),
-            type: 'image',
           ));
         }
       });
     }
   }
 
+<<<<<<< feature/integrate-emoji
   Future<void> _showMessageActions(BuildContext context, ChatMessage message, AppLocalizations l10n, {Offset? anchor,}) async {
+=======
+  Future<void> _showMessageActions(
+      BuildContext context,
+      ChatMessage message,
+      AppLocalizations l10n,
+      {Offset? anchor,}
+      ) async {
+>>>>>>> main
     final canEdit = _canEditMessage(message);
     final canDelete = _canDeleteMessage(message);
     final canReact = _canReactToMessage(message);
-    final hasText = !message.isDeleted && message.text != null && message.text!.isNotEmpty;
+    final hasText = !message.isDeleted && 
+        message is TextChatMessage && 
+        message.text.trim().isNotEmpty;
 
     if (!hasText && !canEdit && !canDelete && !canReact) return;
 
@@ -437,11 +544,13 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
     switch (action) {
       case MessageAction.copy:
-        await Clipboard.setData(ClipboardData(text: message.text!));
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l10n.success_copied), duration: Duration(seconds: 1)),
-          );
+        if (message is TextChatMessage) {
+          await Clipboard.setData(ClipboardData(text: message.text));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(l10n.success_copied), duration: Duration(seconds: 1)),
+            );
+          }
         }
       case MessageAction.edit:
         if (mounted) _showEditDialog(context, message, l10n);
@@ -472,7 +581,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   Future<void> _showEditDialog(BuildContext context, ChatMessage message, AppLocalizations l10n) async {
-    final controller = TextEditingController(text: message.text ?? '');
+    if (message is! TextChatMessage) return;
+
+    final controller = TextEditingController(text: message.text);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {

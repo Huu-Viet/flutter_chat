@@ -103,6 +103,7 @@ flutter:
   assets:
     - assets/avatar.png
     - assets/audio/ringtone.mp3
+    - assets/google-services.json
     - assets/policy/
     - assets/momo-9bb17-firebase-adminsdk-ykor4-b67ec5b044.json
     - .env.local

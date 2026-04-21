@@ -82,7 +82,7 @@ class LocalUserMapper extends LocalMapper<UserEntity, MyUser> {
   MyUser toDomain(UserEntity entity) {
     return MyUser(
       id: entity.id,
-      email: entity.email,
+      email: entity.email ?? '',
       username: entity.username,
       firstName: entity.firstName,
       lastName: entity.lastName,

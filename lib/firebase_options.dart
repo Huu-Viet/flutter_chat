@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -47,21 +44,19 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCZNzI-4n5ujqjQujK3BxxeNUDUaeSml6c',
-    appId: '1:685901186377:android:9747c65141967421870698',
-    messagingSenderId: '685901186377',
-    projectId: 'momo-9bb17',
-    databaseURL: 'https://momo-9bb17-default-rtdb.firebaseio.com',
-    storageBucket: 'momo-9bb17.firebasestorage.app',
+    apiKey: 'AIzaSyDSnH8t36D1ymREPAumAztDMge2SSvSaNI',
+    appId: '1:943824648877:android:44c611d25925498d136424',
+    messagingSenderId: '943824648877',
+    projectId: 'microsv-cba68',
+    storageBucket: 'microsv-cba68.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyB3fNc5oWCCYwDL3QZnSAN8AAuwQqT5yMA',
-    appId: '1:685901186377:ios:9d8c0c8a45fe04aa870698',
-    messagingSenderId: '685901186377',
-    projectId: 'momo-9bb17',
-    databaseURL: 'https://momo-9bb17-default-rtdb.firebaseio.com',
-    storageBucket: 'momo-9bb17.firebasestorage.app',
+    apiKey: 'AIzaSyBGR0w20-tVvnvIghk0JdU2Eb2cZIn8XmY',
+    appId: '1:943824648877:ios:d65a818b73102094136424',
+    messagingSenderId: '943824648877',
+    projectId: 'microsv-cba68',
+    storageBucket: 'microsv-cba68.firebasestorage.app',
     iosBundleId: 'com.example.flutterChat',
   );
 
@@ -74,6 +69,15 @@ class DefaultFirebaseOptions {
     databaseURL: 'https://momo-9bb17-default-rtdb.firebaseio.com',
     storageBucket: 'momo-9bb17.firebasestorage.app',
     measurementId: 'G-2VZ0BVWBYN',
+  );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyBnO-moPvMMwkaPytZOS0BX5nJR_yRRMjo',
+    appId: '1:943824648877:web:105e819c109a0ba3136424',
+    messagingSenderId: '943824648877',
+    projectId: 'microsv-cba68',
+    authDomain: 'microsv-cba68.firebaseapp.com',
+    storageBucket: 'microsv-cba68.firebasestorage.app',
   );
 
 }

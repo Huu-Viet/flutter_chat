@@ -1,13 +1,17 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_chat/core/database/app_database.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
+import 'package:flutter_chat/features/auth/data/datasources/local/user_dao.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:uuid/uuid.dart';
 
 class ChatRepoImpl implements ChatRepository {
   final ChatService _chatService;
   final ConversationDao _conversationDao;
+  final ConversationUserDao _conversationUserDao;
   final MessageDao _messageDao;
+  final UserDao _userDao;
   final StickerPackageDao _stickerPackageDao;
   final StickerItemDao _stickerItemDao;
   final ApiConversationMapper _apiConversationMapper;
@@ -24,7 +28,9 @@ class ChatRepoImpl implements ChatRepository {
   ChatRepoImpl({
     required ChatService chatService,
     required ConversationDao conversationDao,
+    required ConversationUserDao conversationUserDao,
     required MessageDao messageDao,
+    required UserDao userDao,
     required StickerPackageDao stickerPackageDao,
     required StickerItemDao stickerItemDao,
     required ApiConversationMapper apiConversationMapper,
@@ -39,7 +45,9 @@ class ChatRepoImpl implements ChatRepository {
     required LocalStickerItemMapper localStickerItemMapper,
   })  : _chatService = chatService,
         _conversationDao = conversationDao,
+      _conversationUserDao = conversationUserDao,
         _messageDao = messageDao,
+      _userDao = userDao,
         _stickerPackageDao = stickerPackageDao,
         _stickerItemDao = stickerItemDao,
         _apiConversationMapper = apiConversationMapper,
@@ -70,6 +78,7 @@ class ChatRepoImpl implements ChatRepository {
 
       final entities = _localConversationMapper.toEntityList(conversations);
       await _conversationDao.saveConversations(entities);
+      await _syncLiteUsersAndConversationLinks(response.conversations);
       debugPrint('[ChatRepoImpl] fetchConversations saved to local DB: count=${entities.length}');
       return Right(hasMore);
     } catch (e) {
@@ -118,11 +127,13 @@ class ChatRepoImpl implements ChatRepository {
   }) async {
     try {
       await _messageDao.saveMessage(_localMessageMapper.toEntity(message));
+      final outboundDto = _apiMessageMapper.toDto(message);
 
-      final isImageMessage = message.type.trim().toLowerCase() == 'image';
+      final normalizedType = message.type.trim().toLowerCase();
+      final isImageMessage = normalizedType == 'image' || normalizedType == 'file';
       final hasMediaId = message.mediaId?.trim().isNotEmpty ?? false;
       final outboundContent = (isImageMessage && hasMediaId) ? '' : message.content;
-      final outboundType = (isImageMessage && hasMediaId) ? 'file' : message.type;
+      final outboundType = (isImageMessage && hasMediaId) ? 'file' : normalizedType;
 
       final response = await _chatService.sendMessage(
         conversationId: message.conversationId,
@@ -131,7 +142,7 @@ class ChatRepoImpl implements ChatRepository {
         mediaId: message.mediaId,
         clientMessageId: message.serverId ?? const Uuid().v4(),
         replyToMessageId: replyToMessageId,
-        metadata: message.metadata,
+        metadata: outboundDto?.metadata,
       );
       await _messageDao.updateServerId(
         message.id,
@@ -354,6 +365,7 @@ class ChatRepoImpl implements ChatRepository {
   Future<Either<Failure, void>> clearLocalCache() async {
     try {
       await _conversationDao.clearConversations();
+      await _conversationUserDao.clearConversationUsers();
       await _messageDao.clearAllMessages();
       return const Right(null);
     } catch (e) {
@@ -361,15 +373,157 @@ class ChatRepoImpl implements ChatRepository {
     }
   }
 
+  Future<void> _syncLiteUsersAndConversationLinks(List<ConversationDto> dtos) async {
+    final nowIso = DateTime.now().toIso8601String();
+    final linkMap = <String, ConversationUserEntity>{};
+
+    for (final dto in dtos) {
+      final conversationId = (dto.id ?? '').trim();
+      if (conversationId.isEmpty) {
+        continue;
+      }
+
+      for (final participant in dto.participants) {
+        final userId = (participant.userId ?? '').trim();
+        if (userId.isEmpty) {
+          continue;
+        }
+
+        await _upsertLiteUser(participant, nowIso: nowIso);
+
+        linkMap['$conversationId::$userId'] = ConversationUserEntity(
+          conversationId: conversationId,
+          userId: userId,
+          role: participant.role,
+          updatedAt: nowIso,
+        );
+      }
+    }
+
+    await _conversationUserDao.saveConversationUsers(
+      linkMap.values.toList(growable: false),
+    );
+  }
+
+  Future<void> _upsertLiteUser(UserInRoomDto participant, {required String nowIso}) async {
+    final userId = (participant.userId ?? '').trim();
+    if (userId.isEmpty) {
+      return;
+    }
+
+    final cached = await _userDao.getUserById(userId);
+    final resolvedUsername = _pickFirstNonEmpty([
+      participant.username,
+      participant.displayName,
+      cached?.username,
+      userId,
+    ]);
+
+    final updated = UserEntity(
+      id: userId,
+      email: cached?.email,
+      username: resolvedUsername,
+      firstName: cached?.firstName,
+      lastName: cached?.lastName,
+      phone: cached?.phone,
+      cccdNumber: cached?.cccdNumber,
+      avatarUrl: _pickFirstNonEmptyOrNull([
+        participant.avatarUrl,
+        cached?.avatarUrl,
+      ]),
+      avatarMediaId: cached?.avatarMediaId,
+      statusMessage: cached?.statusMessage,
+      theme: cached?.theme,
+      messageDensity: cached?.messageDensity,
+      enterToSend: cached?.enterToSend ?? true,
+      notificationsDesktopEnabled: cached?.notificationsDesktopEnabled ?? true,
+      notificationsMobileEnabled: cached?.notificationsMobileEnabled ?? true,
+      notificationsNotifyFor: cached?.notificationsNotifyFor,
+      notificationsMuteUntil: cached?.notificationsMuteUntil,
+      isActive: participant.isActive ?? cached?.isActive ?? false,
+      createdAt: cached?.createdAt ?? nowIso,
+      updatedAt: nowIso,
+    );
+
+    final updatedRows = await _userDao.updateUser(updated);
+    if (updatedRows == 0) {
+      await _userDao.saveUser(updated);
+    }
+  }
+
+  String _pickFirstNonEmpty(List<String?> values) {
+    for (final value in values) {
+      final normalized = value?.trim();
+      if (normalized != null && normalized.isNotEmpty) {
+        return normalized;
+      }
+    }
+    return '';
+  }
+
+  String? _pickFirstNonEmptyOrNull(List<String?> values) {
+    for (final value in values) {
+      final normalized = value?.trim();
+      if (normalized != null && normalized.isNotEmpty) {
+        return normalized;
+      }
+    }
+    return null;
+  }
+
   @override
   Stream<Either<Failure, List<Conversation>>> watchConversationsLocal() async* {
-    await for (final entities in _conversationDao.watchAllConversations()) {
+    yield* watchConversationsWithUsersLocal();
+  }
+
+  @override
+  Stream<Either<Failure, List<Conversation>>> watchConversationsWithUsersLocal() async* {
+    await for (final items in _conversationDao.watchConversationsWithUsers()) {
       try {
-        yield Right(_localConversationMapper.toDomainList(entities));
+        final conversations = items
+            .map(
+              (item) => _toDomainConversation(item),
+            )
+            .toList(growable: false);
+
+        yield Right(conversations);
       } catch (e) {
         yield Left(CacheFailure('Failed to map local conversations: $e'));
       }
     }
+  }
+
+  Conversation _toDomainConversation(ConversationWithUsersLocal item) {
+    final base = _localConversationMapper.toDomain(item.conversation);
+    final participants = item.participants
+        .where((p) => p.user.id.trim().isNotEmpty)
+        .map(
+          (p) => ConversationParticipant(
+            userId: p.user.id,
+            username: p.user.username,
+            displayName:
+                '${p.user.firstName ?? ''} ${p.user.lastName ?? ''}'.trim().isNotEmpty
+                    ? '${p.user.firstName ?? ''} ${p.user.lastName ?? ''}'.trim()
+                    : p.user.username,
+            avatarUrl: p.user.avatarUrl ?? '',
+            role: p.role,
+            isActive: p.user.isActive,
+          ),
+        )
+        .toList(growable: false);
+
+    return Conversation(
+      id: base.id,
+      orgId: base.orgId,
+      type: base.type,
+      name: base.name,
+      avatarMediaId: base.avatarMediaId,
+      memberCount: base.memberCount,
+      maxOffset: base.maxOffset,
+      updatedAt: base.updatedAt,
+      avatarUrl: base.avatarUrl,
+      participants: participants,
+    );
   }
 
   @override

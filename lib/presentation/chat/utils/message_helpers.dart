@@ -33,13 +33,12 @@ class MessageHelpers {
   }
 
   String? extractStickerUrl(Message message) {
-    final metadata = message.metadata;
-    if (metadata == null) {
+    if (message is! StickerMessage) {
       return null;
     }
 
-    final url = metadata['url']?.toString().trim();
-    if (url == null || url.isEmpty) {
+    final url = message.stickerUrl.trim();
+    if (url.isEmpty) {
       return null;
     }
 
@@ -52,12 +51,11 @@ class MessageHelpers {
   }
 
   String? extractStickerId(Message message) {
-    final metadata = message.metadata;
-    if (metadata == null) {
+    if (message is! StickerMessage) {
       return null;
     }
 
-    final id = metadata['stickerId']?.toString().trim();
+    final id = message.stickerId?.trim();
     if (id == null || id.isEmpty) {
       return null;
     }

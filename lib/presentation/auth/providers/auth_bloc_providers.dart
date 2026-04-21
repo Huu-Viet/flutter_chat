@@ -1,5 +1,6 @@
 // Bloc provider
 import 'package:flutter_chat/app/app_providers.dart';
+import 'package:flutter_chat/core/platform_services/platform_service_providers.dart';
 import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/presentation/auth/blocs/account_bloc/account_bloc.dart';
 import 'package:flutter_chat/presentation/auth/blocs/registry_bloc/registry_bloc.dart';
@@ -9,6 +10,7 @@ final grantedAccountAuthBlocProvider = Provider<AccountBloc>((ref) {
   return AccountBloc(
     logInWithEmailUseCase: ref.read(loginWithGrantedAccountUseCaseProvider),
     connectRealtimeGatewayUseCase: ref.read(connectRealtimeGatewayUseCaseProvider),
+    syncDeviceTokenUseCase: ref.read(syncDeviceTokenUseCaseProvider),
     forgotPasswordUseCase: ref.read(forgotPasswordUseCaseProvider),
     verifyOtpUseCase: ref.read(verifyOtpUseCaseProvider),
     resetPasswordUseCase: ref.read(resetPasswordUseCaseProvider),

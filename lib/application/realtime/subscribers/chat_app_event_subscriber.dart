@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/application/realtime/events/app_event.dart';
 import 'package:flutter_chat/application/realtime/subscribers/app_event_subscriber.dart';
@@ -8,16 +9,19 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
   final FetchMessagesUseCase fetchMessagesUseCase;
   final MarkMessageDeletedLocalUseCase _markMessageDeletedLocalUseCase;
   final MarkMessageReactionsLocalUseCase _markMessageReactionsLocalUseCase;
+  final UpdateUserPresenceLocalUseCase _updateUserPresenceLocalUseCase;
 
   const ChatAppEventSubscriber({
     required FetchConversationUseCase fetchConversationUseCase,
     required this.fetchMessagesUseCase,
     required MarkMessageDeletedLocalUseCase markMessageDeletedLocalUseCase,
     required MarkMessageReactionsLocalUseCase markMessageReactionsLocalUseCase,
+    required UpdateUserPresenceLocalUseCase updateUserPresenceLocalUseCase,
   })
       : _fetchConversationUseCase = fetchConversationUseCase,
         _markMessageDeletedLocalUseCase = markMessageDeletedLocalUseCase,
-        _markMessageReactionsLocalUseCase = markMessageReactionsLocalUseCase;
+        _markMessageReactionsLocalUseCase = markMessageReactionsLocalUseCase,
+        _updateUserPresenceLocalUseCase = updateUserPresenceLocalUseCase;
 
   static const int _syncPage = 1;
   static const int _syncLimit = 20;
@@ -50,9 +54,39 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
       case 'message:media_ready':
         await _syncRecentMessages(event.type, event.payload);
         return;
+      case 'user:online':
+        await _syncUserPresence(event.type, event.payload, isActive: true);
+        return;
+      case 'user:offline':
+        await _syncUserPresence(event.type, event.payload, isActive: false);
+        return;
       default:
         return;
     }
+  }
+
+  Future<void> _syncUserPresence(
+    String eventType,
+    Map<String, dynamic> payload, {
+    required bool isActive,
+  }) async {
+    debugPrint('[ChatAppEventSubscriber] sync user presence for $eventType: $payload');
+
+    final userId = _resolveUserId(payload);
+    if (userId == null || userId.isEmpty) {
+      debugPrint('[ChatAppEventSubscriber] skip $eventType presence sync: missing userId');
+      return;
+    }
+
+    final result = await _updateUserPresenceLocalUseCase(userId, isActive);
+    result.fold(
+      (failure) {
+        debugPrint('[ChatAppEventSubscriber] sync user presence failed: ${failure.message}');
+      },
+      (_) {
+        debugPrint('[ChatAppEventSubscriber] sync user presence ok: userId=$userId isActive=$isActive');
+      },
+    );
   }
 
   Future<void> _syncConversations(String eventType, Map<String, dynamic> payload) async {
@@ -199,6 +233,44 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
       final nestedMessageDirect = message['id']?.toString();
       if (nestedMessageDirect != null && nestedMessageDirect.isNotEmpty) {
         return nestedMessageDirect;
+      }
+    }
+
+    return null;
+  }
+
+  String? _resolveUserId(Map<String, dynamic> payload) {
+    final direct = payload['userId']?.toString() ?? payload['user_id']?.toString() ?? payload['id']?.toString();
+    if (direct != null && direct.isNotEmpty) {
+      return direct;
+    }
+
+    final raw = payload['raw']?.toString();
+    if (raw != null && raw.isNotEmpty) {
+      return raw;
+    }
+
+    final user = payload['user'];
+    if (user is Map<String, dynamic>) {
+      final nestedUserId = user['id']?.toString() ?? user['userId']?.toString();
+      if (nestedUserId != null && nestedUserId.isNotEmpty) {
+        return nestedUserId;
+      }
+    }
+
+    final data = payload['data'];
+    if (data is Map<String, dynamic>) {
+      final nestedDirect = data['userId']?.toString() ?? data['user_id']?.toString() ?? data['id']?.toString();
+      if (nestedDirect != null && nestedDirect.isNotEmpty) {
+        return nestedDirect;
+      }
+
+      final nestedUser = data['user'];
+      if (nestedUser is Map<String, dynamic>) {
+        final nestedUserId = nestedUser['id']?.toString() ?? nestedUser['userId']?.toString();
+        if (nestedUserId != null && nestedUserId.isNotEmpty) {
+          return nestedUserId;
+        }
       }
     }
 
