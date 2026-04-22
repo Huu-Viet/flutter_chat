@@ -8,6 +8,7 @@ class AudioMedia extends MessageMedia {
     required super.id,
     super.url,
     super.mimeType,
+    super.fileName,
     super.size,
     this.durationMs,
     this.waveform,

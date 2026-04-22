@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_chat/core/errors/media.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -81,5 +82,16 @@ class MediaService {
   }) async {
     // Will be called with UI to show bottom sheet/dialog
     throw UnimplementedError('Implement with UI dialog');
+  }
+
+  Future<PlatformFile?> pickFile() async {
+    final result = await FilePicker.pickFiles(
+      allowMultiple: false,
+      withData: false,
+    );
+
+    if(result == null) return null;
+
+    return result.files.single;
   }
 }

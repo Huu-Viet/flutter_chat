@@ -1,4 +1,6 @@
 import 'package:dartz/dartz.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_chat/core/platform_services/notification/notification_contracts.dart';
 import 'package:flutter_chat/core/utils/token_utils.dart';
 import 'package:flutter_chat/features/auth/data/datasources/local/user_dao.dart';
 import 'package:flutter_chat/features/auth/export.dart';
@@ -13,6 +15,7 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
   final UserDao userDao;
   final APIUserMapper apiMapper;
   final LocalUserMapper localMapper;
+  final NotificationTokenRegistrar notificationTokenRegistrar;
 
   AuthRemoteRepoImpl({
     required this.authRemoteDataSource,
@@ -22,6 +25,7 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
     required this.userDao,
     required this.apiMapper,
     required this.localMapper,
+    required this.notificationTokenRegistrar,
   });
 
 
@@ -375,6 +379,12 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
   @override
   Future<Either<Failure, void>> signOut() async {
     try {
+      try {
+        await notificationTokenRegistrar.unregisterDevice();
+      } catch (e) {
+        debugPrint('[AuthRemoteRepoImpl] unregister device token failed on signOut: $e');
+      }
+
       await authLocalDataSource.clearToken();
       await authLocalDataSource.clearCache();
       await conversationDao.clearConversations();

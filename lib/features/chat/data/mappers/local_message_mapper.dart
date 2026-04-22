@@ -19,6 +19,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
         : jsonDecode(message.metadata!) as Map<String, dynamic>;
     final normalizedType = message.type.trim().toLowerCase();
     final reactions = _extractReactions(metadata, message.id);
+    final isRevoked = message.isRevoked;
     final medias = entity.medias.map(_mapMediaEntity).toList(growable: false);
 
     switch (normalizedType) {
@@ -30,6 +31,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           text: message.content,
           offset: message.offset,
           isDeleted: message.isDeleted,
+          isRevoked: isRevoked,
           serverId: message.serverId,
           createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
           editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
@@ -45,6 +47,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           stickerText: message.content,
           offset: message.offset,
           isDeleted: message.isDeleted,
+          isRevoked: isRevoked,
           serverId: message.serverId,
           createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
           editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
@@ -59,6 +62,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           caption: message.content,
           offset: message.offset,
           isDeleted: message.isDeleted,
+          isRevoked: isRevoked,
           serverId: message.serverId,
           createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
           editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
@@ -73,6 +77,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           caption: message.content,
           offset: message.offset,
           isDeleted: message.isDeleted,
+          isRevoked: isRevoked,
           serverId: message.serverId,
           createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
           editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
@@ -87,6 +92,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           caption: message.content,
           offset: message.offset,
           isDeleted: message.isDeleted,
+          isRevoked: isRevoked,
           serverId: message.serverId,
           createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
           editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
@@ -101,6 +107,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           caption: message.content,
           offset: message.offset,
           isDeleted: message.isDeleted,
+          isRevoked: isRevoked,
           serverId: message.serverId,
           createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
           editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
@@ -115,6 +122,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           caption: message.content,
           offset: message.offset,
           isDeleted: message.isDeleted,
+          isRevoked: isRevoked,
           serverId: message.serverId,
           createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
           editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
@@ -130,6 +138,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           rawAttachments: medias,
           offset: message.offset,
           isDeleted: message.isDeleted,
+          isRevoked: isRevoked,
           serverId: message.serverId,
           createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
           editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
@@ -148,6 +157,8 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
       type: domain.type,
       offset: domain.offset,
       isDeleted: domain.isDeleted,
+      isRevoked: domain.isRevoked,
+      mediaId: domain.mediaId,
       metadata: _buildMetadata(domain),
       serverId: domain.serverId,
       createdAt: domain.createdAt.toUtc().toIso8601String(),
@@ -165,8 +176,17 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
             mediaType: entry.value.type,
             url: entry.value.url,
             mimeType: entry.value.mimeType,
+            fileName: entry.value.fileName,
             size: entry.value.size,
             durationMs: _durationMsOf(entry.value),
+            bitrate: _bitrateOf(entry.value),
+            codec: _codecOf(entry.value),
+            format: _formatOf(entry.value),
+            prefer: _preferOf(entry.value),
+            status: _statusOf(entry.value),
+            variantsReady: _variantsReadyOf(entry.value),
+            thumbReady: _thumbReadyOf(entry.value),
+            thumbMediaId: _thumbMediaIdOf(entry.value),
             width: _widthOf(entry.value),
             height: _heightOf(entry.value),
             waveform: _serializeWaveform(_waveformOf(entry.value)),
@@ -182,7 +202,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
   }
 
   MessageMedia _mapMediaEntity(MessageMediaEntity media) {
-    final normalizedType = (media.mediaType ?? '').trim().toLowerCase();
+    final normalizedType = media.mediaType.trim().toLowerCase();
     final waveform = _parseWaveform(media.waveform);
     switch (normalizedType) {
       case 'audio':
@@ -190,6 +210,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           id: media.id,
           url: media.url,
           mimeType: media.mimeType,
+          fileName: media.fileName,
           size: media.size,
           durationMs: media.durationMs,
           waveform: waveform,
@@ -199,8 +220,17 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           id: media.id,
           url: media.url,
           mimeType: media.mimeType,
+          fileName: media.fileName,
           size: media.size,
           durationMs: media.durationMs,
+          bitrate: media.bitrate,
+          codec: media.codec,
+          format: media.format,
+          prefer: media.prefer,
+          status: media.status,
+          variantsReady: media.variantsReady,
+          thumbReady: media.thumbReady,
+          thumbMediaId: media.thumbMediaId,
           width: media.width,
           height: media.height,
           waveform: waveform,
@@ -210,6 +240,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           id: media.id,
           url: media.url,
           mimeType: media.mimeType,
+          fileName: media.fileName,
           size: media.size,
           width: media.width,
           height: media.height,
@@ -219,6 +250,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           id: media.id,
           url: media.url,
           mimeType: media.mimeType,
+          fileName: media.fileName,
           size: media.size,
           mediaType: media.mediaType,
         );
@@ -228,8 +260,10 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           mediaType: normalizedType.isEmpty ? 'file' : normalizedType,
           url: media.url,
           mimeType: media.mimeType,
+          fileName: media.fileName,
           size: media.size,
           durationMs: media.durationMs,
+          bitrate: media.bitrate,
           width: media.width,
           height: media.height,
         );
@@ -245,6 +279,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
       id: first?.mediaId ?? '',
       url: first?.url,
       mimeType: first?.mimeType,
+      fileName: first?.fileName,
       size: first?.size,
       durationMs: first is GenericMedia ? first.durationMs : null,
     );
@@ -259,10 +294,35 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
       id: first?.mediaId ?? '',
       url: first?.url,
       mimeType: first?.mimeType,
+      fileName: first?.fileName,
       size: first?.size,
-      durationMs: first is GenericMedia ? first.durationMs : null,
-      width: first is GenericMedia ? first.width : null,
-      height: first is GenericMedia ? first.height : null,
+      durationMs: first is VideoMedia
+        ? first.durationMs
+        : first is GenericMedia
+          ? (first.durationMs ?? 0)
+          : 0,
+      bitrate: first is VideoMedia
+        ? first.bitrate
+        : first is GenericMedia
+          ? (first.bitrate ?? 0)
+          : 0,
+      codec: first is VideoMedia ? first.codec : null,
+      format: first is VideoMedia ? first.format : null,
+      prefer: first is VideoMedia ? first.prefer : null,
+      status: first is VideoMedia ? first.status : null,
+      variantsReady: first is VideoMedia ? first.variantsReady : null,
+      thumbReady: first is VideoMedia ? first.thumbReady : null,
+      thumbMediaId: first is VideoMedia ? first.thumbMediaId : null,
+      width: first is VideoMedia
+        ? first.width
+        : first is GenericMedia
+          ? first.width
+          : null,
+      height: first is VideoMedia
+        ? first.height
+        : first is GenericMedia
+          ? first.height
+          : null,
     );
   }
 
@@ -362,10 +422,51 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
     return null;
   }
 
-  int? _durationMsOf(MessageMedia media) {
-    if (media is AudioMedia) return media.durationMs;
+  int _durationMsOf(MessageMedia media) {
+    if (media is AudioMedia) return media.durationMs ?? 0;
     if (media is VideoMedia) return media.durationMs;
-    if (media is GenericMedia) return media.durationMs;
+    if (media is GenericMedia) return media.durationMs ?? 0;
+    return 0;
+  }
+
+  int _bitrateOf(MessageMedia media) {
+    if (media is VideoMedia) return media.bitrate;
+    if (media is GenericMedia) return media.bitrate ?? 0;
+    return 0;
+  }
+
+  String? _codecOf(MessageMedia media) {
+    if (media is VideoMedia) return media.codec;
+    return null;
+  }
+
+  String? _formatOf(MessageMedia media) {
+    if (media is VideoMedia) return media.format;
+    return null;
+  }
+
+  String? _preferOf(MessageMedia media) {
+    if (media is VideoMedia) return media.prefer;
+    return null;
+  }
+
+  String? _statusOf(MessageMedia media) {
+    if (media is VideoMedia) return media.status;
+    return null;
+  }
+
+  bool? _variantsReadyOf(MessageMedia media) {
+    if (media is VideoMedia) return media.variantsReady;
+    return null;
+  }
+
+  bool? _thumbReadyOf(MessageMedia media) {
+    if (media is VideoMedia) return media.thumbReady;
+    return null;
+  }
+
+  String? _thumbMediaIdOf(MessageMedia media) {
+    if (media is VideoMedia) return media.thumbMediaId;
     return null;
   }
 

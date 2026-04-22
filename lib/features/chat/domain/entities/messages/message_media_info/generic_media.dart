@@ -3,6 +3,7 @@ import 'package:flutter_chat/features/chat/domain/entities/messages/message_medi
 class GenericMedia extends MessageMedia {
   final String mediaType;
   final int? durationMs;
+  final int? bitrate;
   final int? width;
   final int? height;
 
@@ -11,8 +12,10 @@ class GenericMedia extends MessageMedia {
     required this.mediaType,
     super.url,
     super.mimeType,
+    super.fileName,
     super.size,
     this.durationMs,
+    this.bitrate,
     this.width,
     this.height,
   });

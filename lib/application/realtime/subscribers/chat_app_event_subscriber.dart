@@ -131,7 +131,9 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
   Future<void> _syncRecentMessages(String eventType, Map<String, dynamic> payload) async {
     debugPrint('[ChatAppEventSubscriber] sync recent messages for $eventType: $payload');
 
-    if (eventType == 'message:deleted') {
+    if (eventType == 'message:deleted' ||
+        eventType == 'message:revoked' ||
+        eventType == 'message:deleted_for_me') {
       final messageId = _resolveMessageId(payload);
       if (messageId != null && messageId.isNotEmpty) {
         await _markMessageDeletedLocalUseCase(messageIdentifier: messageId);
@@ -207,21 +209,33 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
   }
 
   String? _resolveMessageId(Map<String, dynamic> payload) {
-    final direct = payload['messageId']?.toString();
+    final direct = payload['messageId']?.toString() ??
+        payload['message_id']?.toString() ??
+        payload['id']?.toString() ??
+        payload['clientMessageId']?.toString() ??
+        payload['client_message_id']?.toString();
     if (direct != null && direct.isNotEmpty) {
       return direct;
     }
 
     final data = payload['data'];
     if (data is Map<String, dynamic>) {
-      final nestedDirect = data['messageId']?.toString();
+      final nestedDirect = data['messageId']?.toString() ??
+          data['message_id']?.toString() ??
+          data['id']?.toString() ??
+          data['clientMessageId']?.toString() ??
+          data['client_message_id']?.toString();
       if (nestedDirect != null && nestedDirect.isNotEmpty) {
         return nestedDirect;
       }
 
       final message = data['message'];
       if (message is Map<String, dynamic>) {
-        final nestedMessageDirect = message['id']?.toString();
+        final nestedMessageDirect = message['id']?.toString() ??
+            message['messageId']?.toString() ??
+            message['message_id']?.toString() ??
+            message['clientMessageId']?.toString() ??
+            message['client_message_id']?.toString();
         if (nestedMessageDirect != null && nestedMessageDirect.isNotEmpty) {
           return nestedMessageDirect;
         }
@@ -230,7 +244,11 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
 
     final message = payload['message'];
     if (message is Map<String, dynamic>) {
-      final nestedMessageDirect = message['id']?.toString();
+      final nestedMessageDirect = message['id']?.toString() ??
+          message['messageId']?.toString() ??
+          message['message_id']?.toString() ??
+          message['clientMessageId']?.toString() ??
+          message['client_message_id']?.toString();
       if (nestedMessageDirect != null && nestedMessageDirect.isNotEmpty) {
         return nestedMessageDirect;
       }

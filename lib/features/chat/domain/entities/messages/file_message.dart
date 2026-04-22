@@ -12,6 +12,7 @@ class FileMessage extends Message {
     this.caption,
     required super.offset,
     required super.isDeleted,
+    super.isRevoked,
     required super.serverId,
     required super.createdAt,
     required super.editedAt,
@@ -26,4 +27,8 @@ class FileMessage extends Message {
 
   @override
   List<MessageMedia> get attachments => medias;
+
+  String get fileName => medias.isNotEmpty ? medias.first.fileName ?? '' : '';
+
+  int get fileSize => medias.isNotEmpty ? medias.first.size ?? 0 : 0;
 }

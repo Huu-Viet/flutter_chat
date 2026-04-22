@@ -7,6 +7,7 @@ class FileMedia extends MessageMedia {
     required super.id,
     super.url,
     super.mimeType,
+    super.fileName,
     super.size,
     this.mediaType,
   });

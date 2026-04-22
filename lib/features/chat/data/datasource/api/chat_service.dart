@@ -40,8 +40,6 @@ abstract class ChatService {
     required String content,
   });
 
-  Future<void> deleteMessage(String messageId);
-
   Future<void> revokeMessage({
     required String messageId,
     required String conversationId,

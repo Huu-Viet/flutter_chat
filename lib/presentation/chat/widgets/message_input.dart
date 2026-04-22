@@ -16,6 +16,7 @@ class MessageInput extends StatefulWidget {
   final VoidCallback onSendMessage;
   final VoidCallback onPickImage;
   final VoidCallback onPickMultipleImages;
+  final VoidCallback onPickFile;
   final Function(String) onEmojiSelected;
   final Function(StickerItem)? onStickerSelected;
   final void Function(
@@ -31,6 +32,7 @@ class MessageInput extends StatefulWidget {
     required this.onSendMessage,
     required this.onPickImage,
     required this.onPickMultipleImages,
+    required this.onPickFile,
     required this.onEmojiSelected,
     this.onStickerSelected,
     this.onSendRecord,
@@ -279,6 +281,27 @@ class _MessageInputState extends State<MessageInput> {
     });
   }
 
+  void _showFilePicker() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.attach_file),
+              title: const Text('Pick File'),
+              onTap: () {
+                Navigator.pop(context);
+                widget.onPickFile();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -301,7 +324,9 @@ class _MessageInputState extends State<MessageInput> {
                 Expanded(child: _buildTextField(context, l10n)),
                 if (!_hasText) ...[
                   const SizedBox(width: 8),
-                  _buildIconButton(icon: Icons.more_horiz, onPressed: () {}),
+                  _buildIconButton(icon: Icons.more_horiz, onPressed: () {
+                    _showFilePicker();
+                  }),
                   _buildIconButton(
                     icon: _showRecordingPanel ? Icons.mic : Icons.mic_none,
                     color: _showRecordingPanel ? Theme.of(context).colorScheme.primary : null,

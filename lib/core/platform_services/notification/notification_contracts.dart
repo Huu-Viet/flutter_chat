@@ -6,4 +6,5 @@ abstract class NotificationPreferencesResolver {
 
 abstract class NotificationTokenRegistrar {
   Future<void> registerToken(String token);
+  Future<void> unregisterDevice();
 }

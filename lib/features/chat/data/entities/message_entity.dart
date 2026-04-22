@@ -9,6 +9,7 @@ class ChatMessages extends Table {
   TextColumn get type => text()();
   IntColumn get offset => integer().nullable()();
   BoolColumn get isDeleted => boolean().named('is_deleted').withDefault(const Constant(false))();
+  BoolColumn get isRevoked => boolean().named('is_revoked').withDefault(const Constant(false))();
   TextColumn get mediaId => text().named('media_id').nullable()();
   TextColumn get metadata => text().nullable()();
   TextColumn get serverId => text().named('client_message_id').nullable()();
@@ -23,11 +24,20 @@ class ChatMessages extends Table {
 class MessageMedias extends Table {
   TextColumn get id => text()();
   TextColumn get messageId => text().named('message_id')();
-  TextColumn get mediaType => text().named('media_type').nullable()();
+  TextColumn get mediaType => text().named('media_type').withDefault(const Constant('file'))();
   TextColumn get url => text().nullable()();
   TextColumn get mimeType => text().named('mime_type').nullable()();
+  TextColumn get fileName => text().named('file_name').nullable()();
   IntColumn get size => integer().nullable()();
-  IntColumn get durationMs => integer().named('duration_ms').nullable()();
+  IntColumn get durationMs => integer().named('duration_ms').withDefault(const Constant(0))();
+  IntColumn get bitrate => integer().withDefault(const Constant(0))();
+  TextColumn get codec => text().nullable()();
+  TextColumn get format => text().nullable()();
+  TextColumn get prefer => text().nullable()();
+  TextColumn get status => text().nullable()();
+  BoolColumn get variantsReady => boolean().named('variants_ready').nullable()();
+  BoolColumn get thumbReady => boolean().named('thumb_ready').nullable()();
+  TextColumn get thumbMediaId => text().named('thumb_media_id').nullable()();
   IntColumn get width => integer().nullable()();
   IntColumn get height => integer().nullable()();
   IntColumn get orderIndex => integer().named('order_index').withDefault(const Constant(0))();

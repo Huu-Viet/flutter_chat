@@ -83,6 +83,7 @@ class DriftMessageDaoImpl implements MessageDao {
             type: Value(message.type),
             offset: Value(message.offset),
             isDeleted: Value(message.isDeleted),
+            isRevoked: Value(message.isRevoked),
             metadata: Value(message.metadata),
             serverId: Value(message.serverId),
             createdAt: Value(message.createdAt),

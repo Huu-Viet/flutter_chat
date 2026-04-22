@@ -1,5 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_chat/core/platform_services/notification/notification_contracts.dart';
+import 'package:flutter_chat/core/platform_services/notification/notification_device_id_service.dart';
+import 'package:flutter_chat/core/platform_services/notification/notification_token_registrar.dart';
 import 'package:flutter_chat/features/auth/data/datasources/api/auth_interceptor.dart';
 import 'package:flutter_chat/features/auth/auth_session_providers.dart';
 import 'package:flutter_chat/features/auth/data/mappers/theme_mapper.dart';
@@ -55,6 +58,13 @@ final localUserMapperProvider = Provider<LocalUserMapper>((ref) {
   return LocalUserMapper();
 });
 
+final authNotificationTokenRegistrarProvider = Provider<NotificationTokenRegistrar>((ref) {
+  return NotificationTokenRegistrarImpl.fromEnv(
+    ref.watch(authDioProvider),
+    const SharedPrefsNotificationDeviceIdService(),
+  );
+});
+
 // Repository
 final authRepositoryProvider = Provider<AuthRemoteRepoImpl>((ref) {
   return AuthRemoteRepoImpl(
@@ -65,6 +75,7 @@ final authRepositoryProvider = Provider<AuthRemoteRepoImpl>((ref) {
     userDao: ref.watch(userDaoProvider),
     apiMapper: ref.watch(apiUserMapperProvider),
     localMapper: ref.watch(localUserMapperProvider),
+    notificationTokenRegistrar: ref.watch(authNotificationTokenRegistrarProvider),
   );
 });
 

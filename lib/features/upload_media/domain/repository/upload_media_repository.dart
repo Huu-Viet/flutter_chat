@@ -6,10 +6,11 @@ abstract class UploadMediaRepository {
   Future<Either<Failure, List<Map<String, dynamic>>>> getMyMediaList();
 
   Future<Either<Failure, MediaInfo>> uploadMedia(
-    String filePath,
-    String fileType,
-    int size,
-    String checksum,
+      String filePath,
+      String fileType,
+      int size,
+      String checksum,
+      String? fileName,
   );
 
   Future<Either<Failure, String>> getMediaUrlByMediaId(

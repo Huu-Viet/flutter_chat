@@ -3,16 +3,20 @@ import 'dart:io';
 
 import 'package:bloc/bloc.dart';
 import 'package:dartz/dartz.dart';
+import 'package:dio/dio.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
 import 'package:flutter_chat/core/utils/waveform_utils.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/audio_media.dart';
+import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/file_media.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/image_media.dart';
+import 'package:flutter_chat/features/chat/domain/usecases/get_conversation_usecase.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/features/upload_media/export.dart';
 import 'package:flutter_chat/presentation/chat/chat_image_cache_manager.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
@@ -22,14 +26,17 @@ part 'chat_state.dart';
 
 class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final FetchMessagesUseCase fetchMessagesUseCase;
+  final GetConversationUseCase getConversationUseCase;
   final WatchMessagesLocalUseCase watchMessagesLocalUseCase;
   final SendMessageUseCase sendMessageUseCase;
   final EditMessageUseCase editMessageUseCase;
-  final DeleteMessageUseCase deleteMessageUseCase;
+  final ForwardMessageUseCase forwardMessageUseCase;
+  final HiddenForMeUseCase hiddenForMeUseCase;
+  final RevokeMessageUseCase revokeMessageUseCase;
   final UpdateMessageReactionUseCase updateMessageReactionUseCase;
   final GetCurrentUserIdUseCase getCurrentUserIdUseCase;
   final UploadMediaUseCase uploadMediaUseCase;
-  final GetImageUrlByMediaIdUseCase getImageUrlByMediaIdUseCase;
+  final GetUrlByMediaIdUseCase getUrlByMediaIdUseCase;
   final GetMediaPlayInfoUseCase getMediaPlayInfoUseCase;
   final GetMediaUrlByMediaIdUseCase getMediaUrlByMediaIdUseCase;
   final WatchConversationsLocalUseCase watchConversationsLocalUseCase;
@@ -44,21 +51,28 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   List<Message> _currentMessages = const [];
   final Set<String> _uploadingImagePaths = <String>{};
+  final Set<String> _uploadingFilePaths = <String>{};
   final Map<String, String> _imageUrlsByMediaId = <String, String>{};
   final Map<String, String> _audioUrlsByMediaId = <String, String>{};
+  final Map<String, String> _videoUrlsByMediaId = <String, String>{};
+  final Map<String, String> _fileUrlsByMediaId = <String, String>{};
   final Set<String> _resolvingImageMediaIds = <String>{};
   final Set<String> _resolvingAudioMediaIds = <String>{};
+  final Set<String> _resolvingVideoMediaIds = <String>{};
 
   ChatBloc({
     required this.fetchMessagesUseCase,
+    required this.getConversationUseCase,
     required this.watchMessagesLocalUseCase,
     required this.sendMessageUseCase,
     required this.editMessageUseCase,
-    required this.deleteMessageUseCase,
+    required this.forwardMessageUseCase,
+    required this.hiddenForMeUseCase,
+    required this.revokeMessageUseCase,
     required this.updateMessageReactionUseCase,
     required this.getCurrentUserIdUseCase,
     required this.uploadMediaUseCase,
-    required this.getImageUrlByMediaIdUseCase,
+    required this.getUrlByMediaIdUseCase,
     required this.getMediaPlayInfoUseCase,
     required this.getMediaUrlByMediaIdUseCase,
     required this.watchConversationsLocalUseCase,
@@ -67,13 +81,18 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ChatInitialLoadEvent>(_onChatInitialLoad);
     on<SendTextEvent>(_onSendText);
     on<SendImageEvent>(_onSendImage);
+    on<SendFileEvent>(_onSendFile);
     on<SendStickerEvent>(_onSendSticker);
     on<SendAudioEvent>(_onSendAudio);
     on<EditMessageEvent>(_onEditMessage);
-    on<DeleteMessageEvent>(_onDeleteMessage);
+    on<GetFileDownloadUrlEvent>(_onGetFileDownloadUrl);
+    on<ForwardMessageEvent>(_forwardMessage);
+    on<HiddenMessageEvent>(_hideMessage);
+    on<RevokeMessageEvent>(_onRevokeMessage);
     on<UpdateMessageReactionEvent>(_onUpdateMessageReaction);
     on<FetchImageEvent>(_onFetchImageByMediaId);
     on<FetchAudioEvent>(_onFetchAudioByMediaId);
+    on<FetchVideoEvent>(_onFetchVideoByMediaId);
 
     on<_LocalMessagesChangedEvent>((event, emit) {
       _currentMessages = event.messages;
@@ -93,8 +112,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       uploadingImagePaths: Set<String>.from(_uploadingImagePaths),
       imageUrlsByMediaId: Map<String, String>.from(_imageUrlsByMediaId),
       audioUrlsByMediaId: Map<String, String>.from(_audioUrlsByMediaId),
+      videoUrlsByMediaId: Map<String, String>.from(_videoUrlsByMediaId),
       resolvingImageMediaIds: Set<String>.from(_resolvingImageMediaIds),
       resolvingAudioMediaIds: Set<String>.from(_resolvingAudioMediaIds),
+      resolvingVideoMediaIds: Set<String>.from(_resolvingVideoMediaIds),
       conversation: _currentConversation,
       currentUserId: _currentUserId,
     );
@@ -231,7 +252,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   void _requestMissingMediaUrls(List<Message> messages) {
     for (final message in messages) {
       final normalizedType = message.type.trim().toLowerCase();
-      if (!_isImageLikeMessage(message) && normalizedType != 'audio') {
+      if (!_isImageLikeMessage(message) &&
+          normalizedType != 'audio' &&
+          normalizedType != 'video') {
         continue;
       }
 
@@ -268,6 +291,31 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           mediaId: mediaId,
           conversationId: _currentConversationId!,
         ));
+        continue;
+      }
+
+      if (normalizedType == 'video') {
+        if (_videoUrlsByMediaId[mediaId]?.trim().isNotEmpty == true ||
+            _resolvingVideoMediaIds.contains(mediaId) ||
+            _currentConversationId == null ||
+            _currentConversationId!.trim().isEmpty) {
+          continue;
+        }
+
+        add(FetchVideoEvent(
+          mediaId: mediaId,
+          conversationId: _currentConversationId!,
+        ));
+
+        if (message is VideoMessage) {
+          final thumbMediaId = message.media.thumbMediaId?.trim();
+          if (thumbMediaId != null &&
+              thumbMediaId.isNotEmpty &&
+              !_hasUsableResolvedImage(thumbMediaId) &&
+              !_resolvingImageMediaIds.contains(thumbMediaId)) {
+            add(FetchImageEvent(thumbMediaId));
+          }
+        }
         continue;
       }
 
@@ -333,15 +381,22 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     _localSubscription = watchMessagesLocalUseCase(conversationId).listen((result) {
       result.fold(
         (failure) => add(_LocalMessagesErrorEvent(failure.message)),
-        (messages) => add(_LocalMessagesChangedEvent(messages)),
+        (messages) {
+          add(_LocalMessagesChangedEvent(messages));
+          for (final msg in messages.whereType<FileMessage>()) {
+            debugPrint(
+              '[ChatBloc] FILE message: '
+                  'id=${msg.id}, '
+                  'fileName=${msg.fileName}, '
+                  'size=${msg.fileSize}',
+            );
+          }
+        },
       );
     });
   }
 
-  Future<void> _onSendImage(
-    SendImageEvent event,
-    Emitter<ChatState> emit,
-  ) async {
+  Future<void> _onSendImage(SendImageEvent event, Emitter<ChatState> emit,) async {
     _uploadingImagePaths.add(event.imagePath);
     emit(_buildChatLoaded(_currentMessages));
 
@@ -349,6 +404,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       event.imagePath,
       'image',
       event.imageSize,
+      null
     );
 
     final mediaId = result.fold(
@@ -396,6 +452,69 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     emit(_buildChatLoaded(_currentMessages));
   }
 
+  FutureOr<void> _onSendFile(SendFileEvent event, Emitter<ChatState> emit) async {
+    _uploadingFilePaths.add(event.filePath);
+    emit(_buildChatLoaded(_currentMessages));
+
+    final result = await uploadMediaUseCase(
+      event.filePath,
+      'file',
+      event.fileSize,
+      event.fileName,
+    );
+
+    final mediaId = result.fold(
+          (failure) {
+        add(_LocalMessagesErrorEvent(failure.message));
+        return null;
+      },
+          (mediaInfo) {
+        if (mediaInfo.mediaId == null || mediaInfo.mediaId!.isEmpty) {
+          add(_LocalMessagesErrorEvent('Upload image failed: missing mediaId'));
+          return null;
+        }
+
+        return mediaInfo.mediaId;
+      },
+    );
+
+    if (mediaId == null) {
+      _uploadingFilePaths.remove(event.filePath);
+      emit(_buildChatLoaded(_currentMessages));
+      return;
+    }
+
+    final messageId = Uuid().v4();
+    final localOffset = _nextLocalOffset();
+    final message = FileMessage(
+      id: messageId,
+      conversationId: event.conversationId,
+      senderId: _currentUserId ?? '',
+      medias: <FileMedia>[
+        FileMedia(
+          id: mediaId,
+          size: event.fileSize,
+          mediaType: 'file',
+        ),
+      ],
+      caption: event.fileName,
+      offset: localOffset,
+      isDeleted: false,
+      serverId: messageId,
+      createdAt: DateTime.now().toUtc(),
+      editedAt: null,
+    );
+
+    final sendResult = await sendMessageUseCase(message: message);
+    sendResult.fold(
+          (failure) => add(_LocalMessagesErrorEvent(failure.message)),
+          (_) {},
+    );
+
+    _uploadingFilePaths.remove(event.filePath);
+    emit(_buildChatLoaded(_currentMessages));
+  }
+
   FutureOr<void> _onSendSticker(SendStickerEvent event, Emitter<ChatState> emit) async {
     final stickerUrl = event.stickerUrl.trim();
     if (stickerUrl.isEmpty) {
@@ -440,7 +559,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     }
 
     final fileSize = await file.length();
-    final uploadResult = await uploadMediaUseCase(audioPath, 'audio', fileSize);
+    final uploadResult = await uploadMediaUseCase(audioPath, 'audio', fileSize, null);
     final mediaId = uploadResult.fold(
       (failure) {
         add(_LocalMessagesErrorEvent(failure.message));
@@ -506,13 +625,93 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     );
   }
 
-  FutureOr<void> _onDeleteMessage(
-    DeleteMessageEvent event,
+  Future<void> _onGetFileDownloadUrl(GetFileDownloadUrlEvent event, Emitter<ChatState> emit) async {
+    final dir = await getTemporaryDirectory();
+    debugPrint('[ChatBloc] Get file download URL for mediaId=${event.mediaId}');
+    debugPrint('[ChatBloc] Get file download URL for filename=${event.fileName}');
+    final mediaId = event.mediaId.trim();
+    if (mediaId.isEmpty) {
+      add(const _LocalMessagesErrorEvent('Get file download URL failed: missing mediaId'));
+      return;
+    }
+
+    final result = await getMediaUrlByMediaIdUseCase(event.mediaId);
+    result.fold(
+            (failure) {add(_LocalMessagesErrorEvent(failure.message));},
+            (mediaUrl) async {
+              try {
+                final filePath = "${dir.path}/${event.fileName}";
+                final file = File(filePath);
+
+                ///nếu đã có file → open luôn (cache)
+                if (await file.exists()) {
+                  await _openFile(filePath);
+                  return;
+                }
+
+              ///download
+              final dio = Dio();
+
+              await dio.download(
+                mediaUrl,
+                filePath,
+                onReceiveProgress: (received, total) {
+                /// nếu muốn update progress thì emit state ở đây
+                },
+              );
+
+              _fileUrlsByMediaId[mediaId] = filePath;
+
+              ///open file
+              await _openFile(filePath);
+              } catch (e) {
+              add(_LocalMessagesErrorEvent("Download failed"));
+              }
+            },
+    );
+  }
+  Future<void> _openFile(String path) async {
+    final result = await OpenFilex.open(path);
+
+    if (result.type != ResultType.done) {
+      throw Exception("Cannot open file");
+    }
+  }
+
+  Future<void> _forwardMessage(ForwardMessageEvent event, Emitter<ChatState> emit) async {
+    final result = await forwardMessageUseCase(
+      sourceMessageId: event.messageId,
+      sourceConversationId: event.srcConversationId,
+      targetConversationIds: event.targetConversationIds,
+    );
+
+    result.fold(
+      (failure) => add(_LocalMessagesErrorEvent(failure.message)),
+      (_) {},
+    );
+  }
+
+  Future<void> _hideMessage(HiddenMessageEvent event, Emitter<ChatState> emit) async {
+    final result = await hiddenForMeUseCase(
+      event.localId,
+      event.messageId,
+      event.conversationId,
+    );
+
+    result.fold(
+      (failure) => add(_LocalMessagesErrorEvent(failure.message)),
+      (_) {},
+    );
+  }
+
+  FutureOr<void> _onRevokeMessage(
+    RevokeMessageEvent event,
     Emitter<ChatState> emit,
   ) async {
-    final result = await deleteMessageUseCase(
+    final result = await revokeMessageUseCase(
       localId: event.localId,
       messageId: event.messageId,
+      conversationId: event.conversationId,
     );
 
     result.fold(
@@ -566,7 +765,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     _resolvingImageMediaIds.add(mediaId);
     emit(_buildChatLoaded(_currentMessages));
 
-    final result = await getImageUrlByMediaIdUseCase(mediaId);
+    final result = await getUrlByMediaIdUseCase(mediaId);
     result.fold(
       (failure) => add(_LocalMessagesErrorEvent(failure.message)),
       (imageUrl) {
@@ -682,6 +881,82 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     return '';
   }
 
+  Future<void> _onFetchVideoByMediaId(
+    FetchVideoEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final mediaId = event.mediaId.trim();
+    if (mediaId.isEmpty) {
+      return;
+    }
+
+    if (_videoUrlsByMediaId[mediaId]?.trim().isNotEmpty == true ||
+        _resolvingVideoMediaIds.contains(mediaId)) {
+      return;
+    }
+
+    _resolvingVideoMediaIds.add(mediaId);
+    final resolvedVideoUrl = await _resolveMediaUrlFromServer(
+      mediaId: mediaId,
+      conversationId: event.conversationId,
+    );
+
+    if (resolvedVideoUrl.isNotEmpty) {
+      _videoUrlsByMediaId[mediaId] = resolvedVideoUrl;
+    } else {
+      add(_LocalMessagesErrorEvent('Cannot resolve playable video URL'));
+    }
+
+    _resolvingVideoMediaIds.remove(mediaId);
+    emit(_buildChatLoaded(_currentMessages));
+  }
+
+  Future<String> _resolveMediaUrlFromServer({
+    required String mediaId,
+    String? conversationId,
+  }) async {
+    final normalizedConversationId = conversationId?.trim();
+    final hasConversationId = normalizedConversationId != null &&
+        normalizedConversationId.isNotEmpty;
+
+    final candidates = <String?>[
+      if (hasConversationId) normalizedConversationId,
+      null,
+    ];
+
+    for (final candidateConversationId in candidates) {
+      final playInfoResult = await getMediaPlayInfoUseCase(
+        mediaId,
+        conversationId: candidateConversationId,
+      );
+
+      final urlFromPlayInfo = playInfoResult.fold(
+        (_) => '',
+        (payload) => _extractMediaUrl(payload),
+      );
+
+      if (urlFromPlayInfo.trim().isNotEmpty) {
+        return urlFromPlayInfo.trim();
+      }
+
+      final mediaUrlResult = await getMediaUrlByMediaIdUseCase(
+        mediaId,
+        conversationId: candidateConversationId,
+      );
+
+      final urlFromMedia = mediaUrlResult.fold(
+        (_) => '',
+        (url) => url.trim(),
+      );
+
+      if (urlFromMedia.isNotEmpty) {
+        return urlFromMedia;
+      }
+    }
+
+    return '';
+  }
+
   String _extractMediaUrl(Map<String, dynamic> payload) {
     final directUrl = _extractUrlFromMap(payload);
     if (directUrl.isNotEmpty) {
@@ -715,6 +990,15 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       'url',
       'audioUrl',
       'audio_url',
+      'videoUrl',
+      'video_url',
+      'playUrl',
+      'play_url',
+      'hls',
+      'hlsUrl',
+      'hls_url',
+      'optimizedUrl',
+      'optimized_url',
       'mediaUrl',
       'media_url',
     ];

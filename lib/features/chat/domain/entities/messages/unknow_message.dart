@@ -14,6 +14,7 @@ class UnknownMessage extends Message {
     this.rawAttachments = const <MessageMedia>[],
     required super.offset,
     required super.isDeleted,
+    super.isRevoked,
     required super.serverId,
     required super.createdAt,
     required super.editedAt,

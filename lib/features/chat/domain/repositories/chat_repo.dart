@@ -8,6 +8,8 @@ import 'package:flutter_chat/features/chat/domain/entities/sticker_item.dart';
 abstract class ChatRepository {
   Future<Either<Failure, bool>> fetchConversations(int page, int limit);
 
+  Future<Either<Failure, List<Conversation>>> getConversations();
+
   Future<Either<Failure, void>> joinConversation(String conversationId);
 
   Future<Either<Failure, List<Message>>> fetchMessages(
@@ -28,9 +30,22 @@ abstract class ChatRepository {
     required String content,
   });
 
-  Future<Either<Failure, Message>> deleteMessage({
+  Future<Either<Failure, void>> forwardMessage({
+    required String messageId,
+    required String srcConversationId,
+    required List<String> targetConversationIds,
+  });
+
+  Future<Either<Failure, Message>> hiddenForMeMessage({
     required String localId,
     required String messageId,
+    required String conversationId,
+  });
+
+  Future<Either<Failure, Message>> revokeMessage({
+    required String localId,
+    required String messageId,
+    required String conversationId,
   });
 
   Future<Either<Failure, void>> markMessageDeletedLocal({

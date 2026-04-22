@@ -194,17 +194,23 @@ final class AudioChatMessage extends ChatMessage {
 
 final class VideoChatMessage extends ChatMessage {
   final String? thumbnailPath;
+  final String? videoUrl;
   final String? mediaId;
+  final String? thumbMediaId;
   final int? durationMs;
   final bool isUploading;
   final bool isResolvingImage;
+  final bool isResolvingVideo;
 
   const VideoChatMessage({
     this.thumbnailPath,
+    this.videoUrl,
     this.mediaId,
+    this.thumbMediaId,
     this.durationMs,
     this.isUploading = false,
     this.isResolvingImage = false,
+    this.isResolvingVideo = false,
     required super.isSentByMe,
     super.senderId,
     required super.timestamp,
@@ -227,10 +233,13 @@ final class VideoChatMessage extends ChatMessage {
   VideoChatMessage copyWithGrouping({bool? isFirstInGroup, bool? isLastInGroup}) {
     return VideoChatMessage(
       thumbnailPath: thumbnailPath,
+      videoUrl: videoUrl,
       mediaId: mediaId,
+      thumbMediaId: thumbMediaId,
       durationMs: durationMs,
       isUploading: isUploading,
       isResolvingImage: isResolvingImage,
+      isResolvingVideo: isResolvingVideo,
       isSentByMe: isSentByMe,
       senderId: senderId,
       timestamp: timestamp,
@@ -300,12 +309,14 @@ final class FileChatMessage extends ChatMessage {
   final String? mediaId;
   final int? fileSize;
   final bool isUploading;
+  final bool isDownloading;
 
   const FileChatMessage({
     this.fileName,
     this.mediaId,
     this.fileSize,
     this.isUploading = false,
+    this.isDownloading = false,
     required super.isSentByMe,
     super.senderId,
     required super.timestamp,

@@ -3,8 +3,10 @@ import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/auth/user_providers.dart';
 import 'package:flutter_chat/features/chat/data/datasource/api/chat_service_impl.dart';
 import 'package:flutter_chat/features/chat/data/repositories/chat_repo_impl.dart';
+import 'package:flutter_chat/features/chat/domain/usecases/get_conversation_usecase.dart';
 import 'package:flutter_chat/features/chat/domain/usecases/get_sticker_packages_usecase.dart';
 import 'package:flutter_chat/features/chat/domain/usecases/get_stickers_in_package_usecase.dart';
+import 'package:flutter_chat/features/chat/domain/usecases/hidden_for_me_usecase.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:riverpod/riverpod.dart';
 
@@ -145,8 +147,16 @@ final editMessageUseCaseProvider = Provider<EditMessageUseCase>((ref) {
   return EditMessageUseCase(ref.read(chatRepoProvider));
 });
 
-final deleteMessageUseCaseProvider = Provider<DeleteMessageUseCase>((ref) {
-  return DeleteMessageUseCase(ref.read(chatRepoProvider));
+final forwardMessageUseCaseProvider = Provider<ForwardMessageUseCase>((ref) {
+  return ForwardMessageUseCase(ref.read(chatRepoProvider));
+});
+
+final hiddenForMeUseCaseProvider = Provider<HiddenForMeUseCase>((ref) {
+  return HiddenForMeUseCase(ref.read(chatRepoProvider));
+});
+
+final revokeMessageUseCaseProvider = Provider<RevokeMessageUseCase>((ref) {
+  return RevokeMessageUseCase(ref.read(chatRepoProvider));
 });
 
 final markMessageDeletedLocalUseCaseProvider = Provider<MarkMessageDeletedLocalUseCase>((ref) {
@@ -159,4 +169,8 @@ final updateMessageReactionUseCaseProvider = Provider<UpdateMessageReactionUseCa
 
 final markMessageReactionsLocalUseCaseProvider = Provider<MarkMessageReactionsLocalUseCase>((ref) {
   return MarkMessageReactionsLocalUseCase(ref.read(chatRepoProvider));
+});
+
+final getConversationUseCaseProvider = Provider<GetConversationUseCase>((ref) {
+  return GetConversationUseCase(ref.read(chatRepoProvider));
 });

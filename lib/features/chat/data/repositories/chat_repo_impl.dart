@@ -88,6 +88,17 @@ class ChatRepoImpl implements ChatRepository {
   }
 
   @override
+  Future<Either<Failure, List<Conversation>>> getConversations() async {
+    try {
+      return Right(_localConversationMapper.toDomainList(
+        await _conversationDao.getAllConversations(),
+      ));
+    } catch (e) {
+      return Left(CacheFailure('Failed to get conversations from local DB: $e'));
+    }
+  }
+
+  @override
   Future<Either<Failure, void>> joinConversation(String conversationId) async {
     try {
       await _chatService.joinConversation(conversationId);
@@ -130,10 +141,11 @@ class ChatRepoImpl implements ChatRepository {
       final outboundDto = _apiMessageMapper.toDto(message);
 
       final normalizedType = message.type.trim().toLowerCase();
-      final isImageMessage = normalizedType == 'image' || normalizedType == 'file';
+      final isImageMessage = normalizedType == 'image';
+      final isFileMessage = normalizedType == 'file';
       final hasMediaId = message.mediaId?.trim().isNotEmpty ?? false;
       final outboundContent = (isImageMessage && hasMediaId) ? '' : message.content;
-      final outboundType = (isImageMessage && hasMediaId) ? 'file' : normalizedType;
+      final outboundType = (isImageMessage && hasMediaId) ? 'image' : normalizedType;
 
       final response = await _chatService.sendMessage(
         conversationId: message.conversationId,
@@ -187,22 +199,67 @@ class ChatRepoImpl implements ChatRepository {
   }
 
   @override
-  Future<Either<Failure, Message>> deleteMessage({
-    required String localId,
+  Future<Either<Failure, void>> forwardMessage({
     required String messageId,
+    required String srcConversationId,
+    required List<String> targetConversationIds
   }) async {
     try {
-      await _chatService.deleteMessage(messageId);
+      await _chatService.forwardMessage(
+        sourceMessageId: messageId,
+        sourceConversationId: srcConversationId,
+        targetConversationIds: targetConversationIds,
+      );
+      return const Right(null);
+    } catch (e) {
+      debugPrint('[ChatRepoImpl] forwardMessage error: $e');
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Message>> hiddenForMeMessage({
+    required String localId,
+    required String messageId,
+    required String conversationId,
+  }) async {
+    try {
+      await _chatService.deleteMessageForMe(messageId: messageId, conversationId: conversationId);
       await _messageDao.updateMessageDeleted(localId);
 
       final updated = await _messageDao.getMessageById(localId);
       if (updated == null) {
-        throw Exception('Message not found after delete');
+        return Left(ServerFailure('Message not found after revoke'));
+      } else {
+        return Right(_localMessageMapper.toDomain(updated));
+      }
+    } on Exception catch (e) {
+      debugPrint('[ChatRepoImpl] deleteMessage error: $e');
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Message>> revokeMessage({
+    required String localId,
+    required String messageId,
+    required String conversationId,
+  }) async {
+    try {
+      await _chatService.revokeMessage(
+        messageId: messageId,
+        conversationId: conversationId,
+      );
+      await _messageDao.updateMessageDeleted(localId);
+
+      final updated = await _messageDao.getMessageById(localId);
+      if (updated == null) {
+        throw Exception('Message not found after revoke');
       }
 
       return Right(_localMessageMapper.toDomain(updated));
     } catch (e) {
-      debugPrint('[ChatRepoImpl] deleteMessage error: $e');
+      debugPrint('[ChatRepoImpl] revokeMessage error: $e');
       return Left(ServerFailure(e.toString()));
     }
   }

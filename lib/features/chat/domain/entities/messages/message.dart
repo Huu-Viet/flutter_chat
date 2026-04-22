@@ -20,6 +20,7 @@ sealed class Message {
   final String senderId;
   final int? offset;
   final bool isDeleted;
+  final bool isRevoked;
   final String? serverId;
   final DateTime createdAt;
   final DateTime? editedAt;
@@ -31,6 +32,7 @@ sealed class Message {
     required this.senderId,
     required this.offset,
     required this.isDeleted,
+    this.isRevoked = false,
     required this.serverId,
     required this.createdAt,
     required this.editedAt,

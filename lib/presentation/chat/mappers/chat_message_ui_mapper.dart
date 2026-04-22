@@ -12,8 +12,10 @@ class ChatMessageUIMapper {
     Set<String> uploadingImagePaths,
     Map<String, String> imageUrlsByMediaId,
     Map<String, String> audioUrlsByMediaId,
+    Map<String, String> videoUrlsByMediaId,
     Set<String> resolvingImageMediaIds,
     Set<String> resolvingAudioMediaIds,
+    Set<String> resolvingVideoMediaIds,
     String? currentUserId,
     Map<String, String> senderDisplayNameByUserId,
     Map<String, String> senderAvatarUrlByUserId,
@@ -30,7 +32,7 @@ class ChatMessageUIMapper {
       final senderDisplayName = senderDisplayNameByUserId[normalizedSenderId];
       final senderAvatarUrl = senderAvatarUrlByUserId[normalizedSenderId];
 
-      if (message.isDeleted) {
+      if (message.isDeleted || message.isRevoked) {
         return TextChatMessage(
           text: deletedMessageText,
           isSentByMe: isSentByMe,
@@ -62,8 +64,10 @@ class ChatMessageUIMapper {
         uploadingImagePaths: uploadingImagePaths,
         imageUrlsByMediaId: imageUrlsByMediaId,
         audioUrlsByMediaId: audioUrlsByMediaId,
+        videoUrlsByMediaId: videoUrlsByMediaId,
         resolvingImageMediaIds: resolvingImageMediaIds,
         resolvingAudioMediaIds: resolvingAudioMediaIds,
+        resolvingVideoMediaIds: resolvingVideoMediaIds,
         isSentByMe: isSentByMe,
         senderId: normalizedSenderId,
         senderDisplayName: senderDisplayName,
@@ -106,8 +110,10 @@ class ChatMessageUIMapper {
     required Set<String> uploadingImagePaths,
     required Map<String, String> imageUrlsByMediaId,
     required Map<String, String> audioUrlsByMediaId,
+    required Map<String, String> videoUrlsByMediaId,
     required Set<String> resolvingImageMediaIds,
     required Set<String> resolvingAudioMediaIds,
+    required Set<String> resolvingVideoMediaIds,
     required bool isSentByMe,
     required String senderId,
     required String? senderDisplayName,
@@ -200,16 +206,38 @@ class ChatMessageUIMapper {
     if (domainMessage is VideoMessage) {
       final mediaId = domainMessage.mediaId?.trim();
       final media = domainMessage.media;
+      final thumbMediaId = media.thumbMediaId?.trim();
+      final resolvedThumbUrl = thumbMediaId != null && thumbMediaId.isNotEmpty
+        ? imageUrlsByMediaId[thumbMediaId]
+        : null;
+      final thumbnailPath = (resolvedThumbUrl != null && resolvedThumbUrl.trim().isNotEmpty)
+        ? resolvedThumbUrl.trim()
+        : null;
+
+      final resolvedVideoUrl = mediaId != null && mediaId.isNotEmpty
+        ? videoUrlsByMediaId[mediaId]
+        : null;
+      final videoUrl = (resolvedVideoUrl != null && resolvedVideoUrl.trim().isNotEmpty)
+        ? resolvedVideoUrl.trim()
+        : media.url;
 
       return VideoChatMessage(
-        thumbnailPath: media.url,
+      thumbnailPath: thumbnailPath,
+      videoUrl: videoUrl,
         mediaId: mediaId,
+      thumbMediaId: thumbMediaId,
         durationMs: media.durationMs,
         isUploading: false,
         isResolvingImage: mediaId != null &&
-            mediaId.isNotEmpty &&
-            media.url == null &&
-            resolvingImageMediaIds.contains(mediaId),
+        mediaId.isNotEmpty &&
+        thumbMediaId != null &&
+        thumbMediaId.isNotEmpty &&
+        thumbnailPath == null &&
+        resolvingImageMediaIds.contains(thumbMediaId),
+      isResolvingVideo: mediaId != null &&
+        mediaId.isNotEmpty &&
+        (videoUrl == null || videoUrl.trim().isEmpty) &&
+        resolvingVideoMediaIds.contains(mediaId),
         isSentByMe: isSentByMe,
         senderId: senderId,
         timestamp: timestamp,
@@ -245,7 +273,7 @@ class ChatMessageUIMapper {
     if (domainMessage is FileMessage) {
       final mediaId = domainMessage.mediaId?.trim();
       final media = domainMessage.medias.isNotEmpty ? domainMessage.medias.first : null;
-      final fileName = media?.url?.split('/').last ?? 'File';
+      final fileName = domainMessage.fileName;
 
       return FileChatMessage(
         fileName: fileName,

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -10,12 +11,15 @@ import 'package:flutter_chat/presentation/chat/blocs/chat_bloc.dart';
 import 'package:flutter_chat/presentation/chat/chat_providers.dart';
 import 'package:flutter_chat/presentation/chat/mappers/chat_message_ui_mapper.dart';
 import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
+import 'package:flutter_chat/presentation/chat/widgets/file_send_confirmation_dialog.dart';
+import 'package:flutter_chat/presentation/chat/widgets/forward_message_dialog.dart';
 import 'package:flutter_chat/presentation/chat/widgets/image_send_confirmation_dialog.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_action_dialog.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_bubble.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_input.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:mime/mime.dart';
 
 class ChatPage extends ConsumerStatefulWidget {
   final String conversationId;
@@ -199,8 +203,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                               state.uploadingImagePaths,
                               state.imageUrlsByMediaId,
                               state.audioUrlsByMediaId,
+                              state.videoUrlsByMediaId,
                               state.resolvingImageMediaIds,
                               state.resolvingAudioMediaIds,
+                              state.resolvingVideoMediaIds,
                               state.currentUserId,
                               senderDisplayNameByUserId,
                               senderAvatarUrlByUserId,
@@ -229,6 +235,18 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                             l10n,
                             anchor: details.globalPosition,
                           ),
+                          onOpenFile: () {
+                            chatBloc.add(GetFileDownloadUrlEvent(
+                              mediaId: switch (message) {
+                                FileChatMessage(:final mediaId) => mediaId!,
+                                _ => '',
+                              },
+                              fileName: switch (message) {
+                                FileChatMessage(:final fileName) => fileName!,
+                                _ => '',
+                              },
+                            ));
+                          },
                         );
                       },
                     );
@@ -240,6 +258,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                 onSendMessage: _sendMessage,
                 onPickImage: pickImage,
                 onPickMultipleImages: _pickMultipleImages,
+                onPickFile: _pickFile,
                 onEmojiSelected: (emoji) {
                   _messageController.text += emoji;
                 },
@@ -334,6 +353,33 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
   }
 
+  Future<void> _pickFile() async {
+    final PlatformFile? file = await _mediaService.pickFile();
+    if(file == null) {
+      return;
+    }
+
+    if (!mounted) return;
+    final isConfirmed = await showFileSendConfirmationDialog(context, file);
+    if (!isConfirmed || !mounted) {
+      return;
+    }
+
+    final fileSize = file.size;
+    if (!mounted) {
+      return;
+    }
+
+    ref.read(chatBlocProvider).add(
+      SendFileEvent(
+        conversationId: widget.conversationId,
+        filePath: file.path!,
+        fileName: file.name,
+        fileSize: fileSize,
+      ),
+    );
+  }
+
   Future<void> _pickMultipleImages() async {
     final List<File> images = await _mediaService.pickMultipleImages(
       imageQuality: 85,
@@ -401,6 +447,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             child: MessageActionDialog(
               canCopy: hasText,
               canEdit: canEdit,
+              canForward: true,
+              canRevoke: true,
               canDelete: canDelete,
               reactions: canReact ? _reactionEmojis : const <String>[],
             ),
@@ -431,14 +479,48 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         }
       case MessageAction.edit:
         if (mounted) _showEditDialog(context, message, l10n);
-      case MessageAction.delete:
+
+      case MessageAction.forward:
+        showDialog(
+            context: context,
+            builder: (_) => ForwardMessageDialog(
+                messageId: message.localId!,
+                sourceConversationId: widget.conversationId,
+                onSend: (List<String> targetConversationIds) {
+                  ref.read(chatBlocProvider).add(
+                        ForwardMessageEvent(
+                          messageId: message.serverId ?? message.localId ?? '',
+                          srcConversationId: widget.conversationId,
+                          targetConversationIds: targetConversationIds,
+                        ),
+                      );
+                },
+            ));
+
+      case MessageAction.revoke:
         final localId = message.localId;
+        final messageId = _resolveMessageIdForAction(message);
         if (localId == null || localId.trim().isEmpty) return;
+        if (messageId == null || messageId.isEmpty) return;
 
         ref.read(chatBlocProvider).add(
-              DeleteMessageEvent(
+              RevokeMessageEvent(
                 localId: localId,
-                messageId: localId,
+                messageId: messageId,
+                conversationId: widget.conversationId,
+              ),
+            );
+      case MessageAction.delete:
+        final localId = message.localId;
+        final messageId = _resolveMessageIdForAction(message);
+        if (localId == null || localId.trim().isEmpty) return;
+        if (messageId == null || messageId.isEmpty) return;
+
+        ref.read(chatBlocProvider).add(
+              HiddenMessageEvent(
+                localId: localId,
+                messageId: messageId,
+                conversationId: widget.conversationId,
               ),
             );
     }
@@ -471,7 +553,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: Text(l10n.action_edit_message),
+          title: Text(l10n.action_edit),
           content: TextField(
             controller: controller,
             autofocus: true,

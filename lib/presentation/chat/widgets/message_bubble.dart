@@ -10,12 +10,14 @@ import 'package:flutter_chat/core/utils/waveform_utils.dart';
 import 'package:flutter_chat/presentation/chat/chat_image_cache_manager.dart';
 import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_reactions_bar.dart';
+import 'package:video_player/video_player.dart';
 
 class MessageBubble extends StatefulWidget {
   final ChatMessage message;
   final VoidCallback? onLongPress;
   final ValueChanged<LongPressStartDetails>? onLongPressStart;
   final VoidCallback? onReactPressed;
+  final VoidCallback? onOpenFile;
   final bool showReactAction;
 
   const MessageBubble({
@@ -25,6 +27,7 @@ class MessageBubble extends StatefulWidget {
     this.onLongPressStart,
     this.onReactPressed,
     this.showReactAction = false,
+    this.onOpenFile,
   });
 
   @override
@@ -35,6 +38,9 @@ class _MessageBubbleState extends State<MessageBubble> {
   late final AudioPlayer _audioPlayer;
   StreamSubscription<PlayerState>? _stateSub;
   bool _isPlaying = false;
+  VideoPlayerController? _videoController;
+  bool _isVideoReady = false;
+  bool _isVideoInitializing = false;
 
   @override
   void initState() {
@@ -52,7 +58,25 @@ class _MessageBubbleState extends State<MessageBubble> {
   void dispose() {
     _stateSub?.cancel();
     _audioPlayer.dispose();
+    _videoController?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant MessageBubble oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final oldVideo = oldWidget.message is VideoChatMessage
+        ? oldWidget.message as VideoChatMessage
+        : null;
+    final newVideo = widget.message is VideoChatMessage
+        ? widget.message as VideoChatMessage
+        : null;
+
+    final oldKey = '${oldVideo?.mediaId ?? ''}|${oldVideo?.videoUrl ?? ''}';
+    final newKey = '${newVideo?.mediaId ?? ''}|${newVideo?.videoUrl ?? ''}';
+    if (oldKey != newKey) {
+      _disposeVideoController();
+    }
   }
 
   @override
@@ -60,7 +84,9 @@ class _MessageBubbleState extends State<MessageBubble> {
     final message = widget.message;
     final hasVisualMedia = switch (message) {
       ImageChatMessage(:final imagePath) => imagePath != null,
-      VideoChatMessage(:final thumbnailPath) => thumbnailPath != null,
+      VideoChatMessage(:final thumbnailPath, :final videoUrl) =>
+        thumbnailPath != null ||
+        (videoUrl != null && videoUrl.trim().isNotEmpty),
       StickerChatMessage(:final stickerPath) => stickerPath != null,
       _ => false,
     };
@@ -91,7 +117,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                     : Colors.grey[300],
             borderRadius: BorderRadius.circular(hasVisualMedia ? 8 : 16),
           ),
-          child: _buildMessageContent(context),
+          child: _buildMessageContent(context, widget.onOpenFile),
         ),
         if (widget.showReactAction)
           Positioned(
@@ -186,7 +212,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
-  Widget _buildMessageContent(BuildContext context) {
+  Widget _buildMessageContent(BuildContext context, VoidCallback? onOpenFile) {
     final message = widget.message;
 
     return switch (message) {
@@ -194,11 +220,26 @@ class _MessageBubbleState extends State<MessageBubble> {
         _buildImageContent(context, imagePath, mediaId, isUploading, isResolvingImage, false, false),
       StickerChatMessage(:final stickerPath, :final stickerId) =>
         _buildImageContent(context, stickerPath, null, false, false, _isSpriteSticker(stickerPath, stickerId), true),
-      VideoChatMessage(:final thumbnailPath, :final mediaId, :final isResolvingImage) =>
-        _buildVideoContent(context, thumbnailPath, mediaId, isResolvingImage),
+      VideoChatMessage(
+        :final thumbnailPath,
+        :final videoUrl,
+        :final mediaId,
+        :final durationMs,
+        :final isResolvingImage,
+        :final isResolvingVideo,
+      ) => _buildVideoContent(
+        context,
+        thumbnailPath,
+        videoUrl,
+        mediaId,
+        durationMs,
+        isResolvingImage,
+        isResolvingVideo,
+      ),
       AudioChatMessage(:final audioUrl, :final durationMs, :final waveform) =>
         _buildAudioContent(context, audioUrl, durationMs, waveform),
-      FileChatMessage(:final fileName) => _buildFileContent(fileName),
+      FileChatMessage(:final isDownloading) =>
+          _buildFileContent(message, isDownloading: isDownloading, onOpen: onOpenFile ?? () {}),
       TextChatMessage(:final text) => _buildTextContent(text),
       UnknownChatMessage(:final content) => _buildTextContent(content ?? ''),
     };
@@ -288,11 +329,124 @@ class _MessageBubbleState extends State<MessageBubble> {
   Widget _buildVideoContent(
     BuildContext context,
     String? thumbnailPath,
+    String? videoUrl,
     String? mediaId,
+    int? durationMs,
     bool isResolvingImage,
+    bool isResolvingVideo,
   ) {
+    final hasVideo = videoUrl != null && videoUrl.trim().isNotEmpty;
+
+    if (_isVideoReady && _videoController != null) {
+      final controller = _videoController!;
+      final isPlaying = controller.value.isPlaying;
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            AspectRatio(
+              aspectRatio: controller.value.aspectRatio > 0
+                  ? controller.value.aspectRatio
+                  : 16 / 9,
+              child: VideoPlayer(controller),
+            ),
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: _toggleVideoPlayback,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 180),
+                  opacity: isPlaying ? 0.0 : 1.0,
+                  child: Container(
+                    color: Colors.black.withValues(alpha: 0.22),
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.play_circle_fill,
+                      color: Colors.white,
+                      size: 52,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 8,
+              bottom: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  _formatDuration(durationMs),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (thumbnailPath == null) {
-      if (!isResolvingImage) return const SizedBox.shrink();
+      if (hasVideo) {
+        return GestureDetector(
+          onTap: () => _initializeAndPlayVideo(videoUrl),
+          child: Container(
+            height: 200,
+            width: 220,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.72),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                if (_isVideoInitializing)
+                  const SizedBox(
+                    width: 26,
+                    height: 26,
+                    child: CircularProgressIndicator(strokeWidth: 2.2),
+                  )
+                else
+                  const Icon(
+                    Icons.play_circle_fill,
+                    color: Colors.white,
+                    size: 52,
+                  ),
+                Positioned(
+                  right: 8,
+                  bottom: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      _formatDuration(durationMs),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      if (!(isResolvingImage || isResolvingVideo || _isVideoInitializing)) {
+        return const SizedBox.shrink();
+      }
       return const SizedBox(
         height: 160,
         width: 160,
@@ -328,7 +482,9 @@ class _MessageBubbleState extends State<MessageBubble> {
             ),
     );
 
-    return Stack(
+    return GestureDetector(
+      onTap: hasVideo ? () => _initializeAndPlayVideo(videoUrl) : null,
+      child: Stack(
       alignment: Alignment.center,
       children: [
         imageWidget,
@@ -338,8 +494,39 @@ class _MessageBubbleState extends State<MessageBubble> {
             borderRadius: BorderRadius.circular(8),
           ),
         ),
-        const Icon(Icons.play_circle_filled, color: Colors.white, size: 48),
+        if (_isVideoInitializing)
+          const SizedBox(
+            width: 26,
+            height: 26,
+            child: CircularProgressIndicator(strokeWidth: 2.2),
+          )
+        else
+          Icon(
+            hasVideo ? Icons.play_circle_filled : Icons.hourglass_empty_rounded,
+            color: Colors.white,
+            size: 48,
+          ),
+        Positioned(
+          right: 8,
+          bottom: 8,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              _formatDuration(durationMs),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
       ],
+      ),
     );
   }
 
@@ -426,21 +613,93 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
-  Widget _buildFileContent(String? fileName) {
+  Widget _buildFileContent(
+      FileChatMessage fileMessage, {
+        required bool isDownloading,
+        required VoidCallback onOpen,
+      }) {
+    final fileName = fileMessage.fileName?.trim() ?? 'File';
+    final fileSize = fileMessage.fileSize;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.file_present, size: 24),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Text(
-            fileName ?? 'File',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+        /// Icon
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(8),
           ),
+          child: Icon(
+            _getFileIcon(fileMessage.fileName),
+            size: 20,
+          ),
+        ),
+
+        const SizedBox(width: 8),
+
+        /// Name + size
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                fileName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (fileSize != null)
+                Text(
+                  _formatSize(fileSize),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                ),
+            ],
+          ),
+        ),
+
+        const SizedBox(width: 8),
+
+        /// Action
+        isDownloading
+            ? const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        )
+            : IconButton(
+          icon: const Icon(Icons.open_in_new),
+          onPressed: onOpen,
         ),
       ],
     );
+  }
+  IconData _getFileIcon(String? mime) {
+    if (mime == null) return Icons.insert_drive_file;
+
+    if (mime.contains('pdf')) return Icons.picture_as_pdf;
+    if (mime.contains('word')) return Icons.description;
+    if (mime.contains('sheet') || mime.contains('excel')) {
+      return Icons.table_chart;
+    }
+    if (mime.contains('zip') || mime.contains('rar')) {
+      return Icons.archive;
+    }
+    if (mime.startsWith('text/')) return Icons.text_snippet;
+
+    return Icons.insert_drive_file;
+  }
+  String _formatSize(int bytes) {
+    if (bytes < 1024) return "$bytes B";
+    if (bytes < 1024 * 1024) {
+      return "${(bytes / 1024).toStringAsFixed(1)} KB";
+    }
+    return "${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB";
   }
 
   Widget _buildTextContent(String text) {
@@ -491,6 +750,80 @@ class _MessageBubbleState extends State<MessageBubble> {
       }
     } catch (e) {
       debugPrint('Error playing audio: $e');
+    }
+  }
+
+  Future<void> _initializeAndPlayVideo(String? videoUrl) async {
+    final normalized = videoUrl?.trim();
+    if (normalized == null || normalized.isEmpty || _isVideoInitializing) {
+      return;
+    }
+
+    if (_videoController != null && _isVideoReady) {
+      await _toggleVideoPlayback();
+      return;
+    }
+
+    setState(() {
+      _isVideoInitializing = true;
+    });
+
+    try {
+      _disposeVideoController();
+      final uri = Uri.tryParse(normalized);
+      final isRemote = uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+      final controller = isRemote
+          ? VideoPlayerController.networkUrl(Uri.parse(normalized))
+          : VideoPlayerController.file(File(normalized));
+
+      await controller.initialize();
+      await controller.setLooping(false);
+      await controller.play();
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+
+      setState(() {
+        _videoController = controller;
+        _isVideoReady = true;
+        _isVideoInitializing = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isVideoInitializing = false;
+        _isVideoReady = false;
+      });
+    }
+  }
+
+  Future<void> _toggleVideoPlayback() async {
+    final controller = _videoController;
+    if (controller == null || !_isVideoReady) {
+      return;
+    }
+
+    if (controller.value.isPlaying) {
+      await controller.pause();
+    } else {
+      await controller.play();
+    }
+
+    if (!mounted) {
+      return;
+    }
+    setState(() {});
+  }
+
+  void _disposeVideoController() {
+    final previous = _videoController;
+    _videoController = null;
+    _isVideoReady = false;
+    if (previous != null) {
+      unawaited(previous.dispose());
     }
   }
 

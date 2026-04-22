@@ -8,6 +8,7 @@ class MessageDto {
   final String? type;
   final int? offset;
   final bool? isDeleted;
+  final bool? isRevoked;
   final String? mediaId;
   final List<MessageAttachmentDto> attachments;
   final Map<String, dynamic>? metadata;
@@ -23,6 +24,7 @@ class MessageDto {
     this.type,
     this.offset,
     this.isDeleted,
+    this.isRevoked,
     this.mediaId,
     this.attachments = const <MessageAttachmentDto>[],
     this.metadata,
@@ -64,7 +66,8 @@ class MessageDto {
       content: json['content']?.toString(),
       type: json['type']?.toString(),
       offset: asInt(json['offset']),
-      isDeleted: json['isDeleted'] as bool?,
+      isDeleted: asBool(json['isDeleted'] ?? json['is_deleted']),
+      isRevoked: asBool(json['isRevoked'] ?? json['is_revoked']),
       mediaId: effectiveMediaId,
       attachments: attachments.isNotEmpty
           ? attachments
@@ -90,6 +93,17 @@ class MessageDto {
     return null;
   }
 
+  static bool? asBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      if (normalized == 'true' || normalized == '1') return true;
+      if (normalized == 'false' || normalized == '0') return false;
+    }
+    return null;
+  }
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'conversationId': conversationId,
@@ -98,6 +112,7 @@ class MessageDto {
         'type': type,
         'offset': offset,
         'isDeleted': isDeleted,
+        'isRevoked': isRevoked,
         'mediaId': mediaId,
         'attachments': attachments.map((entry) => entry.toJson()).toList(growable: false),
         'metadata': metadata,

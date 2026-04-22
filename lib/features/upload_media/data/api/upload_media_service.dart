@@ -3,7 +3,7 @@ import 'package:flutter_chat/features/upload_media/data/dtos/media_info.dart';
 abstract class PresignMediaService {
   Future<List<Map<String, dynamic>>> getMyMediaList();
 
-  Future<MediaInfo> presignFile(String filePath, int size);
+  Future<MediaInfo> presignFile(String filePath, int size, String? fileName);
   Future<MediaInfo> presignImage(String filePath, int size);
   Future<MediaInfo> presignAudio(String filePath, int size);
   Future<MediaInfo> presignVideo(String filePath, int size);
@@ -47,7 +47,7 @@ abstract class PresignMediaService {
     String? conversationId,
   });
 
-  Future<String> getImageUrlByMediaId(String mediaId);
+  Future<String> getUrlByMediaId(String mediaId);
   Future<void> uploadMedia(String uploadUrl, String fileType, String filePath);
   Future<void> completeUpload({
     required String mediaId,

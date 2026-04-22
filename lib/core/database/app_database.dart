@@ -18,7 +18,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -308,6 +308,7 @@ class AppDatabase extends _$AppDatabase {
         .write(
       const ChatMessagesCompanion(
         isDeleted: Value(true),
+        isRevoked: Value(true),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_chat/l10n/app_localizations.dart';
 
-enum MessageAction { copy, edit, delete }
+enum MessageAction { copy, edit, forward, revoke, delete }
 
 class MessageActionResult {
   final MessageAction? action;
@@ -21,6 +22,8 @@ class MessageActionResult {
 class MessageActionDialog extends StatelessWidget {
   final bool canCopy;
   final bool canEdit;
+  final bool canForward;
+  final bool canRevoke;
   final bool canDelete;
   final List<String> reactions;
 
@@ -28,31 +31,47 @@ class MessageActionDialog extends StatelessWidget {
     super.key,
     required this.canCopy,
     required this.canEdit,
+    required this.canForward,
+    required this.canRevoke,
     required this.canDelete,
     this.reactions = const <String>[],
   });
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final actions = <_ActionItem>[
       if (canCopy)
         _ActionItem(
           icon: Icons.copy_rounded,
-          label: 'Sao chép',
+          label: l10n.action_copy,
           action: MessageAction.copy,
         ),
       if (canEdit)
         _ActionItem(
           icon: Icons.edit_rounded,
-          label: 'Sửa',
+          label: l10n.action_edit,
           action: MessageAction.edit,
         ),
       if (canDelete)
         _ActionItem(
           icon: Icons.delete_outline_rounded,
-          label: 'Xóa',
+          label: l10n.action_delete_for_me,
           action: MessageAction.delete,
           isDestructive: true,
+        ),
+      if (canRevoke)
+        _ActionItem(
+          icon: Icons.turn_slight_left_outlined,
+          label: l10n.action_revoke,
+          action: MessageAction.revoke,
+          isDestructive: true,
+        ),
+      if (canForward)
+        _ActionItem(
+          icon: Icons.subdirectory_arrow_left,
+          label: l10n.action_forward,
+          action: MessageAction.forward,
         ),
     ];
 

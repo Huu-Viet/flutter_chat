@@ -43,6 +43,36 @@ final class SendImageEvent extends ChatEvent {
   List<Object> get props => [conversationId, imagePath, imageSize];
 }
 
+final class SendFileEvent extends ChatEvent {
+  final String conversationId;
+  final String filePath;
+  final String fileName;
+  final int fileSize;
+
+  const SendFileEvent({
+    required this.conversationId,
+    required this.filePath,
+    required this.fileName,
+    required this.fileSize,
+  });
+
+  @override
+  List<Object> get props => [conversationId, filePath, fileName, fileSize];
+}
+
+final class GetFileDownloadUrlEvent extends ChatEvent {
+  final String mediaId;
+  final String fileName;
+
+  const GetFileDownloadUrlEvent({
+    required this.mediaId,
+    required this.fileName,
+  });
+
+  @override
+  List<Object> get props => [mediaId, fileName];
+}
+
 final class SendStickerEvent extends ChatEvent {
   final String conversationId;
   final String stickerId;
@@ -97,6 +127,19 @@ final class FetchAudioEvent extends ChatEvent {
   List<Object> get props => [mediaId, conversationId];
 }
 
+final class FetchVideoEvent extends ChatEvent {
+  final String mediaId;
+  final String conversationId;
+
+  const FetchVideoEvent({
+    required this.mediaId,
+    required this.conversationId,
+  });
+
+  @override
+  List<Object> get props => [mediaId, conversationId];
+}
+
 final class EditMessageEvent extends ChatEvent {
   final String localId;
   final String messageId;
@@ -112,17 +155,34 @@ final class EditMessageEvent extends ChatEvent {
   List<Object> get props => [localId, messageId, content];
 }
 
-final class DeleteMessageEvent extends ChatEvent {
+final class HiddenMessageEvent extends ChatEvent {
   final String localId;
   final String messageId;
+  final String conversationId;
 
-  const DeleteMessageEvent({
+  const HiddenMessageEvent({
     required this.localId,
     required this.messageId,
+    required this.conversationId,
   });
 
   @override
-  List<Object> get props => [localId, messageId];
+  List<Object> get props => [localId, messageId, conversationId];
+}
+
+final class RevokeMessageEvent extends ChatEvent {
+  final String localId;
+  final String messageId;
+  final String conversationId;
+
+  const RevokeMessageEvent({
+    required this.localId,
+    required this.messageId,
+    required this.conversationId,
+  });
+
+  @override
+  List<Object> get props => [localId, messageId, conversationId];
 }
 
 final class UpdateMessageReactionEvent extends ChatEvent {
@@ -140,6 +200,21 @@ final class UpdateMessageReactionEvent extends ChatEvent {
 
   @override
   List<Object> get props => [messageId, conversationId, emoji, action];
+}
+
+final class ForwardMessageEvent extends ChatEvent {
+  final String messageId;
+  final String srcConversationId;
+  final List<String> targetConversationIds;
+
+  const ForwardMessageEvent({
+    required this.messageId,
+    required this.srcConversationId,
+    required this.targetConversationIds,
+  });
+
+  @override
+  List<Object> get props => [messageId, srcConversationId, targetConversationIds];
 }
 
 final class _LocalMessagesErrorEvent extends ChatEvent {

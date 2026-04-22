@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat/core/utils/file_utils.dart';
 import 'package:flutter_chat/features/upload_media/export.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:mime/mime.dart';
 
 class PresignMediaServiceImpl implements PresignMediaService {
   final String _baseUrl = dotenv.get('NEST_API_BASE_URL');
@@ -88,10 +89,12 @@ class PresignMediaServiceImpl implements PresignMediaService {
   }
 
   @override
-  Future<MediaInfo> presignFile(String filePath, int size) async {
+  Future<MediaInfo> presignFile(String filePath, int size, String? filename) async {
     try {
-      final fileName = _buildFileName(filePath);
-      final mimeType = _resolveMimeType(filePath, 'application/pdf');
+      final fileName = filename != null && filename.trim().isNotEmpty
+          ? filename.trim()
+          : _buildFileName(filePath);
+      final mimeType = lookupMimeType(filePath) ?? 'application/octet-stream';
       final requestBody = {
         'type': 'file',
         'mimeType': mimeType,
@@ -111,6 +114,7 @@ class PresignMediaServiceImpl implements PresignMediaService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final payload = _extractMediaPayload(response.data);
+        debugPrint('[presignFile] response payload: $payload');
         return MediaInfo.fromJson(payload);
       } else {
         throw Exception('Failed to upload file: ${response.statusCode}');
@@ -276,7 +280,7 @@ class PresignMediaServiceImpl implements PresignMediaService {
   }
 
   @override
-  Future<String> getImageUrlByMediaId(String mediaId) async {
+  Future<String> getUrlByMediaId(String mediaId) async {
     return getMediaUrlByMediaId(mediaId, prefer: 'OPTIMIZED');
   }
 
@@ -313,6 +317,7 @@ class PresignMediaServiceImpl implements PresignMediaService {
           },
         ),
       );
+      debugPrint('[uploadMedia] Uploaded media to $uploadUrl with content type $contentType and size ${bytes.length} bytes');
     } on DioException catch (e) {
       debugPrint('Error uploading media: ${e.response?.statusCode} - ${e.response?.data}');
       throw Exception('Failed to upload media: ${e.response?.data ?? e.message}');

@@ -86,6 +86,9 @@ class ChatServiceImpl implements ChatService {
         throw Exception('Invalid response body format');
       }
 
+      debugPrint('[ChatServiceImpl] Fetch messages response: $responseBody');
+      debugPrint('[ChatServiceImpl] Messages data: ${responseBody['data']}');
+      
       return MessageListResponse.fromJson(responseBody);
     } catch (e) {
       debugPrint('[ChatServiceImpl] Fetch messages error: $e');
@@ -265,30 +268,6 @@ class ChatServiceImpl implements ChatService {
     } catch (e) {
       debugPrint('[ChatServiceImpl] Edit message error: $e');
       throw Exception('Failed to edit message: $e');
-    }
-  }
-
-  @override
-  Future<void> deleteMessage(String messageId) async {
-    try {
-      final endpoint = '$_baseUrl/messages/$messageId';
-      debugPrint('[ChatServiceImpl] Delete message request: endpoint=$endpoint');
-
-      final response = await _dio.delete(endpoint);
-
-      if (response.statusCode != 200) {
-        throw Exception('Failed to delete message: ${response.statusCode}');
-      }
-    } on DioException catch (e) {
-      debugPrint(
-        '[ChatServiceImpl] Delete message Dio error: status=${e.response?.statusCode}, data=${e.response?.data}',
-      );
-      throw Exception(
-        'Failed to delete message: status=${e.response?.statusCode}, data=${e.response?.data}',
-      );
-    } catch (e) {
-      debugPrint('[ChatServiceImpl] Delete message error: $e');
-      throw Exception('Failed to delete message: $e');
     }
   }
 

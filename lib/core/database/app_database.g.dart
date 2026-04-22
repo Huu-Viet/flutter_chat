@@ -2172,6 +2172,21 @@ class $ChatMessagesTable extends ChatMessages
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _isRevokedMeta = const VerificationMeta(
+    'isRevoked',
+  );
+  @override
+  late final GeneratedColumn<bool> isRevoked = GeneratedColumn<bool>(
+    'is_revoked',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_revoked" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _mediaIdMeta = const VerificationMeta(
     'mediaId',
   );
@@ -2236,6 +2251,7 @@ class $ChatMessagesTable extends ChatMessages
     type,
     offset,
     isDeleted,
+    isRevoked,
     mediaId,
     metadata,
     serverId,
@@ -2302,6 +2318,12 @@ class $ChatMessagesTable extends ChatMessages
       context.handle(
         _isDeletedMeta,
         isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    if (data.containsKey('is_revoked')) {
+      context.handle(
+        _isRevokedMeta,
+        isRevoked.isAcceptableOrUnknown(data['is_revoked']!, _isRevokedMeta),
       );
     }
     if (data.containsKey('media_id')) {
@@ -2376,6 +2398,10 @@ class $ChatMessagesTable extends ChatMessages
         DriftSqlType.bool,
         data['${effectivePrefix}is_deleted'],
       )!,
+      isRevoked: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_revoked'],
+      )!,
       mediaId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}media_id'],
@@ -2414,6 +2440,7 @@ class ChatMessageEntity extends DataClass
   final String type;
   final int? offset;
   final bool isDeleted;
+  final bool isRevoked;
   final String? mediaId;
   final String? metadata;
   final String? serverId;
@@ -2427,6 +2454,7 @@ class ChatMessageEntity extends DataClass
     required this.type,
     this.offset,
     required this.isDeleted,
+    required this.isRevoked,
     this.mediaId,
     this.metadata,
     this.serverId,
@@ -2445,6 +2473,7 @@ class ChatMessageEntity extends DataClass
       map['offset'] = Variable<int>(offset);
     }
     map['is_deleted'] = Variable<bool>(isDeleted);
+    map['is_revoked'] = Variable<bool>(isRevoked);
     if (!nullToAbsent || mediaId != null) {
       map['media_id'] = Variable<String>(mediaId);
     }
@@ -2472,6 +2501,7 @@ class ChatMessageEntity extends DataClass
           ? const Value.absent()
           : Value(offset),
       isDeleted: Value(isDeleted),
+      isRevoked: Value(isRevoked),
       mediaId: mediaId == null && nullToAbsent
           ? const Value.absent()
           : Value(mediaId),
@@ -2501,6 +2531,7 @@ class ChatMessageEntity extends DataClass
       type: serializer.fromJson<String>(json['type']),
       offset: serializer.fromJson<int?>(json['offset']),
       isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      isRevoked: serializer.fromJson<bool>(json['isRevoked']),
       mediaId: serializer.fromJson<String?>(json['mediaId']),
       metadata: serializer.fromJson<String?>(json['metadata']),
       serverId: serializer.fromJson<String?>(json['serverId']),
@@ -2519,6 +2550,7 @@ class ChatMessageEntity extends DataClass
       'type': serializer.toJson<String>(type),
       'offset': serializer.toJson<int?>(offset),
       'isDeleted': serializer.toJson<bool>(isDeleted),
+      'isRevoked': serializer.toJson<bool>(isRevoked),
       'mediaId': serializer.toJson<String?>(mediaId),
       'metadata': serializer.toJson<String?>(metadata),
       'serverId': serializer.toJson<String?>(serverId),
@@ -2535,6 +2567,7 @@ class ChatMessageEntity extends DataClass
     String? type,
     Value<int?> offset = const Value.absent(),
     bool? isDeleted,
+    bool? isRevoked,
     Value<String?> mediaId = const Value.absent(),
     Value<String?> metadata = const Value.absent(),
     Value<String?> serverId = const Value.absent(),
@@ -2548,6 +2581,7 @@ class ChatMessageEntity extends DataClass
     type: type ?? this.type,
     offset: offset.present ? offset.value : this.offset,
     isDeleted: isDeleted ?? this.isDeleted,
+    isRevoked: isRevoked ?? this.isRevoked,
     mediaId: mediaId.present ? mediaId.value : this.mediaId,
     metadata: metadata.present ? metadata.value : this.metadata,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -2565,6 +2599,7 @@ class ChatMessageEntity extends DataClass
       type: data.type.present ? data.type.value : this.type,
       offset: data.offset.present ? data.offset.value : this.offset,
       isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      isRevoked: data.isRevoked.present ? data.isRevoked.value : this.isRevoked,
       mediaId: data.mediaId.present ? data.mediaId.value : this.mediaId,
       metadata: data.metadata.present ? data.metadata.value : this.metadata,
       serverId: data.serverId.present ? data.serverId.value : this.serverId,
@@ -2583,6 +2618,7 @@ class ChatMessageEntity extends DataClass
           ..write('type: $type, ')
           ..write('offset: $offset, ')
           ..write('isDeleted: $isDeleted, ')
+          ..write('isRevoked: $isRevoked, ')
           ..write('mediaId: $mediaId, ')
           ..write('metadata: $metadata, ')
           ..write('serverId: $serverId, ')
@@ -2601,6 +2637,7 @@ class ChatMessageEntity extends DataClass
     type,
     offset,
     isDeleted,
+    isRevoked,
     mediaId,
     metadata,
     serverId,
@@ -2618,6 +2655,7 @@ class ChatMessageEntity extends DataClass
           other.type == this.type &&
           other.offset == this.offset &&
           other.isDeleted == this.isDeleted &&
+          other.isRevoked == this.isRevoked &&
           other.mediaId == this.mediaId &&
           other.metadata == this.metadata &&
           other.serverId == this.serverId &&
@@ -2633,6 +2671,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
   final Value<String> type;
   final Value<int?> offset;
   final Value<bool> isDeleted;
+  final Value<bool> isRevoked;
   final Value<String?> mediaId;
   final Value<String?> metadata;
   final Value<String?> serverId;
@@ -2647,6 +2686,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
     this.type = const Value.absent(),
     this.offset = const Value.absent(),
     this.isDeleted = const Value.absent(),
+    this.isRevoked = const Value.absent(),
     this.mediaId = const Value.absent(),
     this.metadata = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -2662,6 +2702,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
     required String type,
     this.offset = const Value.absent(),
     this.isDeleted = const Value.absent(),
+    this.isRevoked = const Value.absent(),
     this.mediaId = const Value.absent(),
     this.metadata = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -2681,6 +2722,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
     Expression<String>? type,
     Expression<int>? offset,
     Expression<bool>? isDeleted,
+    Expression<bool>? isRevoked,
     Expression<String>? mediaId,
     Expression<String>? metadata,
     Expression<String>? serverId,
@@ -2696,6 +2738,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
       if (type != null) 'type': type,
       if (offset != null) 'offset': offset,
       if (isDeleted != null) 'is_deleted': isDeleted,
+      if (isRevoked != null) 'is_revoked': isRevoked,
       if (mediaId != null) 'media_id': mediaId,
       if (metadata != null) 'metadata': metadata,
       if (serverId != null) 'client_message_id': serverId,
@@ -2713,6 +2756,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
     Value<String>? type,
     Value<int?>? offset,
     Value<bool>? isDeleted,
+    Value<bool>? isRevoked,
     Value<String?>? mediaId,
     Value<String?>? metadata,
     Value<String?>? serverId,
@@ -2728,6 +2772,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
       type: type ?? this.type,
       offset: offset ?? this.offset,
       isDeleted: isDeleted ?? this.isDeleted,
+      isRevoked: isRevoked ?? this.isRevoked,
       mediaId: mediaId ?? this.mediaId,
       metadata: metadata ?? this.metadata,
       serverId: serverId ?? this.serverId,
@@ -2761,6 +2806,9 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
     if (isDeleted.present) {
       map['is_deleted'] = Variable<bool>(isDeleted.value);
     }
+    if (isRevoked.present) {
+      map['is_revoked'] = Variable<bool>(isRevoked.value);
+    }
     if (mediaId.present) {
       map['media_id'] = Variable<String>(mediaId.value);
     }
@@ -2792,6 +2840,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
           ..write('type: $type, ')
           ..write('offset: $offset, ')
           ..write('isDeleted: $isDeleted, ')
+          ..write('isRevoked: $isRevoked, ')
           ..write('mediaId: $mediaId, ')
           ..write('metadata: $metadata, ')
           ..write('serverId: $serverId, ')
@@ -2836,9 +2885,10 @@ class $MessageMediasTable extends MessageMedias
   late final GeneratedColumn<String> mediaType = GeneratedColumn<String>(
     'media_type',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
+    defaultValue: const Constant('file'),
   );
   static const VerificationMeta _urlMeta = const VerificationMeta('url');
   @override
@@ -2860,6 +2910,17 @@ class $MessageMediasTable extends MessageMedias
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _fileNameMeta = const VerificationMeta(
+    'fileName',
+  );
+  @override
+  late final GeneratedColumn<String> fileName = GeneratedColumn<String>(
+    'file_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _sizeMeta = const VerificationMeta('size');
   @override
   late final GeneratedColumn<int> size = GeneratedColumn<int>(
@@ -2876,8 +2937,96 @@ class $MessageMediasTable extends MessageMedias
   late final GeneratedColumn<int> durationMs = GeneratedColumn<int>(
     'duration_ms',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _bitrateMeta = const VerificationMeta(
+    'bitrate',
+  );
+  @override
+  late final GeneratedColumn<int> bitrate = GeneratedColumn<int>(
+    'bitrate',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _codecMeta = const VerificationMeta('codec');
+  @override
+  late final GeneratedColumn<String> codec = GeneratedColumn<String>(
+    'codec',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _formatMeta = const VerificationMeta('format');
+  @override
+  late final GeneratedColumn<String> format = GeneratedColumn<String>(
+    'format',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _preferMeta = const VerificationMeta('prefer');
+  @override
+  late final GeneratedColumn<String> prefer = GeneratedColumn<String>(
+    'prefer',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _variantsReadyMeta = const VerificationMeta(
+    'variantsReady',
+  );
+  @override
+  late final GeneratedColumn<bool> variantsReady = GeneratedColumn<bool>(
+    'variants_ready',
+    aliasedName,
+    true,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("variants_ready" IN (0, 1))',
+    ),
+  );
+  static const VerificationMeta _thumbReadyMeta = const VerificationMeta(
+    'thumbReady',
+  );
+  @override
+  late final GeneratedColumn<bool> thumbReady = GeneratedColumn<bool>(
+    'thumb_ready',
+    aliasedName,
+    true,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("thumb_ready" IN (0, 1))',
+    ),
+  );
+  static const VerificationMeta _thumbMediaIdMeta = const VerificationMeta(
+    'thumbMediaId',
+  );
+  @override
+  late final GeneratedColumn<String> thumbMediaId = GeneratedColumn<String>(
+    'thumb_media_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
   static const VerificationMeta _widthMeta = const VerificationMeta('width');
@@ -2928,8 +3077,17 @@ class $MessageMediasTable extends MessageMedias
     mediaType,
     url,
     mimeType,
+    fileName,
     size,
     durationMs,
+    bitrate,
+    codec,
+    format,
+    prefer,
+    status,
+    variantsReady,
+    thumbReady,
+    thumbMediaId,
     width,
     height,
     orderIndex,
@@ -2978,6 +3136,12 @@ class $MessageMediasTable extends MessageMedias
         mimeType.isAcceptableOrUnknown(data['mime_type']!, _mimeTypeMeta),
       );
     }
+    if (data.containsKey('file_name')) {
+      context.handle(
+        _fileNameMeta,
+        fileName.isAcceptableOrUnknown(data['file_name']!, _fileNameMeta),
+      );
+    }
     if (data.containsKey('size')) {
       context.handle(
         _sizeMeta,
@@ -2988,6 +3152,60 @@ class $MessageMediasTable extends MessageMedias
       context.handle(
         _durationMsMeta,
         durationMs.isAcceptableOrUnknown(data['duration_ms']!, _durationMsMeta),
+      );
+    }
+    if (data.containsKey('bitrate')) {
+      context.handle(
+        _bitrateMeta,
+        bitrate.isAcceptableOrUnknown(data['bitrate']!, _bitrateMeta),
+      );
+    }
+    if (data.containsKey('codec')) {
+      context.handle(
+        _codecMeta,
+        codec.isAcceptableOrUnknown(data['codec']!, _codecMeta),
+      );
+    }
+    if (data.containsKey('format')) {
+      context.handle(
+        _formatMeta,
+        format.isAcceptableOrUnknown(data['format']!, _formatMeta),
+      );
+    }
+    if (data.containsKey('prefer')) {
+      context.handle(
+        _preferMeta,
+        prefer.isAcceptableOrUnknown(data['prefer']!, _preferMeta),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('variants_ready')) {
+      context.handle(
+        _variantsReadyMeta,
+        variantsReady.isAcceptableOrUnknown(
+          data['variants_ready']!,
+          _variantsReadyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('thumb_ready')) {
+      context.handle(
+        _thumbReadyMeta,
+        thumbReady.isAcceptableOrUnknown(data['thumb_ready']!, _thumbReadyMeta),
+      );
+    }
+    if (data.containsKey('thumb_media_id')) {
+      context.handle(
+        _thumbMediaIdMeta,
+        thumbMediaId.isAcceptableOrUnknown(
+          data['thumb_media_id']!,
+          _thumbMediaIdMeta,
+        ),
       );
     }
     if (data.containsKey('width')) {
@@ -3034,7 +3252,7 @@ class $MessageMediasTable extends MessageMedias
       mediaType: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}media_type'],
-      ),
+      )!,
       url: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}url'],
@@ -3043,6 +3261,10 @@ class $MessageMediasTable extends MessageMedias
         DriftSqlType.string,
         data['${effectivePrefix}mime_type'],
       ),
+      fileName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_name'],
+      ),
       size: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}size'],
@@ -3050,6 +3272,38 @@ class $MessageMediasTable extends MessageMedias
       durationMs: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}duration_ms'],
+      )!,
+      bitrate: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}bitrate'],
+      )!,
+      codec: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}codec'],
+      ),
+      format: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}format'],
+      ),
+      prefer: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}prefer'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      ),
+      variantsReady: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}variants_ready'],
+      ),
+      thumbReady: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}thumb_ready'],
+      ),
+      thumbMediaId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}thumb_media_id'],
       ),
       width: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -3080,11 +3334,20 @@ class MessageMediaEntity extends DataClass
     implements Insertable<MessageMediaEntity> {
   final String id;
   final String messageId;
-  final String? mediaType;
+  final String mediaType;
   final String? url;
   final String? mimeType;
+  final String? fileName;
   final int? size;
-  final int? durationMs;
+  final int durationMs;
+  final int bitrate;
+  final String? codec;
+  final String? format;
+  final String? prefer;
+  final String? status;
+  final bool? variantsReady;
+  final bool? thumbReady;
+  final String? thumbMediaId;
   final int? width;
   final int? height;
   final int orderIndex;
@@ -3092,11 +3355,20 @@ class MessageMediaEntity extends DataClass
   const MessageMediaEntity({
     required this.id,
     required this.messageId,
-    this.mediaType,
+    required this.mediaType,
     this.url,
     this.mimeType,
+    this.fileName,
     this.size,
-    this.durationMs,
+    required this.durationMs,
+    required this.bitrate,
+    this.codec,
+    this.format,
+    this.prefer,
+    this.status,
+    this.variantsReady,
+    this.thumbReady,
+    this.thumbMediaId,
     this.width,
     this.height,
     required this.orderIndex,
@@ -3107,20 +3379,41 @@ class MessageMediaEntity extends DataClass
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['message_id'] = Variable<String>(messageId);
-    if (!nullToAbsent || mediaType != null) {
-      map['media_type'] = Variable<String>(mediaType);
-    }
+    map['media_type'] = Variable<String>(mediaType);
     if (!nullToAbsent || url != null) {
       map['url'] = Variable<String>(url);
     }
     if (!nullToAbsent || mimeType != null) {
       map['mime_type'] = Variable<String>(mimeType);
     }
+    if (!nullToAbsent || fileName != null) {
+      map['file_name'] = Variable<String>(fileName);
+    }
     if (!nullToAbsent || size != null) {
       map['size'] = Variable<int>(size);
     }
-    if (!nullToAbsent || durationMs != null) {
-      map['duration_ms'] = Variable<int>(durationMs);
+    map['duration_ms'] = Variable<int>(durationMs);
+    map['bitrate'] = Variable<int>(bitrate);
+    if (!nullToAbsent || codec != null) {
+      map['codec'] = Variable<String>(codec);
+    }
+    if (!nullToAbsent || format != null) {
+      map['format'] = Variable<String>(format);
+    }
+    if (!nullToAbsent || prefer != null) {
+      map['prefer'] = Variable<String>(prefer);
+    }
+    if (!nullToAbsent || status != null) {
+      map['status'] = Variable<String>(status);
+    }
+    if (!nullToAbsent || variantsReady != null) {
+      map['variants_ready'] = Variable<bool>(variantsReady);
+    }
+    if (!nullToAbsent || thumbReady != null) {
+      map['thumb_ready'] = Variable<bool>(thumbReady);
+    }
+    if (!nullToAbsent || thumbMediaId != null) {
+      map['thumb_media_id'] = Variable<String>(thumbMediaId);
     }
     if (!nullToAbsent || width != null) {
       map['width'] = Variable<int>(width);
@@ -3139,17 +3432,38 @@ class MessageMediaEntity extends DataClass
     return MessageMediasCompanion(
       id: Value(id),
       messageId: Value(messageId),
-      mediaType: mediaType == null && nullToAbsent
-          ? const Value.absent()
-          : Value(mediaType),
+      mediaType: Value(mediaType),
       url: url == null && nullToAbsent ? const Value.absent() : Value(url),
       mimeType: mimeType == null && nullToAbsent
           ? const Value.absent()
           : Value(mimeType),
-      size: size == null && nullToAbsent ? const Value.absent() : Value(size),
-      durationMs: durationMs == null && nullToAbsent
+      fileName: fileName == null && nullToAbsent
           ? const Value.absent()
-          : Value(durationMs),
+          : Value(fileName),
+      size: size == null && nullToAbsent ? const Value.absent() : Value(size),
+      durationMs: Value(durationMs),
+      bitrate: Value(bitrate),
+      codec: codec == null && nullToAbsent
+          ? const Value.absent()
+          : Value(codec),
+      format: format == null && nullToAbsent
+          ? const Value.absent()
+          : Value(format),
+      prefer: prefer == null && nullToAbsent
+          ? const Value.absent()
+          : Value(prefer),
+      status: status == null && nullToAbsent
+          ? const Value.absent()
+          : Value(status),
+      variantsReady: variantsReady == null && nullToAbsent
+          ? const Value.absent()
+          : Value(variantsReady),
+      thumbReady: thumbReady == null && nullToAbsent
+          ? const Value.absent()
+          : Value(thumbReady),
+      thumbMediaId: thumbMediaId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(thumbMediaId),
       width: width == null && nullToAbsent
           ? const Value.absent()
           : Value(width),
@@ -3171,11 +3485,20 @@ class MessageMediaEntity extends DataClass
     return MessageMediaEntity(
       id: serializer.fromJson<String>(json['id']),
       messageId: serializer.fromJson<String>(json['messageId']),
-      mediaType: serializer.fromJson<String?>(json['mediaType']),
+      mediaType: serializer.fromJson<String>(json['mediaType']),
       url: serializer.fromJson<String?>(json['url']),
       mimeType: serializer.fromJson<String?>(json['mimeType']),
+      fileName: serializer.fromJson<String?>(json['fileName']),
       size: serializer.fromJson<int?>(json['size']),
-      durationMs: serializer.fromJson<int?>(json['durationMs']),
+      durationMs: serializer.fromJson<int>(json['durationMs']),
+      bitrate: serializer.fromJson<int>(json['bitrate']),
+      codec: serializer.fromJson<String?>(json['codec']),
+      format: serializer.fromJson<String?>(json['format']),
+      prefer: serializer.fromJson<String?>(json['prefer']),
+      status: serializer.fromJson<String?>(json['status']),
+      variantsReady: serializer.fromJson<bool?>(json['variantsReady']),
+      thumbReady: serializer.fromJson<bool?>(json['thumbReady']),
+      thumbMediaId: serializer.fromJson<String?>(json['thumbMediaId']),
       width: serializer.fromJson<int?>(json['width']),
       height: serializer.fromJson<int?>(json['height']),
       orderIndex: serializer.fromJson<int>(json['orderIndex']),
@@ -3188,11 +3511,20 @@ class MessageMediaEntity extends DataClass
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'messageId': serializer.toJson<String>(messageId),
-      'mediaType': serializer.toJson<String?>(mediaType),
+      'mediaType': serializer.toJson<String>(mediaType),
       'url': serializer.toJson<String?>(url),
       'mimeType': serializer.toJson<String?>(mimeType),
+      'fileName': serializer.toJson<String?>(fileName),
       'size': serializer.toJson<int?>(size),
-      'durationMs': serializer.toJson<int?>(durationMs),
+      'durationMs': serializer.toJson<int>(durationMs),
+      'bitrate': serializer.toJson<int>(bitrate),
+      'codec': serializer.toJson<String?>(codec),
+      'format': serializer.toJson<String?>(format),
+      'prefer': serializer.toJson<String?>(prefer),
+      'status': serializer.toJson<String?>(status),
+      'variantsReady': serializer.toJson<bool?>(variantsReady),
+      'thumbReady': serializer.toJson<bool?>(thumbReady),
+      'thumbMediaId': serializer.toJson<String?>(thumbMediaId),
       'width': serializer.toJson<int?>(width),
       'height': serializer.toJson<int?>(height),
       'orderIndex': serializer.toJson<int>(orderIndex),
@@ -3203,11 +3535,20 @@ class MessageMediaEntity extends DataClass
   MessageMediaEntity copyWith({
     String? id,
     String? messageId,
-    Value<String?> mediaType = const Value.absent(),
+    String? mediaType,
     Value<String?> url = const Value.absent(),
     Value<String?> mimeType = const Value.absent(),
+    Value<String?> fileName = const Value.absent(),
     Value<int?> size = const Value.absent(),
-    Value<int?> durationMs = const Value.absent(),
+    int? durationMs,
+    int? bitrate,
+    Value<String?> codec = const Value.absent(),
+    Value<String?> format = const Value.absent(),
+    Value<String?> prefer = const Value.absent(),
+    Value<String?> status = const Value.absent(),
+    Value<bool?> variantsReady = const Value.absent(),
+    Value<bool?> thumbReady = const Value.absent(),
+    Value<String?> thumbMediaId = const Value.absent(),
     Value<int?> width = const Value.absent(),
     Value<int?> height = const Value.absent(),
     int? orderIndex,
@@ -3215,11 +3556,22 @@ class MessageMediaEntity extends DataClass
   }) => MessageMediaEntity(
     id: id ?? this.id,
     messageId: messageId ?? this.messageId,
-    mediaType: mediaType.present ? mediaType.value : this.mediaType,
+    mediaType: mediaType ?? this.mediaType,
     url: url.present ? url.value : this.url,
     mimeType: mimeType.present ? mimeType.value : this.mimeType,
+    fileName: fileName.present ? fileName.value : this.fileName,
     size: size.present ? size.value : this.size,
-    durationMs: durationMs.present ? durationMs.value : this.durationMs,
+    durationMs: durationMs ?? this.durationMs,
+    bitrate: bitrate ?? this.bitrate,
+    codec: codec.present ? codec.value : this.codec,
+    format: format.present ? format.value : this.format,
+    prefer: prefer.present ? prefer.value : this.prefer,
+    status: status.present ? status.value : this.status,
+    variantsReady: variantsReady.present
+        ? variantsReady.value
+        : this.variantsReady,
+    thumbReady: thumbReady.present ? thumbReady.value : this.thumbReady,
+    thumbMediaId: thumbMediaId.present ? thumbMediaId.value : this.thumbMediaId,
     width: width.present ? width.value : this.width,
     height: height.present ? height.value : this.height,
     orderIndex: orderIndex ?? this.orderIndex,
@@ -3232,10 +3584,25 @@ class MessageMediaEntity extends DataClass
       mediaType: data.mediaType.present ? data.mediaType.value : this.mediaType,
       url: data.url.present ? data.url.value : this.url,
       mimeType: data.mimeType.present ? data.mimeType.value : this.mimeType,
+      fileName: data.fileName.present ? data.fileName.value : this.fileName,
       size: data.size.present ? data.size.value : this.size,
       durationMs: data.durationMs.present
           ? data.durationMs.value
           : this.durationMs,
+      bitrate: data.bitrate.present ? data.bitrate.value : this.bitrate,
+      codec: data.codec.present ? data.codec.value : this.codec,
+      format: data.format.present ? data.format.value : this.format,
+      prefer: data.prefer.present ? data.prefer.value : this.prefer,
+      status: data.status.present ? data.status.value : this.status,
+      variantsReady: data.variantsReady.present
+          ? data.variantsReady.value
+          : this.variantsReady,
+      thumbReady: data.thumbReady.present
+          ? data.thumbReady.value
+          : this.thumbReady,
+      thumbMediaId: data.thumbMediaId.present
+          ? data.thumbMediaId.value
+          : this.thumbMediaId,
       width: data.width.present ? data.width.value : this.width,
       height: data.height.present ? data.height.value : this.height,
       orderIndex: data.orderIndex.present
@@ -3253,8 +3620,17 @@ class MessageMediaEntity extends DataClass
           ..write('mediaType: $mediaType, ')
           ..write('url: $url, ')
           ..write('mimeType: $mimeType, ')
+          ..write('fileName: $fileName, ')
           ..write('size: $size, ')
           ..write('durationMs: $durationMs, ')
+          ..write('bitrate: $bitrate, ')
+          ..write('codec: $codec, ')
+          ..write('format: $format, ')
+          ..write('prefer: $prefer, ')
+          ..write('status: $status, ')
+          ..write('variantsReady: $variantsReady, ')
+          ..write('thumbReady: $thumbReady, ')
+          ..write('thumbMediaId: $thumbMediaId, ')
           ..write('width: $width, ')
           ..write('height: $height, ')
           ..write('orderIndex: $orderIndex, ')
@@ -3270,8 +3646,17 @@ class MessageMediaEntity extends DataClass
     mediaType,
     url,
     mimeType,
+    fileName,
     size,
     durationMs,
+    bitrate,
+    codec,
+    format,
+    prefer,
+    status,
+    variantsReady,
+    thumbReady,
+    thumbMediaId,
     width,
     height,
     orderIndex,
@@ -3286,8 +3671,17 @@ class MessageMediaEntity extends DataClass
           other.mediaType == this.mediaType &&
           other.url == this.url &&
           other.mimeType == this.mimeType &&
+          other.fileName == this.fileName &&
           other.size == this.size &&
           other.durationMs == this.durationMs &&
+          other.bitrate == this.bitrate &&
+          other.codec == this.codec &&
+          other.format == this.format &&
+          other.prefer == this.prefer &&
+          other.status == this.status &&
+          other.variantsReady == this.variantsReady &&
+          other.thumbReady == this.thumbReady &&
+          other.thumbMediaId == this.thumbMediaId &&
           other.width == this.width &&
           other.height == this.height &&
           other.orderIndex == this.orderIndex &&
@@ -3297,11 +3691,20 @@ class MessageMediaEntity extends DataClass
 class MessageMediasCompanion extends UpdateCompanion<MessageMediaEntity> {
   final Value<String> id;
   final Value<String> messageId;
-  final Value<String?> mediaType;
+  final Value<String> mediaType;
   final Value<String?> url;
   final Value<String?> mimeType;
+  final Value<String?> fileName;
   final Value<int?> size;
-  final Value<int?> durationMs;
+  final Value<int> durationMs;
+  final Value<int> bitrate;
+  final Value<String?> codec;
+  final Value<String?> format;
+  final Value<String?> prefer;
+  final Value<String?> status;
+  final Value<bool?> variantsReady;
+  final Value<bool?> thumbReady;
+  final Value<String?> thumbMediaId;
   final Value<int?> width;
   final Value<int?> height;
   final Value<int> orderIndex;
@@ -3313,8 +3716,17 @@ class MessageMediasCompanion extends UpdateCompanion<MessageMediaEntity> {
     this.mediaType = const Value.absent(),
     this.url = const Value.absent(),
     this.mimeType = const Value.absent(),
+    this.fileName = const Value.absent(),
     this.size = const Value.absent(),
     this.durationMs = const Value.absent(),
+    this.bitrate = const Value.absent(),
+    this.codec = const Value.absent(),
+    this.format = const Value.absent(),
+    this.prefer = const Value.absent(),
+    this.status = const Value.absent(),
+    this.variantsReady = const Value.absent(),
+    this.thumbReady = const Value.absent(),
+    this.thumbMediaId = const Value.absent(),
     this.width = const Value.absent(),
     this.height = const Value.absent(),
     this.orderIndex = const Value.absent(),
@@ -3327,8 +3739,17 @@ class MessageMediasCompanion extends UpdateCompanion<MessageMediaEntity> {
     this.mediaType = const Value.absent(),
     this.url = const Value.absent(),
     this.mimeType = const Value.absent(),
+    this.fileName = const Value.absent(),
     this.size = const Value.absent(),
     this.durationMs = const Value.absent(),
+    this.bitrate = const Value.absent(),
+    this.codec = const Value.absent(),
+    this.format = const Value.absent(),
+    this.prefer = const Value.absent(),
+    this.status = const Value.absent(),
+    this.variantsReady = const Value.absent(),
+    this.thumbReady = const Value.absent(),
+    this.thumbMediaId = const Value.absent(),
     this.width = const Value.absent(),
     this.height = const Value.absent(),
     this.orderIndex = const Value.absent(),
@@ -3342,8 +3763,17 @@ class MessageMediasCompanion extends UpdateCompanion<MessageMediaEntity> {
     Expression<String>? mediaType,
     Expression<String>? url,
     Expression<String>? mimeType,
+    Expression<String>? fileName,
     Expression<int>? size,
     Expression<int>? durationMs,
+    Expression<int>? bitrate,
+    Expression<String>? codec,
+    Expression<String>? format,
+    Expression<String>? prefer,
+    Expression<String>? status,
+    Expression<bool>? variantsReady,
+    Expression<bool>? thumbReady,
+    Expression<String>? thumbMediaId,
     Expression<int>? width,
     Expression<int>? height,
     Expression<int>? orderIndex,
@@ -3356,8 +3786,17 @@ class MessageMediasCompanion extends UpdateCompanion<MessageMediaEntity> {
       if (mediaType != null) 'media_type': mediaType,
       if (url != null) 'url': url,
       if (mimeType != null) 'mime_type': mimeType,
+      if (fileName != null) 'file_name': fileName,
       if (size != null) 'size': size,
       if (durationMs != null) 'duration_ms': durationMs,
+      if (bitrate != null) 'bitrate': bitrate,
+      if (codec != null) 'codec': codec,
+      if (format != null) 'format': format,
+      if (prefer != null) 'prefer': prefer,
+      if (status != null) 'status': status,
+      if (variantsReady != null) 'variants_ready': variantsReady,
+      if (thumbReady != null) 'thumb_ready': thumbReady,
+      if (thumbMediaId != null) 'thumb_media_id': thumbMediaId,
       if (width != null) 'width': width,
       if (height != null) 'height': height,
       if (orderIndex != null) 'order_index': orderIndex,
@@ -3369,11 +3808,20 @@ class MessageMediasCompanion extends UpdateCompanion<MessageMediaEntity> {
   MessageMediasCompanion copyWith({
     Value<String>? id,
     Value<String>? messageId,
-    Value<String?>? mediaType,
+    Value<String>? mediaType,
     Value<String?>? url,
     Value<String?>? mimeType,
+    Value<String?>? fileName,
     Value<int?>? size,
-    Value<int?>? durationMs,
+    Value<int>? durationMs,
+    Value<int>? bitrate,
+    Value<String?>? codec,
+    Value<String?>? format,
+    Value<String?>? prefer,
+    Value<String?>? status,
+    Value<bool?>? variantsReady,
+    Value<bool?>? thumbReady,
+    Value<String?>? thumbMediaId,
     Value<int?>? width,
     Value<int?>? height,
     Value<int>? orderIndex,
@@ -3386,8 +3834,17 @@ class MessageMediasCompanion extends UpdateCompanion<MessageMediaEntity> {
       mediaType: mediaType ?? this.mediaType,
       url: url ?? this.url,
       mimeType: mimeType ?? this.mimeType,
+      fileName: fileName ?? this.fileName,
       size: size ?? this.size,
       durationMs: durationMs ?? this.durationMs,
+      bitrate: bitrate ?? this.bitrate,
+      codec: codec ?? this.codec,
+      format: format ?? this.format,
+      prefer: prefer ?? this.prefer,
+      status: status ?? this.status,
+      variantsReady: variantsReady ?? this.variantsReady,
+      thumbReady: thumbReady ?? this.thumbReady,
+      thumbMediaId: thumbMediaId ?? this.thumbMediaId,
       width: width ?? this.width,
       height: height ?? this.height,
       orderIndex: orderIndex ?? this.orderIndex,
@@ -3414,11 +3871,38 @@ class MessageMediasCompanion extends UpdateCompanion<MessageMediaEntity> {
     if (mimeType.present) {
       map['mime_type'] = Variable<String>(mimeType.value);
     }
+    if (fileName.present) {
+      map['file_name'] = Variable<String>(fileName.value);
+    }
     if (size.present) {
       map['size'] = Variable<int>(size.value);
     }
     if (durationMs.present) {
       map['duration_ms'] = Variable<int>(durationMs.value);
+    }
+    if (bitrate.present) {
+      map['bitrate'] = Variable<int>(bitrate.value);
+    }
+    if (codec.present) {
+      map['codec'] = Variable<String>(codec.value);
+    }
+    if (format.present) {
+      map['format'] = Variable<String>(format.value);
+    }
+    if (prefer.present) {
+      map['prefer'] = Variable<String>(prefer.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (variantsReady.present) {
+      map['variants_ready'] = Variable<bool>(variantsReady.value);
+    }
+    if (thumbReady.present) {
+      map['thumb_ready'] = Variable<bool>(thumbReady.value);
+    }
+    if (thumbMediaId.present) {
+      map['thumb_media_id'] = Variable<String>(thumbMediaId.value);
     }
     if (width.present) {
       map['width'] = Variable<int>(width.value);
@@ -3446,8 +3930,17 @@ class MessageMediasCompanion extends UpdateCompanion<MessageMediaEntity> {
           ..write('mediaType: $mediaType, ')
           ..write('url: $url, ')
           ..write('mimeType: $mimeType, ')
+          ..write('fileName: $fileName, ')
           ..write('size: $size, ')
           ..write('durationMs: $durationMs, ')
+          ..write('bitrate: $bitrate, ')
+          ..write('codec: $codec, ')
+          ..write('format: $format, ')
+          ..write('prefer: $prefer, ')
+          ..write('status: $status, ')
+          ..write('variantsReady: $variantsReady, ')
+          ..write('thumbReady: $thumbReady, ')
+          ..write('thumbMediaId: $thumbMediaId, ')
           ..write('width: $width, ')
           ..write('height: $height, ')
           ..write('orderIndex: $orderIndex, ')
@@ -5475,6 +5968,7 @@ typedef $$ChatMessagesTableCreateCompanionBuilder =
       required String type,
       Value<int?> offset,
       Value<bool> isDeleted,
+      Value<bool> isRevoked,
       Value<String?> mediaId,
       Value<String?> metadata,
       Value<String?> serverId,
@@ -5491,6 +5985,7 @@ typedef $$ChatMessagesTableUpdateCompanionBuilder =
       Value<String> type,
       Value<int?> offset,
       Value<bool> isDeleted,
+      Value<bool> isRevoked,
       Value<String?> mediaId,
       Value<String?> metadata,
       Value<String?> serverId,
@@ -5540,6 +6035,11 @@ class $$ChatMessagesTableFilterComposer
 
   ColumnFilters<bool> get isDeleted => $composableBuilder(
     column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isRevoked => $composableBuilder(
+    column: $table.isRevoked,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5613,6 +6113,11 @@ class $$ChatMessagesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isRevoked => $composableBuilder(
+    column: $table.isRevoked,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get mediaId => $composableBuilder(
     column: $table.mediaId,
     builder: (column) => ColumnOrderings(column),
@@ -5670,6 +6175,9 @@ class $$ChatMessagesTableAnnotationComposer
 
   GeneratedColumn<bool> get isDeleted =>
       $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumn<bool> get isRevoked =>
+      $composableBuilder(column: $table.isRevoked, builder: (column) => column);
 
   GeneratedColumn<String> get mediaId =>
       $composableBuilder(column: $table.mediaId, builder: (column) => column);
@@ -5729,6 +6237,7 @@ class $$ChatMessagesTableTableManager
                 Value<String> type = const Value.absent(),
                 Value<int?> offset = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
+                Value<bool> isRevoked = const Value.absent(),
                 Value<String?> mediaId = const Value.absent(),
                 Value<String?> metadata = const Value.absent(),
                 Value<String?> serverId = const Value.absent(),
@@ -5743,6 +6252,7 @@ class $$ChatMessagesTableTableManager
                 type: type,
                 offset: offset,
                 isDeleted: isDeleted,
+                isRevoked: isRevoked,
                 mediaId: mediaId,
                 metadata: metadata,
                 serverId: serverId,
@@ -5759,6 +6269,7 @@ class $$ChatMessagesTableTableManager
                 required String type,
                 Value<int?> offset = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
+                Value<bool> isRevoked = const Value.absent(),
                 Value<String?> mediaId = const Value.absent(),
                 Value<String?> metadata = const Value.absent(),
                 Value<String?> serverId = const Value.absent(),
@@ -5773,6 +6284,7 @@ class $$ChatMessagesTableTableManager
                 type: type,
                 offset: offset,
                 isDeleted: isDeleted,
+                isRevoked: isRevoked,
                 mediaId: mediaId,
                 metadata: metadata,
                 serverId: serverId,
@@ -5809,11 +6321,20 @@ typedef $$MessageMediasTableCreateCompanionBuilder =
     MessageMediasCompanion Function({
       required String id,
       required String messageId,
-      Value<String?> mediaType,
+      Value<String> mediaType,
       Value<String?> url,
       Value<String?> mimeType,
+      Value<String?> fileName,
       Value<int?> size,
-      Value<int?> durationMs,
+      Value<int> durationMs,
+      Value<int> bitrate,
+      Value<String?> codec,
+      Value<String?> format,
+      Value<String?> prefer,
+      Value<String?> status,
+      Value<bool?> variantsReady,
+      Value<bool?> thumbReady,
+      Value<String?> thumbMediaId,
       Value<int?> width,
       Value<int?> height,
       Value<int> orderIndex,
@@ -5824,11 +6345,20 @@ typedef $$MessageMediasTableUpdateCompanionBuilder =
     MessageMediasCompanion Function({
       Value<String> id,
       Value<String> messageId,
-      Value<String?> mediaType,
+      Value<String> mediaType,
       Value<String?> url,
       Value<String?> mimeType,
+      Value<String?> fileName,
       Value<int?> size,
-      Value<int?> durationMs,
+      Value<int> durationMs,
+      Value<int> bitrate,
+      Value<String?> codec,
+      Value<String?> format,
+      Value<String?> prefer,
+      Value<String?> status,
+      Value<bool?> variantsReady,
+      Value<bool?> thumbReady,
+      Value<String?> thumbMediaId,
       Value<int?> width,
       Value<int?> height,
       Value<int> orderIndex,
@@ -5870,6 +6400,11 @@ class $$MessageMediasTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get fileName => $composableBuilder(
+    column: $table.fileName,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get size => $composableBuilder(
     column: $table.size,
     builder: (column) => ColumnFilters(column),
@@ -5877,6 +6412,46 @@ class $$MessageMediasTableFilterComposer
 
   ColumnFilters<int> get durationMs => $composableBuilder(
     column: $table.durationMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get bitrate => $composableBuilder(
+    column: $table.bitrate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get codec => $composableBuilder(
+    column: $table.codec,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get format => $composableBuilder(
+    column: $table.format,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get prefer => $composableBuilder(
+    column: $table.prefer,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get variantsReady => $composableBuilder(
+    column: $table.variantsReady,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get thumbReady => $composableBuilder(
+    column: $table.thumbReady,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get thumbMediaId => $composableBuilder(
+    column: $table.thumbMediaId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5935,6 +6510,11 @@ class $$MessageMediasTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get fileName => $composableBuilder(
+    column: $table.fileName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get size => $composableBuilder(
     column: $table.size,
     builder: (column) => ColumnOrderings(column),
@@ -5942,6 +6522,46 @@ class $$MessageMediasTableOrderingComposer
 
   ColumnOrderings<int> get durationMs => $composableBuilder(
     column: $table.durationMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get bitrate => $composableBuilder(
+    column: $table.bitrate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get codec => $composableBuilder(
+    column: $table.codec,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get format => $composableBuilder(
+    column: $table.format,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get prefer => $composableBuilder(
+    column: $table.prefer,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get variantsReady => $composableBuilder(
+    column: $table.variantsReady,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get thumbReady => $composableBuilder(
+    column: $table.thumbReady,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get thumbMediaId => $composableBuilder(
+    column: $table.thumbMediaId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -5990,11 +6610,44 @@ class $$MessageMediasTableAnnotationComposer
   GeneratedColumn<String> get mimeType =>
       $composableBuilder(column: $table.mimeType, builder: (column) => column);
 
+  GeneratedColumn<String> get fileName =>
+      $composableBuilder(column: $table.fileName, builder: (column) => column);
+
   GeneratedColumn<int> get size =>
       $composableBuilder(column: $table.size, builder: (column) => column);
 
   GeneratedColumn<int> get durationMs => $composableBuilder(
     column: $table.durationMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get bitrate =>
+      $composableBuilder(column: $table.bitrate, builder: (column) => column);
+
+  GeneratedColumn<String> get codec =>
+      $composableBuilder(column: $table.codec, builder: (column) => column);
+
+  GeneratedColumn<String> get format =>
+      $composableBuilder(column: $table.format, builder: (column) => column);
+
+  GeneratedColumn<String> get prefer =>
+      $composableBuilder(column: $table.prefer, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<bool> get variantsReady => $composableBuilder(
+    column: $table.variantsReady,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get thumbReady => $composableBuilder(
+    column: $table.thumbReady,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get thumbMediaId => $composableBuilder(
+    column: $table.thumbMediaId,
     builder: (column) => column,
   );
 
@@ -6050,11 +6703,20 @@ class $$MessageMediasTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> messageId = const Value.absent(),
-                Value<String?> mediaType = const Value.absent(),
+                Value<String> mediaType = const Value.absent(),
                 Value<String?> url = const Value.absent(),
                 Value<String?> mimeType = const Value.absent(),
+                Value<String?> fileName = const Value.absent(),
                 Value<int?> size = const Value.absent(),
-                Value<int?> durationMs = const Value.absent(),
+                Value<int> durationMs = const Value.absent(),
+                Value<int> bitrate = const Value.absent(),
+                Value<String?> codec = const Value.absent(),
+                Value<String?> format = const Value.absent(),
+                Value<String?> prefer = const Value.absent(),
+                Value<String?> status = const Value.absent(),
+                Value<bool?> variantsReady = const Value.absent(),
+                Value<bool?> thumbReady = const Value.absent(),
+                Value<String?> thumbMediaId = const Value.absent(),
                 Value<int?> width = const Value.absent(),
                 Value<int?> height = const Value.absent(),
                 Value<int> orderIndex = const Value.absent(),
@@ -6066,8 +6728,17 @@ class $$MessageMediasTableTableManager
                 mediaType: mediaType,
                 url: url,
                 mimeType: mimeType,
+                fileName: fileName,
                 size: size,
                 durationMs: durationMs,
+                bitrate: bitrate,
+                codec: codec,
+                format: format,
+                prefer: prefer,
+                status: status,
+                variantsReady: variantsReady,
+                thumbReady: thumbReady,
+                thumbMediaId: thumbMediaId,
                 width: width,
                 height: height,
                 orderIndex: orderIndex,
@@ -6078,11 +6749,20 @@ class $$MessageMediasTableTableManager
               ({
                 required String id,
                 required String messageId,
-                Value<String?> mediaType = const Value.absent(),
+                Value<String> mediaType = const Value.absent(),
                 Value<String?> url = const Value.absent(),
                 Value<String?> mimeType = const Value.absent(),
+                Value<String?> fileName = const Value.absent(),
                 Value<int?> size = const Value.absent(),
-                Value<int?> durationMs = const Value.absent(),
+                Value<int> durationMs = const Value.absent(),
+                Value<int> bitrate = const Value.absent(),
+                Value<String?> codec = const Value.absent(),
+                Value<String?> format = const Value.absent(),
+                Value<String?> prefer = const Value.absent(),
+                Value<String?> status = const Value.absent(),
+                Value<bool?> variantsReady = const Value.absent(),
+                Value<bool?> thumbReady = const Value.absent(),
+                Value<String?> thumbMediaId = const Value.absent(),
                 Value<int?> width = const Value.absent(),
                 Value<int?> height = const Value.absent(),
                 Value<int> orderIndex = const Value.absent(),
@@ -6094,8 +6774,17 @@ class $$MessageMediasTableTableManager
                 mediaType: mediaType,
                 url: url,
                 mimeType: mimeType,
+                fileName: fileName,
                 size: size,
                 durationMs: durationMs,
+                bitrate: bitrate,
+                codec: codec,
+                format: format,
+                prefer: prefer,
+                status: status,
+                variantsReady: variantsReady,
+                thumbReady: thumbReady,
+                thumbMediaId: thumbMediaId,
                 width: width,
                 height: height,
                 orderIndex: orderIndex,

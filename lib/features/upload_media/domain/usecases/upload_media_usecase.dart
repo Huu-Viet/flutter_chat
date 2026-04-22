@@ -12,10 +12,11 @@ class UploadMediaUseCase {
     String filePath,
     String fileType,
     int size,
+    String? fileName,
   ) async {
     try {
       final checksum = await ChecksumUtils.buildSha256DigestFromFile(filePath);
-      return _repository.uploadMedia(filePath, fileType, size, checksum);
+      return _repository.uploadMedia(filePath, fileType, size, checksum, fileName);
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }

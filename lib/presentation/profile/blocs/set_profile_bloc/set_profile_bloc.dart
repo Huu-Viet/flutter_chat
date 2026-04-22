@@ -47,6 +47,7 @@ class SetProfileBloc extends Bloc<SetProfileEvent, SetProfileState> {
         event.filePath,
         'image',
         event.fileSize,
+        null
       );
 
       result.fold(

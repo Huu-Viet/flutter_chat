@@ -14,6 +14,7 @@ class StickerMessage extends Message {
     this.stickerId,
     required super.offset,
     required super.isDeleted,
+    super.isRevoked,
     required super.serverId,
     required super.createdAt,
     required super.editedAt,

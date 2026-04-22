@@ -10,6 +10,7 @@ class TextMessage extends Message {
     required this.text,
     required super.offset,
     required super.isDeleted,
+    super.isRevoked,
     required super.serverId,
     required super.createdAt,
     required super.editedAt,

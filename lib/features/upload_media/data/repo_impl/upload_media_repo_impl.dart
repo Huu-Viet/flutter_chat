@@ -19,10 +19,11 @@ class UploadMediaRepoImpl implements UploadMediaRepository {
 
   @override
   Future<Either<Failure, MediaInfo>> uploadMedia(
-    String filePath,
-    String fileType,
-    int size,
-    String checksum,
+      String filePath,
+      String fileType,
+      int size,
+      String checksum,
+      String? fileName,
   ) async {
     try {
       final mediaInfo = await _presignMediaByType(
@@ -57,7 +58,7 @@ class UploadMediaRepoImpl implements UploadMediaRepository {
   @override
   Future<Either<Failure, String>> getImageUrlByMediaId(String mediaId) async {
     try {
-      final imageUrl = await _presignMediaService.getImageUrlByMediaId(mediaId);
+      final imageUrl = await _presignMediaService.getUrlByMediaId(mediaId);
       if (imageUrl.trim().isEmpty) {
         return const Left(ServerFailure('Image URL is empty'));
       }
@@ -203,6 +204,7 @@ class UploadMediaRepoImpl implements UploadMediaRepository {
     required String filePath,
     required String fileType,
     required int size,
+    String? fileName,
   }) {
     switch (fileType) {
       case 'image':
@@ -214,7 +216,7 @@ class UploadMediaRepoImpl implements UploadMediaRepository {
       case 'audio':
         return _presignMediaService.presignAudio(filePath, size);
       case 'file':
-        return _presignMediaService.presignFile(filePath, size);
+        return _presignMediaService.presignFile(filePath, size, fileName);
       default:
         throw Exception('Unsupported file type: $fileType');
     }
