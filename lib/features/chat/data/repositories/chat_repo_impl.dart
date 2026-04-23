@@ -642,4 +642,19 @@ class ChatRepoImpl implements ChatRepository {
       return Left(ServerFailure(e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> sendTypingIndicator(String conversationId, bool isTyping) async {
+    try {
+      if (isTyping) {
+        await _chatService.startTyping(conversationId);
+      } else {
+        await _chatService.stopTyping(conversationId);
+      }
+      return const Right(null);
+    } catch (e) {
+      debugPrint('[ChatRepoImpl] sendTypingIndicator error: $e');
+      return Left(ServerFailure(e.toString()));
+    }
+  }
 }

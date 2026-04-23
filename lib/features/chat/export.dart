@@ -40,8 +40,8 @@ export '../chat/data/mappers/local_sticker_item_mapper.dart';
 //domain entities
 export '../chat/domain/entities/conversation.dart';
 export '../chat/domain/entities/conversation_participant.dart';
-export '../chat/domain/entities/messages/message.dart';
-export 'domain/entities/messages/message_reaction.dart';
+export 'domain/entities/messages/message/message.dart';
+export 'domain/entities/messages/message/message_reaction.dart';
 export '../chat/domain/entities/sticker_item.dart';
 export '../chat/domain/entities/sticker_package.dart';
 
@@ -63,3 +63,4 @@ export '../chat/domain/usecases/hidden_for_me_usecase.dart';
 export '../chat/domain/usecases/mark_message_deleted_local_usecase.dart';
 export '../chat/domain/usecases/mark_message_reactions_local_usecase.dart';
 export '../chat/domain/usecases/update_message_reaction_usecase.dart';
+export '../chat/domain/usecases/emit_typing_usecase.dart';

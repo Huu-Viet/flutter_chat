@@ -68,7 +68,9 @@ class DriftMessageDaoImpl implements MessageDao {
         final incomingContent = message.content.trim();
         final type = message.type.trim().toLowerCase();
 
-        if (existingContent.isNotEmpty && incomingContent.isEmpty && type != 'image') {
+        // For media messages (image, file, video, audio), always update metadata/medias even if content is empty
+        // Skip full update only for text messages where content didn't change
+        if (existingContent.isNotEmpty && incomingContent.isEmpty && type != 'image' && type != 'file' && type != 'video' && type != 'audio') {
           return;
         }
 

@@ -24,6 +24,9 @@ final class ChatLoaded extends ChatState {
   final Set<String> resolvingFileMediaIds;
   final Conversation? conversation;
   final String? currentUserId;
+  final bool isTyping;
+  final Set<String> typingUserIds;
+  final Map<String, String> typingUsernames;
 
   const ChatLoaded(
     this.messages, {
@@ -38,6 +41,9 @@ final class ChatLoaded extends ChatState {
     this.resolvingFileMediaIds = const <String>{},
     this.conversation,
     this.currentUserId,
+    this.isTyping = false,
+    this.typingUserIds = const <String>{},
+    this.typingUsernames = const <String, String>{},
   });
 
   @override
@@ -52,7 +58,51 @@ final class ChatLoaded extends ChatState {
     resolvingVideoMediaIds,
     if (conversation != null) conversation!,
     if (currentUserId != null) currentUserId!,
+    isTyping,
+    typingUserIds,
+    typingUsernames,
   ];
+
+  //copyWith method to update the isTyping status
+  ChatLoaded copyWith({
+    List<Message>? messages,
+    Set<String>? uploadingImagePaths,
+    Map<String, String>? imageUrlsByMediaId,
+    Map<String, String>? audioUrlsByMediaId,
+    Map<String, String>? videoUrlsByMediaId,
+    Map<String, String>? fileUrlsByMediaId,
+    Set<String>? resolvingImageMediaIds,
+    Set<String>? resolvingAudioMediaIds,
+    Set<String>? resolvingVideoMediaIds,
+    Set<String>? resolvingFileMediaIds,
+    Conversation? conversation,
+    String? currentUserId,
+    bool? isTyping,
+    Set<String>? typingUserIds,
+    Map<String, String>? typingUsernames,
+  }) {
+    return ChatLoaded(
+      messages ?? this.messages,
+      uploadingImagePaths: uploadingImagePaths ?? this.uploadingImagePaths,
+      imageUrlsByMediaId: imageUrlsByMediaId ?? this.imageUrlsByMediaId,
+      audioUrlsByMediaId: audioUrlsByMediaId ?? this.audioUrlsByMediaId,
+      videoUrlsByMediaId: videoUrlsByMediaId ?? this.videoUrlsByMediaId,
+      fileUrlsByMediaId: fileUrlsByMediaId ?? this.fileUrlsByMediaId,
+      resolvingImageMediaIds: resolvingImageMediaIds ??
+          this.resolvingImageMediaIds,
+      resolvingAudioMediaIds: resolvingAudioMediaIds ??
+          this.resolvingAudioMediaIds,
+      resolvingVideoMediaIds: resolvingVideoMediaIds ??
+          this.resolvingVideoMediaIds,
+      resolvingFileMediaIds: resolvingFileMediaIds ??
+          this.resolvingFileMediaIds,
+      conversation: conversation ?? this.conversation,
+      currentUserId: currentUserId ?? this.currentUserId,
+      isTyping: isTyping ?? this.isTyping,
+      typingUserIds: typingUserIds ?? this.typingUserIds,
+      typingUsernames: typingUsernames ?? this.typingUsernames,
+    );
+  }
 }
 
 final class ChatError extends ChatState {

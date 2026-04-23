@@ -20,6 +20,8 @@ import 'package:flutter_chat/core/network/realtime_gateway_service.dart';
 import 'package:flutter_chat/features/auth/auth_session_providers.dart';
 import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/chat/chat_providers.dart';
+import 'package:flutter_chat/presentation/chat/blocs/chat_bloc.dart';
+import 'package:flutter_chat/presentation/chat/chat_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -52,12 +54,29 @@ final realtimeGatewayServiceProvider = Provider<RealtimeGateway>((ref) {
 });
 
 final chatAppEventSubscriberProvider = Provider<AppEventSubscriber>((ref) {
+  final chatBloc = ref.read(chatBlocProvider);
   return ChatAppEventSubscriber(
     fetchConversationUseCase: ref.watch(fetchConversationUseCaseProvider),
     fetchMessagesUseCase: ref.watch(fetchMessagesUseCaseProvider),
     markMessageDeletedLocalUseCase: ref.watch(markMessageDeletedLocalUseCaseProvider),
     markMessageReactionsLocalUseCase: ref.watch(markMessageReactionsLocalUseCaseProvider),
     updateUserPresenceLocalUseCase: ref.watch(updateUserPresenceLocalUseCaseProvider),
+
+    onTyping: (event) {
+      final state = chatBloc.state;
+      debugPrint('[TYPING] incoming: ${event.conversationId}, ${event.userId}');
+      debugPrint('[TYPING] current: ${state is ChatLoaded ? state.conversation?.id : 'no state'}');
+
+      if (state is! ChatLoaded) return;
+
+      // different conversation → ignore
+      if (event.conversationId != state.conversation?.id) return;
+
+      // owner → ignore
+      if (event.userId == state.currentUserId) return;
+
+      chatBloc.add(event);
+    },
   );
 });
 

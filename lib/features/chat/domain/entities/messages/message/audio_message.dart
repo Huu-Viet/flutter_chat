@@ -1,14 +1,15 @@
 part of 'message.dart';
 
-class ImageMessage extends Message {
-  final List<ImageMedia> medias;
+class AudioMessage extends Message {
+  final AudioMedia media;
   final String? caption;
+  final Map<String, dynamic>? rawMetadata;
 
-  const ImageMessage({
+  const AudioMessage({
     required super.id,
     required super.conversationId,
     required super.senderId,
-    required this.medias,
+    required this.media,
     this.caption,
     required super.offset,
     required super.isDeleted,
@@ -17,14 +18,15 @@ class ImageMessage extends Message {
     required super.createdAt,
     required super.editedAt,
     super.reactions,
+    this.rawMetadata
   });
 
   @override
-  String get type => 'image';
+  String get type => 'audio';
 
   @override
   String get content => caption ?? '';
 
   @override
-  List<MessageMedia> get attachments => medias;
+  List<MessageMedia> get attachments => <MessageMedia>[media];
 }

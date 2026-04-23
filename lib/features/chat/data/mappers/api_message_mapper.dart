@@ -2,13 +2,12 @@ import 'package:flutter_chat/core/mappers/remote_mapper.dart';
 import 'package:flutter_chat/features/chat/data/dtos/message_attachment_dto.dart';
 import 'package:flutter_chat/features/chat/data/dtos/message_dto.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/audio_media.dart';
-import 'package:flutter_chat/features/chat/domain/entities/messages/message.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/file_media.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/generic_media.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/image_media.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/message_media.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/video_media.dart';
-import 'package:flutter_chat/features/chat/domain/entities/messages/message_reaction.dart';
+import 'package:flutter_chat/features/chat/export.dart';
 
 class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
   DateTime _parseDate(String? value) {
@@ -308,6 +307,7 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
 
   AudioMedia _toAudioMedia(List<MessageMedia> medias, String? mediaId, Map<String, dynamic>? metadata) {
     final waveform = _extractWaveform(metadata);
+    // final durationMs = _extractDurationMs(metadata);
     if (medias.isNotEmpty && medias.first is AudioMedia) {
       final existing = medias.first as AudioMedia;
       return AudioMedia(
@@ -322,12 +322,14 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
     final fallbackId = mediaId?.trim() ?? '';
     return AudioMedia(
       id: fallbackId,
+      // durationMs: durationMs,
       waveform: waveform,
     );
   }
 
   VideoMedia _toVideoMedia(List<MessageMedia> medias, String? mediaId, Map<String, dynamic>? metadata) {
     final waveform = _extractWaveform(metadata);
+    final durationMs = _extractDurationMs(metadata);
     final metadataThumbMediaId = metadata?['thumbMediaId']?.toString();
     if (medias.isNotEmpty && medias.first is VideoMedia) {
       final existing = medias.first as VideoMedia;
@@ -353,17 +355,18 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
     }
     final first = medias.isNotEmpty ? medias.first : null;
     final fallbackId = (first?.mediaId ?? mediaId ?? '').trim();
+    // final effectiveDurationMs = first is VideoMedia
+    //     ? first.durationMs
+    //     : first is GenericMedia
+    //         ? (first.durationMs ?? durationMs ?? 0)
+    //         : (durationMs ?? 0);
     return VideoMedia(
       id: fallbackId,
       url: first?.url,
       mimeType: first?.mimeType,
       size: first?.size,
       fileName: first?.fileName,
-      durationMs: first is VideoMedia
-          ? first.durationMs
-          : first is GenericMedia
-              ? (first.durationMs ?? 0)
-              : 0,
+      // durationMs: effectiveDurationMs,
       bitrate: first is VideoMedia
           ? first.bitrate
           : first is GenericMedia
@@ -565,6 +568,40 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
     if (media is ImageMedia) return media.height;
     if (media is VideoMedia) return media.height;
     if (media is GenericMedia) return media.height;
+    return null;
+  }
+
+  int? _extractDurationMs(Map<String, dynamic>? metadata) {
+    if (metadata == null) {
+      return null;
+    }
+
+    final durationRaw = metadata['durationMs'] ?? metadata['duration'] ?? metadata['duration_ms'];
+    if (durationRaw is int) {
+      return durationRaw;
+    }
+    if (durationRaw is String) {
+      return int.tryParse(durationRaw);
+    }
+    if (durationRaw is num) {
+      return durationRaw.toInt();
+    }
+
+    // Try nested under media payload
+    final mediaNode = metadata['media'];
+    if (mediaNode is Map<String, dynamic>) {
+      final nested = mediaNode['durationMs'] ?? mediaNode['duration'];
+      if (nested is int) {
+        return nested;
+      }
+      if (nested is String) {
+        return int.tryParse(nested);
+      }
+      if (nested is num) {
+        return nested.toInt();
+      }
+    }
+
     return null;
   }
 

@@ -40,6 +40,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final GetMediaPlayInfoUseCase getMediaPlayInfoUseCase;
   final GetMediaUrlByMediaIdUseCase getMediaUrlByMediaIdUseCase;
   final WatchConversationsLocalUseCase watchConversationsLocalUseCase;
+  final EmitTypingUseCase emitTypingUseCase;
   final AudioCacheDao audioCacheDao;
 
   String? _currentUserId;
@@ -76,6 +77,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     required this.getMediaPlayInfoUseCase,
     required this.getMediaUrlByMediaIdUseCase,
     required this.watchConversationsLocalUseCase,
+    required this.emitTypingUseCase,
     required this.audioCacheDao,
   }) : super(ChatInitial()) {
     on<ChatInitialLoadEvent>(_onChatInitialLoad);
@@ -93,6 +95,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<FetchImageEvent>(_onFetchImageByMediaId);
     on<FetchAudioEvent>(_onFetchAudioByMediaId);
     on<FetchVideoEvent>(_onFetchVideoByMediaId);
+    on<EmitTypingEvent>(_onEmitTyping);
+    on<TypingChangedEvent>(_onTypingStatusChanged);
 
     on<_LocalMessagesChangedEvent>((event, emit) {
       _currentMessages = event.messages;
@@ -1051,5 +1055,41 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     _localSubscription?.cancel();
     _conversationSubscription?.cancel();
     await super.close();
+  }
+
+  FutureOr<void> _onEmitTyping(EmitTypingEvent event, Emitter<ChatState> emit) {
+    emitTypingUseCase(
+      event.conversationId,
+      event.isTyping
+    );
+  }
+
+  FutureOr<void> _onTypingStatusChanged(TypingChangedEvent event, Emitter<ChatState> emit) {
+    final state = this.state;
+
+    if (state is! ChatLoaded) return null;
+
+    if (event.conversationId != state.conversation?.id) return null;
+
+    if (event.userId == state.currentUserId) return null;
+
+    final typingUsers = Set<String>.from(state.typingUserIds);
+    final typingNames = Map<String, String>.from(state.typingUsernames);
+
+    if (event.isTyping) {
+      typingUsers.add(event.userId);
+
+      if (event.username != null) {
+        typingNames[event.userId] = event.username!;
+      }
+    } else {
+      typingUsers.remove(event.userId);
+      typingNames.remove(event.userId);
+    }
+
+    emit(state.copyWith(
+      typingUserIds: typingUsers,
+      typingUsernames: typingNames,
+    ));
   }
 }

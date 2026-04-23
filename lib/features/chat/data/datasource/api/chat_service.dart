@@ -77,4 +77,8 @@ abstract class ChatService {
   Future<StickerPackageResponse> getStickerPackages();
 
   Future<StickerItemResponse> getStickersInPackage(String packageId, {int limit = 50, int offset = 0});
+
+  Future<void> startTyping(String conversationId);
+
+  Future<void> stopTyping(String conversationId);
 }

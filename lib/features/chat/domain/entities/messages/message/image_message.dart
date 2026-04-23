@@ -1,10 +1,11 @@
 part of 'message.dart';
 
-class FileMessage extends Message {
-  final List<FileMedia> medias;
+class ImageMessage extends Message {
+  final List<ImageMedia> medias;
   final String? caption;
+  final Map<String, dynamic>? rawMetadata;
 
-  const FileMessage({
+  const ImageMessage({
     required super.id,
     required super.conversationId,
     required super.senderId,
@@ -17,18 +18,15 @@ class FileMessage extends Message {
     required super.createdAt,
     required super.editedAt,
     super.reactions,
+    this.rawMetadata
   });
 
   @override
-  String get type => 'file';
+  String get type => 'image';
 
   @override
   String get content => caption ?? '';
 
   @override
   List<MessageMedia> get attachments => medias;
-
-  String get fileName => medias.isNotEmpty ? medias.first.fileName ?? '' : '';
-
-  int get fileSize => medias.isNotEmpty ? medias.first.size ?? 0 : 0;
 }

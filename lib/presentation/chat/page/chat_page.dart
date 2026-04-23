@@ -253,6 +253,20 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   },
                 ),
               ),
+              // is typing badge
+              if (state is ChatLoaded && state.typingUserIds.isNotEmpty) ...[
+                Container(
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    l10n.typing_indicator,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontStyle: FontStyle.italic,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ),
+              ],
               MessageInput(
                 controller: _messageController,
                 onSendMessage: _sendMessage,
@@ -263,6 +277,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   _messageController.text += emoji;
                 },
                 onStickerSelected: _sendSticker,
+                onTypingStatusChanged: (isTyping) {
+                  chatBloc.add(EmitTypingEvent(widget.conversationId, isTyping));
+                },
                 onSendRecord: _sendAudio,
               ),
             ],

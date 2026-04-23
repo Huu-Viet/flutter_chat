@@ -174,3 +174,7 @@ final markMessageReactionsLocalUseCaseProvider = Provider<MarkMessageReactionsLo
 final getConversationUseCaseProvider = Provider<GetConversationUseCase>((ref) {
   return GetConversationUseCase(ref.read(chatRepoProvider));
 });
+
+final emitTypingUseCaseProvider = Provider<EmitTypingUseCase>((ref) {
+  return EmitTypingUseCase(ref.read(chatRepoProvider));
+});

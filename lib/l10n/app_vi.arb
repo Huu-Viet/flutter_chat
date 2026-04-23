@@ -50,6 +50,7 @@
   "settings": "Cài đặt",
   "call": "Gọi",
   "search": "Tìm kiếm",
+  "typing_indicator": "Đang nhập...",
   "pending_requests": "Yêu cầu đang chờ",
   "add_friend": "Thêm bạn",
   "add_friend_hint": "Nhập tên người dùng",

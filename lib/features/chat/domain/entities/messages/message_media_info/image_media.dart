@@ -3,6 +3,7 @@ import 'package:flutter_chat/features/chat/domain/entities/messages/message_medi
 class ImageMedia extends MessageMedia {
   final int? width;
   final int? height;
+  final bool? variantsReady;
 
   const ImageMedia({
     required super.id,
@@ -12,6 +13,7 @@ class ImageMedia extends MessageMedia {
     super.size,
     this.width,
     this.height,
+    this.variantsReady,
   });
 
   @override

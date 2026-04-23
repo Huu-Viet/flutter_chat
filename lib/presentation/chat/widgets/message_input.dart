@@ -19,6 +19,7 @@ class MessageInput extends StatefulWidget {
   final VoidCallback onPickFile;
   final Function(String) onEmojiSelected;
   final Function(StickerItem)? onStickerSelected;
+  final Function(bool) onTypingStatusChanged;
   final void Function(
     String filePath,
     int durationSeconds,
@@ -35,6 +36,7 @@ class MessageInput extends StatefulWidget {
     required this.onPickFile,
     required this.onEmojiSelected,
     this.onStickerSelected,
+    required this.onTypingStatusChanged,
     this.onSendRecord,
   });
 
@@ -46,6 +48,8 @@ class _MessageInputState extends State<MessageInput> {
   bool _hasText = false;
   bool _showRecordingPanel = false;
   bool _isRecording = false;
+  bool _isTyping = false;
+  Timer? _typingTimer;
 
   final AudioRecorder _audioRecorder = AudioRecorder();
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -98,11 +102,24 @@ class _MessageInputState extends State<MessageInput> {
 
   void _onTextChanged() {
     final hasText = widget.controller.text.isNotEmpty;
+    //setup ui when text changes
     if (_hasText != hasText) {
       setState(() {
         _hasText = hasText;
       });
     }
+
+    //setup typing status
+    if(hasText && !_isTyping) {
+      widget.onTypingStatusChanged(true);
+    }
+
+    _typingTimer?.cancel();
+    _typingTimer = Timer(const Duration(seconds: 4), () {
+      if (_isTyping) {
+        widget.onTypingStatusChanged(false);
+      }
+    });
   }
 
   void _showEmojiPicker(BuildContext context) {

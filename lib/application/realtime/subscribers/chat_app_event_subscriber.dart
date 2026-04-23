@@ -3,6 +3,7 @@ import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/application/realtime/events/app_event.dart';
 import 'package:flutter_chat/application/realtime/subscribers/app_event_subscriber.dart';
+import 'package:flutter_chat/presentation/chat/blocs/chat_bloc.dart';
 
 class ChatAppEventSubscriber extends AppEventSubscriber {
   final FetchConversationUseCase _fetchConversationUseCase;
@@ -10,13 +11,15 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
   final MarkMessageDeletedLocalUseCase _markMessageDeletedLocalUseCase;
   final MarkMessageReactionsLocalUseCase _markMessageReactionsLocalUseCase;
   final UpdateUserPresenceLocalUseCase _updateUserPresenceLocalUseCase;
+  final void Function(TypingChangedEvent event)? onTyping;
 
-  const ChatAppEventSubscriber({
+  ChatAppEventSubscriber({
     required FetchConversationUseCase fetchConversationUseCase,
     required this.fetchMessagesUseCase,
     required MarkMessageDeletedLocalUseCase markMessageDeletedLocalUseCase,
     required MarkMessageReactionsLocalUseCase markMessageReactionsLocalUseCase,
     required UpdateUserPresenceLocalUseCase updateUserPresenceLocalUseCase,
+    this.onTyping,
   })
       : _fetchConversationUseCase = fetchConversationUseCase,
         _markMessageDeletedLocalUseCase = markMessageDeletedLocalUseCase,
@@ -59,6 +62,29 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
         return;
       case 'user:offline':
         await _syncUserPresence(event.type, event.payload, isActive: false);
+        return;
+      case 'typing:started':
+        final payload = event.payload;
+
+        onTyping?.call(
+          TypingChangedEvent(
+            conversationId: payload['conversationId'],
+            userId: payload['userId'],
+            username: payload['username'],
+            isTyping: true,
+          ),
+        );
+        return;
+      case 'typing:stopped':
+        final payload = event.payload;
+
+        onTyping?.call(
+          TypingChangedEvent(
+            conversationId: payload['conversationId'],
+            userId: payload['userId'],
+            isTyping: false,
+          ),
+        );
         return;
       default:
         return;

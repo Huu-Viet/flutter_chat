@@ -217,6 +217,33 @@ final class ForwardMessageEvent extends ChatEvent {
   List<Object> get props => [messageId, srcConversationId, targetConversationIds];
 }
 
+final class EmitTypingEvent extends ChatEvent {
+  final String conversationId;
+  final bool isTyping;
+
+  const EmitTypingEvent(this.conversationId, this.isTyping);
+
+  @override
+  List<Object> get props => [conversationId, isTyping];
+}
+
+final class TypingChangedEvent extends ChatEvent {
+  final String conversationId;
+  final String userId;
+  final String? username;
+  final bool isTyping;
+
+  const TypingChangedEvent({
+    required this.conversationId,
+    required this.userId,
+    this.username,
+    required this.isTyping,
+  });
+
+  @override
+  List<Object?> get props => [conversationId, userId, username, isTyping];
+}
+
 final class _LocalMessagesErrorEvent extends ChatEvent {
   final String message;
 

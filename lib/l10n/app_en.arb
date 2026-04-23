@@ -50,6 +50,7 @@
   "settings": "Settings",
   "call": "Call",
   "search": "Search",
+  "typing_indicator": "Typing...",
   "pending_requests": "Pending Requests",
   "add_friend": "Add Friend",
   "add_friend_hint": "Enter username",

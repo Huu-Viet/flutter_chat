@@ -2,17 +2,17 @@ import 'package:flutter_chat/features/chat/domain/entities/messages/message_medi
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/file_media.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/image_media.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/video_media.dart';
-import 'package:flutter_chat/features/chat/domain/entities/messages/message_reaction.dart';
-import 'message_media_info/message_media.dart';
+import 'package:flutter_chat/features/chat/domain/entities/messages/message/message_reaction.dart';
+import '../message_media_info/message_media.dart';
 
-part '../messages/text_message.dart';
-part '../messages/sticker_message.dart';
-part '../messages/audio_message.dart';
-part '../messages/video_message.dart';
-part '../messages/image_message.dart';
-part '../messages/file_message.dart';
-part '../messages/multi_media_message.dart';
-part '../messages/unknow_message.dart';
+part 'text_message.dart';
+part 'sticker_message.dart';
+part 'audio_message.dart';
+part 'video_message.dart';
+part 'image_message.dart';
+part 'file_message.dart';
+part 'multi_media_message.dart';
+part 'unknow_message.dart';
 
 sealed class Message {
   final String id;

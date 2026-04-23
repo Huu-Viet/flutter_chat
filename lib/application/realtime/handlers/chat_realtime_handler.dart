@@ -50,6 +50,11 @@ class ChatRealtimeHandler extends RealtimeHandler {
       debugPrint('[ChatRealtimeHandler] session_revoked forwarded to AppEventBus: ${event.payload}');
     }
 
+    // Debug typing events
+    if (event.event == 'typing:started' || event.event == 'typing:stopped') {
+      debugPrint('[ChatRealtimeHandler] 💬 TYPING EVENT received: ${event.event}');
+    }
+
     final payload = _toMap(event.payload);
     await _bus.publish(
       AppEvent(

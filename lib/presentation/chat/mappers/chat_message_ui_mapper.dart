@@ -273,7 +273,10 @@ class ChatMessageUIMapper {
     if (domainMessage is FileMessage) {
       final mediaId = domainMessage.mediaId?.trim();
       final media = domainMessage.medias.isNotEmpty ? domainMessage.medias.first : null;
-      final fileName = domainMessage.fileName;
+      // Extract fileName from media first, fallback to caption (which stores fileName)
+      final fileName = media?.fileName?.trim().isEmpty == false
+          ? media?.fileName?.trim()
+          : (domainMessage.caption?.trim().isEmpty == false ? domainMessage.caption : null);
 
       return FileChatMessage(
         fileName: fileName,

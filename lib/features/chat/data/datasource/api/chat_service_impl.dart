@@ -86,7 +86,6 @@ class ChatServiceImpl implements ChatService {
         throw Exception('Invalid response body format');
       }
 
-      debugPrint('[ChatServiceImpl] Fetch messages response: $responseBody');
       debugPrint('[ChatServiceImpl] Messages data: ${responseBody['data']}');
       
       return MessageListResponse.fromJson(responseBody);
@@ -501,6 +500,32 @@ class ChatServiceImpl implements ChatService {
     } catch (e) {
       debugPrint('[ChatServiceImpl] getStickersInPackage error: $e');
       throw Exception('Failed to fetch stickers: $e');
+    }
+  }
+
+  @override
+  Future<void> startTyping(String conversationId) async {
+    try {
+      _realtimeGateway.emitChatEvent(
+        'typing:start',
+        {'conversationId': conversationId},
+      );
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] Start typing error: $e');
+      throw Exception('Failed to start typing: $e');
+    }
+  }
+
+  @override
+  Future<void> stopTyping(String conversationId) async {
+    try {
+      _realtimeGateway.emitChatEvent(
+        'typing:stop',
+        {'conversationId': conversationId},
+      );
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] Stop typing error: $e');
+      throw Exception('Failed to stop typing: $e');
     }
   }
 }
