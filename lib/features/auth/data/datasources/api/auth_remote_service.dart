@@ -6,7 +6,10 @@ abstract class AuthRemoteService {
   Future<String> verifyRegisterOtp(String email, String otp);
   Future<void> registerComplete(String registerToken, String pass, String platform, String? deviceName);
   Future<AuthTokenResponse> signInWithEmail(String email, String password);
-  Future<AuthTokenResponse> refreshToken(String refreshToken);
+  Future<AuthTokenResponse> refreshToken(
+    String refreshToken, {
+    bool skipAuthRefresh = false,
+  });
   Future<void> sendDeviceToken(String userId);
   Future<void> forgotPassword(String email);
   Future<String> verifyOtp(String email, String otp);

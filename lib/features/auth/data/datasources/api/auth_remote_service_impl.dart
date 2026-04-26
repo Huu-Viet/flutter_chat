@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_chat/features/auth/data/datasources/api/auth_request_flags.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 
 class AuthRemoteServiceImpl implements AuthRemoteService {
@@ -148,7 +149,10 @@ class AuthRemoteServiceImpl implements AuthRemoteService {
   }
 
   @override
-  Future<AuthTokenResponse> refreshToken(String refreshToken) async {
+  Future<AuthTokenResponse> refreshToken(
+    String refreshToken, {
+    bool skipAuthRefresh = false,
+  }) async {
     final url = '$_baseAuthUrl/realms/$_realm/protocol/openid-connect/token';
 
     try {
@@ -157,6 +161,9 @@ class AuthRemoteServiceImpl implements AuthRemoteService {
         options: Options(
           contentType: Headers.formUrlEncodedContentType,
           headers: {'X-Client-Platform': 'mobile'},
+          extra: {
+            AuthRequestFlags.skipAuthRefresh: skipAuthRefresh,
+          },
         ),
         data: {
           'client_id': _clientId,
