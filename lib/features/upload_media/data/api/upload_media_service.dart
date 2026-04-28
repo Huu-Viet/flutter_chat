@@ -1,4 +1,8 @@
 import 'package:flutter_chat/features/upload_media/data/dtos/media_info.dart';
+import 'package:flutter_chat/features/upload_media/data/dtos/multipart_init_info_dto.dart';
+import 'package:flutter_chat/features/upload_media/data/dtos/presigned_part_dto.dart';
+import 'package:flutter_chat/features/upload_media/data/dtos/upload_part_result_dto.dart';
+import 'package:flutter_chat/features/upload_media/domain/entities/multipart_init_info.dart';
 
 abstract class PresignMediaService {
   Future<List<Map<String, dynamic>>> getMyMediaList();
@@ -21,22 +25,28 @@ abstract class PresignMediaService {
     required String targetConversationId,
   });
 
-  Future<Map<String, dynamic>> initMultipartUpload({
+  Future<MultipartInitInfoDto> initMultipartUpload({
     required String filename,
     required String mimeType,
     required String type,
     required int totalSize,
   });
 
-  Future<List<Map<String, dynamic>>> presignMultipartParts({
+  Future<List<PresignedPartDto>> presignMultipartParts({
     required String mediaId,
     required List<int> partNumbers,
     int? expiresIn,
   });
 
-  Future<Map<String, dynamic>> completeMultipartUpload({
+  Future<String> uploadPartToPresignedUrl({
+    required String uploadUrl,
+    required List<int> chunkBytes,
+    void Function(int sent, int total)? onSendProgress,
+  });
+
+  Future<String> completeMultipartUpload({
     required String mediaId,
-    required List<Map<String, dynamic>> parts,
+    required List<UploadPartResultDto> parts,
   });
 
   Future<void> abortMultipartUpload(String mediaId);

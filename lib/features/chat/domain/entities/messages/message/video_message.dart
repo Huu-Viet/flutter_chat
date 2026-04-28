@@ -5,11 +5,11 @@ class VideoMessage extends Message {
   final String? caption;
 
   const VideoMessage({
+    this.caption,
+    required this.media,
     required super.id,
     required super.conversationId,
     required super.senderId,
-    required this.media,
-    this.caption,
     required super.offset,
     required super.isDeleted,
     super.isRevoked,
@@ -17,6 +17,7 @@ class VideoMessage extends Message {
     required super.createdAt,
     required super.editedAt,
     super.reactions,
+    super.forwardInfo,
   });
 
   @override

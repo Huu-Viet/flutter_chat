@@ -15,6 +15,7 @@ class ChatMessages extends Table {
   TextColumn get serverId => text().named('client_message_id').nullable()();
   TextColumn get createdAt => text().named('created_at')();
   TextColumn get editedAt => text().named('edited_at').nullable()();
+  TextColumn get forwardInfoJson => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

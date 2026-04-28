@@ -5,6 +5,8 @@ import 'package:bloc/bloc.dart';
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:equatable/equatable.dart';
+import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
+import 'package:ffmpeg_kit_flutter_new/ffprobe_kit.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
 import 'package:flutter_chat/core/utils/waveform_utils.dart';
@@ -12,14 +14,18 @@ import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/audio_media.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/file_media.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/image_media.dart';
+import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/video_media.dart';
 import 'package:flutter_chat/features/chat/domain/usecases/get_conversation_usecase.dart';
 import 'package:flutter_chat/features/chat/export.dart';
+import 'package:flutter_chat/features/upload_media/domain/usecases/upload_multipart_usecase.dart';
 import 'package:flutter_chat/features/upload_media/export.dart';
 import 'package:flutter_chat/presentation/chat/chat_image_cache_manager.dart';
+import 'package:mime/mime.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
+import 'package:video_player/video_player.dart';
 
 part 'chat_event.dart';
 part 'chat_state.dart';
@@ -40,7 +46,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final GetMediaPlayInfoUseCase getMediaPlayInfoUseCase;
   final GetMediaUrlByMediaIdUseCase getMediaUrlByMediaIdUseCase;
   final WatchConversationsLocalUseCase watchConversationsLocalUseCase;
+  final WatchPinMessageUseCase watchPinMessageUseCase;
+  final FetchPinMessageUseCase fetchPinMessageUseCase;
   final EmitTypingUseCase emitTypingUseCase;
+  final UploadMultipartUseCase uploadMultipartUseCase;
   final AudioCacheDao audioCacheDao;
 
   String? _currentUserId;
@@ -49,10 +58,13 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   StreamSubscription<Either<Failure, List<Message>>>? _localSubscription;
   StreamSubscription<Either<Failure, List<Conversation>>>? _conversationSubscription;
+  StreamSubscription<Either<Failure, List<PinMessage>>>? _pinSubscription;
 
   List<Message> _currentMessages = const [];
+  List<PinMessage> _currentPinnedMessages = [];
   final Set<String> _uploadingImagePaths = <String>{};
   final Set<String> _uploadingFilePaths = <String>{};
+  final Set<String> _uploadingVideoPaths = <String>{};
   final Map<String, String> _imageUrlsByMediaId = <String, String>{};
   final Map<String, String> _audioUrlsByMediaId = <String, String>{};
   final Map<String, String> _videoUrlsByMediaId = <String, String>{};
@@ -60,6 +72,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final Set<String> _resolvingImageMediaIds = <String>{};
   final Set<String> _resolvingAudioMediaIds = <String>{};
   final Set<String> _resolvingVideoMediaIds = <String>{};
+
+
 
   ChatBloc({
     required this.fetchMessagesUseCase,
@@ -77,6 +91,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     required this.getMediaPlayInfoUseCase,
     required this.getMediaUrlByMediaIdUseCase,
     required this.watchConversationsLocalUseCase,
+    required this.watchPinMessageUseCase,
+    required this.fetchPinMessageUseCase,
+    required this.uploadMultipartUseCase,
     required this.emitTypingUseCase,
     required this.audioCacheDao,
   }) : super(ChatInitial()) {
@@ -97,8 +114,19 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<FetchVideoEvent>(_onFetchVideoByMediaId);
     on<EmitTypingEvent>(_onEmitTyping);
     on<TypingChangedEvent>(_onTypingStatusChanged);
+    on<LoadMoreMessagesEvent>(_loadMoreMessages);
+    on<SendVideoEvent>(_onSendVideo);
+    on<_LocalPinnedMessagesChangedEvent>((event, emit) async {
+      _currentPinnedMessages = event.pinnedMessages;
 
-    on<_LocalMessagesChangedEvent>((event, emit) {
+      final currentState = state;
+      debugPrint('[ChatBloc] Pinned messages updated: ${event.pinnedMessages.length} pinned messages');
+      if (currentState is ChatLoaded) {
+        emit(currentState.copyWith(pinnedMessages: event.pinnedMessages));
+      }
+    });
+
+    on<_LocalMessagesChangedEvent>((event, emit) async {
       _currentMessages = event.messages;
       _requestMissingMediaUrls(event.messages);
       emit(_buildChatLoaded(_currentMessages));
@@ -114,6 +142,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     return ChatLoaded(
       messages,
       uploadingImagePaths: Set<String>.from(_uploadingImagePaths),
+      uploadingVideoPaths: Set<String>.from(_uploadingVideoPaths),
       imageUrlsByMediaId: Map<String, String>.from(_imageUrlsByMediaId),
       audioUrlsByMediaId: Map<String, String>.from(_audioUrlsByMediaId),
       videoUrlsByMediaId: Map<String, String>.from(_videoUrlsByMediaId),
@@ -122,6 +151,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       resolvingVideoMediaIds: Set<String>.from(_resolvingVideoMediaIds),
       conversation: _currentConversation,
       currentUserId: _currentUserId,
+      pinnedMessages: _currentPinnedMessages,
     );
   }
 
@@ -344,18 +374,14 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
     _startMessagesLocalWatcher(event.conversationId);
     _startConversationLocalWatcher(event.conversationId);
+    _startPinMessageWatcher(event.conversationId);
 
-    emit(ChatLoading());
+    if (_currentMessages.isEmpty) {
+      emit(ChatLoading());
+    }
 
-    final result = await fetchMessagesUseCase(event.conversationId);
-    result.fold(
-      (failure) => emit(ChatError(failure.message)),
-      (messages) {
-        _currentMessages = messages;
-        _requestMissingMediaUrls(messages);
-        emit(_buildChatLoaded(messages));
-      },
-    );
+    unawaited(fetchMessagesUseCase(event.conversationId));
+    unawaited(fetchPinMessageUseCase(event.conversationId));
   }
 
   FutureOr<void> _onSendText(SendTextEvent event, Emitter<ChatState> emit) async {
@@ -395,6 +421,42 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
                   'size=${msg.fileSize}',
             );
           }
+        },
+      );
+    });
+  }
+
+  void _startConversationLocalWatcher(String conversationId) {
+    _conversationSubscription?.cancel();
+    _conversationSubscription = watchConversationsLocalUseCase().listen((result) {
+      if (isClosed) {
+        return;
+      }
+
+      result.fold(
+            (failure) => null,
+            (conversations) {
+          final matchingConversations = conversations.where((c) => c.id == conversationId);
+          if (matchingConversations.isNotEmpty) {
+            add(_LocalConversationChangedEvent(matchingConversations.first));
+          }
+        },
+      );
+    });
+  }
+
+  void _startPinMessageWatcher(String conversationId) {
+    _pinSubscription?.cancel();
+    _pinSubscription = watchPinMessageUseCase(conversationId).listen((result) {
+      if (isClosed) {
+        return;
+      }
+
+      result.fold(
+        (failure) => null,
+        (pinMessages) {
+          if (conversationId != _currentConversationId) return;
+          add(_LocalPinnedMessagesChangedEvent(pinMessages));
         },
       );
     });
@@ -1031,25 +1093,6 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     return '';
   }
 
-  void _startConversationLocalWatcher(String conversationId) {
-    _conversationSubscription?.cancel();
-    _conversationSubscription = watchConversationsLocalUseCase().listen((result) {
-      if (isClosed) {
-        return;
-      }
-
-      result.fold(
-        (failure) => null,
-        (conversations) {
-          final matchingConversations = conversations.where((c) => c.id == conversationId);
-          if (matchingConversations.isNotEmpty) {
-            add(_LocalConversationChangedEvent(matchingConversations.first));
-          }
-        },
-      );
-    });
-  }
-
   @override
   Future<void> close() async {
     _localSubscription?.cancel();
@@ -1091,5 +1134,184 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       typingUserIds: typingUsers,
       typingUsernames: typingNames,
     ));
+  }
+
+  FutureOr<void> _loadMoreMessages(LoadMoreMessagesEvent event, Emitter<ChatState> emit) async {
+    final current = state;
+    if (current is !ChatLoaded) return null;
+    if (_currentConversationId == null || _currentConversationId!.trim().isEmpty) return null;
+
+    final validMessages = current.messages.where((m) => m.offset != null).toList();
+    if (validMessages.isEmpty) return null;
+
+    final oldestOffset = validMessages
+        .map((m) => m.offset!)
+        .reduce((a, b) => a < b ? a : b);
+    emit(current.copyWith(isLoadingMore: true));
+
+    final result = await fetchMessagesUseCase(
+      _currentConversationId!,
+      before: oldestOffset,
+      limit: 30,
+    );
+    result.fold(
+          (failure) { emit(current.copyWith(isLoadingMore: false)); },
+          (newMessages) {
+        // merge + dedupe
+        final merged = [...newMessages, ...current.messages];
+
+        final map = <String, Message>{};
+        for (final m in merged) {
+          final key = m.serverId ?? m.id;
+          map[key] = m;
+        }
+
+        final sorted = map.values.toList()
+          ..sort((a, b) => (a.offset ?? 0).compareTo(b.offset ?? 0));
+
+        emit(current.copyWith(
+          messages: sorted,
+          isLoadingMore: false,
+          hasMoreOld: newMessages.length == 30,
+        ));
+      },
+    );
+  }
+
+  Future<void> _onSendVideo(SendVideoEvent event, Emitter<ChatState> emit) async {
+    _uploadingVideoPaths.add(event.file.path);
+    emit(_buildChatLoaded(_currentMessages));
+
+    final thumbnail = await _generateVideoThumbnail(event.file);
+    String? thumbId;
+    if (thumbnail != null) {
+      final thumbResult = await uploadMediaUseCase(
+        thumbnail.path,
+        'image',
+        thumbnail.lengthSync(),
+        null,
+      );
+
+      thumbId = thumbResult.fold(
+            (failure) {
+          debugPrint('[ChatBloc] Failed to upload video thumbnail: ${failure.message}');
+          return null;
+        },
+            (mediaInfo) {
+          if (mediaInfo.mediaId == null || mediaInfo.mediaId!.isEmpty) {
+            debugPrint('[ChatBloc] Failed to upload video thumbnail: missing mediaId');
+            return null;
+          }
+          return mediaInfo.mediaId;
+        },
+      );
+    }
+
+    final result = await uploadMultipartUseCase(
+        event.file,
+        (progress) {
+          debugPrint('[ChatBloc] Video upload progress: $progress% for path=${event.file.path}');
+          //TODO: emit progress state if needed
+        }
+    );
+
+    final mediaId = result.fold(
+          (failure) {
+            add(_LocalMessagesErrorEvent(failure.message));
+            return null;
+          },
+          (mediaId) {
+            if (mediaId.isEmpty) {
+              add(_LocalMessagesErrorEvent('Upload video failed: missing mediaId'));
+              return null;
+            }
+            return mediaId;
+          },
+    );
+
+    if (mediaId == null) {
+      _uploadingVideoPaths.remove(event.file.path);
+      emit(_buildChatLoaded(_currentMessages));
+      return;
+    }
+
+    final messageId = Uuid().v4();
+    final localOffset = _nextLocalOffset();
+    final videoMedia = VideoMedia(
+      id: mediaId,
+      fileName: event.file.path.split(Platform.pathSeparator).last,
+      size: event.file.lengthSync(),
+      mimeType: lookupMimeType(event.file.path) ?? 'video/mp4',
+      durationMs: await _getVideoDuration(event.file),
+      bitrate: await _getBitrate(event.file.path),
+      thumbMediaId: thumbId,
+    );
+    final message = VideoMessage(
+      id: messageId,
+      conversationId: event.conversationId,
+      senderId: _currentUserId ?? '',
+      offset: localOffset,
+      isDeleted: false,
+      serverId: messageId,
+      createdAt: DateTime.now().toUtc(),
+      editedAt: null,
+      media: videoMedia,
+    );
+
+    final sendResult = await sendMessageUseCase(message: message);
+    sendResult.fold(
+          (failure) => add(_LocalMessagesErrorEvent(failure.message)),
+          (_) {},
+    );
+
+    _uploadingVideoPaths.remove(event.file.path);
+    emit(_buildChatLoaded(_currentMessages));
+  }
+
+  Future<int> _getBitrate(String path) async {
+    final session = await FFprobeKit.getMediaInformation(path);
+    final info = session.getMediaInformation();
+
+    if (info == null) return 0;
+
+    final props = info.getAllProperties();
+
+    final bitrateStr = props?['bit_rate'];
+
+    return int.tryParse(bitrateStr ?? '') ?? 0;
+  }
+
+  Future<int> _getVideoDuration(File file) async {
+    final controller = VideoPlayerController.file(file);
+
+    await controller.initialize(); // load metadata
+
+    await controller.dispose();
+
+    return controller.value.duration.inMilliseconds;
+  }
+
+  Future<File?> _generateVideoThumbnail(File videoFile) async {
+    try {
+      final outputPath = p.join(
+        videoFile.parent.path,
+        '${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
+
+      final command = '-i "${videoFile.path}" -ss 00:00:01 -vframes 1 "$outputPath"';
+
+      await FFmpegKit.execute(command);
+
+      final file = File(outputPath);
+
+      if (await file.exists()) {
+        return file;
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('Error generating thumbnail: $e');
+      return null;
+    }
   }
 }

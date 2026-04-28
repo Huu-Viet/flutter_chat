@@ -3,6 +3,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat/core/database/app_database.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
 import 'package:flutter_chat/features/auth/data/datasources/local/user_dao.dart';
+import 'package:flutter_chat/features/chat/data/mappers/api_pin_message_mapper.dart';
+import 'package:flutter_chat/features/chat/data/mappers/local_pin_message_mapper.dart';
+import 'package:flutter_chat/features/chat/domain/entities/messages/message/pin_message.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:uuid/uuid.dart';
 
@@ -16,6 +19,8 @@ class ChatRepoImpl implements ChatRepository {
   final StickerItemDao _stickerItemDao;
   final ApiConversationMapper _apiConversationMapper;
   final ApiMessageMapper _apiMessageMapper;
+  final ApiPinMessageMapper _apiPinMessageMapper;
+  final LocalPinMessageMapper _localPinMessageMapper;
   final LocalConversationMapper _localConversationMapper;
   final LocalMessageMapper _localMessageMapper;
   final ApiMessageReactionMapper _apiMessageReactionMapper;
@@ -35,6 +40,8 @@ class ChatRepoImpl implements ChatRepository {
     required StickerItemDao stickerItemDao,
     required ApiConversationMapper apiConversationMapper,
     required ApiMessageMapper apiMessageMapper,
+    required ApiPinMessageMapper apiPinMessageMapper,
+    required LocalPinMessageMapper localPinMessageMapper,
     required LocalConversationMapper localConversationMapper,
     required LocalMessageMapper localMessageMapper,
     required ApiMessageReactionMapper apiMessageReactionMapper,
@@ -52,6 +59,8 @@ class ChatRepoImpl implements ChatRepository {
         _stickerItemDao = stickerItemDao,
         _apiConversationMapper = apiConversationMapper,
         _apiMessageMapper = apiMessageMapper,
+        _apiPinMessageMapper = apiPinMessageMapper,
+        _localPinMessageMapper = localPinMessageMapper,
         _localConversationMapper = localConversationMapper,
         _localMessageMapper = localMessageMapper,
         _apiMessageReactionMapper = apiMessageReactionMapper,
@@ -123,9 +132,24 @@ class ChatRepoImpl implements ChatRepository {
         limit: limit,
       );
       final messages = _apiMessageMapper.toDomainList(response.messages);
+      debugPrint('[ChatRepoImpl] check forwarded: ${messages.where((m) => m.forwardInfo != null).length} forwarded messages in fetched list');
       final entities = _localMessageMapper.toEntityList(messages);
       await _messageDao.saveMessages(entities);
       return Right(messages);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> fetchPinnedMessages(String conversationId) async {
+    try {
+      final response = await _chatService.fetchPinMessages(conversationId: conversationId);
+      final pinMessages = _apiPinMessageMapper.toDomainList(response.data);
+      final entities = _localPinMessageMapper.toEntityList(pinMessages);
+      await _messageDao.updatePinMessage(entities);
+
+      return Right(null);
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }
@@ -588,6 +612,17 @@ class ChatRepoImpl implements ChatRepository {
         yield Right(_localMessageMapper.toDomainList(entities));
       } catch (e) {
         yield Left(CacheFailure('Failed to map local messages: $e'));
+      }
+    }
+  }
+
+  @override
+  Stream<Either<Failure, List<PinMessage>>> watchPinnedMessagesLocal(String conversationId) async* {
+    await for (final entities in _messageDao.watchPinnedMessagesByConversationId(conversationId)) {
+      try {
+        yield Right(_localPinMessageMapper.toDomainList(entities));
+      } catch (e) {
+        yield Left(CacheFailure('Failed to map local pin messages: $e'));
       }
     }
   }

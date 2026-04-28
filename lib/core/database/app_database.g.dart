@@ -2242,6 +2242,17 @@ class $ChatMessagesTable extends ChatMessages
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _forwardInfoJsonMeta = const VerificationMeta(
+    'forwardInfoJson',
+  );
+  @override
+  late final GeneratedColumn<String> forwardInfoJson = GeneratedColumn<String>(
+    'forward_info_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2257,6 +2268,7 @@ class $ChatMessagesTable extends ChatMessages
     serverId,
     createdAt,
     editedAt,
+    forwardInfoJson,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2361,6 +2373,15 @@ class $ChatMessagesTable extends ChatMessages
         editedAt.isAcceptableOrUnknown(data['edited_at']!, _editedAtMeta),
       );
     }
+    if (data.containsKey('forward_info_json')) {
+      context.handle(
+        _forwardInfoJsonMeta,
+        forwardInfoJson.isAcceptableOrUnknown(
+          data['forward_info_json']!,
+          _forwardInfoJsonMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2422,6 +2443,10 @@ class $ChatMessagesTable extends ChatMessages
         DriftSqlType.string,
         data['${effectivePrefix}edited_at'],
       ),
+      forwardInfoJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}forward_info_json'],
+      ),
     );
   }
 
@@ -2446,6 +2471,7 @@ class ChatMessageEntity extends DataClass
   final String? serverId;
   final String createdAt;
   final String? editedAt;
+  final String? forwardInfoJson;
   const ChatMessageEntity({
     required this.id,
     required this.conversationId,
@@ -2460,6 +2486,7 @@ class ChatMessageEntity extends DataClass
     this.serverId,
     required this.createdAt,
     this.editedAt,
+    this.forwardInfoJson,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2486,6 +2513,9 @@ class ChatMessageEntity extends DataClass
     map['created_at'] = Variable<String>(createdAt);
     if (!nullToAbsent || editedAt != null) {
       map['edited_at'] = Variable<String>(editedAt);
+    }
+    if (!nullToAbsent || forwardInfoJson != null) {
+      map['forward_info_json'] = Variable<String>(forwardInfoJson);
     }
     return map;
   }
@@ -2515,6 +2545,9 @@ class ChatMessageEntity extends DataClass
       editedAt: editedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(editedAt),
+      forwardInfoJson: forwardInfoJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(forwardInfoJson),
     );
   }
 
@@ -2537,6 +2570,7 @@ class ChatMessageEntity extends DataClass
       serverId: serializer.fromJson<String?>(json['serverId']),
       createdAt: serializer.fromJson<String>(json['createdAt']),
       editedAt: serializer.fromJson<String?>(json['editedAt']),
+      forwardInfoJson: serializer.fromJson<String?>(json['forwardInfoJson']),
     );
   }
   @override
@@ -2556,6 +2590,7 @@ class ChatMessageEntity extends DataClass
       'serverId': serializer.toJson<String?>(serverId),
       'createdAt': serializer.toJson<String>(createdAt),
       'editedAt': serializer.toJson<String?>(editedAt),
+      'forwardInfoJson': serializer.toJson<String?>(forwardInfoJson),
     };
   }
 
@@ -2573,6 +2608,7 @@ class ChatMessageEntity extends DataClass
     Value<String?> serverId = const Value.absent(),
     String? createdAt,
     Value<String?> editedAt = const Value.absent(),
+    Value<String?> forwardInfoJson = const Value.absent(),
   }) => ChatMessageEntity(
     id: id ?? this.id,
     conversationId: conversationId ?? this.conversationId,
@@ -2587,6 +2623,9 @@ class ChatMessageEntity extends DataClass
     serverId: serverId.present ? serverId.value : this.serverId,
     createdAt: createdAt ?? this.createdAt,
     editedAt: editedAt.present ? editedAt.value : this.editedAt,
+    forwardInfoJson: forwardInfoJson.present
+        ? forwardInfoJson.value
+        : this.forwardInfoJson,
   );
   ChatMessageEntity copyWithCompanion(ChatMessagesCompanion data) {
     return ChatMessageEntity(
@@ -2605,6 +2644,9 @@ class ChatMessageEntity extends DataClass
       serverId: data.serverId.present ? data.serverId.value : this.serverId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       editedAt: data.editedAt.present ? data.editedAt.value : this.editedAt,
+      forwardInfoJson: data.forwardInfoJson.present
+          ? data.forwardInfoJson.value
+          : this.forwardInfoJson,
     );
   }
 
@@ -2623,7 +2665,8 @@ class ChatMessageEntity extends DataClass
           ..write('metadata: $metadata, ')
           ..write('serverId: $serverId, ')
           ..write('createdAt: $createdAt, ')
-          ..write('editedAt: $editedAt')
+          ..write('editedAt: $editedAt, ')
+          ..write('forwardInfoJson: $forwardInfoJson')
           ..write(')'))
         .toString();
   }
@@ -2643,6 +2686,7 @@ class ChatMessageEntity extends DataClass
     serverId,
     createdAt,
     editedAt,
+    forwardInfoJson,
   );
   @override
   bool operator ==(Object other) =>
@@ -2660,7 +2704,8 @@ class ChatMessageEntity extends DataClass
           other.metadata == this.metadata &&
           other.serverId == this.serverId &&
           other.createdAt == this.createdAt &&
-          other.editedAt == this.editedAt);
+          other.editedAt == this.editedAt &&
+          other.forwardInfoJson == this.forwardInfoJson);
 }
 
 class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
@@ -2677,6 +2722,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
   final Value<String?> serverId;
   final Value<String> createdAt;
   final Value<String?> editedAt;
+  final Value<String?> forwardInfoJson;
   final Value<int> rowid;
   const ChatMessagesCompanion({
     this.id = const Value.absent(),
@@ -2692,6 +2738,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
     this.serverId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.editedAt = const Value.absent(),
+    this.forwardInfoJson = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ChatMessagesCompanion.insert({
@@ -2708,6 +2755,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
     this.serverId = const Value.absent(),
     required String createdAt,
     this.editedAt = const Value.absent(),
+    this.forwardInfoJson = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        conversationId = Value(conversationId),
@@ -2728,6 +2776,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
     Expression<String>? serverId,
     Expression<String>? createdAt,
     Expression<String>? editedAt,
+    Expression<String>? forwardInfoJson,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2744,6 +2793,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
       if (serverId != null) 'client_message_id': serverId,
       if (createdAt != null) 'created_at': createdAt,
       if (editedAt != null) 'edited_at': editedAt,
+      if (forwardInfoJson != null) 'forward_info_json': forwardInfoJson,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2762,6 +2812,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
     Value<String?>? serverId,
     Value<String>? createdAt,
     Value<String?>? editedAt,
+    Value<String?>? forwardInfoJson,
     Value<int>? rowid,
   }) {
     return ChatMessagesCompanion(
@@ -2778,6 +2829,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
       serverId: serverId ?? this.serverId,
       createdAt: createdAt ?? this.createdAt,
       editedAt: editedAt ?? this.editedAt,
+      forwardInfoJson: forwardInfoJson ?? this.forwardInfoJson,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2824,6 +2876,9 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
     if (editedAt.present) {
       map['edited_at'] = Variable<String>(editedAt.value);
     }
+    if (forwardInfoJson.present) {
+      map['forward_info_json'] = Variable<String>(forwardInfoJson.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2846,6 +2901,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
           ..write('serverId: $serverId, ')
           ..write('createdAt: $createdAt, ')
           ..write('editedAt: $editedAt, ')
+          ..write('forwardInfoJson: $forwardInfoJson, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4943,6 +4999,429 @@ class StickerItemsCompanion extends UpdateCompanion<StickerItemEntity> {
   }
 }
 
+class $PinMessagesTable extends PinMessages
+    with TableInfo<$PinMessagesTable, PinMessageEntity> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PinMessagesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _messageIdMeta = const VerificationMeta(
+    'messageId',
+  );
+  @override
+  late final GeneratedColumn<String> messageId = GeneratedColumn<String>(
+    'message_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _conversationIdMeta = const VerificationMeta(
+    'conversationId',
+  );
+  @override
+  late final GeneratedColumn<String> conversationId = GeneratedColumn<String>(
+    'conversation_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _senderIdMeta = const VerificationMeta(
+    'senderId',
+  );
+  @override
+  late final GeneratedColumn<String> senderId = GeneratedColumn<String>(
+    'sender_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contentMeta = const VerificationMeta(
+    'content',
+  );
+  @override
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+    'content',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    messageId,
+    conversationId,
+    senderId,
+    content,
+    type,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pin_messages';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PinMessageEntity> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('message_id')) {
+      context.handle(
+        _messageIdMeta,
+        messageId.isAcceptableOrUnknown(data['message_id']!, _messageIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_messageIdMeta);
+    }
+    if (data.containsKey('conversation_id')) {
+      context.handle(
+        _conversationIdMeta,
+        conversationId.isAcceptableOrUnknown(
+          data['conversation_id']!,
+          _conversationIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_conversationIdMeta);
+    }
+    if (data.containsKey('sender_id')) {
+      context.handle(
+        _senderIdMeta,
+        senderId.isAcceptableOrUnknown(data['sender_id']!, _senderIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_senderIdMeta);
+    }
+    if (data.containsKey('content')) {
+      context.handle(
+        _contentMeta,
+        content.isAcceptableOrUnknown(data['content']!, _contentMeta),
+      );
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {messageId};
+  @override
+  PinMessageEntity map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PinMessageEntity(
+      messageId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}message_id'],
+      )!,
+      conversationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}conversation_id'],
+      )!,
+      senderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sender_id'],
+      )!,
+      content: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PinMessagesTable createAlias(String alias) {
+    return $PinMessagesTable(attachedDatabase, alias);
+  }
+}
+
+class PinMessageEntity extends DataClass
+    implements Insertable<PinMessageEntity> {
+  final String messageId;
+  final String conversationId;
+  final String senderId;
+  final String content;
+  final String type;
+  final String createdAt;
+  const PinMessageEntity({
+    required this.messageId,
+    required this.conversationId,
+    required this.senderId,
+    required this.content,
+    required this.type,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['message_id'] = Variable<String>(messageId);
+    map['conversation_id'] = Variable<String>(conversationId);
+    map['sender_id'] = Variable<String>(senderId);
+    map['content'] = Variable<String>(content);
+    map['type'] = Variable<String>(type);
+    map['created_at'] = Variable<String>(createdAt);
+    return map;
+  }
+
+  PinMessagesCompanion toCompanion(bool nullToAbsent) {
+    return PinMessagesCompanion(
+      messageId: Value(messageId),
+      conversationId: Value(conversationId),
+      senderId: Value(senderId),
+      content: Value(content),
+      type: Value(type),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory PinMessageEntity.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PinMessageEntity(
+      messageId: serializer.fromJson<String>(json['messageId']),
+      conversationId: serializer.fromJson<String>(json['conversationId']),
+      senderId: serializer.fromJson<String>(json['senderId']),
+      content: serializer.fromJson<String>(json['content']),
+      type: serializer.fromJson<String>(json['type']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'messageId': serializer.toJson<String>(messageId),
+      'conversationId': serializer.toJson<String>(conversationId),
+      'senderId': serializer.toJson<String>(senderId),
+      'content': serializer.toJson<String>(content),
+      'type': serializer.toJson<String>(type),
+      'createdAt': serializer.toJson<String>(createdAt),
+    };
+  }
+
+  PinMessageEntity copyWith({
+    String? messageId,
+    String? conversationId,
+    String? senderId,
+    String? content,
+    String? type,
+    String? createdAt,
+  }) => PinMessageEntity(
+    messageId: messageId ?? this.messageId,
+    conversationId: conversationId ?? this.conversationId,
+    senderId: senderId ?? this.senderId,
+    content: content ?? this.content,
+    type: type ?? this.type,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  PinMessageEntity copyWithCompanion(PinMessagesCompanion data) {
+    return PinMessageEntity(
+      messageId: data.messageId.present ? data.messageId.value : this.messageId,
+      conversationId: data.conversationId.present
+          ? data.conversationId.value
+          : this.conversationId,
+      senderId: data.senderId.present ? data.senderId.value : this.senderId,
+      content: data.content.present ? data.content.value : this.content,
+      type: data.type.present ? data.type.value : this.type,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PinMessageEntity(')
+          ..write('messageId: $messageId, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('senderId: $senderId, ')
+          ..write('content: $content, ')
+          ..write('type: $type, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    messageId,
+    conversationId,
+    senderId,
+    content,
+    type,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PinMessageEntity &&
+          other.messageId == this.messageId &&
+          other.conversationId == this.conversationId &&
+          other.senderId == this.senderId &&
+          other.content == this.content &&
+          other.type == this.type &&
+          other.createdAt == this.createdAt);
+}
+
+class PinMessagesCompanion extends UpdateCompanion<PinMessageEntity> {
+  final Value<String> messageId;
+  final Value<String> conversationId;
+  final Value<String> senderId;
+  final Value<String> content;
+  final Value<String> type;
+  final Value<String> createdAt;
+  final Value<int> rowid;
+  const PinMessagesCompanion({
+    this.messageId = const Value.absent(),
+    this.conversationId = const Value.absent(),
+    this.senderId = const Value.absent(),
+    this.content = const Value.absent(),
+    this.type = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PinMessagesCompanion.insert({
+    required String messageId,
+    required String conversationId,
+    required String senderId,
+    this.content = const Value.absent(),
+    required String type,
+    required String createdAt,
+    this.rowid = const Value.absent(),
+  }) : messageId = Value(messageId),
+       conversationId = Value(conversationId),
+       senderId = Value(senderId),
+       type = Value(type),
+       createdAt = Value(createdAt);
+  static Insertable<PinMessageEntity> custom({
+    Expression<String>? messageId,
+    Expression<String>? conversationId,
+    Expression<String>? senderId,
+    Expression<String>? content,
+    Expression<String>? type,
+    Expression<String>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (messageId != null) 'message_id': messageId,
+      if (conversationId != null) 'conversation_id': conversationId,
+      if (senderId != null) 'sender_id': senderId,
+      if (content != null) 'content': content,
+      if (type != null) 'type': type,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PinMessagesCompanion copyWith({
+    Value<String>? messageId,
+    Value<String>? conversationId,
+    Value<String>? senderId,
+    Value<String>? content,
+    Value<String>? type,
+    Value<String>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return PinMessagesCompanion(
+      messageId: messageId ?? this.messageId,
+      conversationId: conversationId ?? this.conversationId,
+      senderId: senderId ?? this.senderId,
+      content: content ?? this.content,
+      type: type ?? this.type,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (messageId.present) {
+      map['message_id'] = Variable<String>(messageId.value);
+    }
+    if (conversationId.present) {
+      map['conversation_id'] = Variable<String>(conversationId.value);
+    }
+    if (senderId.present) {
+      map['sender_id'] = Variable<String>(senderId.value);
+    }
+    if (content.present) {
+      map['content'] = Variable<String>(content.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PinMessagesCompanion(')
+          ..write('messageId: $messageId, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('senderId: $senderId, ')
+          ..write('content: $content, ')
+          ..write('type: $type, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4958,6 +5437,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $StickerItemsTable stickerItems = $StickerItemsTable(this);
+  late final $PinMessagesTable pinMessages = $PinMessagesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4971,6 +5451,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     friendships,
     stickerPackages,
     stickerItems,
+    pinMessages,
   ];
 }
 
@@ -5974,6 +6455,7 @@ typedef $$ChatMessagesTableCreateCompanionBuilder =
       Value<String?> serverId,
       required String createdAt,
       Value<String?> editedAt,
+      Value<String?> forwardInfoJson,
       Value<int> rowid,
     });
 typedef $$ChatMessagesTableUpdateCompanionBuilder =
@@ -5991,6 +6473,7 @@ typedef $$ChatMessagesTableUpdateCompanionBuilder =
       Value<String?> serverId,
       Value<String> createdAt,
       Value<String?> editedAt,
+      Value<String?> forwardInfoJson,
       Value<int> rowid,
     });
 
@@ -6065,6 +6548,11 @@ class $$ChatMessagesTableFilterComposer
 
   ColumnFilters<String> get editedAt => $composableBuilder(
     column: $table.editedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get forwardInfoJson => $composableBuilder(
+    column: $table.forwardInfoJson,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6142,6 +6630,11 @@ class $$ChatMessagesTableOrderingComposer
     column: $table.editedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get forwardInfoJson => $composableBuilder(
+    column: $table.forwardInfoJson,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ChatMessagesTableAnnotationComposer
@@ -6193,6 +6686,11 @@ class $$ChatMessagesTableAnnotationComposer
 
   GeneratedColumn<String> get editedAt =>
       $composableBuilder(column: $table.editedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get forwardInfoJson => $composableBuilder(
+    column: $table.forwardInfoJson,
+    builder: (column) => column,
+  );
 }
 
 class $$ChatMessagesTableTableManager
@@ -6243,6 +6741,7 @@ class $$ChatMessagesTableTableManager
                 Value<String?> serverId = const Value.absent(),
                 Value<String> createdAt = const Value.absent(),
                 Value<String?> editedAt = const Value.absent(),
+                Value<String?> forwardInfoJson = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ChatMessagesCompanion(
                 id: id,
@@ -6258,6 +6757,7 @@ class $$ChatMessagesTableTableManager
                 serverId: serverId,
                 createdAt: createdAt,
                 editedAt: editedAt,
+                forwardInfoJson: forwardInfoJson,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6275,6 +6775,7 @@ class $$ChatMessagesTableTableManager
                 Value<String?> serverId = const Value.absent(),
                 required String createdAt,
                 Value<String?> editedAt = const Value.absent(),
+                Value<String?> forwardInfoJson = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ChatMessagesCompanion.insert(
                 id: id,
@@ -6290,6 +6791,7 @@ class $$ChatMessagesTableTableManager
                 serverId: serverId,
                 createdAt: createdAt,
                 editedAt: editedAt,
+                forwardInfoJson: forwardInfoJson,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -7615,6 +8117,227 @@ typedef $$StickerItemsTableProcessedTableManager =
       StickerItemEntity,
       PrefetchHooks Function({bool packageId})
     >;
+typedef $$PinMessagesTableCreateCompanionBuilder =
+    PinMessagesCompanion Function({
+      required String messageId,
+      required String conversationId,
+      required String senderId,
+      Value<String> content,
+      required String type,
+      required String createdAt,
+      Value<int> rowid,
+    });
+typedef $$PinMessagesTableUpdateCompanionBuilder =
+    PinMessagesCompanion Function({
+      Value<String> messageId,
+      Value<String> conversationId,
+      Value<String> senderId,
+      Value<String> content,
+      Value<String> type,
+      Value<String> createdAt,
+      Value<int> rowid,
+    });
+
+class $$PinMessagesTableFilterComposer
+    extends Composer<_$AppDatabase, $PinMessagesTable> {
+  $$PinMessagesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get messageId => $composableBuilder(
+    column: $table.messageId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get conversationId => $composableBuilder(
+    column: $table.conversationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get senderId => $composableBuilder(
+    column: $table.senderId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PinMessagesTableOrderingComposer
+    extends Composer<_$AppDatabase, $PinMessagesTable> {
+  $$PinMessagesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get messageId => $composableBuilder(
+    column: $table.messageId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get conversationId => $composableBuilder(
+    column: $table.conversationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get senderId => $composableBuilder(
+    column: $table.senderId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PinMessagesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PinMessagesTable> {
+  $$PinMessagesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get messageId =>
+      $composableBuilder(column: $table.messageId, builder: (column) => column);
+
+  GeneratedColumn<String> get conversationId => $composableBuilder(
+    column: $table.conversationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get senderId =>
+      $composableBuilder(column: $table.senderId, builder: (column) => column);
+
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$PinMessagesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PinMessagesTable,
+          PinMessageEntity,
+          $$PinMessagesTableFilterComposer,
+          $$PinMessagesTableOrderingComposer,
+          $$PinMessagesTableAnnotationComposer,
+          $$PinMessagesTableCreateCompanionBuilder,
+          $$PinMessagesTableUpdateCompanionBuilder,
+          (
+            PinMessageEntity,
+            BaseReferences<_$AppDatabase, $PinMessagesTable, PinMessageEntity>,
+          ),
+          PinMessageEntity,
+          PrefetchHooks Function()
+        > {
+  $$PinMessagesTableTableManager(_$AppDatabase db, $PinMessagesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PinMessagesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PinMessagesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PinMessagesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> messageId = const Value.absent(),
+                Value<String> conversationId = const Value.absent(),
+                Value<String> senderId = const Value.absent(),
+                Value<String> content = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PinMessagesCompanion(
+                messageId: messageId,
+                conversationId: conversationId,
+                senderId: senderId,
+                content: content,
+                type: type,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String messageId,
+                required String conversationId,
+                required String senderId,
+                Value<String> content = const Value.absent(),
+                required String type,
+                required String createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => PinMessagesCompanion.insert(
+                messageId: messageId,
+                conversationId: conversationId,
+                senderId: senderId,
+                content: content,
+                type: type,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PinMessagesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PinMessagesTable,
+      PinMessageEntity,
+      $$PinMessagesTableFilterComposer,
+      $$PinMessagesTableOrderingComposer,
+      $$PinMessagesTableAnnotationComposer,
+      $$PinMessagesTableCreateCompanionBuilder,
+      $$PinMessagesTableUpdateCompanionBuilder,
+      (
+        PinMessageEntity,
+        BaseReferences<_$AppDatabase, $PinMessagesTable, PinMessageEntity>,
+      ),
+      PinMessageEntity,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -7635,4 +8358,6 @@ class $AppDatabaseManager {
       $$StickerPackagesTableTableManager(_db, _db.stickerPackages);
   $$StickerItemsTableTableManager get stickerItems =>
       $$StickerItemsTableTableManager(_db, _db.stickerItems);
+  $$PinMessagesTableTableManager get pinMessages =>
+      $$PinMessagesTableTableManager(_db, _db.pinMessages);
 }

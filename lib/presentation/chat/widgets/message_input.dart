@@ -16,6 +16,7 @@ class MessageInput extends StatefulWidget {
   final VoidCallback onSendMessage;
   final VoidCallback onPickImage;
   final VoidCallback onPickMultipleImages;
+  final VoidCallback onPickVideo;
   final VoidCallback onPickFile;
   final Function(String) onEmojiSelected;
   final Function(StickerItem)? onStickerSelected;
@@ -32,6 +33,7 @@ class MessageInput extends StatefulWidget {
     required this.controller,
     required this.onSendMessage,
     required this.onPickImage,
+    required this.onPickVideo,
     required this.onPickMultipleImages,
     required this.onPickFile,
     required this.onEmojiSelected,
@@ -160,6 +162,14 @@ class _MessageInputState extends State<MessageInput> {
               onTap: () {
                 Navigator.pop(context);
                 widget.onPickMultipleImages();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.video_camera_back_outlined),
+              title: const Text('Pick Video'),
+              onTap: () {
+                Navigator.pop(context);
+                widget.onPickVideo();
               },
             ),
           ],

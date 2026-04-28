@@ -17,9 +17,9 @@ import 'package:flutter_chat/presentation/chat/widgets/image_send_confirmation_d
 import 'package:flutter_chat/presentation/chat/widgets/message_action_dialog.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_bubble.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_input.dart';
+import 'package:flutter_chat/presentation/chat/widgets/pin_message_panel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:mime/mime.dart';
 
 class ChatPage extends ConsumerStatefulWidget {
   final String conversationId;
@@ -46,16 +46,19 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   final List<ChatMessage> _messages = <ChatMessage>[];
   final MediaService _mediaService = MediaService();
   final ChatMessageUIMapper _uiMapper = ChatMessageUIMapper();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     ref.read(chatBlocProvider).add(ChatInitialLoadEvent(widget.conversationId));
+    _scrollController.addListener(() {_onScroll(ref.read(chatBlocProvider));});
   }
 
   @override
   void dispose() {
     _messageController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -178,6 +181,13 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           ),
           body: Column(
             children: [
+              if (state is ChatLoaded && state.pinnedMessages.isNotEmpty)
+                PinMessagePanel(
+                  pinnedMessages: state.pinnedMessages,
+                  onTapItem: (pinMessages) {},
+                  onUnpin: (pinMessage) {},
+                ),
+
               Expanded(
                 child: Builder(
                   builder: (context) {
@@ -218,10 +228,20 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                         : _messages;
 
                     return ListView.builder(
+                      controller: _scrollController,
                       reverse: true,
                       padding: const EdgeInsets.all(16),
                       itemCount: displayMessages.length,
                       itemBuilder: (context, index) {
+                        // loading indicator for loading more messages
+                        if (state is ChatLoaded &&
+                            state.isLoadingMore &&
+                            index == displayMessages.length) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
                         final message = displayMessages[displayMessages.length - 1 - index];
                         return MessageBubble(
                           message: message,
@@ -270,7 +290,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               MessageInput(
                 controller: _messageController,
                 onSendMessage: _sendMessage,
-                onPickImage: pickImage,
+                onPickImage: _pickImage,
+                onPickVideo: _pickVideo,
                 onPickMultipleImages: _pickMultipleImages,
                 onPickFile: _pickFile,
                 onEmojiSelected: (emoji) {
@@ -332,7 +353,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         );
   }
 
-  Future<void> pickImage() async {
+  Future<void> _pickImage() async {
     try {
       final File? image = await _mediaService.pickImage(
         source: ImageSource.gallery,
@@ -395,6 +416,31 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         fileSize: fileSize,
       ),
     );
+  }
+
+  Future<void> _pickVideo() async {
+    try {
+      final File? video = await _mediaService.pickVideo(
+        source: ImageSource.gallery,
+      );
+
+      if (video != null) {
+        if (!mounted) return;
+
+        ref.read(chatBlocProvider).add(
+              SendVideoEvent(
+                conversationId: widget.conversationId,
+                file: video
+              ),
+            );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick video: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _pickMultipleImages() async {
@@ -605,5 +651,25 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             content: newContent,
           ),
         );
+  }
+
+  void _onScroll(ChatBloc chatBloc) {
+    if (!_scrollController.hasClients) return;
+
+    final threshold = 100; // px
+
+    // ⚠️ reverse: true → maxScrollExtent is "top"
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - threshold) {
+
+      final state = chatBloc.state;
+
+      if (state is ChatLoaded &&
+          state.hasMoreOld &&
+          !state.isLoadingMore) {
+
+        chatBloc.add(LoadMoreMessagesEvent(widget.conversationId));
+      }
+    }
   }
 }

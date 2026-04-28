@@ -1,3 +1,4 @@
+import 'package:flutter_chat/features/chat/domain/entities/messages/message/forward_info.dart';
 import 'package:flutter_chat/presentation/chat/models/chat_message_reaction.dart';
 
 sealed class ChatMessage {
@@ -13,6 +14,7 @@ sealed class ChatMessage {
   final bool isGroupConversation;
   final bool isFirstInGroup;
   final bool isLastInGroup;
+  final ForwardInfo? forwardInfo;
   final List<ChatMessageReaction> reactions;
 
   const ChatMessage({
@@ -28,6 +30,7 @@ sealed class ChatMessage {
     this.isGroupConversation = false,
     this.isFirstInGroup = true,
     this.isLastInGroup = true,
+    this.forwardInfo,
     this.reactions = const <ChatMessageReaction>[],
   });
 
@@ -56,6 +59,7 @@ final class TextChatMessage extends ChatMessage {
     super.isGroupConversation,
     super.isFirstInGroup,
     super.isLastInGroup,
+    super.forwardInfo,
     super.reactions,
   });
 
@@ -78,6 +82,7 @@ final class TextChatMessage extends ChatMessage {
       isGroupConversation: isGroupConversation,
       isFirstInGroup: isFirstInGroup ?? this.isFirstInGroup,
       isLastInGroup: isLastInGroup ?? this.isLastInGroup,
+      forwardInfo: forwardInfo,
       reactions: reactions,
     );
   }
@@ -106,6 +111,7 @@ final class ImageChatMessage extends ChatMessage {
     super.isGroupConversation,
     super.isFirstInGroup,
     super.isLastInGroup,
+    super.forwardInfo,
     super.reactions,
   });
 
@@ -131,6 +137,7 @@ final class ImageChatMessage extends ChatMessage {
       isGroupConversation: isGroupConversation,
       isFirstInGroup: isFirstInGroup ?? this.isFirstInGroup,
       isLastInGroup: isLastInGroup ?? this.isLastInGroup,
+      forwardInfo: forwardInfo,
       reactions: reactions,
     );
   }
@@ -161,6 +168,7 @@ final class AudioChatMessage extends ChatMessage {
     super.isGroupConversation,
     super.isFirstInGroup,
     super.isLastInGroup,
+    super.forwardInfo,
     super.reactions,
   });
 
@@ -187,6 +195,7 @@ final class AudioChatMessage extends ChatMessage {
       isGroupConversation: isGroupConversation,
       isFirstInGroup: isFirstInGroup ?? this.isFirstInGroup,
       isLastInGroup: isLastInGroup ?? this.isLastInGroup,
+      forwardInfo: forwardInfo,
       reactions: reactions,
     );
   }
@@ -223,6 +232,7 @@ final class VideoChatMessage extends ChatMessage {
     super.isGroupConversation,
     super.isFirstInGroup,
     super.isLastInGroup,
+    super.forwardInfo,
     super.reactions,
   });
 
@@ -252,6 +262,7 @@ final class VideoChatMessage extends ChatMessage {
       isGroupConversation: isGroupConversation,
       isFirstInGroup: isFirstInGroup ?? this.isFirstInGroup,
       isLastInGroup: isLastInGroup ?? this.isLastInGroup,
+      forwardInfo: forwardInfo,
       reactions: reactions,
     );
   }
@@ -276,6 +287,7 @@ final class StickerChatMessage extends ChatMessage {
     super.isGroupConversation,
     super.isFirstInGroup,
     super.isLastInGroup,
+    super.forwardInfo,
     super.reactions,
   });
 
@@ -299,6 +311,7 @@ final class StickerChatMessage extends ChatMessage {
       isGroupConversation: isGroupConversation,
       isFirstInGroup: isFirstInGroup ?? this.isFirstInGroup,
       isLastInGroup: isLastInGroup ?? this.isLastInGroup,
+      forwardInfo: forwardInfo,
       reactions: reactions,
     );
   }
@@ -329,6 +342,7 @@ final class FileChatMessage extends ChatMessage {
     super.isGroupConversation,
     super.isFirstInGroup,
     super.isLastInGroup,
+    super.forwardInfo,
     super.reactions,
   });
 
@@ -354,6 +368,7 @@ final class FileChatMessage extends ChatMessage {
       isGroupConversation: isGroupConversation,
       isFirstInGroup: isFirstInGroup ?? this.isFirstInGroup,
       isLastInGroup: isLastInGroup ?? this.isLastInGroup,
+      forwardInfo: forwardInfo,
       reactions: reactions,
     );
   }
@@ -376,6 +391,7 @@ final class UnknownChatMessage extends ChatMessage {
     super.isGroupConversation,
     super.isFirstInGroup,
     super.isLastInGroup,
+    super.forwardInfo,
     super.reactions,
   });
 
@@ -398,6 +414,7 @@ final class UnknownChatMessage extends ChatMessage {
       isGroupConversation: isGroupConversation,
       isFirstInGroup: isFirstInGroup ?? this.isFirstInGroup,
       isLastInGroup: isLastInGroup ?? this.isLastInGroup,
+      forwardInfo: forwardInfo,
       reactions: reactions,
     );
   }

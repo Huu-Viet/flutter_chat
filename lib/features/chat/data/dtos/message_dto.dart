@@ -1,3 +1,4 @@
+import 'package:flutter_chat/features/chat/data/dtos/forward_info_dto.dart';
 import 'package:flutter_chat/features/chat/data/dtos/message_attachment_dto.dart';
 
 class MessageDto {
@@ -10,6 +11,7 @@ class MessageDto {
   final bool? isDeleted;
   final bool? isRevoked;
   final String? mediaId;
+  final ForwardInfoDTO? forwardInfo;
   final List<MessageAttachmentDto> attachments;
   final Map<String, dynamic>? metadata;
   final String? clientMessageId;
@@ -26,6 +28,7 @@ class MessageDto {
     this.isDeleted,
     this.isRevoked,
     this.mediaId,
+    this.forwardInfo,
     this.attachments = const <MessageAttachmentDto>[],
     this.metadata,
     this.clientMessageId,
@@ -39,11 +42,16 @@ class MessageDto {
         ? rawMetadata
         : null;
 
-
     final topLevelMediaId = json['mediaId']?.toString();
     final metadataMediaId = parsedMetadata == null
         ? null
         : (parsedMetadata['mediaId'] ?? parsedMetadata['media_id'])?.toString();
+    final rawForwardInfo = json['forwardedFrom'];
+    final forwardInfo = (rawForwardInfo is Map)
+        ? ForwardInfoDTO.fromJson(
+            rawForwardInfo.map((key, value) => MapEntry(key.toString(), value)),
+          )
+        : null;
     final rawAttachments = json['attachments'];
     final attachments = (rawAttachments is List)
       ? rawAttachments
@@ -69,6 +77,7 @@ class MessageDto {
       isDeleted: asBool(json['isDeleted'] ?? json['is_deleted']),
       isRevoked: asBool(json['isRevoked'] ?? json['is_revoked']),
       mediaId: effectiveMediaId,
+      forwardInfo: forwardInfo,
       attachments: attachments.isNotEmpty
           ? attachments
           : (effectiveMediaId != null && effectiveMediaId.isNotEmpty)

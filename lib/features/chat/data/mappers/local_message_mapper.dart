@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_chat/core/database/app_database.dart';
 import 'package:flutter_chat/core/mappers/local_mapper.dart';
+import 'package:flutter_chat/features/chat/domain/entities/messages/message/forward_info.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/audio_media.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/file_media.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/generic_media.dart';
@@ -21,6 +22,9 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
     final reactions = _extractReactions(metadata, message.id);
     final isRevoked = message.isRevoked;
     final medias = entity.medias.map(_mapMediaEntity).toList(growable: false);
+    final forwardInfo = entity.message.forwardInfoJson != null
+        ? ForwardInfo.fromJson(jsonDecode(entity.message.forwardInfoJson!))
+        : null;
 
     switch (normalizedType) {
       case 'text':
@@ -36,6 +40,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
           editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
           reactions: reactions,
+          forwardInfo: forwardInfo,
         );
       case 'sticker':
         return StickerMessage(
@@ -52,6 +57,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
           editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
           reactions: reactions,
+          forwardInfo: forwardInfo,
         );
       case 'audio':
         return AudioMessage(
@@ -67,6 +73,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
           editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
           reactions: reactions,
+          forwardInfo: forwardInfo,
         );
       case 'video':
         return VideoMessage(
@@ -82,6 +89,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
           editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
           reactions: reactions,
+          forwardInfo: forwardInfo,
         );
       case 'image':
         return ImageMessage(
@@ -97,6 +105,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
           editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
           reactions: reactions,
+          forwardInfo: forwardInfo,
         );
       case 'file':
         return FileMessage(
@@ -112,6 +121,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
           editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
           reactions: reactions,
+          forwardInfo: forwardInfo,
         );
       case 'media':
         return MultiMediaMessage(
@@ -127,6 +137,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
           editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
           reactions: reactions,
+          forwardInfo: forwardInfo,
         );
       default:
         return UnknownMessage(
@@ -147,6 +158,16 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
     }
   }
 
+  Map<String, dynamic> _forwardInfoToJson(ForwardInfo info) {
+    return {
+      'conversationId': info.conversationId,
+      'senderId': info.senderId,
+      'messageId': info.messageId,
+      'content': info.content,
+      'type': info.type,
+    };
+  }
+
   @override
   ChatMessageWithMediasEntity toEntity(Message domain) {
     final message = ChatMessageEntity(
@@ -163,6 +184,9 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
       serverId: domain.serverId,
       createdAt: domain.createdAt.toUtc().toIso8601String(),
       editedAt: domain.editedAt?.toUtc().toIso8601String(),
+      forwardInfoJson: domain.forwardInfo != null
+          ? jsonEncode(_forwardInfoToJson(domain.forwardInfo!))
+          : null,
     );
 
     final medias = domain.attachments

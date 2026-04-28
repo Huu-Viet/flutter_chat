@@ -1,6 +1,11 @@
+import 'dart:io';
+
 import 'package:dartz/dartz.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
 import 'package:flutter_chat/features/upload_media/data/dtos/media_info.dart';
+import 'package:flutter_chat/features/upload_media/domain/entities/multipart_init_info.dart';
+import 'package:flutter_chat/features/upload_media/domain/entities/presigned_part.dart';
+import 'package:flutter_chat/features/upload_media/domain/entities/upload_part_result.dart';
 
 abstract class UploadMediaRepository {
   Future<Either<Failure, List<Map<String, dynamic>>>> getMyMediaList();
@@ -32,22 +37,28 @@ abstract class UploadMediaRepository {
     required String targetConversationId,
   });
 
-  Future<Either<Failure, Map<String, dynamic>>> initMultipartUpload({
+  Future<Either<Failure, MultipartInitInfo>> initMultipartUpload({
     required String filename,
     required String mimeType,
     required String type,
     required int totalSize,
   });
 
-  Future<Either<Failure, List<Map<String, dynamic>>>> presignMultipartParts({
+  Future<Either<Failure, List<PresignedPart>>> presignMultipartParts({
     required String mediaId,
     required List<int> partNumbers,
     int? expiresIn,
   });
 
-  Future<Either<Failure, Map<String, dynamic>>> completeMultipartUpload({
+  Future<Either<Failure, List<UploadPartResult>>> uploadPartToPresignedUrls({
+    required File file,
+    required List<PresignedPart> presignedParts,
+    Function(double)? onProgress,
+  });
+
+  Future<Either<Failure, String>> completeMultipartUpload({
     required String mediaId,
-    required List<Map<String, dynamic>> parts,
+    required List<UploadPartResult> parts,
   });
 
   Future<Either<Failure, void>> abortMultipartUpload(String mediaId);

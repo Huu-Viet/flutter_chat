@@ -6,19 +6,20 @@ class StickerMessage extends Message {
   final String stickerText;
 
   const StickerMessage({
+    this.stickerId,
     required super.id,
     required super.conversationId,
     required super.senderId,
     required this.stickerUrl,
     required this.stickerText,
-    this.stickerId,
     required super.offset,
     required super.isDeleted,
-    super.isRevoked,
     required super.serverId,
     required super.createdAt,
     required super.editedAt,
+    super.isRevoked,
     super.reactions,
+    super.forwardInfo,
   });
 
   @override

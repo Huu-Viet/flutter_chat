@@ -1,3 +1,4 @@
+import 'package:flutter_chat/features/chat/domain/entities/messages/message/forward_info.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/audio_media.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/file_media.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/image_media.dart';
@@ -24,6 +25,7 @@ sealed class Message {
   final String? serverId;
   final DateTime createdAt;
   final DateTime? editedAt;
+  final ForwardInfo? forwardInfo;
   final List<MessageReaction> reactions;
 
   const Message({
@@ -36,6 +38,7 @@ sealed class Message {
     required this.serverId,
     required this.createdAt,
     required this.editedAt,
+    this.forwardInfo,
     this.reactions = const <MessageReaction>[],
   });
 

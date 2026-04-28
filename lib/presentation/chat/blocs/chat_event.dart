@@ -60,6 +60,19 @@ final class SendFileEvent extends ChatEvent {
   List<Object> get props => [conversationId, filePath, fileName, fileSize];
 }
 
+final class SendVideoEvent extends ChatEvent {
+  final String conversationId;
+  final File file;
+
+  const SendVideoEvent({
+    required this.conversationId,
+    required this.file,
+  });
+
+  @override
+  List<Object> get props => [conversationId, file];
+}
+
 final class GetFileDownloadUrlEvent extends ChatEvent {
   final String mediaId;
   final String fileName;
@@ -253,6 +266,15 @@ final class _LocalMessagesErrorEvent extends ChatEvent {
   List<Object> get props => [message];
 }
 
+final class LoadMoreMessagesEvent extends ChatEvent {
+  final String conversationId;
+
+  const LoadMoreMessagesEvent(this.conversationId);
+
+  @override
+  List<Object> get props => [conversationId];
+}
+
 final class _LocalMessagesChangedEvent extends ChatEvent {
   final List<Message> messages;
 
@@ -269,4 +291,13 @@ final class _LocalConversationChangedEvent extends ChatEvent {
 
   @override
   List<Object> get props => [conversation];
+}
+
+final class _LocalPinnedMessagesChangedEvent extends ChatEvent {
+  final List<PinMessage> pinnedMessages;
+
+  const _LocalPinnedMessagesChangedEvent(this.pinnedMessages);
+
+  @override
+  List<Object> get props => [pinnedMessages];
 }

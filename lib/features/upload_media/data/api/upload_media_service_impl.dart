@@ -3,6 +3,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat/core/utils/file_utils.dart';
+import 'package:flutter_chat/features/upload_media/data/dtos/multipart_init_info_dto.dart';
+import 'package:flutter_chat/features/upload_media/data/dtos/presigned_part_dto.dart';
+import 'package:flutter_chat/features/upload_media/data/dtos/upload_part_result_dto.dart';
 import 'package:flutter_chat/features/upload_media/export.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:mime/mime.dart';
@@ -435,7 +438,7 @@ class PresignMediaServiceImpl implements PresignMediaService {
   }
 
   @override
-  Future<Map<String, dynamic>> initMultipartUpload({
+  Future<MultipartInitInfoDto> initMultipartUpload({
     required String filename,
     required String mimeType,
     required String type,
@@ -453,7 +456,7 @@ class PresignMediaServiceImpl implements PresignMediaService {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return _extractMediaPayload(response.data);
+        return MultipartInitInfoDto.fromJson(_extractEnvelopeData(response.data));
       }
 
       throw Exception('Failed to init multipart upload: ${response.statusCode}');
@@ -467,7 +470,7 @@ class PresignMediaServiceImpl implements PresignMediaService {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> presignMultipartParts({
+  Future<List<PresignedPartDto>> presignMultipartParts({
     required String mediaId,
     required List<int> partNumbers,
     int? expiresIn,
@@ -482,11 +485,25 @@ class PresignMediaServiceImpl implements PresignMediaService {
         },
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return _extractMediaListPayload(response.data);
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('Failed to presign multipart parts: ${response.statusCode}');
       }
 
-      throw Exception('Failed to presign multipart parts: ${response.statusCode}');
+      final body = response.data;
+
+      if (body is! Map<String, dynamic>) {
+        throw Exception('Invalid response format: expected Map');
+      }
+
+      final rawList = body['data'];
+
+      if (rawList is! List) {
+        throw Exception('Invalid response format: "data" is not List');
+      }
+
+      return rawList
+          .map((e) => PresignedPartDto.fromJson(e as Map<String, dynamic>))
+          .toList(growable: false);
     } on DioException catch (e) {
       debugPrint('Error presign multipart parts: ${e.response?.statusCode} - ${e.response?.data}');
       throw Exception('Failed to presign multipart parts: ${e.response?.data ?? e.message}');
@@ -497,21 +514,57 @@ class PresignMediaServiceImpl implements PresignMediaService {
   }
 
   @override
-  Future<Map<String, dynamic>> completeMultipartUpload({
+  Future<String> uploadPartToPresignedUrl({
+    required String uploadUrl,
+    required List<int> chunkBytes,
+    void Function(int sent, int total)? onSendProgress
+  }) async {
+    try {
+      final dioUpload = Dio();
+      final response = await dioUpload.put(
+        uploadUrl,
+        data: Stream.fromIterable([chunkBytes]), // avoid loading entire chunk into memory for large files
+        options: Options(
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'Content-Length': chunkBytes.length,
+          },
+        ),
+        onSendProgress: onSendProgress,
+      );
+
+      final eTag = response.headers.value('etag') ?? response.headers.value('ETag');
+      if (eTag == null || eTag.isEmpty) {
+        throw Exception('Missing ETag in response');
+      }
+      return eTag;
+    } on DioException catch (e) {
+      debugPrint('Error uploading part to presigned url: ${e.response?.statusCode} - ${e.response?.data}');
+      throw Exception('Failed to upload part to presigned url: ${e.response?.data ?? e.message}');
+    } catch (e) {
+      debugPrint('Error uploading part to presigned url: $e');
+      throw Exception('Failed to upload part to presigned url: $e');
+    }
+  }
+
+  @override
+  Future<String> completeMultipartUpload({
     required String mediaId,
-    required List<Map<String, dynamic>> parts,
+    required List<UploadPartResultDto> parts,
   }) async {
     try {
       final response = await _dio.post(
         '$_baseUrl/media/multipart/complete',
         data: {
           'mediaId': mediaId,
-          'parts': parts,
+          'parts': parts.map((part) => part.toJson()).toList(growable: false),
         },
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return _extractMediaPayload(response.data);
+        final payload = _extractMediaPayload(response.data);
+        final mediaId = payload['mediaId'] as String?;
+        return mediaId ?? '';
       }
 
       throw Exception('Failed to complete multipart upload: ${response.statusCode}');

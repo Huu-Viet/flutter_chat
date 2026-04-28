@@ -6,19 +6,20 @@ class AudioMessage extends Message {
   final Map<String, dynamic>? rawMetadata;
 
   const AudioMessage({
+    this.caption,
+    this.rawMetadata,
     required super.id,
     required super.conversationId,
     required super.senderId,
     required this.media,
-    this.caption,
     required super.offset,
     required super.isDeleted,
-    super.isRevoked,
     required super.serverId,
     required super.createdAt,
     required super.editedAt,
+    super.isRevoked,
     super.reactions,
-    this.rawMetadata
+    super.forwardInfo,
   });
 
   @override

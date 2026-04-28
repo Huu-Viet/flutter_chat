@@ -1,11 +1,30 @@
+import 'dart:io';
+
 import 'package:dartz/dartz.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
+import 'package:flutter_chat/features/upload_media/data/mapper/api_multipart_init_mapper.dart';
+import 'package:flutter_chat/features/upload_media/data/mapper/api_upload_result_part_mapper.dart';
+import 'package:flutter_chat/features/upload_media/domain/entities/multipart_init_info.dart';
+import 'package:flutter_chat/features/upload_media/domain/entities/upload_part_result.dart';
+import 'package:flutter_chat/features/upload_media/domain/entities/presigned_part.dart';
 import 'package:flutter_chat/features/upload_media/export.dart';
 
 class UploadMediaRepoImpl implements UploadMediaRepository {
   final PresignMediaService _presignMediaService;
+  final ApiPresignedPartMapper _apiPresignedPartMapper;
+  final ApiMultipartInitMapper _apiMultipartInitMapper;
+  final ApiUploadResultPartMapper _apiUploadResultPartMapper;
 
-  UploadMediaRepoImpl(this._presignMediaService);
+
+  UploadMediaRepoImpl({
+    required PresignMediaService presignMediaService,
+    required ApiPresignedPartMapper apiPresignedPartMapper,
+    required ApiMultipartInitMapper apiMultipartInitMapper,
+    required ApiUploadResultPartMapper apiUploadResultPartMapper,
+  })  : _presignMediaService = presignMediaService,
+        _apiPresignedPartMapper = apiPresignedPartMapper,
+        _apiMultipartInitMapper = apiMultipartInitMapper,
+        _apiUploadResultPartMapper = apiUploadResultPartMapper;
 
   @override
   Future<Either<Failure, List<Map<String, dynamic>>>> getMyMediaList() async {
@@ -137,7 +156,7 @@ class UploadMediaRepoImpl implements UploadMediaRepository {
   }
 
   @override
-  Future<Either<Failure, Map<String, dynamic>>> initMultipartUpload({
+  Future<Either<Failure, MultipartInitInfo>> initMultipartUpload({
     required String filename,
     required String mimeType,
     required String type,
@@ -150,14 +169,17 @@ class UploadMediaRepoImpl implements UploadMediaRepository {
         type: type,
         totalSize: totalSize,
       );
-      return Right(response);
+
+      return Right(
+        _apiMultipartInitMapper.toDomain(response),
+      );
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }
   }
 
   @override
-  Future<Either<Failure, List<Map<String, dynamic>>>> presignMultipartParts({
+  Future<Either<Failure, List<PresignedPart>>> presignMultipartParts({
     required String mediaId,
     required List<int> partNumbers,
     int? expiresIn,
@@ -168,21 +190,65 @@ class UploadMediaRepoImpl implements UploadMediaRepository {
         partNumbers: partNumbers,
         expiresIn: expiresIn,
       );
-      return Right(response);
+      return Right(_apiPresignedPartMapper.toDomainList(response));
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }
   }
 
   @override
-  Future<Either<Failure, Map<String, dynamic>>> completeMultipartUpload({
+  Future<Either<Failure, List<UploadPartResult>>> uploadPartToPresignedUrls({
+    required File file, required List<PresignedPart> presignedParts, Function(double)? onProgress,
+  }) async {
+    const int chunkSize = 5 * 1024 * 1024;
+    RandomAccessFile? raf;
+
+    try {
+      raf = file.openSync();
+
+      int uploadedBytes = 0;
+      final totalSize = file.lengthSync();
+
+      final results = <UploadPartResult>[];
+
+      for (final part in presignedParts) {
+        final chunk = raf.readSync(chunkSize);
+
+        final eTag = await _presignMediaService.uploadPartToPresignedUrl(
+          uploadUrl: part.presignedUrl,
+          chunkBytes: chunk,
+        );
+
+        uploadedBytes += chunk.length;
+
+        onProgress?.call(uploadedBytes / totalSize);
+
+        results.add(
+          UploadPartResult(
+            partNumber: part.partNumber,
+            eTag: eTag,
+          ),
+        );
+      }
+
+      return Right(results);
+    } catch (e) {
+      return Left(ServerFailure('Upload multipart failed: $e'));
+    } finally {
+      await raf?.close();
+    }
+  }
+
+  @override
+  Future<Either<Failure, String>> completeMultipartUpload({
     required String mediaId,
-    required List<Map<String, dynamic>> parts,
+    required List<UploadPartResult> parts,
   }) async {
     try {
+      final dtoPart = _apiUploadResultPartMapper.toDtoList(parts);
       final response = await _presignMediaService.completeMultipartUpload(
         mediaId: mediaId,
-        parts: parts,
+        parts: dtoPart,
       );
       return Right(response);
     } catch (e) {

@@ -4,6 +4,7 @@ import 'package:flutter_chat/features/chat/data/response/message_list_response.d
 import 'package:flutter_chat/features/chat/data/response/message_media_precheck_response.dart';
 import 'package:flutter_chat/features/chat/data/response/message_reaction_response.dart';
 import 'package:flutter_chat/features/chat/data/response/message_send_response.dart';
+import 'package:flutter_chat/features/chat/data/response/pin_message_response.dart';
 import 'package:flutter_chat/features/chat/data/response/sticker_package_response.dart';
 import 'package:flutter_chat/features/chat/data/response/sticker_item_response.dart';
 
@@ -66,6 +67,8 @@ abstract class ChatService {
     required String messageId,
     required String conversationId,
   });
+
+  Future<PinMessageResponse> fetchPinMessages({required String conversationId});
 
   Future<MessageReactionResponse> updateMessageReaction({
     required String messageId,

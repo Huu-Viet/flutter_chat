@@ -8,20 +8,21 @@ class ChatMessageUIMapper {
   static const Duration _groupingWindow = Duration(minutes: 1);
 
   List<ChatMessage> mapStateMessagesToUI(
-    List<Message> messages,
-    Set<String> uploadingImagePaths,
-    Map<String, String> imageUrlsByMediaId,
-    Map<String, String> audioUrlsByMediaId,
-    Map<String, String> videoUrlsByMediaId,
-    Set<String> resolvingImageMediaIds,
-    Set<String> resolvingAudioMediaIds,
-    Set<String> resolvingVideoMediaIds,
-    String? currentUserId,
-    Map<String, String> senderDisplayNameByUserId,
-    Map<String, String> senderAvatarUrlByUserId,
-    bool isGroupConversation,
-    String? conversationAvatarUrl,
-    String deletedMessageText,
+      List<Message> messages,
+      Set<String> uploadingImagePaths,
+      Map<String, String> imageUrlsByMediaId,
+      Map<String, String> audioUrlsByMediaId,
+      Map<String, String> videoUrlsByMediaId,
+      Set<String> resolvingImageMediaIds,
+      Set<String> resolvingAudioMediaIds,
+      Set<String> resolvingVideoMediaIds,
+      String? currentUserId,
+      Map<String, String> senderDisplayNameByUserId,
+      Map<String, String> senderAvatarUrlByUserId,
+      bool isGroupConversation,
+      String? conversationAvatarUrl,
+      String deletedMessageText,
+
   ) {
     final normalizedCurrentUserId = _normalizeId(currentUserId);
 
@@ -137,6 +138,7 @@ class ChatMessageUIMapper {
         senderAvatarUrl: senderAvatarUrl,
         conversationAvatarUrl: conversationAvatarUrl,
         isGroupConversation: isGroupConversation,
+        forwardInfo: domainMessage.forwardInfo,
         reactions: reactions,
       );
     }
@@ -169,6 +171,7 @@ class ChatMessageUIMapper {
         senderAvatarUrl: senderAvatarUrl,
         conversationAvatarUrl: conversationAvatarUrl,
         isGroupConversation: isGroupConversation,
+        forwardInfo: domainMessage.forwardInfo,
         reactions: reactions,
       );
     }
@@ -199,6 +202,7 @@ class ChatMessageUIMapper {
         senderAvatarUrl: senderAvatarUrl,
         conversationAvatarUrl: conversationAvatarUrl,
         isGroupConversation: isGroupConversation,
+        forwardInfo: domainMessage.forwardInfo,
         reactions: reactions,
       );
     }
@@ -248,6 +252,7 @@ class ChatMessageUIMapper {
         senderAvatarUrl: senderAvatarUrl,
         conversationAvatarUrl: conversationAvatarUrl,
         isGroupConversation: isGroupConversation,
+        forwardInfo: domainMessage.forwardInfo,
         reactions: reactions,
       );
     }
@@ -293,6 +298,7 @@ class ChatMessageUIMapper {
         senderAvatarUrl: senderAvatarUrl,
         conversationAvatarUrl: conversationAvatarUrl,
         isGroupConversation: isGroupConversation,
+        forwardInfo: domainMessage.forwardInfo,
         reactions: reactions,
       );
     }
@@ -309,6 +315,7 @@ class ChatMessageUIMapper {
       senderAvatarUrl: senderAvatarUrl,
       conversationAvatarUrl: conversationAvatarUrl,
       isGroupConversation: isGroupConversation,
+      forwardInfo: domainMessage.forwardInfo,
       reactions: reactions,
     );
   }

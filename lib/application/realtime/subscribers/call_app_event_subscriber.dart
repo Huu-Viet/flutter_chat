@@ -9,6 +9,19 @@ class CallAppEventSubscriber extends AppEventSubscriber {
 
   @override
   Future<void> onEvent(AppEvent event) async {
-    // Reserved for mapping AppEvent -> call use cases.
+    switch (event.type) {
+      case 'call:ringing':
+        // Handle incoming call ringing event
+        break;
+      case 'call:accepted':
+        // Handle call accepted event
+        break;
+      case 'call:declined':
+        // Handle call declined event
+        break;
+      case 'call:ended':
+        // Handle call ended event
+        break;
+    }
   }
 }

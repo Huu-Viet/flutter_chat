@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:flutter_chat/core/database/app_database.dart';
 import 'package:flutter_chat/features/chat/data/entities/message_reaction_entity.dart';
+import 'package:flutter_chat/features/chat/data/entities/pin_message_entity.dart';
 
 class ChatMessageWithMediasEntity {
   final ChatMessageEntity message;
@@ -22,6 +23,7 @@ abstract class MessageDao {
   Future<ChatMessageWithMediasEntity?> getMessageByClientMessageId(String clientMessageId);
   Future<List<ChatMessageWithMediasEntity>> getMessagesByConversationId(String conversationId);
   Stream<List<ChatMessageWithMediasEntity>> watchMessagesByConversationId(String conversationId);
+  Stream<List<PinMessageEntity>> watchPinnedMessagesByConversationId(String conversationId);
   Future<void> clearMessagesByConversationId(String conversationId);
   Future<void> clearAllMessages();
   Future<void> updateServerId(String localId, String serverId);
@@ -32,6 +34,8 @@ abstract class MessageDao {
     String messageIdentifier,
     List<MessageReactionEntity> reactions,
   );
+  Future<void> updatePinMessage(List<PinMessageEntity> pinMessages);
+  Future<List<PinMessageEntity>> getPinnedMessagesByConversationId(String conversationId);
 }
 
 class DriftMessageDaoImpl implements MessageDao {
@@ -90,6 +94,7 @@ class DriftMessageDaoImpl implements MessageDao {
             serverId: Value(message.serverId),
             createdAt: Value(message.createdAt),
             editedAt: Value(message.editedAt),
+            forwardInfoJson: Value(message.forwardInfoJson)
           ),
         );
         await _database.replaceMessageMedias(existing.id, item.medias);
@@ -148,6 +153,11 @@ class DriftMessageDaoImpl implements MessageDao {
   @override
   Stream<List<ChatMessageWithMediasEntity>> watchMessagesByConversationId(String conversationId) {
     return _database.watchMessagesByConversationId(conversationId).asyncMap(_attachMedias);
+  }
+
+  @override
+  Stream<List<PinMessageEntity>> watchPinnedMessagesByConversationId(String conversationId) {
+    return _database.watchPinnedMessagesByConversationId(conversationId);
   }
 
   @override
@@ -282,6 +292,30 @@ class DriftMessageDaoImpl implements MessageDao {
           metadata: Value(jsonEncode(metadataMap)),
         ),
       );
+    } catch (e) {
+      log(e.toString());
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> updatePinMessage(List<PinMessageEntity> pinMessages) async{
+    try {
+      await _database.transaction(() async {
+        for (final pinMessage in pinMessages) {
+          await _database.insertOrReplacePinMessage(pinMessage);
+        }
+      });
+    } catch (e) {
+      log(e.toString());
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<PinMessageEntity>> getPinnedMessagesByConversationId(String conversationId) async {
+    try {
+      return await _database.getPinnedMessagesByConversationId(conversationId);
     } catch (e) {
       log(e.toString());
       rethrow;

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter_chat/features/chat/data/entities/pin_message_entity.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import '../../features/auth/data/entities/user_entity.dart';
@@ -13,12 +14,22 @@ import '../../features/chat/data/entities/conversation_user_entity.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: [Users, ChatConversations, ConversationUsers, ChatMessages, MessageMedias, Friendships, StickerPackages, StickerItems])
+@DriftDatabase(tables: [
+  Users,
+  ChatConversations,
+  ConversationUsers,
+  ChatMessages,
+  MessageMedias,
+  Friendships,
+  StickerPackages,
+  StickerItems,
+  PinMessages,
+])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -31,6 +42,7 @@ class AppDatabase extends _$AppDatabase {
           await m.deleteTable('chat_conversations');
           await m.deleteTable('friendships');
           await m.deleteTable('users');
+          await m.deleteTable('pin_messages');
 
           await m.createTable(users);
           await m.createTable(friendships);
@@ -40,6 +52,7 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(messageMedias);
           await m.createTable(stickerPackages);
           await m.createTable(stickerItems);
+          await m.createTable(pinMessages);
         },
       );
 
@@ -251,6 +264,15 @@ class AppDatabase extends _$AppDatabase {
         .watch();
   }
 
+  Stream<List<PinMessageEntity>> watchPinnedMessagesByConversationId(String conversationId) {
+    return (select(pinMessages)
+          ..where((tbl) => tbl.conversationId.equals(conversationId))
+          ..orderBy([
+            (tbl) => OrderingTerm.desc(tbl.createdAt),
+          ]))
+        .watch();
+  }
+
   Future<void> clearMessagesByConversationId(String conversationId) async {
     final messages = await (select(chatMessages)..where((tbl) => tbl.conversationId.equals(conversationId))).get();
     final messageIds = messages.map((e) => e.id).toList(growable: false);
@@ -311,6 +333,14 @@ class AppDatabase extends _$AppDatabase {
         isRevoked: Value(true),
       ),
     );
+  }
+
+  Future<void> insertOrReplacePinMessage(PinMessageEntity item) async {
+    await into(pinMessages).insert(item, mode: InsertMode.replace);
+  }
+
+  Future<List<PinMessageEntity>> getPinnedMessagesByConversationId(String conversationId) async {
+    return (select(pinMessages)..where((tbl) => tbl.conversationId.equals(conversationId))).get();
   }
 
   Future<void> clearFriendships() async {

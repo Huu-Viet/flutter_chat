@@ -6,19 +6,20 @@ class FileMessage extends Message {
   final Map<String, dynamic>? rawMetadata;
 
   const FileMessage({
+    this.caption,
+    required this.medias,
+    this.rawMetadata,
     required super.id,
     required super.conversationId,
     required super.senderId,
-    required this.medias,
-    this.caption,
     required super.offset,
     required super.isDeleted,
-    super.isRevoked,
     required super.serverId,
     required super.createdAt,
     required super.editedAt,
     super.reactions,
-    this.rawMetadata
+    super.isRevoked,
+    super.forwardInfo,
   });
 
   @override

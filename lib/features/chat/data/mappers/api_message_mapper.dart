@@ -1,6 +1,7 @@
 import 'package:flutter_chat/core/mappers/remote_mapper.dart';
+import 'package:flutter_chat/features/chat/data/dtos/forward_info_dto.dart';
 import 'package:flutter_chat/features/chat/data/dtos/message_attachment_dto.dart';
-import 'package:flutter_chat/features/chat/data/dtos/message_dto.dart';
+import 'package:flutter_chat/features/chat/domain/entities/messages/message/forward_info.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/audio_media.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/file_media.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/generic_media.dart';
@@ -41,6 +42,7 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
           serverId: dto.clientMessageId,
           createdAt: createdAt,
           editedAt: editedAt,
+          forwardInfo: _mapForwardInfo(dto.forwardInfo),
           reactions: reactions,
         );
       case 'sticker':
@@ -57,6 +59,7 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
           serverId: dto.clientMessageId,
           createdAt: createdAt,
           editedAt: editedAt,
+          forwardInfo: _mapForwardInfo(dto.forwardInfo),
           reactions: reactions,
         );
       case 'audio':
@@ -72,6 +75,7 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
           serverId: dto.clientMessageId,
           createdAt: createdAt,
           editedAt: editedAt,
+          forwardInfo: _mapForwardInfo(dto.forwardInfo),
           reactions: reactions,
         );
       case 'video':
@@ -87,6 +91,7 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
           serverId: dto.clientMessageId,
           createdAt: createdAt,
           editedAt: editedAt,
+          forwardInfo: _mapForwardInfo(dto.forwardInfo),
           reactions: reactions,
         );
       case 'image':
@@ -102,6 +107,7 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
           serverId: dto.clientMessageId,
           createdAt: createdAt,
           editedAt: editedAt,
+          forwardInfo: _mapForwardInfo(dto.forwardInfo),
           reactions: reactions,
         );
       case 'file':
@@ -117,6 +123,7 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
           serverId: dto.clientMessageId,
           createdAt: createdAt,
           editedAt: editedAt,
+          forwardInfo: _mapForwardInfo(dto.forwardInfo),
           reactions: reactions,
         );
       case 'media':
@@ -132,6 +139,7 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
           serverId: dto.clientMessageId,
           createdAt: createdAt,
           editedAt: editedAt,
+          forwardInfo: _mapForwardInfo(dto.forwardInfo),
           reactions: reactions,
         );
       default:
@@ -459,10 +467,19 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
       }
     }
 
+    if (message is VideoMessage) {
+      metadata['fileSize'] = message.media.size;
+      metadata['fileName'] = message.media.fileName;
+      metadata['thumbMediaId'] = message.media.thumbMediaId;
+    }
+
     // Extract waveform from audio/video messages
-    final waveform = _extractWaveformFromMessage(message);
-    if (waveform != null && waveform.isNotEmpty) {
-      metadata['waveform'] = waveform;
+    if (message is AudioMessage) {
+      final waveform = _extractWaveformFromMessage(message);
+      if (waveform != null && waveform.isNotEmpty) {
+        metadata['waveform'] = waveform;
+        metadata['durationMs'] = message.media.durationMs;
+      }
     }
 
     if (message.reactions.isNotEmpty) {
@@ -643,5 +660,19 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
       return message.media.waveform;
     }
     return null;
+  }
+
+  ForwardInfo? _mapForwardInfo(ForwardInfoDTO? forwardInfo) {
+    if (forwardInfo == null) {
+      return null;
+    }
+
+    return ForwardInfo(
+      conversationId: forwardInfo.conversationId ?? '',
+      senderId: forwardInfo.senderId ?? '',
+      messageId: forwardInfo.messageId ?? '',
+      content: forwardInfo.content ?? '',
+      type: forwardInfo.type ?? '',
+    );
   }
 }

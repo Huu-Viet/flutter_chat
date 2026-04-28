@@ -5,6 +5,7 @@ import 'package:flutter_chat/features/chat/data/response/message_edit_response.d
 import 'package:flutter_chat/features/chat/data/response/message_media_precheck_response.dart';
 import 'package:flutter_chat/features/chat/data/response/message_reaction_response.dart';
 import 'package:flutter_chat/features/chat/data/response/message_send_response.dart';
+import 'package:flutter_chat/features/chat/data/response/pin_message_response.dart';
 import 'package:flutter_chat/features/chat/data/response/sticker_item_response.dart';
 import 'package:flutter_chat/features/chat/data/response/sticker_package_response.dart';
 import 'package:flutter_chat/features/chat/export.dart';
@@ -85,8 +86,6 @@ class ChatServiceImpl implements ChatService {
       if (responseBody is! Map<String, dynamic>) {
         throw Exception('Invalid response body format');
       }
-
-      debugPrint('[ChatServiceImpl] Messages data: ${responseBody['data']}');
       
       return MessageListResponse.fromJson(responseBody);
     } catch (e) {
@@ -422,6 +421,33 @@ class ChatServiceImpl implements ChatService {
     } catch (e) {
       debugPrint('[ChatServiceImpl] Unpin message error: $e');
       throw Exception('Failed to unpin message: $e');
+    }
+  }
+
+  @override
+  Future<PinMessageResponse> fetchPinMessages({required String conversationId}) async {
+    try {
+      final endpoint = '$_baseUrl/conversations/$conversationId/pinned';
+      debugPrint('[ChatServiceImpl] Pin message list request: endpoint=$endpoint');
+
+      final response = await _dio.get(endpoint);
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to fetch pinned messages: ${response.statusCode}');
+      }
+
+      final responseBody = response.data;
+      return PinMessageResponse.fromJson(responseBody);
+    } on DioException catch (e) {
+      debugPrint(
+        '[ChatServiceImpl] Pin message list Dio error: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+      throw Exception(
+        'Failed to fetch pinned messages: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] Pin message list error: $e');
+      throw Exception('Failed to fetch pinned messages: $e');
     }
   }
 

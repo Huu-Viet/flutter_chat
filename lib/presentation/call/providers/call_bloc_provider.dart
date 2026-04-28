@@ -3,6 +3,7 @@ import 'package:flutter_chat/presentation/call/blocs/call_bloc.dart';
 import 'package:riverpod/riverpod.dart';
 
 final callBlocProvider = Provider<CallBloc>((ref) {
-  final sendCallRequest = ref.watch(sendCallRequestUseCaseProvider);
-  return CallBloc(sendCallRequest);
+  throw UnimplementedError("CallBlocProvider is not implemented yet");
+  // final sendCallRequest = ref.watch(sendCallRequestUseCaseProvider);
+  // return CallBloc(sendCallRequest);
 });

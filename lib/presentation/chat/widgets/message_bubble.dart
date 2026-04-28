@@ -7,8 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_chat/core/utils/animated_sticker_sprite.dart';
 import 'package:flutter_chat/core/utils/date_utils.dart';
 import 'package:flutter_chat/core/utils/waveform_utils.dart';
+import 'package:flutter_chat/features/chat/domain/entities/messages/message/forward_info.dart';
 import 'package:flutter_chat/presentation/chat/chat_image_cache_manager.dart';
 import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
+import 'package:flutter_chat/presentation/chat/models/forward_info_ui.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_reactions_bar.dart';
 import 'package:video_player/video_player.dart';
 
@@ -216,10 +218,35 @@ class _MessageBubbleState extends State<MessageBubble> {
     final message = widget.message;
 
     return switch (message) {
-      ImageChatMessage(:final imagePath, :final mediaId, :final isUploading, :final isResolvingImage) =>
-        _buildImageContent(context, imagePath, mediaId, isUploading, isResolvingImage, false, false),
+      ImageChatMessage(
+          :final imagePath,
+          :final mediaId,
+          :final isUploading,
+          :final isResolvingImage,
+          :final forwardInfo
+      ) => _buildImageContent(
+          context,
+          imagePath,
+          mediaId,
+          isUploading,
+          isResolvingImage,
+          false,
+          false,
+          forwardInfo,
+      ),
+
       StickerChatMessage(:final stickerPath, :final stickerId) =>
-        _buildImageContent(context, stickerPath, null, false, false, _isSpriteSticker(stickerPath, stickerId), true),
+        _buildImageContent(
+            context,
+            stickerPath,
+            null,
+            false,
+            false,
+            _isSpriteSticker(stickerPath, stickerId),
+            true,
+            message.forwardInfo,
+        ),
+
       VideoChatMessage(
         :final thumbnailPath,
         :final videoUrl,
@@ -227,6 +254,7 @@ class _MessageBubbleState extends State<MessageBubble> {
         :final durationMs,
         :final isResolvingImage,
         :final isResolvingVideo,
+        :final forwardInfo,
       ) => _buildVideoContent(
         context,
         thumbnailPath,
@@ -235,13 +263,17 @@ class _MessageBubbleState extends State<MessageBubble> {
         durationMs,
         isResolvingImage,
         isResolvingVideo,
+        forwardInfo,
       ),
-      AudioChatMessage(:final audioUrl, :final durationMs, :final waveform) =>
-        _buildAudioContent(context, audioUrl, durationMs, waveform),
-      FileChatMessage(:final isDownloading) =>
-          _buildFileContent(message, isDownloading: isDownloading, onOpen: onOpenFile ?? () {}),
-      TextChatMessage(:final text) => _buildTextContent(text),
-      UnknownChatMessage(:final content) => _buildTextContent(content ?? ''),
+
+      AudioChatMessage(:final audioUrl, :final durationMs, :final waveform, :final forwardInfo) =>
+        _buildAudioContent(context, audioUrl, durationMs, waveform, forwardInfo),
+
+      FileChatMessage(:final isDownloading, :final forwardInfo) =>
+          _buildFileContent(forwardInfo, message, isDownloading: isDownloading, onOpen: onOpenFile ?? () {}),
+
+      TextChatMessage(:final text, :final forwardInfo) => _buildTextContent(text, forwardInfo),
+      UnknownChatMessage(:final content, :final forwardInfo) => _buildTextContent(content ?? '', forwardInfo),
     };
   }
 
@@ -253,6 +285,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     bool isResolvingImage,
     bool isSpriteSticker,
     bool isSticker,
+    ForwardInfo? forwardInfo,
   ) {
     if (imagePath == null) {
       if (!isResolvingImage) return const SizedBox.shrink();
@@ -301,27 +334,40 @@ class _MessageBubbleState extends State<MessageBubble> {
                 ),
     );
 
-    if (!isUploading) {
-      return imageWidget;
-    }
+    Widget content;
 
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        imageWidget,
-        Positioned.fill(
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.25),
-              borderRadius: BorderRadius.circular(8),
+    if (!isUploading) {
+      content = imageWidget;
+    } else {
+      content = Stack(
+        alignment: Alignment.center,
+        children: [
+          imageWidget,
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
           ),
-        ),
-        const SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(strokeWidth: 2.2),
-        ),
+          const SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2.2),
+          ),
+        ],
+      );
+    }
+
+    if (forwardInfo == null) return content;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildForwardInfo(context, forwardInfo),
+        const SizedBox(height: 4),
+        content,
       ],
     );
   }
@@ -334,6 +380,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     int? durationMs,
     bool isResolvingImage,
     bool isResolvingVideo,
+    ForwardInfo? forwardInfo,
   ) {
     final hasVideo = videoUrl != null && videoUrl.trim().isNotEmpty;
 
@@ -482,7 +529,9 @@ class _MessageBubbleState extends State<MessageBubble> {
             ),
     );
 
-    return GestureDetector(
+    Widget content;
+
+    content = GestureDetector(
       onTap: hasVideo ? () => _initializeAndPlayVideo(videoUrl) : null,
       child: Stack(
       alignment: Alignment.center,
@@ -528,6 +577,16 @@ class _MessageBubbleState extends State<MessageBubble> {
       ],
       ),
     );
+
+    if (forwardInfo == null) return content;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildForwardInfo(context, forwardInfo),
+        const SizedBox(height: 4),
+        content,
+      ],
+    );
   }
 
   Widget _buildAudioContent(
@@ -535,6 +594,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     String? audioUrl,
     int? durationMs,
     List<double>? waveform,
+    ForwardInfo? forwardInfo,
   ) {
     final hasAudio = audioUrl != null && audioUrl.trim().isNotEmpty;
     final bars = WaveformUtils.normalize(waveform ?? const <double>[], maxBars: 48);
@@ -545,7 +605,9 @@ class _MessageBubbleState extends State<MessageBubble> {
     final playIconColor = isMine ? primary : Colors.white;
     final waveformColor = isMine ? Colors.white : primary;
 
-    return Column(
+    Widget content;
+
+    content = Column(
       crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
         Row(
@@ -611,9 +673,20 @@ class _MessageBubbleState extends State<MessageBubble> {
         ),
       ],
     );
+
+    if (forwardInfo == null) return content;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildForwardInfo(context, forwardInfo),
+        const SizedBox(height: 4),
+        content,
+      ],
+    );
   }
 
   Widget _buildFileContent(
+      ForwardInfo? forwardInfo,
       FileChatMessage fileMessage, {
         required bool isDownloading,
         required VoidCallback onOpen,
@@ -621,7 +694,8 @@ class _MessageBubbleState extends State<MessageBubble> {
     final fileName = fileMessage.fileName?.trim() ?? 'File';
     final fileSize = fileMessage.fileSize;
 
-    return Row(
+    Widget content;
+    content = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         /// Icon
@@ -678,33 +752,23 @@ class _MessageBubbleState extends State<MessageBubble> {
         ),
       ],
     );
-  }
-  IconData _getFileIcon(String? mime) {
-    if (mime == null) return Icons.insert_drive_file;
 
-    if (mime.contains('pdf')) return Icons.picture_as_pdf;
-    if (mime.contains('word')) return Icons.description;
-    if (mime.contains('sheet') || mime.contains('excel')) {
-      return Icons.table_chart;
-    }
-    if (mime.contains('zip') || mime.contains('rar')) {
-      return Icons.archive;
-    }
-    if (mime.startsWith('text/')) return Icons.text_snippet;
-
-    return Icons.insert_drive_file;
-  }
-  String _formatSize(int bytes) {
-    if (bytes < 1024) return "$bytes B";
-    if (bytes < 1024 * 1024) {
-      return "${(bytes / 1024).toStringAsFixed(1)} KB";
-    }
-    return "${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB";
-  }
-
-  Widget _buildTextContent(String text) {
-    final message = widget.message;
+    if (forwardInfo == null) return content;
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildForwardInfo(context, forwardInfo),
+        const SizedBox(height: 4),
+        content,
+      ],
+    );
+  }
+
+  Widget _buildTextContent(String text, ForwardInfo? forwardInfo) {
+    final message = widget.message;
+
+    Widget content;
+    content = Column(
       crossAxisAlignment: message.isSentByMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
         Text(
@@ -713,8 +777,8 @@ class _MessageBubbleState extends State<MessageBubble> {
             color: message.isDeleted
                 ? (message.isSentByMe ? Colors.white70 : Colors.black45)
                 : message.isSentByMe
-                    ? Colors.white
-                    : Colors.black,
+                ? Colors.white
+                : Colors.black,
             fontStyle: message.isDeleted ? FontStyle.italic : FontStyle.normal,
           ),
         ),
@@ -731,7 +795,68 @@ class _MessageBubbleState extends State<MessageBubble> {
         ],
       ],
     );
+
+    if (forwardInfo == null) return content;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildForwardInfo(context, forwardInfo),
+        const SizedBox(height: 4),
+        content,
+      ],
+    );
   }
+
+  Widget _buildForwardInfo(BuildContext context, ForwardInfo info) {
+    final theme = Theme.of(context);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.forward,
+          size: 14,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            'Forwarded from ${info.senderId}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontStyle: FontStyle.italic,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  IconData _getFileIcon(String? mime) {
+    if (mime == null) return Icons.insert_drive_file;
+
+    if (mime.contains('pdf')) return Icons.picture_as_pdf;
+    if (mime.contains('word')) return Icons.description;
+    if (mime.contains('sheet') || mime.contains('excel')) {
+      return Icons.table_chart;
+    }
+    if (mime.contains('zip') || mime.contains('rar')) {
+      return Icons.archive;
+    }
+    if (mime.startsWith('text/')) return Icons.text_snippet;
+
+    return Icons.insert_drive_file;
+  }
+
+  String _formatSize(int bytes) {
+    if (bytes < 1024) return "$bytes B";
+    if (bytes < 1024 * 1024) {
+      return "${(bytes / 1024).toStringAsFixed(1)} KB";
+    }
+    return "${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB";
+  }
+
 
   Future<void> _togglePlayAudio(String audioUrl) async {
     try {

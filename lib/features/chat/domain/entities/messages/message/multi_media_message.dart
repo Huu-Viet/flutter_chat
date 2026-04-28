@@ -5,18 +5,19 @@ class MultiMediaMessage extends Message {
   final String? caption;
 
   const MultiMediaMessage({
+    this.caption,
+    required this.medias,
     required super.id,
     required super.conversationId,
     required super.senderId,
-    required this.medias,
-    this.caption,
     required super.offset,
     required super.isDeleted,
-    super.isRevoked,
     required super.serverId,
     required super.createdAt,
     required super.editedAt,
+    super.isRevoked,
     super.reactions,
+    super.forwardInfo,
   });
 
   @override

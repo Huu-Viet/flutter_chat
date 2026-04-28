@@ -1,4 +1,7 @@
 import 'package:flutter_chat/features/auth/auth_providers.dart';
+import 'package:flutter_chat/features/upload_media/data/mapper/api_multipart_init_mapper.dart';
+import 'package:flutter_chat/features/upload_media/data/mapper/api_upload_result_part_mapper.dart';
+import 'package:flutter_chat/features/upload_media/domain/usecases/upload_multipart_usecase.dart';
 import 'package:flutter_chat/features/upload_media/export.dart';
 import 'package:riverpod/riverpod.dart';
 
@@ -7,14 +10,36 @@ final presignMediaServiceProvider = Provider<PresignMediaService>((ref) {
 	return PresignMediaServiceImpl(ref.watch(authDioProvider));
 });
 
+//mapper
+final apiPresignedPartMapperProvider = Provider<ApiPresignedPartMapper>((ref) {
+	return ApiPresignedPartMapper();
+});
+
+final apiMultipartInitMapperProvider = Provider<ApiMultipartInitMapper>((ref) {
+	return ApiMultipartInitMapper();
+});
+
+final apiUploadResultPartMapperProvider = Provider<ApiUploadResultPartMapper>((ref) {
+	return ApiUploadResultPartMapper();
+});
+
 //repository
 final uploadMediaRepoProvider = Provider<UploadMediaRepository>((ref) {
-	return UploadMediaRepoImpl(ref.read(presignMediaServiceProvider));
+	return UploadMediaRepoImpl(
+			presignMediaService: ref.read(presignMediaServiceProvider),
+			apiPresignedPartMapper: ref.read(apiPresignedPartMapperProvider),
+			apiMultipartInitMapper: ref.read(apiMultipartInitMapperProvider),
+			apiUploadResultPartMapper: ref.read(apiUploadResultPartMapperProvider),
+	);
 });
 
 //use case
 final uploadMediaUseCaseProvider = Provider<UploadMediaUseCase>((ref) {
 	return UploadMediaUseCase(ref.read(uploadMediaRepoProvider));
+});
+
+final uploadMultipartUseCaseProvider = Provider<UploadMultipartUseCase>((ref) {
+	return UploadMultipartUseCase(ref.read(uploadMediaRepoProvider));
 });
 
 final getImageUrlByMediaIdUseCaseProvider = Provider<GetUrlByMediaIdUseCase>((ref) {
@@ -39,18 +64,6 @@ final deleteMediaUseCaseProvider = Provider<DeleteMediaUseCase>((ref) {
 
 final crossShareMediaUseCaseProvider = Provider<CrossShareMediaUseCase>((ref) {
 	return CrossShareMediaUseCase(ref.read(uploadMediaRepoProvider));
-});
-
-final initMultipartUploadUseCaseProvider = Provider<InitMultipartUploadUseCase>((ref) {
-	return InitMultipartUploadUseCase(ref.read(uploadMediaRepoProvider));
-});
-
-final presignMultipartPartsUseCaseProvider = Provider<PresignMultipartPartsUseCase>((ref) {
-	return PresignMultipartPartsUseCase(ref.read(uploadMediaRepoProvider));
-});
-
-final completeMultipartUploadUseCaseProvider = Provider<CompleteMultipartUploadUseCase>((ref) {
-	return CompleteMultipartUploadUseCase(ref.read(uploadMediaRepoProvider));
 });
 
 final abortMultipartUploadUseCaseProvider = Provider<AbortMultipartUploadUseCase>((ref) {

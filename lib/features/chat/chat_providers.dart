@@ -2,6 +2,8 @@ import 'package:flutter_chat/app/app_providers.dart';
 import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/auth/user_providers.dart';
 import 'package:flutter_chat/features/chat/data/datasource/api/chat_service_impl.dart';
+import 'package:flutter_chat/features/chat/data/mappers/api_pin_message_mapper.dart';
+import 'package:flutter_chat/features/chat/data/mappers/local_pin_message_mapper.dart';
 import 'package:flutter_chat/features/chat/data/repositories/chat_repo_impl.dart';
 import 'package:flutter_chat/features/chat/domain/usecases/get_conversation_usecase.dart';
 import 'package:flutter_chat/features/chat/domain/usecases/get_sticker_packages_usecase.dart';
@@ -43,6 +45,10 @@ final apiMessageMapperProvider = Provider<ApiMessageMapper>((ref) {
   return ApiMessageMapper();
 });
 
+final apiPinMessageMapperProvider = Provider<ApiPinMessageMapper>((ref) {
+  return ApiPinMessageMapper();
+});
+
 final apiMessageReactionMapperProvider = Provider<ApiMessageReactionMapper>((ref) {
   return ApiMessageReactionMapper();
 });
@@ -53,6 +59,10 @@ final localConversationMapperProvider = Provider<LocalConversationMapper>((ref) 
 
 final localMessageMapperProvider = Provider<LocalMessageMapper>((ref) {
   return LocalMessageMapper();
+});
+
+final localPinMessageMapperProvider = Provider<LocalPinMessageMapper>((ref) {
+  return LocalPinMessageMapper();
 });
 
 final localMessageReactionMapperProvider = Provider<LocalMessageReactionMapper>((ref) {
@@ -95,8 +105,10 @@ final chatRepoProvider = Provider<ChatRepository>((ref) {
     stickerItemDao: ref.read(stickerItemDaoProvider),
     apiConversationMapper: ref.read(apiConversationMapperProvider),
     apiMessageMapper: ref.read(apiMessageMapperProvider),
+    apiPinMessageMapper: ref.read(apiPinMessageMapperProvider),
     localConversationMapper: ref.read(localConversationMapperProvider),
     localMessageMapper: ref.read(localMessageMapperProvider),
+    localPinMessageMapper: ref.read(localPinMessageMapperProvider),
     apiMessageReactionMapper: ref.read(apiMessageReactionMapperProvider),
     localMessageReactionMapper: ref.read(localMessageReactionMapperProvider),
     stickerPackageMapper: ref.read(stickerPackageMapperProvider),
@@ -177,4 +189,12 @@ final getConversationUseCaseProvider = Provider<GetConversationUseCase>((ref) {
 
 final emitTypingUseCaseProvider = Provider<EmitTypingUseCase>((ref) {
   return EmitTypingUseCase(ref.read(chatRepoProvider));
+});
+
+final watchPinMessageUseCaseProvider = Provider<WatchPinMessageUseCase>((ref) {
+  return WatchPinMessageUseCase(ref.read(chatRepoProvider));
+});
+
+final fetchPinMessageUseCaseProvider = Provider<FetchPinMessageUseCase>((ref) {
+  return FetchPinMessageUseCase(ref.read(chatRepoProvider));
 });

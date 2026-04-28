@@ -9,6 +9,8 @@ class AppTheme {
   static const Color lightSurfaceBrightColor = Color(0xFFE6EEF7);
   static const Color lightOnSurfaceColor = Color(0xFF000000);
   static const Color darkOnSurfaceColor = Color(0xFFFFFFFF);
+  static const Color darkSurfaceContainerHigh = Color(0xFF182742);
+  static const Color lightSurfaceContainerHigh = Color(0xFFD6DBF3);
   static const Color errorColor = Color(0xFFB00020);
   
   static ThemeData lightTheme = ThemeData(
@@ -19,6 +21,7 @@ class AppTheme {
       surface: lightSurfaceColor,
       surfaceBright: lightSurfaceBrightColor,
       onSurface: lightOnSurfaceColor,
+      surfaceContainerHigh: lightSurfaceContainerHigh,
       error: errorColor,
     ),
     textTheme: const TextTheme(
@@ -79,6 +82,7 @@ class AppTheme {
       surface: darkSurfaceColor,
       onSurface: darkOnSurfaceColor,
       surfaceBright: darkSurfaceBrightColor,
+      surfaceContainerHigh: darkSurfaceContainerHigh,
       error: errorColor,
     ),
     textTheme: const TextTheme(
