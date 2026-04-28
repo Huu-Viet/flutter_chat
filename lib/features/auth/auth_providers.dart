@@ -28,10 +28,13 @@ final authDioProvider = Provider<Dio>((ref) {
   ));
 
   final tokenDts = ref.watch(authPrefsDtsProvider);
+  final authRemoteService = ref.watch(authRemoteServiceProvider);
 
   dio.interceptors.add(
     AuthInterceptor(
         authPrefDataSource: tokenDts,
+        authRemoteService: authRemoteService,
+        dio: dio,
         onUnauthorized: () async {
           final hadAccessToken = (await tokenDts.getAccessToken())?.trim().isNotEmpty == true;
           final hadRefreshToken = (await tokenDts.getRefreshToken())?.trim().isNotEmpty == true;
