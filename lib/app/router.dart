@@ -1,6 +1,7 @@
 import 'package:flutter_chat/presentation/auth/pages/forgot_pass_page.dart';
 import 'package:flutter_chat/presentation/auth/pages/login_page.dart';
 import 'package:flutter_chat/presentation/auth/pages/registry_page.dart';
+import 'package:flutter_chat/presentation/call/presentation/in_call_page.dart';
 import 'package:flutter_chat/presentation/chat/page/chat_page.dart';
 import 'package:flutter_chat/presentation/main_scaffold.dart';
 import 'package:flutter_chat/features/auth/export.dart';
@@ -56,6 +57,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/profile',
         name: 'profile',
         builder: (context, state) => const ProfilePage(),
+      ),
+      GoRoute(
+        path: '/in-call',
+        name: 'in-call',
+        builder: (context, state) => const InCallPage(),
       ),
       GoRoute(
         path: '/chat/:conversationId/:friendName',

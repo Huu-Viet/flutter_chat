@@ -17,8 +17,10 @@ import 'package:flutter_chat/application/realtime/subscribers/session_app_event_
 import 'package:flutter_chat/core/database/app_database.dart';
 import 'package:flutter_chat/core/network/realtime_gateway.dart';
 import 'package:flutter_chat/core/network/realtime_gateway_service.dart';
+import 'package:flutter_chat/core/widgets/call_banner_overlay.dart';
 import 'package:flutter_chat/features/auth/auth_session_providers.dart';
 import 'package:flutter_chat/features/auth/auth_providers.dart';
+import 'package:flutter_chat/features/call/call_providers.dart';
 import 'package:flutter_chat/features/chat/chat_providers.dart';
 import 'package:flutter_chat/presentation/chat/blocs/chat_bloc.dart';
 import 'package:flutter_chat/presentation/chat/chat_providers.dart';
@@ -58,14 +60,22 @@ final chatAppEventSubscriberProvider = Provider<AppEventSubscriber>((ref) {
   return ChatAppEventSubscriber(
     fetchConversationUseCase: ref.watch(fetchConversationUseCaseProvider),
     fetchMessagesUseCase: ref.watch(fetchMessagesUseCaseProvider),
-    markMessageDeletedLocalUseCase: ref.watch(markMessageDeletedLocalUseCaseProvider),
-    markMessageReactionsLocalUseCase: ref.watch(markMessageReactionsLocalUseCaseProvider),
-    updateUserPresenceLocalUseCase: ref.watch(updateUserPresenceLocalUseCaseProvider),
+    markMessageDeletedLocalUseCase: ref.watch(
+      markMessageDeletedLocalUseCaseProvider,
+    ),
+    markMessageReactionsLocalUseCase: ref.watch(
+      markMessageReactionsLocalUseCaseProvider,
+    ),
+    updateUserPresenceLocalUseCase: ref.watch(
+      updateUserPresenceLocalUseCaseProvider,
+    ),
 
     onTyping: (event) {
       final state = chatBloc.state;
       debugPrint('[TYPING] incoming: ${event.conversationId}, ${event.userId}');
-      debugPrint('[TYPING] current: ${state is ChatLoaded ? state.conversation?.id : 'no state'}');
+      debugPrint(
+        '[TYPING] current: ${state is ChatLoaded ? state.conversation?.id : 'no state'}',
+      );
 
       if (state is! ChatLoaded) return;
 
@@ -81,7 +91,21 @@ final chatAppEventSubscriberProvider = Provider<AppEventSubscriber>((ref) {
 });
 
 final callAppEventSubscriberProvider = Provider<AppEventSubscriber>((ref) {
-  return const CallAppEventSubscriber();
+  return CallAppEventSubscriber(
+    setIncomingCall: (callInfo) {
+      ref.read(incomingCallProvider.notifier).state = callInfo;
+    },
+    updateIncomingCall: (callInfo) {
+      ref.read(incomingCallProvider.notifier).state = callInfo;
+    },
+    updateCurrentCallSession: (session) {
+      ref.read(currentCallSessionProvider.notifier).state = session;
+    },
+    getCurrentCallSession: () {
+      return ref.read(currentCallSessionProvider);
+    },
+    callRepository: ref.watch(callRepositoryProvider),
+  );
 });
 
 final sessionAppEventSubscriberProvider = Provider<AppEventSubscriber>((ref) {
@@ -90,7 +114,9 @@ final sessionAppEventSubscriberProvider = Provider<AppEventSubscriber>((ref) {
     signOutUseCase: ref.watch(logoutUseCaseProvider),
     clearLocalAppDataUseCase: ref.watch(clearLocalAppDataUseCaseProvider),
     onSessionRevoked: () async {
-      debugPrint('[AppProviders] session revoked callback -> forceLogoutTick++');
+      debugPrint(
+        '[AppProviders] session revoked callback -> forceLogoutTick++',
+      );
       ref.read(forceLogoutTickProvider.notifier).state++;
     },
   );
@@ -115,7 +141,7 @@ final chatRealtimeHandlerProvider = Provider<RealtimeHandler>((ref) {
 });
 
 final callRealtimeHandlerProvider = Provider<RealtimeHandler>((ref) {
-  return const CallRealtimeHandler();
+  return CallRealtimeHandler(bus: ref.watch(appEventBusProvider));
 });
 
 final realtimeHandlersProvider = Provider<List<RealtimeHandler>>((ref) {
@@ -132,15 +158,25 @@ final realtimeOrchestratorProvider = Provider<RealtimeOrchestrator>((ref) {
   );
 });
 
-final connectRealtimeGatewayUseCaseProvider = Provider<ConnectRealtimeGatewayUseCase>((ref) {
-  return ConnectRealtimeGatewayUseCase(ref.watch(realtimeOrchestratorProvider));
-});
+final connectRealtimeGatewayUseCaseProvider =
+    Provider<ConnectRealtimeGatewayUseCase>((ref) {
+      return ConnectRealtimeGatewayUseCase(
+        ref.watch(realtimeOrchestratorProvider),
+      );
+    });
 
-final disconnectRealtimeGatewayUseCaseProvider = Provider<DisconnectRealtimeGatewayUseCase>((ref) {
-  return DisconnectRealtimeGatewayUseCase(ref.watch(realtimeOrchestratorProvider));
-});
+final disconnectRealtimeGatewayUseCaseProvider =
+    Provider<DisconnectRealtimeGatewayUseCase>((ref) {
+      return DisconnectRealtimeGatewayUseCase(
+        ref.watch(realtimeOrchestratorProvider),
+      );
+    });
 
 //Locale is nullable to allow ref is null.
 //This is because we want to set the locale to null when the user logs out,
 //so that the app will use the system locale.
 final localeProvider = StateProvider<Locale?>((ref) => null);
+
+final callBannerOverlayProvider = Provider((ref) {
+  return CallBannerOverlay();
+});
