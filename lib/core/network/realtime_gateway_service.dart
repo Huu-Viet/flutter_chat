@@ -313,6 +313,7 @@ class RealtimeGatewayService implements RealtimeGateway {
 
     for (final event in events) {
       socket.on(event, (payload) {
+        debugPrint('[RealtimeGatewayService] /call $event: $payload');
         _publishEvent(namespace: '/call', event: event, payload: payload);
       });
     }
