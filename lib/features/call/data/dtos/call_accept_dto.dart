@@ -18,7 +18,7 @@ class CallAcceptDto {
 
     return CallAcceptDto(
       call: CallDto.fromJson(callJson),
-      token: json['token'] as String?,
+      token: (json['token'] ?? json['livekitToken']) as String?,
       roomName: json['roomName'] as String?,
       liveKitUrl: json['liveKitUrl'] as String?,
     );

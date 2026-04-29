@@ -61,6 +61,15 @@ class RealtimeGatewayService implements RealtimeGateway {
   }
 
   @override
+  Future<void> emitCallEvent(String event, Map<String, dynamic> payload) async {
+    if (_callSocket == null || !_callAuthenticated) {
+      throw Exception('Call socket is not connected');
+    }
+
+    _callSocket.emit(event, payload);
+  }
+
+  @override
   Future<void> initialize() async {
     if (_isInitialized || _isConnecting) return;
     _isInitialized = true;
@@ -296,24 +305,20 @@ class RealtimeGatewayService implements RealtimeGateway {
 
   void _attachCallEventListeners(dynamic socket) {
     const events = <String>[
-      'meeting:started',
-      'meeting:join_requested',
-      'meeting:participant_joined',
-      'meeting:participant_left',
-      'meeting:approved',
-      'meeting:rejected',
-      'meeting:ended',
-      'meeting:media_state',
-      'meeting:recording_state',
-      'meeting:participant_moderated',
-      'meeting:kicked',
-      'meeting:throttled',
-      'webrtc:rejected',
+      'call:accept',
+      'call:decline',
+      'call:end',
+      'call:ringing',
+      'call:join_room',
+      'call:leave_room',
+      'call:accepted',
+      'call:declined',
+      'call:ended',
     ];
 
     for (final event in events) {
       socket.on(event, (payload) {
-        debugPrint('[RealtimeGatewayService] /call $event: $payload');
+        debugPrint('[RealtimeGatewayService] /call event received: $event -> $payload');
         _publishEvent(namespace: '/call', event: event, payload: payload);
       });
     }

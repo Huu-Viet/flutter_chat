@@ -5,8 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_chat/core/platform_services/export.dart';
+import 'package:flutter_chat/features/call/call_providers.dart';
+import 'package:flutter_chat/features/call/export.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
+import 'package:flutter_chat/presentation/call/blocs/outgoing_call_bloc.dart';
+import 'package:flutter_chat/presentation/call/providers/call_bloc_provider.dart';
 import 'package:flutter_chat/presentation/chat/blocs/chat_bloc.dart';
 import 'package:flutter_chat/presentation/chat/chat_providers.dart';
 import 'package:flutter_chat/presentation/chat/mappers/chat_message_ui_mapper.dart';
@@ -36,7 +40,14 @@ class ChatPage extends ConsumerStatefulWidget {
 }
 
 class _ChatPageState extends ConsumerState<ChatPage> {
-  static const List<String> _reactionEmojis = <String>['❤️', '👍', '🤣', '😮', '😭', '😡'];
+  static const List<String> _reactionEmojis = <String>[
+    '❤️',
+    '👍',
+    '🤣',
+    '😮',
+    '😭',
+    '😡',
+  ];
   static const double _messageActionDialogWidth = 280;
   static const double _messageActionDialogMargin = 16;
   static const Duration _messageEditWindow = Duration(hours: 1);
@@ -52,7 +63,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   void initState() {
     super.initState();
     ref.read(chatBlocProvider).add(ChatInitialLoadEvent(widget.conversationId));
-    _scrollController.addListener(() {_onScroll(ref.read(chatBlocProvider));});
+    _scrollController.addListener(() {
+      _onScroll(ref.read(chatBlocProvider));
+    });
   }
 
   @override
@@ -63,7 +76,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   bool _canEditMessage(ChatMessage message) {
-    if (message.isDeleted || !message.isSentByMe || message is! TextChatMessage) {
+    if (message.isDeleted ||
+        !message.isSentByMe ||
+        message is! TextChatMessage) {
       return false;
     }
 
@@ -139,182 +154,332 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final chatBloc = ref.read(chatBlocProvider);
+    final outgoingCallBloc = ref.watch(outgoingCallBlocProvider);
 
-    return BlocProvider<ChatBloc>.value(
-      value: chatBloc,
-      child: BlocConsumer<ChatBloc, ChatState>(
-        buildWhen: (previous, current) => current is! ChatError,
-        listener: (context, state) {
-          if (state is ChatError) {
-            final mappedMessage = _mapChatErrorMessage(state.message, l10n);
-            if (mappedMessage == null || mappedMessage.trim().isEmpty) {
-              return;
-            }
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<ChatBloc>.value(value: chatBloc),
+        BlocProvider<OutgoingCallBloc>.value(value: outgoingCallBloc),
+      ],
+      child: MultiBlocListener(
+        listeners: [
+          BlocListener<OutgoingCallBloc, OutgoingCallState>(
+            listenWhen: (previous, current) =>
+                previous.status != current.status,
+            listener: (context, state) {
+              if (state.status == OutgoingCallStatus.failure) {
+                final message = state.errorMessage;
+                if (message != null && message.trim().isNotEmpty) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(message)));
+                }
+                context.read<OutgoingCallBloc>().add(
+                  const OutgoingCallStatusConsumed(),
+                );
+              }
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(mappedMessage)),
-            );
-          }
-        },
-        builder: (context, state) => Scaffold(
-          appBar: AppBar(
-            iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onSurface),
-            title: Container(
-              alignment: Alignment.centerLeft,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.friendName,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface,
-                            fontWeight: FontWeight.bold,
-                          ),
-                      textAlign: TextAlign.left,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            backgroundColor: Theme.of(context).colorScheme.surfaceBright,
+              if (state.status == OutgoingCallStatus.success &&
+                  state.call != null) {
+                ref
+                    .read(currentCallSessionProvider.notifier)
+                    .state = CallSession(
+                  call: state.call!,
+                  token: '',
+                  roomName: '',
+                  liveKitUrl: '',
+                  isIncoming: false,
+                );
+                context.read<OutgoingCallBloc>().add(
+                  const OutgoingCallStatusConsumed(),
+                );
+              }
+            },
           ),
-          body: Column(
-            children: [
-              if (state is ChatLoaded && state.pinnedMessages.isNotEmpty)
-                PinMessagePanel(
-                  pinnedMessages: state.pinnedMessages,
-                  onTapItem: (pinMessages) {},
-                  onUnpin: (pinMessage) {},
+        ],
+        child: BlocConsumer<ChatBloc, ChatState>(
+          buildWhen: (previous, current) => current is! ChatError,
+          listener: (context, state) {
+            if (state is ChatError) {
+              final mappedMessage = _mapChatErrorMessage(state.message, l10n);
+              if (mappedMessage == null || mappedMessage.trim().isEmpty) {
+                return;
+              }
+
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(mappedMessage)));
+            }
+          },
+          builder: (context, state) => Scaffold(
+            appBar: AppBar(
+              iconTheme: IconThemeData(
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+              title: Container(
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.friendName,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.left,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-
-              Expanded(
-                child: Builder(
-                  builder: (context) {
-                    final List<ChatMessage> displayMessages = state is ChatLoaded
-                        ? (() {
-                            final participants =
-                                state.conversation?.participants ?? const <ConversationParticipant>[];
-                            final senderDisplayNameByUserId = <String, String>{
-                              for (final participant in participants)
-                                participant.userId.trim(): participant.displayName.trim().isNotEmpty
-                                    ? participant.displayName
-                                    : participant.username,
-                            };
-                            final senderAvatarUrlByUserId = <String, String>{
-                              for (final participant in participants)
-                                participant.userId.trim(): participant.avatarUrl,
-                            };
-                            final normalizedType = state.conversation?.type.toLowerCase() ?? '';
-                            final isGroupConversation = normalizedType == 'group';
-
-                            return _uiMapper.mapStateMessagesToUI(
-                              state.messages,
-                              state.uploadingImagePaths,
-                              state.imageUrlsByMediaId,
-                              state.audioUrlsByMediaId,
-                              state.videoUrlsByMediaId,
-                              state.resolvingImageMediaIds,
-                              state.resolvingAudioMediaIds,
-                              state.resolvingVideoMediaIds,
-                              state.currentUserId,
-                              senderDisplayNameByUserId,
-                              senderAvatarUrlByUserId,
-                              isGroupConversation,
-                              state.conversation?.avatarUrl,
-                              l10n.chat_deleted_message,
-                            );
-                          })()
-                        : _messages;
-
-                    return ListView.builder(
-                      controller: _scrollController,
-                      reverse: true,
-                      padding: const EdgeInsets.all(16),
-                      itemCount: displayMessages.length,
-                      itemBuilder: (context, index) {
-                        // loading indicator for loading more messages
-                        if (state is ChatLoaded &&
-                            state.isLoadingMore &&
-                            index == displayMessages.length) {
-                          return const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8),
-                            child: Center(child: CircularProgressIndicator()),
-                          );
-                        }
-                        final message = displayMessages[displayMessages.length - 1 - index];
-                        return MessageBubble(
-                          message: message,
-                          showReactAction: message.isLastInGroup && _canReactToMessage(message),
-                          onReactPressed: message.isLastInGroup && _canReactToMessage(message)
-                              ? () => _handleReactionSelection(message, '❤️')
-                              : null,
-                          onLongPressStart: (details) => _showMessageActions(
-                            context,
-                            message,
-                            l10n,
-                            anchor: details.globalPosition,
-                          ),
-                          onOpenFile: () {
-                            chatBloc.add(GetFileDownloadUrlEvent(
-                              mediaId: switch (message) {
-                                FileChatMessage(:final mediaId) => mediaId!,
-                                _ => '',
-                              },
-                              fileName: switch (message) {
-                                FileChatMessage(:final fileName) => fileName!,
-                                _ => '',
-                              },
-                            ));
-                          },
-                        );
-                      },
+              ),
+              backgroundColor: Theme.of(context).colorScheme.surfaceBright,
+              actions: [
+                BlocBuilder<OutgoingCallBloc, OutgoingCallState>(
+                  builder: (context, callState) {
+                    return IconButton(
+                      tooltip: 'Call',
+                      onPressed: callState.isStarting
+                          ? null
+                          : () => _startOutgoingCall(context, state),
+                      icon: callState.isStarting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.call),
                     );
                   },
                 ),
-              ),
-              // is typing badge
-              if (state is ChatLoaded && state.typingUserIds.isNotEmpty) ...[
-                Container(
-                  alignment: Alignment.centerLeft,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Text(
-                    l10n.typing_indicator,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontStyle: FontStyle.italic,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+              ],
+            ),
+            body: Column(
+              children: [
+                if (state is ChatLoaded && state.pinnedMessages.isNotEmpty)
+                  PinMessagePanel(
+                    pinnedMessages: state.pinnedMessages,
+                    onTapItem: (pinMessages) {},
+                    onUnpin: (pinMessage) {},
+                  ),
+
+                Expanded(
+                  child: Builder(
+                    builder: (context) {
+                      final List<ChatMessage> displayMessages =
+                          state is ChatLoaded
+                          ? (() {
+                              final participants =
+                                  state.conversation?.participants ??
+                                  const <ConversationParticipant>[];
+                              final senderDisplayNameByUserId =
+                                  <String, String>{
+                                    for (final participant in participants)
+                                      participant.userId.trim():
+                                          participant.displayName
+                                              .trim()
+                                              .isNotEmpty
+                                          ? participant.displayName
+                                          : participant.username,
+                                  };
+                              final senderAvatarUrlByUserId = <String, String>{
+                                for (final participant in participants)
+                                  participant.userId.trim():
+                                      participant.avatarUrl,
+                              };
+                              final normalizedType =
+                                  state.conversation?.type.toLowerCase() ?? '';
+                              final isGroupConversation =
+                                  normalizedType == 'group';
+
+                              return _uiMapper.mapStateMessagesToUI(
+                                state.messages,
+                                state.uploadingImagePaths,
+                                state.imageUrlsByMediaId,
+                                state.audioUrlsByMediaId,
+                                state.videoUrlsByMediaId,
+                                state.resolvingImageMediaIds,
+                                state.resolvingAudioMediaIds,
+                                state.resolvingVideoMediaIds,
+                                state.currentUserId,
+                                senderDisplayNameByUserId,
+                                senderAvatarUrlByUserId,
+                                isGroupConversation,
+                                state.conversation?.avatarUrl,
+                                l10n.chat_deleted_message,
+                              );
+                            })()
+                          : _messages;
+
+                      return ListView.builder(
+                        controller: _scrollController,
+                        reverse: true,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: displayMessages.length,
+                        itemBuilder: (context, index) {
+                          // loading indicator for loading more messages
+                          if (state is ChatLoaded &&
+                              state.isLoadingMore &&
+                              index == displayMessages.length) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
+                          final message =
+                              displayMessages[displayMessages.length -
+                                  1 -
+                                  index];
+                          return MessageBubble(
+                            message: message,
+                            showReactAction:
+                                message.isLastInGroup &&
+                                _canReactToMessage(message),
+                            onReactPressed:
+                                message.isLastInGroup &&
+                                    _canReactToMessage(message)
+                                ? () => _handleReactionSelection(message, '❤️')
+                                : null,
+                            onLongPressStart: (details) => _showMessageActions(
+                              context,
+                              message,
+                              l10n,
+                              anchor: details.globalPosition,
+                            ),
+                            onOpenFile: () {
+                              chatBloc.add(
+                                GetFileDownloadUrlEvent(
+                                  mediaId: switch (message) {
+                                    FileChatMessage(:final mediaId) => mediaId!,
+                                    _ => '',
+                                  },
+                                  fileName: switch (message) {
+                                    FileChatMessage(:final fileName) =>
+                                      fileName!,
+                                    _ => '',
+                                  },
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      );
+                    },
                   ),
                 ),
+                // is typing badge
+                if (state is ChatLoaded && state.typingUserIds.isNotEmpty) ...[
+                  Container(
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: Text(
+                      l10n.typing_indicator,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontStyle: FontStyle.italic,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+                MessageInput(
+                  controller: _messageController,
+                  onSendMessage: _sendMessage,
+                  onPickImage: _pickImage,
+                  onPickVideo: _pickVideo,
+                  onPickMultipleImages: _pickMultipleImages,
+                  onPickFile: _pickFile,
+                  onEmojiSelected: (emoji) {
+                    _messageController.text += emoji;
+                  },
+                  onStickerSelected: _sendSticker,
+                  onTypingStatusChanged: (isTyping) {
+                    chatBloc.add(
+                      EmitTypingEvent(widget.conversationId, isTyping),
+                    );
+                  },
+                  onSendRecord: _sendAudio,
+                ),
               ],
-              MessageInput(
-                controller: _messageController,
-                onSendMessage: _sendMessage,
-                onPickImage: _pickImage,
-                onPickVideo: _pickVideo,
-                onPickMultipleImages: _pickMultipleImages,
-                onPickFile: _pickFile,
-                onEmojiSelected: (emoji) {
-                  _messageController.text += emoji;
-                },
-                onStickerSelected: _sendSticker,
-                onTypingStatusChanged: (isTyping) {
-                  chatBloc.add(EmitTypingEvent(widget.conversationId, isTyping));
-                },
-                onSendRecord: _sendAudio,
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
+  void _startOutgoingCall(BuildContext context, ChatState state) {
+    if (ref.read(currentCallSessionProvider) != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('A call is already in progress.')),
+      );
+      return;
+    }
+
+    if (state is! ChatLoaded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Conversation is still loading.')),
+      );
+      return;
+    }
+
+    final callerId = state.currentUserId?.trim();
+    if (callerId == null || callerId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot start call: missing current user.'),
+        ),
+      );
+      return;
+    }
+
+    final receiverId = _resolveOutgoingCallReceiverId(state, callerId);
+    if (receiverId == null || receiverId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot start call: missing receiver.')),
+      );
+      return;
+    }
+
+    context.read<OutgoingCallBloc>().add(
+      OutgoingCallRequested(
+        conversationId: widget.conversationId,
+        callerId: callerId,
+        receiverId: receiverId,
+      ),
+    );
+  }
+
+  String? _resolveOutgoingCallReceiverId(ChatLoaded state, String callerId) {
+    final participants =
+        state.conversation?.participants ?? const <ConversationParticipant>[];
+    for (final participant in participants) {
+      final userId = participant.userId.trim();
+      if (userId.isNotEmpty && userId != callerId && participant.isActive) {
+        return userId;
+      }
+    }
+
+    for (final participant in participants) {
+      final userId = participant.userId.trim();
+      if (userId.isNotEmpty && userId != callerId) {
+        return userId;
+      }
+    }
+
+    return null;
+  }
+
   void _sendMessage() {
     final content = _messageController.text.trim();
     if (content.isEmpty) return;
 
-    ref.read(chatBlocProvider).add(
+    ref
+        .read(chatBlocProvider)
+        .add(
           SendTextEvent(
             conversationId: widget.conversationId,
             content: content,
@@ -329,7 +494,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       return;
     }
 
-    ref.read(chatBlocProvider).add(
+    ref
+        .read(chatBlocProvider)
+        .add(
           SendStickerEvent(
             conversationId: widget.conversationId,
             stickerId: sticker.id,
@@ -343,7 +510,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       return;
     }
 
-    ref.read(chatBlocProvider).add(
+    ref
+        .read(chatBlocProvider)
+        .add(
           SendAudioEvent(
             conversationId: widget.conversationId,
             audioPath: filePath,
@@ -364,7 +533,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
       if (image != null) {
         if (!mounted) return;
-        final isConfirmed = await showImageSendConfirmationDialog(context, image);
+        final isConfirmed = await showImageSendConfirmationDialog(
+          context,
+          image,
+        );
         if (!isConfirmed || !mounted) {
           return;
         }
@@ -374,7 +546,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           return;
         }
 
-        ref.read(chatBlocProvider).add(
+        ref
+            .read(chatBlocProvider)
+            .add(
               SendImageEvent(
                 conversationId: widget.conversationId,
                 imagePath: image.path,
@@ -384,16 +558,16 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick image: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to pick image: $e')));
       }
     }
   }
 
   Future<void> _pickFile() async {
     final PlatformFile? file = await _mediaService.pickFile();
-    if(file == null) {
+    if (file == null) {
       return;
     }
 
@@ -408,14 +582,16 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       return;
     }
 
-    ref.read(chatBlocProvider).add(
-      SendFileEvent(
-        conversationId: widget.conversationId,
-        filePath: file.path!,
-        fileName: file.name,
-        fileSize: fileSize,
-      ),
-    );
+    ref
+        .read(chatBlocProvider)
+        .add(
+          SendFileEvent(
+            conversationId: widget.conversationId,
+            filePath: file.path!,
+            fileName: file.name,
+            fileSize: fileSize,
+          ),
+        );
   }
 
   Future<void> _pickVideo() async {
@@ -427,18 +603,20 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       if (video != null) {
         if (!mounted) return;
 
-        ref.read(chatBlocProvider).add(
+        ref
+            .read(chatBlocProvider)
+            .add(
               SendVideoEvent(
                 conversationId: widget.conversationId,
-                file: video
+                file: video,
               ),
             );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick video: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to pick video: $e')));
       }
     }
   }
@@ -474,7 +652,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     final canEdit = _canEditMessage(message);
     final canDelete = _canDeleteMessage(message);
     final canReact = _canReactToMessage(message);
-    final hasText = !message.isDeleted && message is TextChatMessage && message.text.trim().isNotEmpty;
+    final hasText =
+        !message.isDeleted &&
+        message is TextChatMessage &&
+        message.text.trim().isNotEmpty;
 
     if (!hasText && !canEdit && !canDelete && !canReact) return;
 
@@ -482,19 +663,22 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     final dialogWidth = _messageActionDialogWidth
         .clamp(0, mediaSize.width - (_messageActionDialogMargin * 2))
         .toDouble();
-    final anchorPoint = anchor ?? Offset(mediaSize.width / 2, mediaSize.height / 2);
-    final dialogLeft = (message.isSentByMe
-            ? (anchorPoint.dx - dialogWidth + 40).clamp(
-                _messageActionDialogMargin,
-                mediaSize.width - dialogWidth - _messageActionDialogMargin,
-              )
-            : (anchorPoint.dx - 24).clamp(
-                _messageActionDialogMargin,
-                mediaSize.width - dialogWidth - _messageActionDialogMargin,
-              ))
+    final anchorPoint =
+        anchor ?? Offset(mediaSize.width / 2, mediaSize.height / 2);
+    final dialogLeft =
+        (message.isSentByMe
+                ? (anchorPoint.dx - dialogWidth + 40).clamp(
+                    _messageActionDialogMargin,
+                    mediaSize.width - dialogWidth - _messageActionDialogMargin,
+                  )
+                : (anchorPoint.dx - 24).clamp(
+                    _messageActionDialogMargin,
+                    mediaSize.width - dialogWidth - _messageActionDialogMargin,
+                  ))
+            .toDouble();
+    final dialogTop = (anchorPoint.dy - 120)
+        .clamp(_messageActionDialogMargin, mediaSize.height - 220)
         .toDouble();
-    final dialogTop =
-        (anchorPoint.dy - 120).clamp(_messageActionDialogMargin, mediaSize.height - 220).toDouble();
 
     final result = await showGeneralDialog<MessageActionResult>(
       context: context,
@@ -520,7 +704,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       ),
     );
 
-    if (!mounted || result == null) return;
+    if (!mounted || !context.mounted || result == null) return;
 
     if (result.emoji != null) {
       _handleReactionSelection(message, result.emoji!);
@@ -534,31 +718,38 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       case MessageAction.copy:
         if (message is TextChatMessage) {
           await Clipboard.setData(ClipboardData(text: message.text));
-          if (mounted) {
+          if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(l10n.success_copied), duration: const Duration(seconds: 1)),
+              SnackBar(
+                content: Text(l10n.success_copied),
+                duration: const Duration(seconds: 1),
+              ),
             );
           }
         }
       case MessageAction.edit:
-        if (mounted) _showEditDialog(context, message, l10n);
+        if (context.mounted) _showEditDialog(context, message, l10n);
 
       case MessageAction.forward:
+        if (!context.mounted) return;
         showDialog(
-            context: context,
-            builder: (_) => ForwardMessageDialog(
-                messageId: message.localId!,
-                sourceConversationId: widget.conversationId,
-                onSend: (List<String> targetConversationIds) {
-                  ref.read(chatBlocProvider).add(
-                        ForwardMessageEvent(
-                          messageId: message.serverId ?? message.localId ?? '',
-                          srcConversationId: widget.conversationId,
-                          targetConversationIds: targetConversationIds,
-                        ),
-                      );
-                },
-            ));
+          context: context,
+          builder: (_) => ForwardMessageDialog(
+            messageId: message.localId!,
+            sourceConversationId: widget.conversationId,
+            onSend: (List<String> targetConversationIds) {
+              ref
+                  .read(chatBlocProvider)
+                  .add(
+                    ForwardMessageEvent(
+                      messageId: message.serverId ?? message.localId ?? '',
+                      srcConversationId: widget.conversationId,
+                      targetConversationIds: targetConversationIds,
+                    ),
+                  );
+            },
+          ),
+        );
 
       case MessageAction.revoke:
         final localId = message.localId;
@@ -566,7 +757,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         if (localId == null || localId.trim().isEmpty) return;
         if (messageId == null || messageId.isEmpty) return;
 
-        ref.read(chatBlocProvider).add(
+        ref
+            .read(chatBlocProvider)
+            .add(
               RevokeMessageEvent(
                 localId: localId,
                 messageId: messageId,
@@ -579,7 +772,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         if (localId == null || localId.trim().isEmpty) return;
         if (messageId == null || messageId.isEmpty) return;
 
-        ref.read(chatBlocProvider).add(
+        ref
+            .read(chatBlocProvider)
+            .add(
               HiddenMessageEvent(
                 localId: localId,
                 messageId: messageId,
@@ -595,7 +790,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       return;
     }
 
-    ref.read(chatBlocProvider).add(
+    ref
+        .read(chatBlocProvider)
+        .add(
           UpdateMessageReactionEvent(
             messageId: messageId,
             conversationId: widget.conversationId,
@@ -644,7 +841,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     final localId = message.localId;
     if (localId == null || localId.trim().isEmpty) return;
 
-    ref.read(chatBlocProvider).add(
+    ref
+        .read(chatBlocProvider)
+        .add(
           EditMessageEvent(
             localId: localId,
             messageId: localId,
@@ -661,13 +860,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     // ⚠️ reverse: true → maxScrollExtent is "top"
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - threshold) {
-
       final state = chatBloc.state;
 
-      if (state is ChatLoaded &&
-          state.hasMoreOld &&
-          !state.isLoadingMore) {
-
+      if (state is ChatLoaded && state.hasMoreOld && !state.isLoadingMore) {
         chatBloc.add(LoadMoreMessagesEvent(widget.conversationId));
       }
     }

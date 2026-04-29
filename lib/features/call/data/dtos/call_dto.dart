@@ -19,21 +19,34 @@ class CallDto {
     this.startedAt,
     this.endedAt,
     required this.participants,
-   });
+  });
 
   //from json
   factory CallDto.fromJson(Map<String, dynamic> json) {
+    final nested = json['call'] ?? json['data'];
+    if (nested is Map) {
+      return CallDto.fromJson(Map<String, dynamic>.from(nested));
+    }
+
     return CallDto(
-      id: json['id'] as String?,
+      id: (json['id'] ?? json['callId']) as String?,
       conversationId: json['conversationId'] as String?,
       callerId: json['callerId'] as String?,
-      status: json['status'] as String?,
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
-      startedAt: json['startedAt'] != null ? DateTime.parse(json['startedAt']) : null,
+      status: json['status'] as String? ?? 'RINGING',
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : null,
+      startedAt: json['startedAt'] != null
+          ? DateTime.parse(json['startedAt'])
+          : null,
       endedAt: json['endedAt'] != null ? DateTime.parse(json['endedAt']) : null,
-      participants: (json['participants'] as List<dynamic>?)
-          ?.map((e) => CallParticipantDto.fromJson(e as Map<String, dynamic>))
-          .toList() ?? [],
+      participants:
+          (json['participants'] as List<dynamic>?)
+              ?.map(
+                (e) => CallParticipantDto.fromJson(e as Map<String, dynamic>),
+              )
+              .toList() ??
+          [],
     );
   }
 
