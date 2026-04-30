@@ -1241,6 +1241,17 @@ class $ChatConversationsTable extends ChatConversations
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _avatarMediaIdMeta = const VerificationMeta(
     'avatarMediaId',
   );
@@ -1275,6 +1286,28 @@ class $ChatConversationsTable extends ChatConversations
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _myOffsetMeta = const VerificationMeta(
+    'myOffset',
+  );
+  @override
+  late final GeneratedColumn<int> myOffset = GeneratedColumn<int>(
+    'my_offset',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _updatedAtMeta = const VerificationMeta(
     'updatedAt',
   );
@@ -1303,9 +1336,12 @@ class $ChatConversationsTable extends ChatConversations
     orgId,
     type,
     name,
+    description,
     avatarMediaId,
     memberCount,
     maxOffset,
+    myOffset,
+    createdAt,
     updatedAt,
     avatarUrl,
   ];
@@ -1350,6 +1386,15 @@ class $ChatConversationsTable extends ChatConversations
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
     if (data.containsKey('avatar_media_id')) {
       context.handle(
         _avatarMediaIdMeta,
@@ -1373,6 +1418,20 @@ class $ChatConversationsTable extends ChatConversations
         _maxOffsetMeta,
         maxOffset.isAcceptableOrUnknown(data['max_offset']!, _maxOffsetMeta),
       );
+    }
+    if (data.containsKey('my_offset')) {
+      context.handle(
+        _myOffsetMeta,
+        myOffset.isAcceptableOrUnknown(data['my_offset']!, _myOffsetMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
     }
     if (data.containsKey('updated_at')) {
       context.handle(
@@ -1413,6 +1472,10 @@ class $ChatConversationsTable extends ChatConversations
         DriftSqlType.string,
         data['${effectivePrefix}name'],
       )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
       avatarMediaId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}avatar_media_id'],
@@ -1425,6 +1488,14 @@ class $ChatConversationsTable extends ChatConversations
         DriftSqlType.int,
         data['${effectivePrefix}max_offset'],
       ),
+      myOffset: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}my_offset'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
       updatedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}updated_at'],
@@ -1448,9 +1519,12 @@ class ChatConversationEntity extends DataClass
   final String orgId;
   final String type;
   final String name;
+  final String? description;
   final String? avatarMediaId;
   final int memberCount;
   final int? maxOffset;
+  final int? myOffset;
+  final String createdAt;
   final String updatedAt;
   final String? avatarUrl;
   const ChatConversationEntity({
@@ -1458,9 +1532,12 @@ class ChatConversationEntity extends DataClass
     required this.orgId,
     required this.type,
     required this.name,
+    this.description,
     this.avatarMediaId,
     required this.memberCount,
     this.maxOffset,
+    this.myOffset,
+    required this.createdAt,
     required this.updatedAt,
     this.avatarUrl,
   });
@@ -1471,6 +1548,9 @@ class ChatConversationEntity extends DataClass
     map['org_id'] = Variable<String>(orgId);
     map['type'] = Variable<String>(type);
     map['name'] = Variable<String>(name);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
     if (!nullToAbsent || avatarMediaId != null) {
       map['avatar_media_id'] = Variable<String>(avatarMediaId);
     }
@@ -1478,6 +1558,10 @@ class ChatConversationEntity extends DataClass
     if (!nullToAbsent || maxOffset != null) {
       map['max_offset'] = Variable<int>(maxOffset);
     }
+    if (!nullToAbsent || myOffset != null) {
+      map['my_offset'] = Variable<int>(myOffset);
+    }
+    map['created_at'] = Variable<String>(createdAt);
     map['updated_at'] = Variable<String>(updatedAt);
     if (!nullToAbsent || avatarUrl != null) {
       map['avatar_url'] = Variable<String>(avatarUrl);
@@ -1491,6 +1575,9 @@ class ChatConversationEntity extends DataClass
       orgId: Value(orgId),
       type: Value(type),
       name: Value(name),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
       avatarMediaId: avatarMediaId == null && nullToAbsent
           ? const Value.absent()
           : Value(avatarMediaId),
@@ -1498,6 +1585,10 @@ class ChatConversationEntity extends DataClass
       maxOffset: maxOffset == null && nullToAbsent
           ? const Value.absent()
           : Value(maxOffset),
+      myOffset: myOffset == null && nullToAbsent
+          ? const Value.absent()
+          : Value(myOffset),
+      createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       avatarUrl: avatarUrl == null && nullToAbsent
           ? const Value.absent()
@@ -1515,9 +1606,12 @@ class ChatConversationEntity extends DataClass
       orgId: serializer.fromJson<String>(json['orgId']),
       type: serializer.fromJson<String>(json['type']),
       name: serializer.fromJson<String>(json['name']),
+      description: serializer.fromJson<String?>(json['description']),
       avatarMediaId: serializer.fromJson<String?>(json['avatarMediaId']),
       memberCount: serializer.fromJson<int>(json['memberCount']),
       maxOffset: serializer.fromJson<int?>(json['maxOffset']),
+      myOffset: serializer.fromJson<int?>(json['myOffset']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
       updatedAt: serializer.fromJson<String>(json['updatedAt']),
       avatarUrl: serializer.fromJson<String?>(json['avatarUrl']),
     );
@@ -1530,9 +1624,12 @@ class ChatConversationEntity extends DataClass
       'orgId': serializer.toJson<String>(orgId),
       'type': serializer.toJson<String>(type),
       'name': serializer.toJson<String>(name),
+      'description': serializer.toJson<String?>(description),
       'avatarMediaId': serializer.toJson<String?>(avatarMediaId),
       'memberCount': serializer.toJson<int>(memberCount),
       'maxOffset': serializer.toJson<int?>(maxOffset),
+      'myOffset': serializer.toJson<int?>(myOffset),
+      'createdAt': serializer.toJson<String>(createdAt),
       'updatedAt': serializer.toJson<String>(updatedAt),
       'avatarUrl': serializer.toJson<String?>(avatarUrl),
     };
@@ -1543,9 +1640,12 @@ class ChatConversationEntity extends DataClass
     String? orgId,
     String? type,
     String? name,
+    Value<String?> description = const Value.absent(),
     Value<String?> avatarMediaId = const Value.absent(),
     int? memberCount,
     Value<int?> maxOffset = const Value.absent(),
+    Value<int?> myOffset = const Value.absent(),
+    String? createdAt,
     String? updatedAt,
     Value<String?> avatarUrl = const Value.absent(),
   }) => ChatConversationEntity(
@@ -1553,11 +1653,14 @@ class ChatConversationEntity extends DataClass
     orgId: orgId ?? this.orgId,
     type: type ?? this.type,
     name: name ?? this.name,
+    description: description.present ? description.value : this.description,
     avatarMediaId: avatarMediaId.present
         ? avatarMediaId.value
         : this.avatarMediaId,
     memberCount: memberCount ?? this.memberCount,
     maxOffset: maxOffset.present ? maxOffset.value : this.maxOffset,
+    myOffset: myOffset.present ? myOffset.value : this.myOffset,
+    createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     avatarUrl: avatarUrl.present ? avatarUrl.value : this.avatarUrl,
   );
@@ -1567,6 +1670,9 @@ class ChatConversationEntity extends DataClass
       orgId: data.orgId.present ? data.orgId.value : this.orgId,
       type: data.type.present ? data.type.value : this.type,
       name: data.name.present ? data.name.value : this.name,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
       avatarMediaId: data.avatarMediaId.present
           ? data.avatarMediaId.value
           : this.avatarMediaId,
@@ -1574,6 +1680,8 @@ class ChatConversationEntity extends DataClass
           ? data.memberCount.value
           : this.memberCount,
       maxOffset: data.maxOffset.present ? data.maxOffset.value : this.maxOffset,
+      myOffset: data.myOffset.present ? data.myOffset.value : this.myOffset,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       avatarUrl: data.avatarUrl.present ? data.avatarUrl.value : this.avatarUrl,
     );
@@ -1586,9 +1694,12 @@ class ChatConversationEntity extends DataClass
           ..write('orgId: $orgId, ')
           ..write('type: $type, ')
           ..write('name: $name, ')
+          ..write('description: $description, ')
           ..write('avatarMediaId: $avatarMediaId, ')
           ..write('memberCount: $memberCount, ')
           ..write('maxOffset: $maxOffset, ')
+          ..write('myOffset: $myOffset, ')
+          ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('avatarUrl: $avatarUrl')
           ..write(')'))
@@ -1601,9 +1712,12 @@ class ChatConversationEntity extends DataClass
     orgId,
     type,
     name,
+    description,
     avatarMediaId,
     memberCount,
     maxOffset,
+    myOffset,
+    createdAt,
     updatedAt,
     avatarUrl,
   );
@@ -1615,9 +1729,12 @@ class ChatConversationEntity extends DataClass
           other.orgId == this.orgId &&
           other.type == this.type &&
           other.name == this.name &&
+          other.description == this.description &&
           other.avatarMediaId == this.avatarMediaId &&
           other.memberCount == this.memberCount &&
           other.maxOffset == this.maxOffset &&
+          other.myOffset == this.myOffset &&
+          other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.avatarUrl == this.avatarUrl);
 }
@@ -1628,9 +1745,12 @@ class ChatConversationsCompanion
   final Value<String> orgId;
   final Value<String> type;
   final Value<String> name;
+  final Value<String?> description;
   final Value<String?> avatarMediaId;
   final Value<int> memberCount;
   final Value<int?> maxOffset;
+  final Value<int?> myOffset;
+  final Value<String> createdAt;
   final Value<String> updatedAt;
   final Value<String?> avatarUrl;
   final Value<int> rowid;
@@ -1639,9 +1759,12 @@ class ChatConversationsCompanion
     this.orgId = const Value.absent(),
     this.type = const Value.absent(),
     this.name = const Value.absent(),
+    this.description = const Value.absent(),
     this.avatarMediaId = const Value.absent(),
     this.memberCount = const Value.absent(),
     this.maxOffset = const Value.absent(),
+    this.myOffset = const Value.absent(),
+    this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.avatarUrl = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1651,9 +1774,12 @@ class ChatConversationsCompanion
     required String orgId,
     required String type,
     required String name,
+    this.description = const Value.absent(),
     this.avatarMediaId = const Value.absent(),
     this.memberCount = const Value.absent(),
     this.maxOffset = const Value.absent(),
+    this.myOffset = const Value.absent(),
+    required String createdAt,
     required String updatedAt,
     this.avatarUrl = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1661,15 +1787,19 @@ class ChatConversationsCompanion
        orgId = Value(orgId),
        type = Value(type),
        name = Value(name),
+       createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
   static Insertable<ChatConversationEntity> custom({
     Expression<String>? id,
     Expression<String>? orgId,
     Expression<String>? type,
     Expression<String>? name,
+    Expression<String>? description,
     Expression<String>? avatarMediaId,
     Expression<int>? memberCount,
     Expression<int>? maxOffset,
+    Expression<int>? myOffset,
+    Expression<String>? createdAt,
     Expression<String>? updatedAt,
     Expression<String>? avatarUrl,
     Expression<int>? rowid,
@@ -1679,9 +1809,12 @@ class ChatConversationsCompanion
       if (orgId != null) 'org_id': orgId,
       if (type != null) 'type': type,
       if (name != null) 'name': name,
+      if (description != null) 'description': description,
       if (avatarMediaId != null) 'avatar_media_id': avatarMediaId,
       if (memberCount != null) 'member_count': memberCount,
       if (maxOffset != null) 'max_offset': maxOffset,
+      if (myOffset != null) 'my_offset': myOffset,
+      if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (avatarUrl != null) 'avatar_url': avatarUrl,
       if (rowid != null) 'rowid': rowid,
@@ -1693,9 +1826,12 @@ class ChatConversationsCompanion
     Value<String>? orgId,
     Value<String>? type,
     Value<String>? name,
+    Value<String?>? description,
     Value<String?>? avatarMediaId,
     Value<int>? memberCount,
     Value<int?>? maxOffset,
+    Value<int?>? myOffset,
+    Value<String>? createdAt,
     Value<String>? updatedAt,
     Value<String?>? avatarUrl,
     Value<int>? rowid,
@@ -1705,9 +1841,12 @@ class ChatConversationsCompanion
       orgId: orgId ?? this.orgId,
       type: type ?? this.type,
       name: name ?? this.name,
+      description: description ?? this.description,
       avatarMediaId: avatarMediaId ?? this.avatarMediaId,
       memberCount: memberCount ?? this.memberCount,
       maxOffset: maxOffset ?? this.maxOffset,
+      myOffset: myOffset ?? this.myOffset,
+      createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       rowid: rowid ?? this.rowid,
@@ -1729,6 +1868,9 @@ class ChatConversationsCompanion
     if (name.present) {
       map['name'] = Variable<String>(name.value);
     }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
     if (avatarMediaId.present) {
       map['avatar_media_id'] = Variable<String>(avatarMediaId.value);
     }
@@ -1737,6 +1879,12 @@ class ChatConversationsCompanion
     }
     if (maxOffset.present) {
       map['max_offset'] = Variable<int>(maxOffset.value);
+    }
+    if (myOffset.present) {
+      map['my_offset'] = Variable<int>(myOffset.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
     }
     if (updatedAt.present) {
       map['updated_at'] = Variable<String>(updatedAt.value);
@@ -1757,9 +1905,12 @@ class ChatConversationsCompanion
           ..write('orgId: $orgId, ')
           ..write('type: $type, ')
           ..write('name: $name, ')
+          ..write('description: $description, ')
           ..write('avatarMediaId: $avatarMediaId, ')
           ..write('memberCount: $memberCount, ')
           ..write('maxOffset: $maxOffset, ')
+          ..write('myOffset: $myOffset, ')
+          ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('avatarUrl: $avatarUrl, ')
           ..write('rowid: $rowid')
@@ -5957,9 +6108,12 @@ typedef $$ChatConversationsTableCreateCompanionBuilder =
       required String orgId,
       required String type,
       required String name,
+      Value<String?> description,
       Value<String?> avatarMediaId,
       Value<int> memberCount,
       Value<int?> maxOffset,
+      Value<int?> myOffset,
+      required String createdAt,
       required String updatedAt,
       Value<String?> avatarUrl,
       Value<int> rowid,
@@ -5970,9 +6124,12 @@ typedef $$ChatConversationsTableUpdateCompanionBuilder =
       Value<String> orgId,
       Value<String> type,
       Value<String> name,
+      Value<String?> description,
       Value<String?> avatarMediaId,
       Value<int> memberCount,
       Value<int?> maxOffset,
+      Value<int?> myOffset,
+      Value<String> createdAt,
       Value<String> updatedAt,
       Value<String?> avatarUrl,
       Value<int> rowid,
@@ -6007,6 +6164,11 @@ class $$ChatConversationsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get avatarMediaId => $composableBuilder(
     column: $table.avatarMediaId,
     builder: (column) => ColumnFilters(column),
@@ -6019,6 +6181,16 @@ class $$ChatConversationsTableFilterComposer
 
   ColumnFilters<int> get maxOffset => $composableBuilder(
     column: $table.maxOffset,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get myOffset => $composableBuilder(
+    column: $table.myOffset,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6062,6 +6234,11 @@ class $$ChatConversationsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get avatarMediaId => $composableBuilder(
     column: $table.avatarMediaId,
     builder: (column) => ColumnOrderings(column),
@@ -6074,6 +6251,16 @@ class $$ChatConversationsTableOrderingComposer
 
   ColumnOrderings<int> get maxOffset => $composableBuilder(
     column: $table.maxOffset,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get myOffset => $composableBuilder(
+    column: $table.myOffset,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -6109,6 +6296,11 @@ class $$ChatConversationsTableAnnotationComposer
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
 
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get avatarMediaId => $composableBuilder(
     column: $table.avatarMediaId,
     builder: (column) => column,
@@ -6121,6 +6313,12 @@ class $$ChatConversationsTableAnnotationComposer
 
   GeneratedColumn<int> get maxOffset =>
       $composableBuilder(column: $table.maxOffset, builder: (column) => column);
+
+  GeneratedColumn<int> get myOffset =>
+      $composableBuilder(column: $table.myOffset, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
   GeneratedColumn<String> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
@@ -6173,9 +6371,12 @@ class $$ChatConversationsTableTableManager
                 Value<String> orgId = const Value.absent(),
                 Value<String> type = const Value.absent(),
                 Value<String> name = const Value.absent(),
+                Value<String?> description = const Value.absent(),
                 Value<String?> avatarMediaId = const Value.absent(),
                 Value<int> memberCount = const Value.absent(),
                 Value<int?> maxOffset = const Value.absent(),
+                Value<int?> myOffset = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
                 Value<String> updatedAt = const Value.absent(),
                 Value<String?> avatarUrl = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -6184,9 +6385,12 @@ class $$ChatConversationsTableTableManager
                 orgId: orgId,
                 type: type,
                 name: name,
+                description: description,
                 avatarMediaId: avatarMediaId,
                 memberCount: memberCount,
                 maxOffset: maxOffset,
+                myOffset: myOffset,
+                createdAt: createdAt,
                 updatedAt: updatedAt,
                 avatarUrl: avatarUrl,
                 rowid: rowid,
@@ -6197,9 +6401,12 @@ class $$ChatConversationsTableTableManager
                 required String orgId,
                 required String type,
                 required String name,
+                Value<String?> description = const Value.absent(),
                 Value<String?> avatarMediaId = const Value.absent(),
                 Value<int> memberCount = const Value.absent(),
                 Value<int?> maxOffset = const Value.absent(),
+                Value<int?> myOffset = const Value.absent(),
+                required String createdAt,
                 required String updatedAt,
                 Value<String?> avatarUrl = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -6208,9 +6415,12 @@ class $$ChatConversationsTableTableManager
                 orgId: orgId,
                 type: type,
                 name: name,
+                description: description,
                 avatarMediaId: avatarMediaId,
                 memberCount: memberCount,
                 maxOffset: maxOffset,
+                myOffset: myOffset,
+                createdAt: createdAt,
                 updatedAt: updatedAt,
                 avatarUrl: avatarUrl,
                 rowid: rowid,

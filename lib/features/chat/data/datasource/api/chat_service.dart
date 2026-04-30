@@ -7,9 +7,12 @@ import 'package:flutter_chat/features/chat/data/response/message_send_response.d
 import 'package:flutter_chat/features/chat/data/response/pin_message_response.dart';
 import 'package:flutter_chat/features/chat/data/response/sticker_package_response.dart';
 import 'package:flutter_chat/features/chat/data/response/sticker_item_response.dart';
+import 'package:flutter_chat/features/chat/export.dart';
 
 abstract class ChatService {
   Future<ConversationResponse> fetchConversations(int page, int limit);
+
+  Future<ConversationDto> fetchConversation(String conversationId);
 
   Future<void> joinConversation(String conversationId);
 

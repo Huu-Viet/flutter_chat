@@ -24,6 +24,7 @@ final chatBlocProvider = Provider<ChatBloc>((ref) {
 
   bloc = ChatBloc(
     fetchMessagesUseCase: ref.read(fetchMessagesUseCaseProvider),
+    fetchConversationDetailUseCase: ref.read(fetchConversationDetailUseCaseProvider),
     getConversationUseCase: ref.read(getConversationUseCaseProvider),
     watchMessagesLocalUseCase: ref.read(watchMessagesLocalUseCaseProvider),
     sendMessageUseCase: ref.read(sendMessageUseCaseProvider),
@@ -37,7 +38,7 @@ final chatBlocProvider = Provider<ChatBloc>((ref) {
     getUrlByMediaIdUseCase: ref.read(getImageUrlByMediaIdUseCaseProvider),
     getMediaPlayInfoUseCase: ref.read(getMediaPlayInfoUseCaseProvider),
     getMediaUrlByMediaIdUseCase: ref.read(getMediaUrlByMediaIdUseCaseProvider),
-    watchConversationsLocalUseCase: ref.read(watchConversationsLocalUseCaseProvider),
+    watchConversationsWithUsersUseCase: ref.read(watchConversationsWithUsersUseCaseProvider),
     watchPinMessageUseCase: ref.read(watchPinMessageUseCaseProvider),
     fetchPinMessageUseCase: ref.read(fetchPinMessageUseCaseProvider),
     emitTypingUseCase: ref.read(emitTypingUseCaseProvider),

@@ -9,6 +9,8 @@ import 'package:flutter_chat/features/chat/domain/entities/sticker_item.dart';
 abstract class ChatRepository {
   Future<Either<Failure, bool>> fetchConversations(int page, int limit);
 
+  Future<Either<Failure, Conversation>> fetchConversation(String conversationId);
+
   Future<Either<Failure, List<Conversation>>> getConversations();
 
   Future<Either<Failure, void>> joinConversation(String conversationId);

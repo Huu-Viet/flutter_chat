@@ -32,6 +32,7 @@ part 'chat_state.dart';
 
 class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final FetchMessagesUseCase fetchMessagesUseCase;
+  final FetchConversationDetailUseCase fetchConversationDetailUseCase;
   final GetConversationUseCase getConversationUseCase;
   final WatchMessagesLocalUseCase watchMessagesLocalUseCase;
   final SendMessageUseCase sendMessageUseCase;
@@ -45,7 +46,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final GetUrlByMediaIdUseCase getUrlByMediaIdUseCase;
   final GetMediaPlayInfoUseCase getMediaPlayInfoUseCase;
   final GetMediaUrlByMediaIdUseCase getMediaUrlByMediaIdUseCase;
-  final WatchConversationsLocalUseCase watchConversationsLocalUseCase;
+  final WatchConversationsWithUsersUseCase watchConversationsWithUsersUseCase;
   final WatchPinMessageUseCase watchPinMessageUseCase;
   final FetchPinMessageUseCase fetchPinMessageUseCase;
   final EmitTypingUseCase emitTypingUseCase;
@@ -77,6 +78,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   ChatBloc({
     required this.fetchMessagesUseCase,
+    required this.fetchConversationDetailUseCase,
     required this.getConversationUseCase,
     required this.watchMessagesLocalUseCase,
     required this.sendMessageUseCase,
@@ -90,7 +92,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     required this.getUrlByMediaIdUseCase,
     required this.getMediaPlayInfoUseCase,
     required this.getMediaUrlByMediaIdUseCase,
-    required this.watchConversationsLocalUseCase,
+    required this.watchConversationsWithUsersUseCase,
     required this.watchPinMessageUseCase,
     required this.fetchPinMessageUseCase,
     required this.uploadMultipartUseCase,
@@ -381,6 +383,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     }
 
     unawaited(fetchMessagesUseCase(event.conversationId));
+    unawaited(fetchConversationDetailUseCase(event.conversationId));
     unawaited(fetchPinMessageUseCase(event.conversationId));
   }
 
@@ -428,7 +431,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   void _startConversationLocalWatcher(String conversationId) {
     _conversationSubscription?.cancel();
-    _conversationSubscription = watchConversationsLocalUseCase().listen((result) {
+    _conversationSubscription = watchConversationsWithUsersUseCase().listen((result) {
       if (isClosed) {
         return;
       }

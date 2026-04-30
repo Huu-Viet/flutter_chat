@@ -47,6 +47,30 @@ class ChatServiceImpl implements ChatService {
   }
 
   @override
+  Future<ConversationDto> fetchConversation(String conversationId) async {
+    try {
+      final response = await _dio.get(
+        '$_baseUrl/conversations/$conversationId',
+        queryParameters: {'avatarVariant': 'thumb'},
+      );
+
+      if (response.statusCode != 200 || response.data == null) {
+        throw Exception('Failed to fetch conversation: ${response.statusCode}');
+      }
+
+      final responseBody = response.data;
+      if (responseBody is! Map<String, dynamic>) {
+        throw Exception('Invalid response body format');
+      }
+
+      return ConversationDto.fromJson(responseBody);
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] Fetch conversation error: $e');
+      throw Exception('Failed to fetch conversation: $e');
+    }
+  }
+
+  @override
   Future<void> joinConversation(String conversationId) async {
     try {
       await _realtimeGateway.emitChatEvent(

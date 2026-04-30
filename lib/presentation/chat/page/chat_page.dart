@@ -210,19 +210,28 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               ),
               title: Container(
                 alignment: Alignment.centerLeft,
-                child: Row(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
-                        widget.friendName,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.left,
-                        overflow: TextOverflow.ellipsis,
+                    Text(
+                      widget.friendName,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.bold,
                       ),
+                      textAlign: TextAlign.left,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    state is ChatLoaded && state.conversation != null && state.conversation?.type == 'group'
+                    ? Text(
+                      '${state.conversation?.memberCount ?? 0} members',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.left,
+                      overflow: TextOverflow.ellipsis,
+                    ) : const SizedBox.shrink(),
                   ],
                 ),
               ),
@@ -230,18 +239,28 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               actions: [
                 BlocBuilder<OutgoingCallBloc, OutgoingCallState>(
                   builder: (context, callState) {
-                    return IconButton(
-                      tooltip: 'Call',
-                      onPressed: callState.isStarting
-                          ? null
-                          : () => _startOutgoingCall(context, state),
-                      icon: callState.isStarting
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.call),
+                    return Row(
+                      children: [
+                        IconButton(
+                          tooltip: 'Call',
+                          onPressed: callState.isStarting
+                              ? null
+                              : () => _startOutgoingCall(context, state),
+                          icon: callState.isStarting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.call_outlined),
+                        ),
+
+                        IconButton(
+                          tooltip: 'Options',
+                          onPressed: () {},
+                          icon: const Icon(Icons.list_outlined)
+                        ),
+                      ],
                     );
                   },
                 ),

@@ -57,6 +57,7 @@ export '../chat/domain/repositories/chat_repo.dart';
 
 //use cases
 export '../chat/domain/usecases/fetch_conversation_usecase.dart';
+export '../chat/domain/usecases/fetch_conversation_detail_usecase.dart';
 export '../chat/domain/usecases/fetch_messages_usecase.dart';
 export '../chat/domain/usecases/join_conversation_usecase.dart';
 export '../chat/domain/usecases/send_message_usecase.dart';

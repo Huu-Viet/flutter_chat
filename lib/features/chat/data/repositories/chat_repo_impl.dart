@@ -97,6 +97,21 @@ class ChatRepoImpl implements ChatRepository {
   }
 
   @override
+  Future<Either<Failure, Conversation>> fetchConversation(String conversationId) async {
+    try {
+      final dto = await _chatService.fetchConversation(conversationId);
+      final conversation = _apiConversationMapper.toDomain(dto);
+      await _conversationDao.saveConversation(
+        _localConversationMapper.toEntity(conversation),
+      );
+      await _syncLiteUsersAndConversationLinks([dto]);
+      return Right(conversation);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, List<Conversation>>> getConversations() async {
     try {
       return Right(_localConversationMapper.toDomainList(
@@ -596,9 +611,12 @@ class ChatRepoImpl implements ChatRepository {
       orgId: base.orgId,
       type: base.type,
       name: base.name,
+      description: base.description,
       avatarMediaId: base.avatarMediaId,
       memberCount: base.memberCount,
       maxOffset: base.maxOffset,
+      myOffset: base.myOffset,
+      createdAt: base.createdAt,
       updatedAt: base.updatedAt,
       avatarUrl: base.avatarUrl,
       participants: participants,

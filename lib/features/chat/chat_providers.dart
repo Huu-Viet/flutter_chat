@@ -123,6 +123,10 @@ final fetchConversationUseCaseProvider = Provider<FetchConversationUseCase>((ref
   return FetchConversationUseCase(ref.read(chatRepoProvider));
 });
 
+final fetchConversationDetailUseCaseProvider = Provider<FetchConversationDetailUseCase>((ref) {
+  return FetchConversationDetailUseCase(ref.read(chatRepoProvider));
+});
+
 final joinConversationUseCaseProvider = Provider<JoinConversationUseCase>((ref) {
   return JoinConversationUseCase(ref.read(chatRepoProvider));
 });
