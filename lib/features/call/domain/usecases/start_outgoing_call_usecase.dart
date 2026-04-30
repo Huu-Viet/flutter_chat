@@ -25,8 +25,8 @@ class StartOutgoingCallUseCase {
         );
       }
 
-      final joinResult = await _repository.joinSocketCall(call.id);
-      return joinResult.fold(Left.new, (_) => Right(call));
+      await _repository.joinSocketCall(call.id);
+      return Right(call);
     });
   }
 }

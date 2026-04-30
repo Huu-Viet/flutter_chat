@@ -58,6 +58,6 @@ final endCallUseCaseProvider = Provider<EndCallUseCase>((ref) {
 
 final incomingCallProvider = StateProvider<CallInfo?>((ref) => null);
 
-final currentCallSessionProvider = StateProvider<CallSession?>((ref) => null);
-
 final lastRouteBeforeInCallProvider = StateProvider<String?>((ref) => null);
+
+final closedCallIdsProvider = StateProvider<Set<String>>((ref) => <String>{});

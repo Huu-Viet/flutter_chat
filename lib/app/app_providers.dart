@@ -6,6 +6,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_chat/application/realtime/bus/app_event_bus.dart';
+import 'package:flutter_chat/application/realtime/call_action.dart';
 import 'package:flutter_chat/application/realtime/handlers/call_realtime_handler.dart';
 import 'package:flutter_chat/application/realtime/handlers/chat_realtime_handler.dart';
 import 'package:flutter_chat/application/realtime/handlers/handler.dart';
@@ -98,13 +99,33 @@ final callAppEventSubscriberProvider = Provider<AppEventSubscriber>((ref) {
     updateIncomingCall: (callInfo) {
       ref.read(incomingCallProvider.notifier).state = callInfo;
     },
-    updateCurrentCallSession: (session) {
-      ref.read(currentCallSessionProvider.notifier).state = session;
+    isClosedCall: (callId) {
+      return ref.read(closedCallIdsProvider).contains(callId.trim());
     },
-    getCurrentCallSession: () {
-      return ref.read(currentCallSessionProvider);
+    markClosedCall: (callId) {
+      final normalizedCallId = callId.trim();
+      if (normalizedCallId.isEmpty) return;
+      final previous = ref.read(closedCallIdsProvider);
+      final next = {...previous, normalizedCallId};
+      if (next.length > 20) {
+        next.remove(next.first);
+      }
+      ref.read(closedCallIdsProvider.notifier).state = next;
     },
     callRepository: ref.watch(callRepositoryProvider),
+    onCallAccepted: (callId) {
+      ref.read(callActionProvider.notifier).state =
+          CallAction.accepted(callId);
+    },
+
+    onCallEnded: (callId) {
+      ref.read(callActionProvider.notifier).state =
+          CallAction.ended(callId);
+    },
+    onCallDeclined: (callId) {
+      ref.read(callActionProvider.notifier).state =
+          CallAction.declined(callId);
+    },
   );
 });
 
@@ -180,3 +201,6 @@ final localeProvider = StateProvider<Locale?>((ref) => null);
 final callBannerOverlayProvider = Provider((ref) {
   return CallBannerOverlay();
 });
+
+final callActionProvider =
+StateProvider<CallAction?>((ref) => null);

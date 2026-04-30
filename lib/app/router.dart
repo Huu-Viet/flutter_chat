@@ -61,7 +61,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/in-call',
         name: 'in-call',
-        builder: (context, state) => const InCallPage(),
+        builder: (context, state) {
+          final conversationId = state.pathParameters['conversationId'] ?? '';
+          final roomName = state.pathParameters['roomName'] ?? '';
+          return InCallPage(
+            conversationId: conversationId,
+            initialRoomName: roomName,
+          );
+        },
       ),
       GoRoute(
         path: '/chat/:conversationId/:friendName',

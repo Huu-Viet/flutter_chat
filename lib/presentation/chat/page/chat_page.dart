@@ -5,10 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_chat/core/platform_services/export.dart';
-import 'package:flutter_chat/features/call/call_providers.dart';
-import 'package:flutter_chat/features/call/export.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
+import 'package:flutter_chat/presentation/call/blocs/in_call_bloc.dart';
 import 'package:flutter_chat/presentation/call/blocs/outgoing_call_bloc.dart';
 import 'package:flutter_chat/presentation/call/providers/call_bloc_provider.dart';
 import 'package:flutter_chat/presentation/chat/blocs/chat_bloc.dart';
@@ -23,6 +22,7 @@ import 'package:flutter_chat/presentation/chat/widgets/message_bubble.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_input.dart';
 import 'package:flutter_chat/presentation/chat/widgets/pin_message_panel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ChatPage extends ConsumerStatefulWidget {
@@ -40,14 +40,7 @@ class ChatPage extends ConsumerStatefulWidget {
 }
 
 class _ChatPageState extends ConsumerState<ChatPage> {
-  static const List<String> _reactionEmojis = <String>[
-    '❤️',
-    '👍',
-    '🤣',
-    '😮',
-    '😭',
-    '😡',
-  ];
+  static const List<String> _reactionEmojis = <String>['❤️', '👍', '🤣', '😮', '😭', '😡',];
   static const double _messageActionDialogWidth = 280;
   static const double _messageActionDialogMargin = 16;
   static const Duration _messageEditWindow = Duration(hours: 1);
@@ -167,29 +160,28 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             listenWhen: (previous, current) =>
                 previous.status != current.status,
             listener: (context, state) {
+              final messenger = ScaffoldMessenger.of(context);
+
+              //failure
               if (state.status == OutgoingCallStatus.failure) {
                 final message = state.errorMessage;
+
                 if (message != null && message.trim().isNotEmpty) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(message)));
+                  messenger.showSnackBar(SnackBar(content: Text(message)));
                 }
                 context.read<OutgoingCallBloc>().add(
                   const OutgoingCallStatusConsumed(),
                 );
               }
 
+              /// SUCCESS (EMIT SIGNAL,)
               if (state.status == OutgoingCallStatus.success &&
                   state.call != null) {
                 ref
-                    .read(currentCallSessionProvider.notifier)
-                    .state = CallSession(
-                  call: state.call!,
-                  token: '',
-                  roomName: '',
-                  liveKitUrl: '',
-                  isIncoming: false,
-                );
+                    .read(inCallBlocProvider)
+                    .add(InCallOutgoingStarted(state.call!));
+                context.go('/in-call?conversationId=${widget.conversationId}&roomName=${widget.friendName}');
+
                 context.read<OutgoingCallBloc>().add(
                   const OutgoingCallStatusConsumed(),
                 );
@@ -412,13 +404,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   void _startOutgoingCall(BuildContext context, ChatState state) {
-    if (ref.read(currentCallSessionProvider) != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('A call is already in progress.')),
-      );
-      return;
-    }
-
     if (state is! ChatLoaded) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Conversation is still loading.')),
@@ -428,19 +413,18 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
     final callerId = state.currentUserId?.trim();
     if (callerId == null || callerId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cannot start call: missing current user.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Missing current user')));
       return;
     }
 
     final receiverId = _resolveOutgoingCallReceiverId(state, callerId);
+
     if (receiverId == null || receiverId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cannot start call: missing receiver.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Missing receiver')));
       return;
     }
 

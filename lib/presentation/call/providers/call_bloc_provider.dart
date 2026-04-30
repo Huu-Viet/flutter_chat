@@ -11,8 +11,9 @@ final callBlocProvider = Provider<CallBloc>((ref) {
   return CallBloc();
 });
 
-final inCallBlocProvider = Provider.autoDispose<InCallBloc>((ref) {
+final inCallBlocProvider = Provider<InCallBloc>((ref) {
   final bloc = InCallBloc(
+    acceptIncomingCallUseCase: ref.read(acceptIncomingCallUseCaseProvider),
     endCallUseCase: ref.read(endCallUseCaseProvider),
     callRepository: ref.read(callRepositoryProvider),
   );

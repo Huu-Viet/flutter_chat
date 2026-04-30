@@ -1,65 +1,53 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_chat/features/call/call_providers.dart';
 import 'package:flutter_chat/features/call/export.dart';
 import 'package:flutter_chat/presentation/call/blocs/in_call_bloc.dart';
 import 'package:flutter_chat/presentation/call/providers/call_bloc_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:livekit_client/livekit_client.dart';
 
-class InCallPage extends ConsumerStatefulWidget {
-  const InCallPage({super.key});
+part 'widgets/in_call_media_widgets.dart';
+part 'widgets/in_call_control_widgets.dart';
 
-  @override
-  ConsumerState<InCallPage> createState() => _InCallPageState();
-}
+class InCallPage extends ConsumerWidget {
+  final String conversationId;
+  final String initialRoomName;
 
-class _InCallPageState extends ConsumerState<InCallPage> {
-  late final ProviderSubscription _sessionSubscription;
-  bool _isClosingPage = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _sessionSubscription = ref.listenManual<CallSession?>(
-      currentCallSessionProvider,
-      (previous, next) {
-        ref.read(inCallBlocProvider).add(InCallSessionChanged(next));
-        if (previous != null && next == null) {
-          _closePage();
-        }
-      },
-      fireImmediately: true,
-    );
-  }
+  const InCallPage({
+    super.key,
+    required this.conversationId,
+    required this.initialRoomName,
+  });
 
   @override
-  void dispose() {
-    _sessionSubscription.close();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final bloc = ref.watch(inCallBlocProvider);
 
     return BlocProvider<InCallBloc>.value(
       value: bloc,
       child: BlocListener<InCallBloc, InCallState>(
         listenWhen: (previous, current) =>
+            current is InCallEnded ||
             previous.errorMessage != current.errorMessage ||
+            previous.mediaErrorMessage != current.mediaErrorMessage ||
             previous.endStatus != current.endStatus,
         listener: (context, state) {
-          if (state.errorMessage != null) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
-            context.read<InCallBloc>().add(const InCallErrorCleared());
+          if (state is InCallEnded) {
+            debugPrint('[InCallPage]Check conversation: $conversationId');
+            if(conversationId.trim().isNotEmpty) {
+              context.go('/chat/$conversationId/$initialRoomName');
+            } else {
+              context.go('/home');
+            }
           }
 
-          if (state.endStatus == InCallEndStatus.success) {
-            ref.read(currentCallSessionProvider.notifier).state = null;
-            context.read<InCallBloc>().add(const InCallEndStatusConsumed());
-            _closePage();
+          final message = state.errorMessage ?? state.mediaErrorMessage;
+          if (message != null && message.trim().isNotEmpty) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(message)));
+            context.read<InCallBloc>().add(const InCallErrorCleared());
           }
         },
         child: BlocBuilder<InCallBloc, InCallState>(
@@ -67,7 +55,6 @@ class _InCallPageState extends ConsumerState<InCallPage> {
             final activeSession = state.session;
 
             if (activeSession == null) {
-              _closePage();
               return const Scaffold(
                 backgroundColor: Colors.black,
                 body: Center(child: CircularProgressIndicator()),
@@ -76,6 +63,75 @@ class _InCallPageState extends ConsumerState<InCallPage> {
 
             final participantCount = activeSession.call.participants.length;
             final isRinging = _isRinging(activeSession);
+
+            if (!isRinging) {
+              return Scaffold(
+                backgroundColor: Colors.black,
+                body: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: _LiveKitCallStage(
+                        room: state.room,
+                        session: activeSession,
+                        isConnecting:
+                            state.isConnectingRoom || state.isAcceptingCall,
+                        errorMessage: state.mediaErrorMessage,
+                      ),
+                    ),
+                    SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            IconButton(
+                              onPressed: () => Navigator.of(context).maybePop(),
+                              color: Colors.white,
+                              icon: const Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                              ),
+                            ),
+                            const Spacer(),
+                            _CallInfoPill(
+                              title: activeSession.roomName.isNotEmpty
+                                  ? activeSession.roomName
+                                  : 'Call in Progress',
+                              subtitle: 'Participants: $participantCount',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: SafeArea(
+                        minimum: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                        child: _ActiveCallControls(
+                          isEndingCall: state.isEndingCall,
+                          isMicEnabled: state.isMicEnabled,
+                          isCameraEnabled: state.isCameraEnabled,
+                          isSpeakerOn: state.isSpeakerOn,
+                          isMicUpdating: state.isMicUpdating,
+                          isCameraUpdating: state.isCameraUpdating,
+                          onToggleMic: () => context.read<InCallBloc>().add(
+                            const InCallToggleMicrophoneRequested(),
+                          ),
+                          onToggleCamera: () => context.read<InCallBloc>().add(
+                            const InCallToggleCameraRequested(),
+                          ),
+                          onToggleSpeaker: () => context.read<InCallBloc>().add(
+                            const InCallToggleSpeakerRequested(),
+                          ),
+                          onEndCall: () => context.read<InCallBloc>().add(
+                            const InCallEndRequested(),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
 
             return Scaffold(
               backgroundColor: Colors.black,
@@ -88,9 +144,7 @@ class _InCallPageState extends ConsumerState<InCallPage> {
                       Align(
                         alignment: Alignment.topLeft,
                         child: IconButton(
-                          onPressed: () {
-                            Navigator.of(context).maybePop();
-                          },
+                          onPressed: () => Navigator.of(context).maybePop(),
                           color: Colors.white,
                           icon: const Icon(Icons.keyboard_arrow_down_rounded),
                         ),
@@ -114,11 +168,9 @@ class _InCallPageState extends ConsumerState<InCallPage> {
                       ),
                       const SizedBox(height: 24),
                       Text(
-                        isRinging
-                            ? (activeSession.isIncoming
-                                  ? 'Connecting...'
-                                  : 'Ringing...')
-                            : 'Call in Progress',
+                        activeSession.isIncoming
+                            ? 'Connecting...'
+                            : 'Ringing...',
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 16,
@@ -136,11 +188,6 @@ class _InCallPageState extends ConsumerState<InCallPage> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Room: ${activeSession.roomName}',
-                        style: const TextStyle(color: Colors.white60),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
                         'Participants: $participantCount',
                         style: const TextStyle(color: Colors.white60),
                       ),
@@ -150,24 +197,12 @@ class _InCallPageState extends ConsumerState<InCallPage> {
                         style: const TextStyle(color: Colors.white60),
                       ),
                       const Spacer(),
-                      if (isRinging)
-                        _RingingCallPanel(
-                          isEndingCall: state.isEndingCall,
-                          onCancel: () {
-                            context.read<InCallBloc>().add(
-                              const InCallEndRequested(),
-                            );
-                          },
-                        )
-                      else
-                        _ActiveCallControls(
-                          isEndingCall: state.isEndingCall,
-                          onEndCall: () {
-                            context.read<InCallBloc>().add(
-                              const InCallEndRequested(),
-                            );
-                          },
+                      _RingingCallPanel(
+                        isEndingCall: state.isEndingCall,
+                        onCancel: () => context.read<InCallBloc>().add(
+                          const InCallEndRequested(),
                         ),
+                      ),
                     ],
                   ),
                 ),
@@ -185,189 +220,16 @@ class _InCallPageState extends ConsumerState<InCallPage> {
         session.token.trim().isNotEmpty ||
         session.roomName.trim().isNotEmpty ||
         session.liveKitUrl.trim().isNotEmpty;
-    return status == 'RINGING' && !hasMediaSession;
-  }
-
-  void _closePage() {
-    if (_isClosingPage) return;
-    _isClosingPage = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      Navigator.of(context).maybePop();
-    });
-  }
-}
-
-class _RingingCallPanel extends StatelessWidget {
-  final bool isEndingCall;
-  final VoidCallback onCancel;
-
-  const _RingingCallPanel({required this.isEndingCall, required this.onCancel});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const SizedBox(
-          width: 36,
-          height: 36,
-          child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white),
-        ),
-        const SizedBox(height: 20),
-        const Text(
-          'Waiting for the other person to answer...',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white70),
-        ),
-        const SizedBox(height: 32),
-        FilledButton.icon(
-          style: FilledButton.styleFrom(
-            backgroundColor: Colors.red,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-          ),
-          onPressed: isEndingCall ? null : onCancel,
-          icon: isEndingCall
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : const Icon(Icons.call_end),
-          label: Text(isEndingCall ? 'Cancelling...' : 'Cancel'),
-        ),
-      ],
-    );
-  }
-}
-
-class _ActiveCallControls extends StatelessWidget {
-  final bool isEndingCall;
-  final VoidCallback onEndCall;
-
-  const _ActiveCallControls({
-    required this.isEndingCall,
-    required this.onEndCall,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white10,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        children: [
-          const Text(
-            'Call UI placeholder is ready. Media setup can be attached next.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white70),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _CallActionButton(
-                icon: Icons.mic_off,
-                label: 'Mute',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Mute action is not connected yet.'),
-                    ),
-                  );
-                },
-              ),
-              _CallActionButton(
-                icon: Icons.volume_up,
-                label: 'Speaker',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Speaker action is not connected yet.'),
-                    ),
-                  );
-                },
-              ),
-              _CallActionButton(
-                icon: Icons.videocam,
-                label: 'Video',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Video action is not connected yet.'),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              onPressed: isEndingCall ? null : onEndCall,
-              icon: isEndingCall
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.call_end),
-              label: Text(isEndingCall ? 'Ending...' : 'End Call'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CallActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _CallActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(28),
-          child: Ink(
-            width: 56,
-            height: 56,
-            decoration: const BoxDecoration(
-              color: Colors.white12,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: Colors.white),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(label, style: const TextStyle(color: Colors.white70)),
-      ],
-    );
+    if (hasMediaSession) return false;
+    return !{
+      'ACTIVE',
+      'ACCEPTED',
+      'CONNECTED',
+      'ENDED',
+      'DECLINED',
+      'CANCELLED',
+      'CANCELED',
+      'FAILED',
+    }.contains(status);
   }
 }
