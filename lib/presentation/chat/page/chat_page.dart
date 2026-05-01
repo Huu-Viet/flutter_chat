@@ -620,9 +620,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
 
     final query = (match.group(2) ?? '').trim();
-    if (query.toLowerCase() == 'all') {
-      return null;
-    }
     return query;
   }
 
@@ -636,7 +633,22 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
 
     final q = query.toLowerCase();
-    final suggestions = participants
+    final widgets = <Widget>[];
+
+    // Show @all option when query is empty or partially matches 'all'
+    if ('all'.startsWith(q)) {
+      widgets.add(
+        ListTile(
+          dense: true,
+          leading: const Icon(Icons.groups, size: 18),
+          title: const Text('@all', maxLines: 1),
+          subtitle: const Text('Mention everyone', maxLines: 1),
+          onTap: () => _applyAllMention(),
+        ),
+      );
+    }
+
+    final memberSuggestions = participants
         .where((participant) => participant.userId.trim() != (currentUserId?.trim() ?? ''))
         .where((participant) {
           final username = participant.username.trim().toLowerCase();
@@ -647,23 +659,50 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         .take(5)
         .toList(growable: false);
 
-    if (suggestions.isEmpty) {
-      return const <Widget>[];
-    }
-
-    return suggestions.map((participant) {
+    for (final participant in memberSuggestions) {
       final displayName = participant.displayName.trim().isNotEmpty
           ? participant.displayName.trim()
           : participant.username.trim();
-
-      return ListTile(
-        dense: true,
-        leading: const Icon(Icons.alternate_email, size: 18),
-        title: Text(displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text('@${participant.username}', maxLines: 1, overflow: TextOverflow.ellipsis),
-        onTap: () => _applyMentionSuggestion(participant),
+      widgets.add(
+        ListTile(
+          dense: true,
+          leading: const Icon(Icons.alternate_email, size: 18),
+          title: Text(displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text('@${participant.username}', maxLines: 1, overflow: TextOverflow.ellipsis),
+          onTap: () => _applyMentionSuggestion(participant),
+        ),
       );
-    }).toList(growable: false);
+    }
+
+    return widgets;
+  }
+
+  void _applyAllMention() {
+    final value = _messageController.value;
+    final text = value.text;
+    final cursor = value.selection.baseOffset;
+    final safeCursor = (cursor < 0 || cursor > text.length) ? text.length : cursor;
+
+    final prefix = text.substring(0, safeCursor);
+    final suffix = text.substring(safeCursor);
+    final match = RegExp(r'(^|\s)@([^\s@]*)$').firstMatch(prefix);
+
+    final String rebuiltPrefix;
+    if (match != null) {
+      final separator = match.group(1) ?? '';
+      final start = match.start + separator.length;
+      rebuiltPrefix = '${prefix.substring(0, start)}@all ';
+    } else {
+      rebuiltPrefix = '$prefix@all ';
+    }
+
+    final rebuiltText = '$rebuiltPrefix$suffix';
+    _messageController.value = TextEditingValue(
+      text: rebuiltText,
+      selection: TextSelection.collapsed(offset: rebuiltPrefix.length),
+    );
+
+    setState(() => _activeMentionQuery = null);
   }
 
   void _applyMentionSuggestion(ConversationParticipant participant) {
