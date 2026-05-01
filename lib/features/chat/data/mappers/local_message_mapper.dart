@@ -25,6 +25,22 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
         : null;
 
     switch (normalizedType) {
+      case 'system':
+        return SystemMessage(
+          id: message.id,
+          conversationId: message.conversationId,
+          senderId: message.senderId,
+          text: message.content,
+          action: (metadata?['action'] ?? '').toString(),
+          metadata: metadata ?? const <String, dynamic>{},
+          offset: message.offset,
+          isDeleted: message.isDeleted,
+          isRevoked: isRevoked,
+          serverId: message.serverId,
+          createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
+          editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
+          reactions: reactions,
+        );
       case 'contact_page':
       case 'contact_card':
         return ContactCardMessage(
@@ -440,6 +456,13 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
 
   String? _buildMetadata(Message message) {
     final metadata = <String, dynamic>{};
+
+    if (message is SystemMessage) {
+      metadata.addAll(message.metadata);
+      if (message.action.trim().isNotEmpty) {
+        metadata['action'] = message.action.trim();
+      }
+    }
 
     if (message is StickerMessage) {
       metadata['url'] = message.stickerUrl;

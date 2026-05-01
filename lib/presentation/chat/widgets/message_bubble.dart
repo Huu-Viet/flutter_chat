@@ -7,7 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_chat/core/utils/animated_sticker_sprite.dart';
 import 'package:flutter_chat/features/auth/domain/entities/user.dart';
 import 'package:flutter_chat/features/auth/user_providers.dart';
+import 'package:flutter_chat/features/friendship/friendship_providers.dart';
+import 'package:flutter_chat/features/friendship/domain/entities/friendship_status.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_chat/core/utils/date_utils.dart';
 import 'package:flutter_chat/core/utils/waveform_utils.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message/forward_info.dart';
@@ -88,6 +91,30 @@ class _MessageBubbleState extends State<MessageBubble> {
   @override
   Widget build(BuildContext context) {
     final message = widget.message;
+    if (message is SystemChatMessage) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Center(
+          child: Container(
+            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              message.text,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+          ),
+        ),
+      );
+    }
+
     final hasVisualMedia = switch (message) {
       ImageChatMessage(:final imagePath) => imagePath != null,
       VideoChatMessage(:final thumbnailPath, :final videoUrl) =>
@@ -278,6 +305,8 @@ class _MessageBubbleState extends State<MessageBubble> {
           _buildFileContent(forwardInfo, message, isDownloading: isDownloading, onOpen: onOpenFile ?? () {}),
 
       ContactCardChatMessage() => _ContactCardBubble(message: message),
+
+      SystemChatMessage() => const SizedBox.shrink(),
 
         TextChatMessage(:final text, :final forwardInfo, :final replyPreview) =>
           _buildTextContent(text, forwardInfo, replyPreview: replyPreview),
@@ -1073,6 +1102,11 @@ class _ContactCardBubble extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(userByIdProvider(message.contactUserId));
+    final statusAsync = ref.watch(friendshipStatusProvider(message.contactUserId));
+
+    // Don't show action buttons if this is our own card
+    final isSelf = message.isSentByMe &&
+        (statusAsync.valueOrNull?.userId == message.contactUserId);
 
     Widget content = Container(
       constraints: const BoxConstraints(maxWidth: 280),
@@ -1084,10 +1118,20 @@ class _ContactCardBubble extends ConsumerWidget {
         border: Border.all(color: Colors.blueGrey.withValues(alpha: 0.15)),
       ),
       padding: const EdgeInsets.all(12),
-      child: userAsync.when(
-        loading: () => _buildCardRow(context, null, isLoading: true),
-        error: (_, __) => _buildCardRow(context, null),
-        data: (user) => _buildCardRow(context, user),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          userAsync.when(
+            loading: () => _buildCardRow(context, null, isLoading: true),
+            error: (_, __) => _buildCardRow(context, null),
+            data: (user) => _buildCardRow(context, user),
+          ),
+          if (!isSelf) ...[
+            const SizedBox(height: 10),
+            _buildActionRow(context, ref, statusAsync),
+          ],
+        ],
       ),
     );
 
@@ -1102,6 +1146,137 @@ class _ContactCardBubble extends ConsumerWidget {
         content,
       ],
     );
+  }
+
+  Widget _buildActionRow(
+    BuildContext context,
+    WidgetRef ref,
+    AsyncValue<FriendshipStatus?> statusAsync,
+  ) {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () => _onMessageTap(context),
+            icon: const Icon(Icons.chat_bubble_outline, size: 16),
+            label: const Text('Message'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              side: BorderSide(
+                color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.6),
+              ),
+              textStyle: const TextStyle(fontSize: 13),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: statusAsync.when(
+            loading: () => OutlinedButton(
+              onPressed: null,
+              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 4)),
+              child: const SizedBox(
+                height: 16,
+                width: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (status) => _buildFriendshipButton(context, ref, status),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFriendshipButton(
+    BuildContext context,
+    WidgetRef ref,
+    FriendshipStatus? status,
+  ) {
+    final targetId = message.contactUserId;
+
+    if (status == null || status.isNone) {
+      return OutlinedButton.icon(
+        onPressed: () => _sendRequest(context, ref, targetId),
+        icon: const Icon(Icons.person_add_outlined, size: 16),
+        label: const Text('Add friend'),
+        style: _friendBtnStyle(context),
+      );
+    }
+
+    if (status.isPendingOut) {
+      return OutlinedButton.icon(
+        onPressed: () => _cancelRequest(context, ref, targetId),
+        icon: const Icon(Icons.cancel_outlined, size: 16),
+        label: const Text('Pending...'),
+        style: _friendBtnStyle(context),
+      );
+    }
+
+    if (status.isPendingIn) {
+      return OutlinedButton.icon(
+        onPressed: () => _acceptRequest(context, ref, targetId),
+        icon: const Icon(Icons.check_circle_outline, size: 16),
+        label: const Text('Accept'),
+        style: _friendBtnStyle(context),
+      );
+    }
+
+    if (status.isFriend) {
+      return OutlinedButton.icon(
+        onPressed: null,
+        icon: const Icon(Icons.people_outline, size: 16),
+        label: const Text('Friends'),
+        style: _friendBtnStyle(context),
+      );
+    }
+
+    if (status.isBlocked) {
+      return OutlinedButton.icon(
+        onPressed: () => _unblock(context, ref, targetId),
+        icon: const Icon(Icons.block_outlined, size: 16),
+        label: const Text('Unblock'),
+        style: _friendBtnStyle(context),
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  ButtonStyle _friendBtnStyle(BuildContext context) => OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.6),
+        ),
+        textStyle: const TextStyle(fontSize: 13),
+      );
+
+  void _onMessageTap(BuildContext context) {
+    // Navigate to home — user can find or start a conversation from there.
+    context.go('/');
+  }
+
+  Future<void> _sendRequest(BuildContext context, WidgetRef ref, String targetId) async {
+    await ref.read(sendFriendRequestUseCaseProvider)(targetId);
+    ref.invalidate(friendshipStatusProvider(targetId));
+  }
+
+  Future<void> _cancelRequest(BuildContext context, WidgetRef ref, String targetId) async {
+    await ref.read(rejectFriendRequestUseCaseProvider)(targetId);
+    ref.invalidate(friendshipStatusProvider(targetId));
+  }
+
+  Future<void> _acceptRequest(BuildContext context, WidgetRef ref, String targetId) async {
+    await ref.read(acceptFriendRequestUseCaseProvider)(targetId);
+    ref.invalidate(friendshipStatusProvider(targetId));
+  }
+
+  Future<void> _unblock(BuildContext context, WidgetRef ref, String targetId) async {
+    await ref.read(unblockUserUseCaseProvider)(targetId);
+    ref.invalidate(friendshipStatusProvider(targetId));
   }
 
   Widget _buildCardRow(BuildContext context, MyUser? user, {bool isLoading = false}) {

@@ -30,6 +30,22 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
     );
 
     switch (normalizedType) {
+      case 'system':
+        return SystemMessage(
+          id: dto.id ?? '',
+          conversationId: dto.conversationId ?? '',
+          senderId: dto.senderId ?? 'SYSTEM',
+          text: dto.content ?? '',
+          action: (metadata?['action'] ?? '').toString(),
+          metadata: metadata ?? const <String, dynamic>{},
+          offset: dto.offset,
+          isDeleted: dto.isDeleted ?? false,
+          isRevoked: isRevoked,
+          serverId: dto.clientMessageId,
+          createdAt: createdAt,
+          editedAt: editedAt,
+          reactions: reactions,
+        );
       case 'contact_page':
       case 'contact_card':
         return ContactCardMessage(
@@ -477,6 +493,13 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
 
   Map<String, dynamic>? _buildMetadata(Message message) {
     final metadata = <String, dynamic>{};
+
+    if (message is SystemMessage) {
+      metadata.addAll(message.metadata);
+      if (message.action.trim().isNotEmpty) {
+        metadata['action'] = message.action.trim();
+      }
+    }
 
     if (message is StickerMessage) {
       metadata['url'] = message.stickerUrl;

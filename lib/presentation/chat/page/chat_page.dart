@@ -16,6 +16,7 @@ import 'package:flutter_chat/presentation/chat/mappers/chat_message_ui_mapper.da
 import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
 import 'package:flutter_chat/presentation/chat/widgets/file_send_confirmation_dialog.dart';
 import 'package:flutter_chat/presentation/chat/widgets/forward_message_dialog.dart';
+import 'package:flutter_chat/presentation/chat/page/group_management_page.dart';
 import 'package:flutter_chat/presentation/chat/widgets/image_send_confirmation_dialog.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_action_dialog.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_bubble.dart';
@@ -110,6 +111,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   bool _canReactToMessage(ChatMessage message) {
+    if (message is SystemChatMessage) {
+      return false;
+    }
+
     if (message.isDeleted) {
       return false;
     }
@@ -223,7 +228,19 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               ).showSnackBar(SnackBar(content: Text(mappedMessage)));
             }
           },
-          builder: (context, state) => Scaffold(
+          builder: (context, state) {
+            final isGroupConversation =
+                state is ChatLoaded &&
+                state.conversation != null &&
+                state.conversation?.type.trim().toLowerCase() == 'group';
+            final appBarTitle = isGroupConversation
+                ? (() {
+                    final name = state.conversation?.name.trim() ?? '';
+                    return name.isNotEmpty ? name : widget.friendName;
+                  })()
+                : widget.friendName;
+
+            return Scaffold(
             appBar: AppBar(
               iconTheme: IconThemeData(
                 color: Theme.of(context).colorScheme.onSurface,
@@ -235,7 +252,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.friendName,
+                      appBarTitle,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         color: Theme.of(context).colorScheme.onSurface,
                         fontWeight: FontWeight.bold,
@@ -277,7 +294,24 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
                         IconButton(
                           tooltip: 'Options',
-                          onPressed: () {},
+                          onPressed: () {
+                            if (state is! ChatLoaded || state.conversation == null) {
+                              return;
+                            }
+                            final conversation = state.conversation!;
+                            if (conversation.type.trim().toLowerCase() != 'group') {
+                              return;
+                            }
+
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => GroupManagementPage(
+                                  conversation: conversation,
+                                  currentUserId: state.currentUserId ?? '',
+                                ),
+                              ),
+                            );
+                          },
                           icon: const Icon(Icons.list_outlined)
                         ),
                       ],
@@ -407,7 +441,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   ),
                 ),
                 // is typing badge
-                if (state is ChatLoaded && state.typingUserIds.isNotEmpty) ...[
+                if (state is ChatLoaded &&
+                  state.typingUserIds.isNotEmpty &&
+                  _messageController.text.trim().isEmpty) ...[
                   Container(
                     alignment: Alignment.centerLeft,
                     padding: const EdgeInsets.symmetric(
@@ -445,7 +481,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                 ),
               ],
             ),
-          ),
+          );
+          },
         ),
       ),
     );
@@ -994,6 +1031,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     AppLocalizations l10n, {
     Offset? anchor,
   }) async {
+    if (message is SystemChatMessage) {
+      return;
+    }
+
     final canEdit = _canEditMessage(message);
     final canDelete = _canDeleteMessage(message);
     final canReact = _canReactToMessage(message);

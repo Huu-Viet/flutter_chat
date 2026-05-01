@@ -341,6 +341,17 @@ class ChatMessageUIMapper {
       );
     }
 
+    if (domainMessage is SystemMessage) {
+      return SystemChatMessage(
+        text: _buildSystemText(domainMessage),
+        action: domainMessage.action,
+        timestamp: timestamp,
+        localId: domainMessage.id,
+        serverId: domainMessage.serverId,
+        senderId: senderId,
+      );
+    }
+
     return UnknownChatMessage(
       content: domainMessage.content,
       isSentByMe: isSentByMe,
@@ -423,6 +434,11 @@ class ChatMessageUIMapper {
   }
 
   String _snippetFromMessage(Message message) {
+    if (message is SystemMessage) {
+      final text = _buildSystemText(message).trim();
+      return text.isNotEmpty ? text : '[System]';
+    }
+
     if (message is TextMessage) {
       final text = message.content.trim();
       if (text.isNotEmpty) return text;
@@ -437,5 +453,70 @@ class ChatMessageUIMapper {
 
     final fallback = message.content.trim();
     return fallback.isNotEmpty ? fallback : '[Message]';
+  }
+
+  String _buildSystemText(SystemMessage message) {
+    final metadata = message.metadata;
+    final action = message.action.trim().toUpperCase();
+    final actorName = _readString(metadata['actorName']) ?? _readString(metadata['updatedByName']) ?? 'Someone';
+    final targetNames = _readStringList(metadata['targetNames']);
+
+    switch (action) {
+      case 'MEMBER_ADDED':
+        if (targetNames.isNotEmpty) {
+          return '$actorName added ${targetNames.join(', ')} to the group';
+        }
+        return '$actorName added new member(s)';
+      case 'MEMBER_LEFT':
+        return '$actorName left the group';
+      case 'MEMBER_REMOVED':
+        if (targetNames.isNotEmpty) {
+          return '$actorName removed ${targetNames.join(', ')} from the group';
+        }
+        return '$actorName removed a member';
+      case 'MEMBER_KICKED':
+        if (targetNames.isNotEmpty) {
+          return '$actorName kicked ${targetNames.first} from the group';
+        }
+        return '$actorName kicked a member';
+      case 'ROLE_CHANGED':
+        final role = _readString(metadata['newRole']) ?? 'MEMBER';
+        final target = targetNames.isNotEmpty ? targetNames.first : 'a member';
+        return '$actorName made $target $role';
+      case 'GROUP_INFO_UPDATED':
+        final changes = metadata['changes'];
+        if (changes is Map) {
+          final map = changes.map((key, value) => MapEntry('$key', value));
+          final changedName = _readString(map['name']);
+          final avatarChanged = map['avatarChanged'] == true;
+          if (changedName != null && avatarChanged) {
+            return '$actorName updated the group info';
+          }
+          if (changedName != null) {
+            return '$actorName renamed the group to "$changedName"';
+          }
+          if (avatarChanged) {
+            return '$actorName changed the group photo';
+          }
+        }
+        return '$actorName updated the group info';
+      default:
+        final fallback = message.content.trim();
+        return fallback.isNotEmpty ? fallback : 'System activity';
+    }
+  }
+
+  String? _readString(dynamic value) {
+    if (value == null) return null;
+    final text = value.toString().trim();
+    return text.isEmpty ? null : text;
+  }
+
+  List<String> _readStringList(dynamic value) {
+    if (value is! List) return const <String>[];
+    return value
+        .map((entry) => entry.toString().trim())
+        .where((entry) => entry.isNotEmpty)
+        .toList(growable: false);
   }
 }

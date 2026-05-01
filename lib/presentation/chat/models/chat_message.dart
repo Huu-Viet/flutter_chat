@@ -489,3 +489,39 @@ final class UnknownChatMessage extends ChatMessage {
     );
   }
 }
+
+final class SystemChatMessage extends ChatMessage {
+  final String text;
+  final String? action;
+
+  const SystemChatMessage({
+    required this.text,
+    this.action,
+    required super.timestamp,
+    super.localId,
+    super.serverId,
+    super.senderId,
+  }) : super(
+          isSentByMe: false,
+          isDeleted: false,
+          isGroupConversation: false,
+          isFirstInGroup: true,
+          isLastInGroup: true,
+          reactions: const <ChatMessageReaction>[],
+        );
+
+  @override
+  String get type => 'system';
+
+  @override
+  SystemChatMessage copyWithGrouping({bool? isFirstInGroup, bool? isLastInGroup}) {
+    return SystemChatMessage(
+      text: text,
+      action: action,
+      timestamp: timestamp,
+      localId: localId,
+      serverId: serverId,
+      senderId: senderId,
+    );
+  }
+}
