@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/errors/failure.dart';
 import '../entities/user.dart';
+import '../entities/user_session.dart';
 
 abstract class AuthRemoteRepository {
   Future<Either<Failure, void>> refreshToken(String refreshToken);
@@ -10,6 +11,9 @@ abstract class AuthRemoteRepository {
       String registryToken, String password, String platform, String? deviceName);
   Future<Either<Failure, void>> loginWithEmail(String email, String password);
   Future<Either<Failure, MyUser>> getFullCurrentUser();
+  Future<Either<Failure, List<UserSession>>> getActiveSessions();
+  Future<Either<Failure, void>> revokeOtherSessions();
+  Future<Either<Failure, void>> revokeSession(String sessionId);
   Future<Either<Failure, void>> syncCurrentUserFromRemote();
   Future<Either<Failure, void>> setUserDataToRemote(MyUser user);
   Future<Either<Failure, void>> sendDeviceToken(String userId);

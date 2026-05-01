@@ -15,6 +15,7 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
   final UserDao userDao;
   final APIUserMapper apiMapper;
   final LocalUserMapper localMapper;
+  final SessionMapper sessionMapper;
   final NotificationTokenRegistrar notificationTokenRegistrar;
 
   AuthRemoteRepoImpl({
@@ -25,6 +26,7 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
     required this.userDao,
     required this.apiMapper,
     required this.localMapper,
+    required this.sessionMapper,
     required this.notificationTokenRegistrar,
   });
 
@@ -136,6 +138,51 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
       }
     } catch (e) {
       return Left(ServerFailure('Failed to fetch user data: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<UserSession>>> getActiveSessions() async {
+    try {
+      final sessions = await userRemoteDataSource.getActiveSessions();
+      final currentSessionId = TokenUtils.getSessionId(
+        await authLocalDataSource.getAccessToken(),
+      );
+      final domainSessions = sessionMapper
+          .toDomainList(sessions)
+          .map((session) => session.copyWith(
+                isCurrent: currentSessionId != null &&
+                    session.id.trim() == currentSessionId,
+              ))
+          .toList(growable: false);
+      return Right(domainSessions);
+    } catch (e) {
+      return Left(ServerFailure('Failed to get active sessions: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> revokeOtherSessions() async {
+    try {
+      await userRemoteDataSource.revokeOtherSessions();
+      return Right(null);
+    } catch (e) {
+      return Left(ServerFailure('Failed to revoke other sessions: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> revokeSession(String sessionId) async {
+    try {
+      final normalizedSessionId = sessionId.trim();
+      if (normalizedSessionId.isEmpty) {
+        return Left(ValidationFailure('Session id is required'));
+      }
+
+      await userRemoteDataSource.revokeSession(normalizedSessionId);
+      return Right(null);
+    } catch (e) {
+      return Left(ServerFailure('Failed to revoke session: $e'));
     }
   }
 

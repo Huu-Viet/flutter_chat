@@ -208,9 +208,7 @@ class _ProfileLoadedView extends StatelessWidget {
                   icon: Icons.privacy_tip,
                   title: 'Privacy & Security',
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Privacy settings coming soon!')),
-                    );
+                    context.push('/manage-sessions');
                   },
                 ),
                 const Divider(height: 1),

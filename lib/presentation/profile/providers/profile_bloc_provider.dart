@@ -3,6 +3,7 @@ import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/auth/user_providers.dart';
 import 'package:flutter_chat/features/auth/domain/entities/user.dart';
 import 'package:flutter_chat/features/upload_media/upload_media_providers.dart';
+import 'package:flutter_chat/presentation/profile/blocs/manage_session_bloc/manage_session_bloc.dart';
 import 'package:flutter_chat/presentation/profile/blocs/profile_bloc/profile_bloc.dart';
 import 'package:flutter_chat/presentation/profile/blocs/set_profile_bloc/set_profile_bloc.dart';
 import 'package:riverpod/riverpod.dart';
@@ -26,6 +27,19 @@ final profileBlocProvider = Provider.autoDispose<ProfileBloc>((ref) {
     ref.read(logoutUseCaseProvider),
     ref.read(clearLocalAppDataUseCaseProvider),
     ref.read(disconnectRealtimeGatewayUseCaseProvider),
+  );
+
+  ref.onDispose(bloc.close);
+  return bloc;
+});
+
+final manageSessionBlocProvider = Provider.autoDispose<ManageSessionBloc>((ref) {
+  final bloc = ManageSessionBloc(
+    getActiveSessionsUseCase: ref.read(getActiveSessionsUseCaseProvider),
+    revokeOtherSessionsUseCase: ref.read(revokeOtherSessionsUseCaseProvider),
+    revokeSessionUseCase: ref.read(revokeSessionUseCaseProvider),
+    signOutUseCase: ref.read(logoutUseCaseProvider),
+    clearLocalAppDataUseCase: ref.read(clearLocalAppDataUseCaseProvider),
   );
 
   ref.onDispose(bloc.close);
