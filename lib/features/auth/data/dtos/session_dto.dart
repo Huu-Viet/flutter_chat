@@ -1,14 +1,12 @@
 class SessionDto {
   final String id;
   final String? ipAddress;
-  final String? started;
-  final String? lastAccess;
+  final Object? lastAccess;
   final List<String> clients;
 
   const SessionDto({
     required this.id,
     this.ipAddress,
-    this.started,
     this.lastAccess,
     this.clients = const [],
   });
@@ -19,7 +17,9 @@ class SessionDto {
     }
 
     if (rawClients is List) {
-      return rawClients.map((client) => client.toString()).toList(growable: false);
+      return rawClients
+          .map((client) => client.toString())
+          .toList(growable: false);
     }
 
     if (rawClients is Map) {
@@ -42,8 +42,11 @@ class SessionDto {
     return SessionDto(
       id: json['id']?.toString() ?? '',
       ipAddress: json['ipAddress']?.toString(),
-      started: json['started']?.toString(),
-      lastAccess: json['lastAccess']?.toString(),
+      lastAccess:
+          json['lastAccess'] ??
+          json['last_access'] ??
+          json['lastAccessAt'] ??
+          json['lastAccessedAt'],
       clients: _parseClients(json['clients']),
     );
   }

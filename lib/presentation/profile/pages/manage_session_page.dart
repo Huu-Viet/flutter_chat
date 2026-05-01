@@ -46,15 +46,15 @@ class ManageSessionPageContent extends StatelessWidget {
     return BlocListener<ManageSessionBloc, ManageSessionState>(
       listener: (context, state) {
         if (state is ManageSessionActionSuccess) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(state.message)));
         } else if (state is ManageSessionCurrentSessionRevoked) {
           context.go('/login?refresh=${DateTime.now().millisecondsSinceEpoch}');
         } else if (state is ManageSessionError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(state.message)));
         }
       },
       child: Scaffold(
@@ -96,7 +96,8 @@ class ManageSessionPageContent extends StatelessWidget {
                 children: [
                   _SecuritySectionHeader(
                     isActionInProgress: isActionInProgress,
-                    onRevokeOtherSessions: sessions.isEmpty || isActionInProgress
+                    onRevokeOtherSessions:
+                        sessions.isEmpty || isActionInProgress
                         ? null
                         : () => _confirmRevokeOtherSessions(context, bloc),
                   ),
@@ -115,11 +116,8 @@ class ManageSessionPageContent extends StatelessWidget {
                         child: _SessionListTile(
                           session: session,
                           isActionInProgress: isActionInProgress,
-                          onRevoke: () => _confirmRevokeSession(
-                            context,
-                            bloc,
-                            session,
-                          ),
+                          onRevoke: () =>
+                              _confirmRevokeSession(context, bloc, session),
                         ),
                       ),
                     ),
@@ -170,7 +168,11 @@ class ManageSessionPageContent extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(session.isCurrent ? 'Revoke current session?' : 'Revoke this session?'),
+        title: Text(
+          session.isCurrent
+              ? 'Revoke current session?'
+              : 'Revoke this session?',
+        ),
         content: Text(
           session.isCurrent
               ? 'This is your current session. You will be logged out immediately after revoking it.\n\nSession ID: ${session.id}'
@@ -215,14 +217,17 @@ class _SecuritySectionHeader extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.security, color: Theme.of(context).colorScheme.primary),
+                Icon(
+                  Icons.security,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     'Active sessions',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -265,11 +270,15 @@ class _SessionListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final clients = session.clients.isEmpty ? 'Unknown client' : session.clients.join(', ');
+    final clients = session.clients.isEmpty
+        ? 'Unknown client'
+        : session.clients.join(', ');
     final colorScheme = Theme.of(context).colorScheme;
 
     return Card(
-      color: session.isCurrent ? colorScheme.primaryContainer.withAlpha(89) : null,
+      color: session.isCurrent
+          ? colorScheme.primaryContainer.withAlpha(89)
+          : null,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
@@ -297,20 +306,24 @@ class _SessionListTile extends StatelessWidget {
                       Text(
                         clients,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       if (session.isCurrent) ...[
                         const SizedBox(height: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: colorScheme.primary,
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
                             'Current device',
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
                                   color: colorScheme.onPrimary,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -330,11 +343,6 @@ class _SessionListTile extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            _SessionInfoRow(
-              label: 'Started',
-              value: _formatDateTime(session.started),
-            ),
-            const SizedBox(height: 6),
             _SessionInfoRow(
               label: 'Last access',
               value: _formatDateTime(session.lastAccess),
@@ -367,10 +375,7 @@ class _SessionInfoRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _SessionInfoRow({
-    required this.label,
-    required this.value,
-  });
+  const _SessionInfoRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -380,16 +385,13 @@ class _SessionInfoRow extends StatelessWidget {
           width: 96,
           child: Text(
             label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.grey.shade600,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
           ),
         ),
         Expanded(
-          child: Text(
-            value,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+          child: Text(value, style: Theme.of(context).textTheme.bodySmall),
         ),
       ],
     );
@@ -421,10 +423,7 @@ class _SessionErrorView extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
 
-  const _SessionErrorView({
-    required this.message,
-    required this.onRetry,
-  });
+  const _SessionErrorView({required this.message, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -442,10 +441,7 @@ class _SessionErrorView extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: onRetry,
-              child: const Text('Retry'),
-            ),
+            ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
           ],
         ),
       ),

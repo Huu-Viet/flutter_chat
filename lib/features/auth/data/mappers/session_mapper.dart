@@ -8,9 +8,30 @@ class SessionMapper extends RemoteMapper<SessionDto, UserSession> {
     return UserSession(
       id: dto.id,
       ipAddress: dto.ipAddress,
-      started: DateTime.tryParse(dto.started ?? ''),
-      lastAccess: DateTime.tryParse(dto.lastAccess ?? ''),
+      lastAccess: _parseDateTime(dto.lastAccess),
       clients: dto.clients,
     );
+  }
+
+  DateTime? _parseDateTime(Object? value) {
+    if (value == null) {
+      return null;
+    }
+
+    if (value is num) {
+      return DateTime.fromMillisecondsSinceEpoch(value.toInt());
+    }
+
+    final rawValue = value.toString().trim();
+    if (rawValue.isEmpty) {
+      return null;
+    }
+
+    final timestamp = num.tryParse(rawValue);
+    if (timestamp != null) {
+      return DateTime.fromMillisecondsSinceEpoch(timestamp.toInt());
+    }
+
+    return DateTime.tryParse(rawValue);
   }
 }
