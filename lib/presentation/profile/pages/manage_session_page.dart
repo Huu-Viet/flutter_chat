@@ -134,6 +134,7 @@ class ManageSessionPageContent extends StatelessWidget {
     BuildContext context,
     ManageSessionBloc bloc,
   ) async {
+    final colorScheme = Theme.of(context).colorScheme;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -148,7 +149,10 @@ class ManageSessionPageContent extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: colorScheme.error,
+              foregroundColor: colorScheme.onError,
+            ),
             child: const Text('Revoke'),
           ),
         ],
@@ -165,6 +169,7 @@ class ManageSessionPageContent extends StatelessWidget {
     ManageSessionBloc bloc,
     UserSession session,
   ) async {
+    final colorScheme = Theme.of(context).colorScheme;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -185,7 +190,10 @@ class ManageSessionPageContent extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: colorScheme.error,
+              foregroundColor: colorScheme.onError,
+            ),
             child: const Text('Revoke'),
           ),
         ],
@@ -282,7 +290,9 @@ class _SessionListTile extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: session.isCurrent ? colorScheme.primary : Colors.transparent,
+          color: session.isCurrent
+              ? colorScheme.primary
+              : colorScheme.outlineVariant.withAlpha(0),
           width: session.isCurrent ? 1.5 : 0,
         ),
       ),
@@ -354,7 +364,7 @@ class _SessionListTile extends StatelessWidget {
                 onPressed: isActionInProgress ? null : onRevoke,
                 icon: Icon(session.isCurrent ? Icons.logout : Icons.close),
                 label: Text(session.isCurrent ? 'Revoke & logout' : 'Revoke'),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                style: TextButton.styleFrom(foregroundColor: colorScheme.error),
               ),
             ),
           ],
@@ -379,15 +389,16 @@ class _SessionInfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       children: [
         SizedBox(
           width: 96,
           child: Text(
             label,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
         Expanded(
@@ -403,11 +414,16 @@ class _EmptySessionsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 48),
       child: Column(
         children: [
-          Icon(Icons.devices_other, size: 56, color: Colors.grey.shade500),
+          Icon(
+            Icons.devices_other,
+            size: 56,
+            color: colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(height: 16),
           Text(
             'No active sessions found.',
@@ -427,13 +443,14 @@ class _SessionErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline, size: 56, color: Colors.red.shade400),
+            Icon(Icons.error_outline, size: 56, color: colorScheme.error),
             const SizedBox(height: 16),
             Text(
               message,
