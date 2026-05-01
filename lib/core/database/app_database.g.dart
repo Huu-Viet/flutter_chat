@@ -1297,6 +1297,71 @@ class $ChatConversationsTable extends ChatConversations
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _createByMeta = const VerificationMeta(
+    'createBy',
+  );
+  @override
+  late final GeneratedColumn<String> createBy = GeneratedColumn<String>(
+    'create_by',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isPublicMeta = const VerificationMeta(
+    'isPublic',
+  );
+  @override
+  late final GeneratedColumn<bool> isPublic = GeneratedColumn<bool>(
+    'is_public',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_public" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _joinApprovalRequiredMeta =
+      const VerificationMeta('joinApprovalRequired');
+  @override
+  late final GeneratedColumn<bool> joinApprovalRequired = GeneratedColumn<bool>(
+    'join_approval_required',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("join_approval_required" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _allowMemberMessageMeta =
+      const VerificationMeta('allowMemberMessage');
+  @override
+  late final GeneratedColumn<bool> allowMemberMessage = GeneratedColumn<bool>(
+    'allow_member_message',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("allow_member_message" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _linkVersionMeta = const VerificationMeta(
+    'linkVersion',
+  );
+  @override
+  late final GeneratedColumn<int> linkVersion = GeneratedColumn<int>(
+    'link_version',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -1341,6 +1406,11 @@ class $ChatConversationsTable extends ChatConversations
     memberCount,
     maxOffset,
     myOffset,
+    createBy,
+    isPublic,
+    joinApprovalRequired,
+    allowMemberMessage,
+    linkVersion,
     createdAt,
     updatedAt,
     avatarUrl,
@@ -1425,6 +1495,47 @@ class $ChatConversationsTable extends ChatConversations
         myOffset.isAcceptableOrUnknown(data['my_offset']!, _myOffsetMeta),
       );
     }
+    if (data.containsKey('create_by')) {
+      context.handle(
+        _createByMeta,
+        createBy.isAcceptableOrUnknown(data['create_by']!, _createByMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createByMeta);
+    }
+    if (data.containsKey('is_public')) {
+      context.handle(
+        _isPublicMeta,
+        isPublic.isAcceptableOrUnknown(data['is_public']!, _isPublicMeta),
+      );
+    }
+    if (data.containsKey('join_approval_required')) {
+      context.handle(
+        _joinApprovalRequiredMeta,
+        joinApprovalRequired.isAcceptableOrUnknown(
+          data['join_approval_required']!,
+          _joinApprovalRequiredMeta,
+        ),
+      );
+    }
+    if (data.containsKey('allow_member_message')) {
+      context.handle(
+        _allowMemberMessageMeta,
+        allowMemberMessage.isAcceptableOrUnknown(
+          data['allow_member_message']!,
+          _allowMemberMessageMeta,
+        ),
+      );
+    }
+    if (data.containsKey('link_version')) {
+      context.handle(
+        _linkVersionMeta,
+        linkVersion.isAcceptableOrUnknown(
+          data['link_version']!,
+          _linkVersionMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -1492,6 +1603,26 @@ class $ChatConversationsTable extends ChatConversations
         DriftSqlType.int,
         data['${effectivePrefix}my_offset'],
       ),
+      createBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}create_by'],
+      )!,
+      isPublic: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_public'],
+      )!,
+      joinApprovalRequired: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}join_approval_required'],
+      )!,
+      allowMemberMessage: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}allow_member_message'],
+      )!,
+      linkVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}link_version'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}created_at'],
@@ -1524,6 +1655,11 @@ class ChatConversationEntity extends DataClass
   final int memberCount;
   final int? maxOffset;
   final int? myOffset;
+  final String createBy;
+  final bool isPublic;
+  final bool joinApprovalRequired;
+  final bool allowMemberMessage;
+  final int? linkVersion;
   final String createdAt;
   final String updatedAt;
   final String? avatarUrl;
@@ -1537,6 +1673,11 @@ class ChatConversationEntity extends DataClass
     required this.memberCount,
     this.maxOffset,
     this.myOffset,
+    required this.createBy,
+    required this.isPublic,
+    required this.joinApprovalRequired,
+    required this.allowMemberMessage,
+    this.linkVersion,
     required this.createdAt,
     required this.updatedAt,
     this.avatarUrl,
@@ -1560,6 +1701,13 @@ class ChatConversationEntity extends DataClass
     }
     if (!nullToAbsent || myOffset != null) {
       map['my_offset'] = Variable<int>(myOffset);
+    }
+    map['create_by'] = Variable<String>(createBy);
+    map['is_public'] = Variable<bool>(isPublic);
+    map['join_approval_required'] = Variable<bool>(joinApprovalRequired);
+    map['allow_member_message'] = Variable<bool>(allowMemberMessage);
+    if (!nullToAbsent || linkVersion != null) {
+      map['link_version'] = Variable<int>(linkVersion);
     }
     map['created_at'] = Variable<String>(createdAt);
     map['updated_at'] = Variable<String>(updatedAt);
@@ -1588,6 +1736,13 @@ class ChatConversationEntity extends DataClass
       myOffset: myOffset == null && nullToAbsent
           ? const Value.absent()
           : Value(myOffset),
+      createBy: Value(createBy),
+      isPublic: Value(isPublic),
+      joinApprovalRequired: Value(joinApprovalRequired),
+      allowMemberMessage: Value(allowMemberMessage),
+      linkVersion: linkVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(linkVersion),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       avatarUrl: avatarUrl == null && nullToAbsent
@@ -1611,6 +1766,13 @@ class ChatConversationEntity extends DataClass
       memberCount: serializer.fromJson<int>(json['memberCount']),
       maxOffset: serializer.fromJson<int?>(json['maxOffset']),
       myOffset: serializer.fromJson<int?>(json['myOffset']),
+      createBy: serializer.fromJson<String>(json['createBy']),
+      isPublic: serializer.fromJson<bool>(json['isPublic']),
+      joinApprovalRequired: serializer.fromJson<bool>(
+        json['joinApprovalRequired'],
+      ),
+      allowMemberMessage: serializer.fromJson<bool>(json['allowMemberMessage']),
+      linkVersion: serializer.fromJson<int?>(json['linkVersion']),
       createdAt: serializer.fromJson<String>(json['createdAt']),
       updatedAt: serializer.fromJson<String>(json['updatedAt']),
       avatarUrl: serializer.fromJson<String?>(json['avatarUrl']),
@@ -1629,6 +1791,11 @@ class ChatConversationEntity extends DataClass
       'memberCount': serializer.toJson<int>(memberCount),
       'maxOffset': serializer.toJson<int?>(maxOffset),
       'myOffset': serializer.toJson<int?>(myOffset),
+      'createBy': serializer.toJson<String>(createBy),
+      'isPublic': serializer.toJson<bool>(isPublic),
+      'joinApprovalRequired': serializer.toJson<bool>(joinApprovalRequired),
+      'allowMemberMessage': serializer.toJson<bool>(allowMemberMessage),
+      'linkVersion': serializer.toJson<int?>(linkVersion),
       'createdAt': serializer.toJson<String>(createdAt),
       'updatedAt': serializer.toJson<String>(updatedAt),
       'avatarUrl': serializer.toJson<String?>(avatarUrl),
@@ -1645,6 +1812,11 @@ class ChatConversationEntity extends DataClass
     int? memberCount,
     Value<int?> maxOffset = const Value.absent(),
     Value<int?> myOffset = const Value.absent(),
+    String? createBy,
+    bool? isPublic,
+    bool? joinApprovalRequired,
+    bool? allowMemberMessage,
+    Value<int?> linkVersion = const Value.absent(),
     String? createdAt,
     String? updatedAt,
     Value<String?> avatarUrl = const Value.absent(),
@@ -1660,6 +1832,11 @@ class ChatConversationEntity extends DataClass
     memberCount: memberCount ?? this.memberCount,
     maxOffset: maxOffset.present ? maxOffset.value : this.maxOffset,
     myOffset: myOffset.present ? myOffset.value : this.myOffset,
+    createBy: createBy ?? this.createBy,
+    isPublic: isPublic ?? this.isPublic,
+    joinApprovalRequired: joinApprovalRequired ?? this.joinApprovalRequired,
+    allowMemberMessage: allowMemberMessage ?? this.allowMemberMessage,
+    linkVersion: linkVersion.present ? linkVersion.value : this.linkVersion,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     avatarUrl: avatarUrl.present ? avatarUrl.value : this.avatarUrl,
@@ -1681,6 +1858,17 @@ class ChatConversationEntity extends DataClass
           : this.memberCount,
       maxOffset: data.maxOffset.present ? data.maxOffset.value : this.maxOffset,
       myOffset: data.myOffset.present ? data.myOffset.value : this.myOffset,
+      createBy: data.createBy.present ? data.createBy.value : this.createBy,
+      isPublic: data.isPublic.present ? data.isPublic.value : this.isPublic,
+      joinApprovalRequired: data.joinApprovalRequired.present
+          ? data.joinApprovalRequired.value
+          : this.joinApprovalRequired,
+      allowMemberMessage: data.allowMemberMessage.present
+          ? data.allowMemberMessage.value
+          : this.allowMemberMessage,
+      linkVersion: data.linkVersion.present
+          ? data.linkVersion.value
+          : this.linkVersion,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       avatarUrl: data.avatarUrl.present ? data.avatarUrl.value : this.avatarUrl,
@@ -1699,6 +1887,11 @@ class ChatConversationEntity extends DataClass
           ..write('memberCount: $memberCount, ')
           ..write('maxOffset: $maxOffset, ')
           ..write('myOffset: $myOffset, ')
+          ..write('createBy: $createBy, ')
+          ..write('isPublic: $isPublic, ')
+          ..write('joinApprovalRequired: $joinApprovalRequired, ')
+          ..write('allowMemberMessage: $allowMemberMessage, ')
+          ..write('linkVersion: $linkVersion, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('avatarUrl: $avatarUrl')
@@ -1717,6 +1910,11 @@ class ChatConversationEntity extends DataClass
     memberCount,
     maxOffset,
     myOffset,
+    createBy,
+    isPublic,
+    joinApprovalRequired,
+    allowMemberMessage,
+    linkVersion,
     createdAt,
     updatedAt,
     avatarUrl,
@@ -1734,6 +1932,11 @@ class ChatConversationEntity extends DataClass
           other.memberCount == this.memberCount &&
           other.maxOffset == this.maxOffset &&
           other.myOffset == this.myOffset &&
+          other.createBy == this.createBy &&
+          other.isPublic == this.isPublic &&
+          other.joinApprovalRequired == this.joinApprovalRequired &&
+          other.allowMemberMessage == this.allowMemberMessage &&
+          other.linkVersion == this.linkVersion &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.avatarUrl == this.avatarUrl);
@@ -1750,6 +1953,11 @@ class ChatConversationsCompanion
   final Value<int> memberCount;
   final Value<int?> maxOffset;
   final Value<int?> myOffset;
+  final Value<String> createBy;
+  final Value<bool> isPublic;
+  final Value<bool> joinApprovalRequired;
+  final Value<bool> allowMemberMessage;
+  final Value<int?> linkVersion;
   final Value<String> createdAt;
   final Value<String> updatedAt;
   final Value<String?> avatarUrl;
@@ -1764,6 +1972,11 @@ class ChatConversationsCompanion
     this.memberCount = const Value.absent(),
     this.maxOffset = const Value.absent(),
     this.myOffset = const Value.absent(),
+    this.createBy = const Value.absent(),
+    this.isPublic = const Value.absent(),
+    this.joinApprovalRequired = const Value.absent(),
+    this.allowMemberMessage = const Value.absent(),
+    this.linkVersion = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.avatarUrl = const Value.absent(),
@@ -1779,6 +1992,11 @@ class ChatConversationsCompanion
     this.memberCount = const Value.absent(),
     this.maxOffset = const Value.absent(),
     this.myOffset = const Value.absent(),
+    required String createBy,
+    this.isPublic = const Value.absent(),
+    this.joinApprovalRequired = const Value.absent(),
+    this.allowMemberMessage = const Value.absent(),
+    this.linkVersion = const Value.absent(),
     required String createdAt,
     required String updatedAt,
     this.avatarUrl = const Value.absent(),
@@ -1787,6 +2005,7 @@ class ChatConversationsCompanion
        orgId = Value(orgId),
        type = Value(type),
        name = Value(name),
+       createBy = Value(createBy),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
   static Insertable<ChatConversationEntity> custom({
@@ -1799,6 +2018,11 @@ class ChatConversationsCompanion
     Expression<int>? memberCount,
     Expression<int>? maxOffset,
     Expression<int>? myOffset,
+    Expression<String>? createBy,
+    Expression<bool>? isPublic,
+    Expression<bool>? joinApprovalRequired,
+    Expression<bool>? allowMemberMessage,
+    Expression<int>? linkVersion,
     Expression<String>? createdAt,
     Expression<String>? updatedAt,
     Expression<String>? avatarUrl,
@@ -1814,6 +2038,13 @@ class ChatConversationsCompanion
       if (memberCount != null) 'member_count': memberCount,
       if (maxOffset != null) 'max_offset': maxOffset,
       if (myOffset != null) 'my_offset': myOffset,
+      if (createBy != null) 'create_by': createBy,
+      if (isPublic != null) 'is_public': isPublic,
+      if (joinApprovalRequired != null)
+        'join_approval_required': joinApprovalRequired,
+      if (allowMemberMessage != null)
+        'allow_member_message': allowMemberMessage,
+      if (linkVersion != null) 'link_version': linkVersion,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (avatarUrl != null) 'avatar_url': avatarUrl,
@@ -1831,6 +2062,11 @@ class ChatConversationsCompanion
     Value<int>? memberCount,
     Value<int?>? maxOffset,
     Value<int?>? myOffset,
+    Value<String>? createBy,
+    Value<bool>? isPublic,
+    Value<bool>? joinApprovalRequired,
+    Value<bool>? allowMemberMessage,
+    Value<int?>? linkVersion,
     Value<String>? createdAt,
     Value<String>? updatedAt,
     Value<String?>? avatarUrl,
@@ -1846,6 +2082,11 @@ class ChatConversationsCompanion
       memberCount: memberCount ?? this.memberCount,
       maxOffset: maxOffset ?? this.maxOffset,
       myOffset: myOffset ?? this.myOffset,
+      createBy: createBy ?? this.createBy,
+      isPublic: isPublic ?? this.isPublic,
+      joinApprovalRequired: joinApprovalRequired ?? this.joinApprovalRequired,
+      allowMemberMessage: allowMemberMessage ?? this.allowMemberMessage,
+      linkVersion: linkVersion ?? this.linkVersion,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       avatarUrl: avatarUrl ?? this.avatarUrl,
@@ -1883,6 +2124,23 @@ class ChatConversationsCompanion
     if (myOffset.present) {
       map['my_offset'] = Variable<int>(myOffset.value);
     }
+    if (createBy.present) {
+      map['create_by'] = Variable<String>(createBy.value);
+    }
+    if (isPublic.present) {
+      map['is_public'] = Variable<bool>(isPublic.value);
+    }
+    if (joinApprovalRequired.present) {
+      map['join_approval_required'] = Variable<bool>(
+        joinApprovalRequired.value,
+      );
+    }
+    if (allowMemberMessage.present) {
+      map['allow_member_message'] = Variable<bool>(allowMemberMessage.value);
+    }
+    if (linkVersion.present) {
+      map['link_version'] = Variable<int>(linkVersion.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<String>(createdAt.value);
     }
@@ -1910,6 +2168,11 @@ class ChatConversationsCompanion
           ..write('memberCount: $memberCount, ')
           ..write('maxOffset: $maxOffset, ')
           ..write('myOffset: $myOffset, ')
+          ..write('createBy: $createBy, ')
+          ..write('isPublic: $isPublic, ')
+          ..write('joinApprovalRequired: $joinApprovalRequired, ')
+          ..write('allowMemberMessage: $allowMemberMessage, ')
+          ..write('linkVersion: $linkVersion, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('avatarUrl: $avatarUrl, ')
@@ -2404,6 +2667,17 @@ class $ChatMessagesTable extends ChatMessages
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _replyToIdMeta = const VerificationMeta(
+    'replyToId',
+  );
+  @override
+  late final GeneratedColumn<String> replyToId = GeneratedColumn<String>(
+    'reply_to_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2420,6 +2694,7 @@ class $ChatMessagesTable extends ChatMessages
     createdAt,
     editedAt,
     forwardInfoJson,
+    replyToId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2533,6 +2808,12 @@ class $ChatMessagesTable extends ChatMessages
         ),
       );
     }
+    if (data.containsKey('reply_to_id')) {
+      context.handle(
+        _replyToIdMeta,
+        replyToId.isAcceptableOrUnknown(data['reply_to_id']!, _replyToIdMeta),
+      );
+    }
     return context;
   }
 
@@ -2598,6 +2879,10 @@ class $ChatMessagesTable extends ChatMessages
         DriftSqlType.string,
         data['${effectivePrefix}forward_info_json'],
       ),
+      replyToId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reply_to_id'],
+      ),
     );
   }
 
@@ -2623,6 +2908,7 @@ class ChatMessageEntity extends DataClass
   final String createdAt;
   final String? editedAt;
   final String? forwardInfoJson;
+  final String? replyToId;
   const ChatMessageEntity({
     required this.id,
     required this.conversationId,
@@ -2638,6 +2924,7 @@ class ChatMessageEntity extends DataClass
     required this.createdAt,
     this.editedAt,
     this.forwardInfoJson,
+    this.replyToId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2667,6 +2954,9 @@ class ChatMessageEntity extends DataClass
     }
     if (!nullToAbsent || forwardInfoJson != null) {
       map['forward_info_json'] = Variable<String>(forwardInfoJson);
+    }
+    if (!nullToAbsent || replyToId != null) {
+      map['reply_to_id'] = Variable<String>(replyToId);
     }
     return map;
   }
@@ -2699,6 +2989,9 @@ class ChatMessageEntity extends DataClass
       forwardInfoJson: forwardInfoJson == null && nullToAbsent
           ? const Value.absent()
           : Value(forwardInfoJson),
+      replyToId: replyToId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(replyToId),
     );
   }
 
@@ -2722,6 +3015,7 @@ class ChatMessageEntity extends DataClass
       createdAt: serializer.fromJson<String>(json['createdAt']),
       editedAt: serializer.fromJson<String?>(json['editedAt']),
       forwardInfoJson: serializer.fromJson<String?>(json['forwardInfoJson']),
+      replyToId: serializer.fromJson<String?>(json['replyToId']),
     );
   }
   @override
@@ -2742,6 +3036,7 @@ class ChatMessageEntity extends DataClass
       'createdAt': serializer.toJson<String>(createdAt),
       'editedAt': serializer.toJson<String?>(editedAt),
       'forwardInfoJson': serializer.toJson<String?>(forwardInfoJson),
+      'replyToId': serializer.toJson<String?>(replyToId),
     };
   }
 
@@ -2760,6 +3055,7 @@ class ChatMessageEntity extends DataClass
     String? createdAt,
     Value<String?> editedAt = const Value.absent(),
     Value<String?> forwardInfoJson = const Value.absent(),
+    Value<String?> replyToId = const Value.absent(),
   }) => ChatMessageEntity(
     id: id ?? this.id,
     conversationId: conversationId ?? this.conversationId,
@@ -2777,6 +3073,7 @@ class ChatMessageEntity extends DataClass
     forwardInfoJson: forwardInfoJson.present
         ? forwardInfoJson.value
         : this.forwardInfoJson,
+    replyToId: replyToId.present ? replyToId.value : this.replyToId,
   );
   ChatMessageEntity copyWithCompanion(ChatMessagesCompanion data) {
     return ChatMessageEntity(
@@ -2798,6 +3095,7 @@ class ChatMessageEntity extends DataClass
       forwardInfoJson: data.forwardInfoJson.present
           ? data.forwardInfoJson.value
           : this.forwardInfoJson,
+      replyToId: data.replyToId.present ? data.replyToId.value : this.replyToId,
     );
   }
 
@@ -2817,7 +3115,8 @@ class ChatMessageEntity extends DataClass
           ..write('serverId: $serverId, ')
           ..write('createdAt: $createdAt, ')
           ..write('editedAt: $editedAt, ')
-          ..write('forwardInfoJson: $forwardInfoJson')
+          ..write('forwardInfoJson: $forwardInfoJson, ')
+          ..write('replyToId: $replyToId')
           ..write(')'))
         .toString();
   }
@@ -2838,6 +3137,7 @@ class ChatMessageEntity extends DataClass
     createdAt,
     editedAt,
     forwardInfoJson,
+    replyToId,
   );
   @override
   bool operator ==(Object other) =>
@@ -2856,7 +3156,8 @@ class ChatMessageEntity extends DataClass
           other.serverId == this.serverId &&
           other.createdAt == this.createdAt &&
           other.editedAt == this.editedAt &&
-          other.forwardInfoJson == this.forwardInfoJson);
+          other.forwardInfoJson == this.forwardInfoJson &&
+          other.replyToId == this.replyToId);
 }
 
 class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
@@ -2874,6 +3175,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
   final Value<String> createdAt;
   final Value<String?> editedAt;
   final Value<String?> forwardInfoJson;
+  final Value<String?> replyToId;
   final Value<int> rowid;
   const ChatMessagesCompanion({
     this.id = const Value.absent(),
@@ -2890,6 +3192,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
     this.createdAt = const Value.absent(),
     this.editedAt = const Value.absent(),
     this.forwardInfoJson = const Value.absent(),
+    this.replyToId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ChatMessagesCompanion.insert({
@@ -2907,6 +3210,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
     required String createdAt,
     this.editedAt = const Value.absent(),
     this.forwardInfoJson = const Value.absent(),
+    this.replyToId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        conversationId = Value(conversationId),
@@ -2928,6 +3232,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
     Expression<String>? createdAt,
     Expression<String>? editedAt,
     Expression<String>? forwardInfoJson,
+    Expression<String>? replyToId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2945,6 +3250,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
       if (createdAt != null) 'created_at': createdAt,
       if (editedAt != null) 'edited_at': editedAt,
       if (forwardInfoJson != null) 'forward_info_json': forwardInfoJson,
+      if (replyToId != null) 'reply_to_id': replyToId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2964,6 +3270,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
     Value<String>? createdAt,
     Value<String?>? editedAt,
     Value<String?>? forwardInfoJson,
+    Value<String?>? replyToId,
     Value<int>? rowid,
   }) {
     return ChatMessagesCompanion(
@@ -2981,6 +3288,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
       createdAt: createdAt ?? this.createdAt,
       editedAt: editedAt ?? this.editedAt,
       forwardInfoJson: forwardInfoJson ?? this.forwardInfoJson,
+      replyToId: replyToId ?? this.replyToId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3030,6 +3338,9 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
     if (forwardInfoJson.present) {
       map['forward_info_json'] = Variable<String>(forwardInfoJson.value);
     }
+    if (replyToId.present) {
+      map['reply_to_id'] = Variable<String>(replyToId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3053,6 +3364,7 @@ class ChatMessagesCompanion extends UpdateCompanion<ChatMessageEntity> {
           ..write('createdAt: $createdAt, ')
           ..write('editedAt: $editedAt, ')
           ..write('forwardInfoJson: $forwardInfoJson, ')
+          ..write('replyToId: $replyToId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3277,6 +3589,39 @@ class $MessageMediasTable extends MessageMedias
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _cardTypeMeta = const VerificationMeta(
+    'cardType',
+  );
+  @override
+  late final GeneratedColumn<String> cardType = GeneratedColumn<String>(
+    'card_type',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _contactUserIdMeta = const VerificationMeta(
+    'contactUserId',
+  );
+  @override
+  late final GeneratedColumn<String> contactUserId = GeneratedColumn<String>(
+    'contact_user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _clientMessageIdMeta = const VerificationMeta(
+    'clientMessageId',
+  );
+  @override
+  late final GeneratedColumn<String> clientMessageId = GeneratedColumn<String>(
+    'client_message_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3299,6 +3644,9 @@ class $MessageMediasTable extends MessageMedias
     height,
     orderIndex,
     waveform,
+    cardType,
+    contactUserId,
+    clientMessageId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3439,6 +3787,30 @@ class $MessageMediasTable extends MessageMedias
         waveform.isAcceptableOrUnknown(data['waveform']!, _waveformMeta),
       );
     }
+    if (data.containsKey('card_type')) {
+      context.handle(
+        _cardTypeMeta,
+        cardType.isAcceptableOrUnknown(data['card_type']!, _cardTypeMeta),
+      );
+    }
+    if (data.containsKey('contact_user_id')) {
+      context.handle(
+        _contactUserIdMeta,
+        contactUserId.isAcceptableOrUnknown(
+          data['contact_user_id']!,
+          _contactUserIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('client_message_id')) {
+      context.handle(
+        _clientMessageIdMeta,
+        clientMessageId.isAcceptableOrUnknown(
+          data['client_message_id']!,
+          _clientMessageIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -3528,6 +3900,18 @@ class $MessageMediasTable extends MessageMedias
         DriftSqlType.string,
         data['${effectivePrefix}waveform'],
       ),
+      cardType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}card_type'],
+      ),
+      contactUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}contact_user_id'],
+      ),
+      clientMessageId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}client_message_id'],
+      ),
     );
   }
 
@@ -3559,6 +3943,9 @@ class MessageMediaEntity extends DataClass
   final int? height;
   final int orderIndex;
   final String? waveform;
+  final String? cardType;
+  final String? contactUserId;
+  final String? clientMessageId;
   const MessageMediaEntity({
     required this.id,
     required this.messageId,
@@ -3580,6 +3967,9 @@ class MessageMediaEntity extends DataClass
     this.height,
     required this.orderIndex,
     this.waveform,
+    this.cardType,
+    this.contactUserId,
+    this.clientMessageId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3632,6 +4022,15 @@ class MessageMediaEntity extends DataClass
     if (!nullToAbsent || waveform != null) {
       map['waveform'] = Variable<String>(waveform);
     }
+    if (!nullToAbsent || cardType != null) {
+      map['card_type'] = Variable<String>(cardType);
+    }
+    if (!nullToAbsent || contactUserId != null) {
+      map['contact_user_id'] = Variable<String>(contactUserId);
+    }
+    if (!nullToAbsent || clientMessageId != null) {
+      map['client_message_id'] = Variable<String>(clientMessageId);
+    }
     return map;
   }
 
@@ -3681,6 +4080,15 @@ class MessageMediaEntity extends DataClass
       waveform: waveform == null && nullToAbsent
           ? const Value.absent()
           : Value(waveform),
+      cardType: cardType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cardType),
+      contactUserId: contactUserId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(contactUserId),
+      clientMessageId: clientMessageId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(clientMessageId),
     );
   }
 
@@ -3710,6 +4118,9 @@ class MessageMediaEntity extends DataClass
       height: serializer.fromJson<int?>(json['height']),
       orderIndex: serializer.fromJson<int>(json['orderIndex']),
       waveform: serializer.fromJson<String?>(json['waveform']),
+      cardType: serializer.fromJson<String?>(json['cardType']),
+      contactUserId: serializer.fromJson<String?>(json['contactUserId']),
+      clientMessageId: serializer.fromJson<String?>(json['clientMessageId']),
     );
   }
   @override
@@ -3736,6 +4147,9 @@ class MessageMediaEntity extends DataClass
       'height': serializer.toJson<int?>(height),
       'orderIndex': serializer.toJson<int>(orderIndex),
       'waveform': serializer.toJson<String?>(waveform),
+      'cardType': serializer.toJson<String?>(cardType),
+      'contactUserId': serializer.toJson<String?>(contactUserId),
+      'clientMessageId': serializer.toJson<String?>(clientMessageId),
     };
   }
 
@@ -3760,6 +4174,9 @@ class MessageMediaEntity extends DataClass
     Value<int?> height = const Value.absent(),
     int? orderIndex,
     Value<String?> waveform = const Value.absent(),
+    Value<String?> cardType = const Value.absent(),
+    Value<String?> contactUserId = const Value.absent(),
+    Value<String?> clientMessageId = const Value.absent(),
   }) => MessageMediaEntity(
     id: id ?? this.id,
     messageId: messageId ?? this.messageId,
@@ -3783,6 +4200,13 @@ class MessageMediaEntity extends DataClass
     height: height.present ? height.value : this.height,
     orderIndex: orderIndex ?? this.orderIndex,
     waveform: waveform.present ? waveform.value : this.waveform,
+    cardType: cardType.present ? cardType.value : this.cardType,
+    contactUserId: contactUserId.present
+        ? contactUserId.value
+        : this.contactUserId,
+    clientMessageId: clientMessageId.present
+        ? clientMessageId.value
+        : this.clientMessageId,
   );
   MessageMediaEntity copyWithCompanion(MessageMediasCompanion data) {
     return MessageMediaEntity(
@@ -3816,6 +4240,13 @@ class MessageMediaEntity extends DataClass
           ? data.orderIndex.value
           : this.orderIndex,
       waveform: data.waveform.present ? data.waveform.value : this.waveform,
+      cardType: data.cardType.present ? data.cardType.value : this.cardType,
+      contactUserId: data.contactUserId.present
+          ? data.contactUserId.value
+          : this.contactUserId,
+      clientMessageId: data.clientMessageId.present
+          ? data.clientMessageId.value
+          : this.clientMessageId,
     );
   }
 
@@ -3841,13 +4272,16 @@ class MessageMediaEntity extends DataClass
           ..write('width: $width, ')
           ..write('height: $height, ')
           ..write('orderIndex: $orderIndex, ')
-          ..write('waveform: $waveform')
+          ..write('waveform: $waveform, ')
+          ..write('cardType: $cardType, ')
+          ..write('contactUserId: $contactUserId, ')
+          ..write('clientMessageId: $clientMessageId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     messageId,
     mediaType,
@@ -3868,7 +4302,10 @@ class MessageMediaEntity extends DataClass
     height,
     orderIndex,
     waveform,
-  );
+    cardType,
+    contactUserId,
+    clientMessageId,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3892,7 +4329,10 @@ class MessageMediaEntity extends DataClass
           other.width == this.width &&
           other.height == this.height &&
           other.orderIndex == this.orderIndex &&
-          other.waveform == this.waveform);
+          other.waveform == this.waveform &&
+          other.cardType == this.cardType &&
+          other.contactUserId == this.contactUserId &&
+          other.clientMessageId == this.clientMessageId);
 }
 
 class MessageMediasCompanion extends UpdateCompanion<MessageMediaEntity> {
@@ -3916,6 +4356,9 @@ class MessageMediasCompanion extends UpdateCompanion<MessageMediaEntity> {
   final Value<int?> height;
   final Value<int> orderIndex;
   final Value<String?> waveform;
+  final Value<String?> cardType;
+  final Value<String?> contactUserId;
+  final Value<String?> clientMessageId;
   final Value<int> rowid;
   const MessageMediasCompanion({
     this.id = const Value.absent(),
@@ -3938,6 +4381,9 @@ class MessageMediasCompanion extends UpdateCompanion<MessageMediaEntity> {
     this.height = const Value.absent(),
     this.orderIndex = const Value.absent(),
     this.waveform = const Value.absent(),
+    this.cardType = const Value.absent(),
+    this.contactUserId = const Value.absent(),
+    this.clientMessageId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   MessageMediasCompanion.insert({
@@ -3961,6 +4407,9 @@ class MessageMediasCompanion extends UpdateCompanion<MessageMediaEntity> {
     this.height = const Value.absent(),
     this.orderIndex = const Value.absent(),
     this.waveform = const Value.absent(),
+    this.cardType = const Value.absent(),
+    this.contactUserId = const Value.absent(),
+    this.clientMessageId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        messageId = Value(messageId);
@@ -3985,6 +4434,9 @@ class MessageMediasCompanion extends UpdateCompanion<MessageMediaEntity> {
     Expression<int>? height,
     Expression<int>? orderIndex,
     Expression<String>? waveform,
+    Expression<String>? cardType,
+    Expression<String>? contactUserId,
+    Expression<String>? clientMessageId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4008,6 +4460,9 @@ class MessageMediasCompanion extends UpdateCompanion<MessageMediaEntity> {
       if (height != null) 'height': height,
       if (orderIndex != null) 'order_index': orderIndex,
       if (waveform != null) 'waveform': waveform,
+      if (cardType != null) 'card_type': cardType,
+      if (contactUserId != null) 'contact_user_id': contactUserId,
+      if (clientMessageId != null) 'client_message_id': clientMessageId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4033,6 +4488,9 @@ class MessageMediasCompanion extends UpdateCompanion<MessageMediaEntity> {
     Value<int?>? height,
     Value<int>? orderIndex,
     Value<String?>? waveform,
+    Value<String?>? cardType,
+    Value<String?>? contactUserId,
+    Value<String?>? clientMessageId,
     Value<int>? rowid,
   }) {
     return MessageMediasCompanion(
@@ -4056,6 +4514,9 @@ class MessageMediasCompanion extends UpdateCompanion<MessageMediaEntity> {
       height: height ?? this.height,
       orderIndex: orderIndex ?? this.orderIndex,
       waveform: waveform ?? this.waveform,
+      cardType: cardType ?? this.cardType,
+      contactUserId: contactUserId ?? this.contactUserId,
+      clientMessageId: clientMessageId ?? this.clientMessageId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4123,6 +4584,15 @@ class MessageMediasCompanion extends UpdateCompanion<MessageMediaEntity> {
     if (waveform.present) {
       map['waveform'] = Variable<String>(waveform.value);
     }
+    if (cardType.present) {
+      map['card_type'] = Variable<String>(cardType.value);
+    }
+    if (contactUserId.present) {
+      map['contact_user_id'] = Variable<String>(contactUserId.value);
+    }
+    if (clientMessageId.present) {
+      map['client_message_id'] = Variable<String>(clientMessageId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4152,6 +4622,9 @@ class MessageMediasCompanion extends UpdateCompanion<MessageMediaEntity> {
           ..write('height: $height, ')
           ..write('orderIndex: $orderIndex, ')
           ..write('waveform: $waveform, ')
+          ..write('cardType: $cardType, ')
+          ..write('contactUserId: $contactUserId, ')
+          ..write('clientMessageId: $clientMessageId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5573,6 +6046,481 @@ class PinMessagesCompanion extends UpdateCompanion<PinMessageEntity> {
   }
 }
 
+class $UserGroupSettingsTable extends UserGroupSettings
+    with TableInfo<$UserGroupSettingsTable, UserGroupSettingEntity> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $UserGroupSettingsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _groupIdMeta = const VerificationMeta(
+    'groupId',
+  );
+  @override
+  late final GeneratedColumn<String> groupId = GeneratedColumn<String>(
+    'group_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isMuteMeta = const VerificationMeta('isMute');
+  @override
+  late final GeneratedColumn<bool> isMute = GeneratedColumn<bool>(
+    'is_mute',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_mute" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _roleMeta = const VerificationMeta('role');
+  @override
+  late final GeneratedColumn<String> role = GeneratedColumn<String>(
+    'role',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastReadMessageIdMeta = const VerificationMeta(
+    'lastReadMessageId',
+  );
+  @override
+  late final GeneratedColumn<int> lastReadMessageId = GeneratedColumn<int>(
+    'last_read_message_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isPinnedMeta = const VerificationMeta(
+    'isPinned',
+  );
+  @override
+  late final GeneratedColumn<bool> isPinned = GeneratedColumn<bool>(
+    'is_pinned',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_pinned" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _isHiddenMeta = const VerificationMeta(
+    'isHidden',
+  );
+  @override
+  late final GeneratedColumn<bool> isHidden = GeneratedColumn<bool>(
+    'is_hidden',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_hidden" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    groupId,
+    userId,
+    isMute,
+    role,
+    lastReadMessageId,
+    isPinned,
+    isHidden,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'user_group_settings';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<UserGroupSettingEntity> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('group_id')) {
+      context.handle(
+        _groupIdMeta,
+        groupId.isAcceptableOrUnknown(data['group_id']!, _groupIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_groupIdMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('is_mute')) {
+      context.handle(
+        _isMuteMeta,
+        isMute.isAcceptableOrUnknown(data['is_mute']!, _isMuteMeta),
+      );
+    }
+    if (data.containsKey('role')) {
+      context.handle(
+        _roleMeta,
+        role.isAcceptableOrUnknown(data['role']!, _roleMeta),
+      );
+    }
+    if (data.containsKey('last_read_message_id')) {
+      context.handle(
+        _lastReadMessageIdMeta,
+        lastReadMessageId.isAcceptableOrUnknown(
+          data['last_read_message_id']!,
+          _lastReadMessageIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_pinned')) {
+      context.handle(
+        _isPinnedMeta,
+        isPinned.isAcceptableOrUnknown(data['is_pinned']!, _isPinnedMeta),
+      );
+    }
+    if (data.containsKey('is_hidden')) {
+      context.handle(
+        _isHiddenMeta,
+        isHidden.isAcceptableOrUnknown(data['is_hidden']!, _isHiddenMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {groupId, userId};
+  @override
+  UserGroupSettingEntity map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return UserGroupSettingEntity(
+      groupId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}group_id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      isMute: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_mute'],
+      )!,
+      role: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}role'],
+      ),
+      lastReadMessageId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_read_message_id'],
+      ),
+      isPinned: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_pinned'],
+      )!,
+      isHidden: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_hidden'],
+      )!,
+    );
+  }
+
+  @override
+  $UserGroupSettingsTable createAlias(String alias) {
+    return $UserGroupSettingsTable(attachedDatabase, alias);
+  }
+}
+
+class UserGroupSettingEntity extends DataClass
+    implements Insertable<UserGroupSettingEntity> {
+  final String groupId;
+  final String userId;
+  final bool isMute;
+  final String? role;
+  final int? lastReadMessageId;
+  final bool isPinned;
+  final bool isHidden;
+  const UserGroupSettingEntity({
+    required this.groupId,
+    required this.userId,
+    required this.isMute,
+    this.role,
+    this.lastReadMessageId,
+    required this.isPinned,
+    required this.isHidden,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['group_id'] = Variable<String>(groupId);
+    map['user_id'] = Variable<String>(userId);
+    map['is_mute'] = Variable<bool>(isMute);
+    if (!nullToAbsent || role != null) {
+      map['role'] = Variable<String>(role);
+    }
+    if (!nullToAbsent || lastReadMessageId != null) {
+      map['last_read_message_id'] = Variable<int>(lastReadMessageId);
+    }
+    map['is_pinned'] = Variable<bool>(isPinned);
+    map['is_hidden'] = Variable<bool>(isHidden);
+    return map;
+  }
+
+  UserGroupSettingsCompanion toCompanion(bool nullToAbsent) {
+    return UserGroupSettingsCompanion(
+      groupId: Value(groupId),
+      userId: Value(userId),
+      isMute: Value(isMute),
+      role: role == null && nullToAbsent ? const Value.absent() : Value(role),
+      lastReadMessageId: lastReadMessageId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastReadMessageId),
+      isPinned: Value(isPinned),
+      isHidden: Value(isHidden),
+    );
+  }
+
+  factory UserGroupSettingEntity.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return UserGroupSettingEntity(
+      groupId: serializer.fromJson<String>(json['groupId']),
+      userId: serializer.fromJson<String>(json['userId']),
+      isMute: serializer.fromJson<bool>(json['isMute']),
+      role: serializer.fromJson<String?>(json['role']),
+      lastReadMessageId: serializer.fromJson<int?>(json['lastReadMessageId']),
+      isPinned: serializer.fromJson<bool>(json['isPinned']),
+      isHidden: serializer.fromJson<bool>(json['isHidden']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'groupId': serializer.toJson<String>(groupId),
+      'userId': serializer.toJson<String>(userId),
+      'isMute': serializer.toJson<bool>(isMute),
+      'role': serializer.toJson<String?>(role),
+      'lastReadMessageId': serializer.toJson<int?>(lastReadMessageId),
+      'isPinned': serializer.toJson<bool>(isPinned),
+      'isHidden': serializer.toJson<bool>(isHidden),
+    };
+  }
+
+  UserGroupSettingEntity copyWith({
+    String? groupId,
+    String? userId,
+    bool? isMute,
+    Value<String?> role = const Value.absent(),
+    Value<int?> lastReadMessageId = const Value.absent(),
+    bool? isPinned,
+    bool? isHidden,
+  }) => UserGroupSettingEntity(
+    groupId: groupId ?? this.groupId,
+    userId: userId ?? this.userId,
+    isMute: isMute ?? this.isMute,
+    role: role.present ? role.value : this.role,
+    lastReadMessageId: lastReadMessageId.present
+        ? lastReadMessageId.value
+        : this.lastReadMessageId,
+    isPinned: isPinned ?? this.isPinned,
+    isHidden: isHidden ?? this.isHidden,
+  );
+  UserGroupSettingEntity copyWithCompanion(UserGroupSettingsCompanion data) {
+    return UserGroupSettingEntity(
+      groupId: data.groupId.present ? data.groupId.value : this.groupId,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      isMute: data.isMute.present ? data.isMute.value : this.isMute,
+      role: data.role.present ? data.role.value : this.role,
+      lastReadMessageId: data.lastReadMessageId.present
+          ? data.lastReadMessageId.value
+          : this.lastReadMessageId,
+      isPinned: data.isPinned.present ? data.isPinned.value : this.isPinned,
+      isHidden: data.isHidden.present ? data.isHidden.value : this.isHidden,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UserGroupSettingEntity(')
+          ..write('groupId: $groupId, ')
+          ..write('userId: $userId, ')
+          ..write('isMute: $isMute, ')
+          ..write('role: $role, ')
+          ..write('lastReadMessageId: $lastReadMessageId, ')
+          ..write('isPinned: $isPinned, ')
+          ..write('isHidden: $isHidden')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    groupId,
+    userId,
+    isMute,
+    role,
+    lastReadMessageId,
+    isPinned,
+    isHidden,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is UserGroupSettingEntity &&
+          other.groupId == this.groupId &&
+          other.userId == this.userId &&
+          other.isMute == this.isMute &&
+          other.role == this.role &&
+          other.lastReadMessageId == this.lastReadMessageId &&
+          other.isPinned == this.isPinned &&
+          other.isHidden == this.isHidden);
+}
+
+class UserGroupSettingsCompanion
+    extends UpdateCompanion<UserGroupSettingEntity> {
+  final Value<String> groupId;
+  final Value<String> userId;
+  final Value<bool> isMute;
+  final Value<String?> role;
+  final Value<int?> lastReadMessageId;
+  final Value<bool> isPinned;
+  final Value<bool> isHidden;
+  final Value<int> rowid;
+  const UserGroupSettingsCompanion({
+    this.groupId = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.isMute = const Value.absent(),
+    this.role = const Value.absent(),
+    this.lastReadMessageId = const Value.absent(),
+    this.isPinned = const Value.absent(),
+    this.isHidden = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  UserGroupSettingsCompanion.insert({
+    required String groupId,
+    required String userId,
+    this.isMute = const Value.absent(),
+    this.role = const Value.absent(),
+    this.lastReadMessageId = const Value.absent(),
+    this.isPinned = const Value.absent(),
+    this.isHidden = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : groupId = Value(groupId),
+       userId = Value(userId);
+  static Insertable<UserGroupSettingEntity> custom({
+    Expression<String>? groupId,
+    Expression<String>? userId,
+    Expression<bool>? isMute,
+    Expression<String>? role,
+    Expression<int>? lastReadMessageId,
+    Expression<bool>? isPinned,
+    Expression<bool>? isHidden,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (groupId != null) 'group_id': groupId,
+      if (userId != null) 'user_id': userId,
+      if (isMute != null) 'is_mute': isMute,
+      if (role != null) 'role': role,
+      if (lastReadMessageId != null) 'last_read_message_id': lastReadMessageId,
+      if (isPinned != null) 'is_pinned': isPinned,
+      if (isHidden != null) 'is_hidden': isHidden,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  UserGroupSettingsCompanion copyWith({
+    Value<String>? groupId,
+    Value<String>? userId,
+    Value<bool>? isMute,
+    Value<String?>? role,
+    Value<int?>? lastReadMessageId,
+    Value<bool>? isPinned,
+    Value<bool>? isHidden,
+    Value<int>? rowid,
+  }) {
+    return UserGroupSettingsCompanion(
+      groupId: groupId ?? this.groupId,
+      userId: userId ?? this.userId,
+      isMute: isMute ?? this.isMute,
+      role: role ?? this.role,
+      lastReadMessageId: lastReadMessageId ?? this.lastReadMessageId,
+      isPinned: isPinned ?? this.isPinned,
+      isHidden: isHidden ?? this.isHidden,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (groupId.present) {
+      map['group_id'] = Variable<String>(groupId.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (isMute.present) {
+      map['is_mute'] = Variable<bool>(isMute.value);
+    }
+    if (role.present) {
+      map['role'] = Variable<String>(role.value);
+    }
+    if (lastReadMessageId.present) {
+      map['last_read_message_id'] = Variable<int>(lastReadMessageId.value);
+    }
+    if (isPinned.present) {
+      map['is_pinned'] = Variable<bool>(isPinned.value);
+    }
+    if (isHidden.present) {
+      map['is_hidden'] = Variable<bool>(isHidden.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UserGroupSettingsCompanion(')
+          ..write('groupId: $groupId, ')
+          ..write('userId: $userId, ')
+          ..write('isMute: $isMute, ')
+          ..write('role: $role, ')
+          ..write('lastReadMessageId: $lastReadMessageId, ')
+          ..write('isPinned: $isPinned, ')
+          ..write('isHidden: $isHidden, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5589,6 +6537,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final $StickerItemsTable stickerItems = $StickerItemsTable(this);
   late final $PinMessagesTable pinMessages = $PinMessagesTable(this);
+  late final $UserGroupSettingsTable userGroupSettings =
+      $UserGroupSettingsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5603,6 +6553,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     stickerPackages,
     stickerItems,
     pinMessages,
+    userGroupSettings,
   ];
 }
 
@@ -6113,6 +7064,11 @@ typedef $$ChatConversationsTableCreateCompanionBuilder =
       Value<int> memberCount,
       Value<int?> maxOffset,
       Value<int?> myOffset,
+      required String createBy,
+      Value<bool> isPublic,
+      Value<bool> joinApprovalRequired,
+      Value<bool> allowMemberMessage,
+      Value<int?> linkVersion,
       required String createdAt,
       required String updatedAt,
       Value<String?> avatarUrl,
@@ -6129,6 +7085,11 @@ typedef $$ChatConversationsTableUpdateCompanionBuilder =
       Value<int> memberCount,
       Value<int?> maxOffset,
       Value<int?> myOffset,
+      Value<String> createBy,
+      Value<bool> isPublic,
+      Value<bool> joinApprovalRequired,
+      Value<bool> allowMemberMessage,
+      Value<int?> linkVersion,
       Value<String> createdAt,
       Value<String> updatedAt,
       Value<String?> avatarUrl,
@@ -6186,6 +7147,31 @@ class $$ChatConversationsTableFilterComposer
 
   ColumnFilters<int> get myOffset => $composableBuilder(
     column: $table.myOffset,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createBy => $composableBuilder(
+    column: $table.createBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isPublic => $composableBuilder(
+    column: $table.isPublic,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get joinApprovalRequired => $composableBuilder(
+    column: $table.joinApprovalRequired,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get allowMemberMessage => $composableBuilder(
+    column: $table.allowMemberMessage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get linkVersion => $composableBuilder(
+    column: $table.linkVersion,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6259,6 +7245,31 @@ class $$ChatConversationsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get createBy => $composableBuilder(
+    column: $table.createBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isPublic => $composableBuilder(
+    column: $table.isPublic,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get joinApprovalRequired => $composableBuilder(
+    column: $table.joinApprovalRequired,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get allowMemberMessage => $composableBuilder(
+    column: $table.allowMemberMessage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get linkVersion => $composableBuilder(
+    column: $table.linkVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -6316,6 +7327,27 @@ class $$ChatConversationsTableAnnotationComposer
 
   GeneratedColumn<int> get myOffset =>
       $composableBuilder(column: $table.myOffset, builder: (column) => column);
+
+  GeneratedColumn<String> get createBy =>
+      $composableBuilder(column: $table.createBy, builder: (column) => column);
+
+  GeneratedColumn<bool> get isPublic =>
+      $composableBuilder(column: $table.isPublic, builder: (column) => column);
+
+  GeneratedColumn<bool> get joinApprovalRequired => $composableBuilder(
+    column: $table.joinApprovalRequired,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get allowMemberMessage => $composableBuilder(
+    column: $table.allowMemberMessage,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get linkVersion => $composableBuilder(
+    column: $table.linkVersion,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -6376,6 +7408,11 @@ class $$ChatConversationsTableTableManager
                 Value<int> memberCount = const Value.absent(),
                 Value<int?> maxOffset = const Value.absent(),
                 Value<int?> myOffset = const Value.absent(),
+                Value<String> createBy = const Value.absent(),
+                Value<bool> isPublic = const Value.absent(),
+                Value<bool> joinApprovalRequired = const Value.absent(),
+                Value<bool> allowMemberMessage = const Value.absent(),
+                Value<int?> linkVersion = const Value.absent(),
                 Value<String> createdAt = const Value.absent(),
                 Value<String> updatedAt = const Value.absent(),
                 Value<String?> avatarUrl = const Value.absent(),
@@ -6390,6 +7427,11 @@ class $$ChatConversationsTableTableManager
                 memberCount: memberCount,
                 maxOffset: maxOffset,
                 myOffset: myOffset,
+                createBy: createBy,
+                isPublic: isPublic,
+                joinApprovalRequired: joinApprovalRequired,
+                allowMemberMessage: allowMemberMessage,
+                linkVersion: linkVersion,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 avatarUrl: avatarUrl,
@@ -6406,6 +7448,11 @@ class $$ChatConversationsTableTableManager
                 Value<int> memberCount = const Value.absent(),
                 Value<int?> maxOffset = const Value.absent(),
                 Value<int?> myOffset = const Value.absent(),
+                required String createBy,
+                Value<bool> isPublic = const Value.absent(),
+                Value<bool> joinApprovalRequired = const Value.absent(),
+                Value<bool> allowMemberMessage = const Value.absent(),
+                Value<int?> linkVersion = const Value.absent(),
                 required String createdAt,
                 required String updatedAt,
                 Value<String?> avatarUrl = const Value.absent(),
@@ -6420,6 +7467,11 @@ class $$ChatConversationsTableTableManager
                 memberCount: memberCount,
                 maxOffset: maxOffset,
                 myOffset: myOffset,
+                createBy: createBy,
+                isPublic: isPublic,
+                joinApprovalRequired: joinApprovalRequired,
+                allowMemberMessage: allowMemberMessage,
+                linkVersion: linkVersion,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 avatarUrl: avatarUrl,
@@ -6666,6 +7718,7 @@ typedef $$ChatMessagesTableCreateCompanionBuilder =
       required String createdAt,
       Value<String?> editedAt,
       Value<String?> forwardInfoJson,
+      Value<String?> replyToId,
       Value<int> rowid,
     });
 typedef $$ChatMessagesTableUpdateCompanionBuilder =
@@ -6684,6 +7737,7 @@ typedef $$ChatMessagesTableUpdateCompanionBuilder =
       Value<String> createdAt,
       Value<String?> editedAt,
       Value<String?> forwardInfoJson,
+      Value<String?> replyToId,
       Value<int> rowid,
     });
 
@@ -6763,6 +7817,11 @@ class $$ChatMessagesTableFilterComposer
 
   ColumnFilters<String> get forwardInfoJson => $composableBuilder(
     column: $table.forwardInfoJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get replyToId => $composableBuilder(
+    column: $table.replyToId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6845,6 +7904,11 @@ class $$ChatMessagesTableOrderingComposer
     column: $table.forwardInfoJson,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get replyToId => $composableBuilder(
+    column: $table.replyToId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ChatMessagesTableAnnotationComposer
@@ -6901,6 +7965,9 @@ class $$ChatMessagesTableAnnotationComposer
     column: $table.forwardInfoJson,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get replyToId =>
+      $composableBuilder(column: $table.replyToId, builder: (column) => column);
 }
 
 class $$ChatMessagesTableTableManager
@@ -6952,6 +8019,7 @@ class $$ChatMessagesTableTableManager
                 Value<String> createdAt = const Value.absent(),
                 Value<String?> editedAt = const Value.absent(),
                 Value<String?> forwardInfoJson = const Value.absent(),
+                Value<String?> replyToId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ChatMessagesCompanion(
                 id: id,
@@ -6968,6 +8036,7 @@ class $$ChatMessagesTableTableManager
                 createdAt: createdAt,
                 editedAt: editedAt,
                 forwardInfoJson: forwardInfoJson,
+                replyToId: replyToId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6986,6 +8055,7 @@ class $$ChatMessagesTableTableManager
                 required String createdAt,
                 Value<String?> editedAt = const Value.absent(),
                 Value<String?> forwardInfoJson = const Value.absent(),
+                Value<String?> replyToId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ChatMessagesCompanion.insert(
                 id: id,
@@ -7002,6 +8072,7 @@ class $$ChatMessagesTableTableManager
                 createdAt: createdAt,
                 editedAt: editedAt,
                 forwardInfoJson: forwardInfoJson,
+                replyToId: replyToId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -7051,6 +8122,9 @@ typedef $$MessageMediasTableCreateCompanionBuilder =
       Value<int?> height,
       Value<int> orderIndex,
       Value<String?> waveform,
+      Value<String?> cardType,
+      Value<String?> contactUserId,
+      Value<String?> clientMessageId,
       Value<int> rowid,
     });
 typedef $$MessageMediasTableUpdateCompanionBuilder =
@@ -7075,6 +8149,9 @@ typedef $$MessageMediasTableUpdateCompanionBuilder =
       Value<int?> height,
       Value<int> orderIndex,
       Value<String?> waveform,
+      Value<String?> cardType,
+      Value<String?> contactUserId,
+      Value<String?> clientMessageId,
       Value<int> rowid,
     });
 
@@ -7184,6 +8261,21 @@ class $$MessageMediasTableFilterComposer
 
   ColumnFilters<String> get waveform => $composableBuilder(
     column: $table.waveform,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cardType => $composableBuilder(
+    column: $table.cardType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contactUserId => $composableBuilder(
+    column: $table.contactUserId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get clientMessageId => $composableBuilder(
+    column: $table.clientMessageId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -7296,6 +8388,21 @@ class $$MessageMediasTableOrderingComposer
     column: $table.waveform,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get cardType => $composableBuilder(
+    column: $table.cardType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get contactUserId => $composableBuilder(
+    column: $table.contactUserId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get clientMessageId => $composableBuilder(
+    column: $table.clientMessageId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$MessageMediasTableAnnotationComposer
@@ -7376,6 +8483,19 @@ class $$MessageMediasTableAnnotationComposer
 
   GeneratedColumn<String> get waveform =>
       $composableBuilder(column: $table.waveform, builder: (column) => column);
+
+  GeneratedColumn<String> get cardType =>
+      $composableBuilder(column: $table.cardType, builder: (column) => column);
+
+  GeneratedColumn<String> get contactUserId => $composableBuilder(
+    column: $table.contactUserId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get clientMessageId => $composableBuilder(
+    column: $table.clientMessageId,
+    builder: (column) => column,
+  );
 }
 
 class $$MessageMediasTableTableManager
@@ -7433,6 +8553,9 @@ class $$MessageMediasTableTableManager
                 Value<int?> height = const Value.absent(),
                 Value<int> orderIndex = const Value.absent(),
                 Value<String?> waveform = const Value.absent(),
+                Value<String?> cardType = const Value.absent(),
+                Value<String?> contactUserId = const Value.absent(),
+                Value<String?> clientMessageId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MessageMediasCompanion(
                 id: id,
@@ -7455,6 +8578,9 @@ class $$MessageMediasTableTableManager
                 height: height,
                 orderIndex: orderIndex,
                 waveform: waveform,
+                cardType: cardType,
+                contactUserId: contactUserId,
+                clientMessageId: clientMessageId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -7479,6 +8605,9 @@ class $$MessageMediasTableTableManager
                 Value<int?> height = const Value.absent(),
                 Value<int> orderIndex = const Value.absent(),
                 Value<String?> waveform = const Value.absent(),
+                Value<String?> cardType = const Value.absent(),
+                Value<String?> contactUserId = const Value.absent(),
+                Value<String?> clientMessageId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MessageMediasCompanion.insert(
                 id: id,
@@ -7501,6 +8630,9 @@ class $$MessageMediasTableTableManager
                 height: height,
                 orderIndex: orderIndex,
                 waveform: waveform,
+                cardType: cardType,
+                contactUserId: contactUserId,
+                clientMessageId: clientMessageId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -8548,6 +9680,259 @@ typedef $$PinMessagesTableProcessedTableManager =
       PinMessageEntity,
       PrefetchHooks Function()
     >;
+typedef $$UserGroupSettingsTableCreateCompanionBuilder =
+    UserGroupSettingsCompanion Function({
+      required String groupId,
+      required String userId,
+      Value<bool> isMute,
+      Value<String?> role,
+      Value<int?> lastReadMessageId,
+      Value<bool> isPinned,
+      Value<bool> isHidden,
+      Value<int> rowid,
+    });
+typedef $$UserGroupSettingsTableUpdateCompanionBuilder =
+    UserGroupSettingsCompanion Function({
+      Value<String> groupId,
+      Value<String> userId,
+      Value<bool> isMute,
+      Value<String?> role,
+      Value<int?> lastReadMessageId,
+      Value<bool> isPinned,
+      Value<bool> isHidden,
+      Value<int> rowid,
+    });
+
+class $$UserGroupSettingsTableFilterComposer
+    extends Composer<_$AppDatabase, $UserGroupSettingsTable> {
+  $$UserGroupSettingsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get groupId => $composableBuilder(
+    column: $table.groupId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isMute => $composableBuilder(
+    column: $table.isMute,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastReadMessageId => $composableBuilder(
+    column: $table.lastReadMessageId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isPinned => $composableBuilder(
+    column: $table.isPinned,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isHidden => $composableBuilder(
+    column: $table.isHidden,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$UserGroupSettingsTableOrderingComposer
+    extends Composer<_$AppDatabase, $UserGroupSettingsTable> {
+  $$UserGroupSettingsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get groupId => $composableBuilder(
+    column: $table.groupId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isMute => $composableBuilder(
+    column: $table.isMute,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastReadMessageId => $composableBuilder(
+    column: $table.lastReadMessageId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isPinned => $composableBuilder(
+    column: $table.isPinned,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isHidden => $composableBuilder(
+    column: $table.isHidden,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$UserGroupSettingsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $UserGroupSettingsTable> {
+  $$UserGroupSettingsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get groupId =>
+      $composableBuilder(column: $table.groupId, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<bool> get isMute =>
+      $composableBuilder(column: $table.isMute, builder: (column) => column);
+
+  GeneratedColumn<String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
+
+  GeneratedColumn<int> get lastReadMessageId => $composableBuilder(
+    column: $table.lastReadMessageId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isPinned =>
+      $composableBuilder(column: $table.isPinned, builder: (column) => column);
+
+  GeneratedColumn<bool> get isHidden =>
+      $composableBuilder(column: $table.isHidden, builder: (column) => column);
+}
+
+class $$UserGroupSettingsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $UserGroupSettingsTable,
+          UserGroupSettingEntity,
+          $$UserGroupSettingsTableFilterComposer,
+          $$UserGroupSettingsTableOrderingComposer,
+          $$UserGroupSettingsTableAnnotationComposer,
+          $$UserGroupSettingsTableCreateCompanionBuilder,
+          $$UserGroupSettingsTableUpdateCompanionBuilder,
+          (
+            UserGroupSettingEntity,
+            BaseReferences<
+              _$AppDatabase,
+              $UserGroupSettingsTable,
+              UserGroupSettingEntity
+            >,
+          ),
+          UserGroupSettingEntity,
+          PrefetchHooks Function()
+        > {
+  $$UserGroupSettingsTableTableManager(
+    _$AppDatabase db,
+    $UserGroupSettingsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$UserGroupSettingsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$UserGroupSettingsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$UserGroupSettingsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> groupId = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<bool> isMute = const Value.absent(),
+                Value<String?> role = const Value.absent(),
+                Value<int?> lastReadMessageId = const Value.absent(),
+                Value<bool> isPinned = const Value.absent(),
+                Value<bool> isHidden = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => UserGroupSettingsCompanion(
+                groupId: groupId,
+                userId: userId,
+                isMute: isMute,
+                role: role,
+                lastReadMessageId: lastReadMessageId,
+                isPinned: isPinned,
+                isHidden: isHidden,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String groupId,
+                required String userId,
+                Value<bool> isMute = const Value.absent(),
+                Value<String?> role = const Value.absent(),
+                Value<int?> lastReadMessageId = const Value.absent(),
+                Value<bool> isPinned = const Value.absent(),
+                Value<bool> isHidden = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => UserGroupSettingsCompanion.insert(
+                groupId: groupId,
+                userId: userId,
+                isMute: isMute,
+                role: role,
+                lastReadMessageId: lastReadMessageId,
+                isPinned: isPinned,
+                isHidden: isHidden,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$UserGroupSettingsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $UserGroupSettingsTable,
+      UserGroupSettingEntity,
+      $$UserGroupSettingsTableFilterComposer,
+      $$UserGroupSettingsTableOrderingComposer,
+      $$UserGroupSettingsTableAnnotationComposer,
+      $$UserGroupSettingsTableCreateCompanionBuilder,
+      $$UserGroupSettingsTableUpdateCompanionBuilder,
+      (
+        UserGroupSettingEntity,
+        BaseReferences<
+          _$AppDatabase,
+          $UserGroupSettingsTable,
+          UserGroupSettingEntity
+        >,
+      ),
+      UserGroupSettingEntity,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -8570,4 +9955,6 @@ class $AppDatabaseManager {
       $$StickerItemsTableTableManager(_db, _db.stickerItems);
   $$PinMessagesTableTableManager get pinMessages =>
       $$PinMessagesTableTableManager(_db, _db.pinMessages);
+  $$UserGroupSettingsTableTableManager get userGroupSettings =>
+      $$UserGroupSettingsTableTableManager(_db, _db.userGroupSettings);
 }

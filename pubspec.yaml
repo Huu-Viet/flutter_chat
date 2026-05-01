@@ -98,6 +98,7 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^5.0.0
+  freezed: ^3.2.5
   
   # Code Generation
   build_runner: ^2.4.12

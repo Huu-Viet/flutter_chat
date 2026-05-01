@@ -5,12 +5,14 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/core/utils/animated_sticker_sprite.dart';
+import 'package:flutter_chat/features/auth/domain/entities/user.dart';
+import 'package:flutter_chat/features/auth/user_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_chat/core/utils/date_utils.dart';
 import 'package:flutter_chat/core/utils/waveform_utils.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message/forward_info.dart';
 import 'package:flutter_chat/presentation/chat/chat_image_cache_manager.dart';
 import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
-import 'package:flutter_chat/presentation/chat/models/forward_info_ui.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_reactions_bar.dart';
 import 'package:video_player/video_player.dart';
 
@@ -20,6 +22,7 @@ class MessageBubble extends StatefulWidget {
   final ValueChanged<LongPressStartDetails>? onLongPressStart;
   final VoidCallback? onReactPressed;
   final VoidCallback? onOpenFile;
+  final ValueChanged<String>? onReplyPreviewTap;
   final bool showReactAction;
 
   const MessageBubble({
@@ -30,6 +33,7 @@ class MessageBubble extends StatefulWidget {
     this.onReactPressed,
     this.showReactAction = false,
     this.onOpenFile,
+    this.onReplyPreviewTap,
   });
 
   @override
@@ -90,6 +94,7 @@ class _MessageBubbleState extends State<MessageBubble> {
         thumbnailPath != null ||
         (videoUrl != null && videoUrl.trim().isNotEmpty),
       StickerChatMessage(:final stickerPath) => stickerPath != null,
+      ContactCardChatMessage() => true,
       _ => false,
     };
 
@@ -272,10 +277,15 @@ class _MessageBubbleState extends State<MessageBubble> {
       FileChatMessage(:final isDownloading, :final forwardInfo) =>
           _buildFileContent(forwardInfo, message, isDownloading: isDownloading, onOpen: onOpenFile ?? () {}),
 
-      TextChatMessage(:final text, :final forwardInfo) => _buildTextContent(text, forwardInfo),
+      ContactCardChatMessage() => _ContactCardBubble(message: message),
+
+        TextChatMessage(:final text, :final forwardInfo, :final replyPreview) =>
+          _buildTextContent(text, forwardInfo, replyPreview: replyPreview),
       UnknownChatMessage(:final content, :final forwardInfo) => _buildTextContent(content ?? '', forwardInfo),
     };
   }
+
+
 
   Widget _buildImageContent(
     BuildContext context,
@@ -764,24 +774,42 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
-  Widget _buildTextContent(String text, ForwardInfo? forwardInfo) {
+  Widget _buildTextContent(String text, ForwardInfo? forwardInfo, {ReplyPreview? replyPreview}) {
     final message = widget.message;
+    final baseTextStyle = TextStyle(
+      color: message.isDeleted
+          ? (message.isSentByMe ? Colors.white70 : Colors.black45)
+          : message.isSentByMe
+          ? Colors.white
+          : Colors.black,
+      fontStyle: message.isDeleted ? FontStyle.italic : FontStyle.normal,
+    );
+    final mentionTextStyle = baseTextStyle.copyWith(
+      color: message.isSentByMe ? Colors.yellow[200] : Colors.blue[700],
+      fontWeight: FontWeight.w700,
+      fontStyle: baseTextStyle.fontStyle,
+    );
 
     Widget content;
     content = Column(
       crossAxisAlignment: message.isSentByMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
-        Text(
-          text,
-          style: TextStyle(
-            color: message.isDeleted
-                ? (message.isSentByMe ? Colors.white70 : Colors.black45)
-                : message.isSentByMe
-                ? Colors.white
-                : Colors.black,
-            fontStyle: message.isDeleted ? FontStyle.italic : FontStyle.normal,
-          ),
-        ),
+        if (replyPreview != null) ...[
+          _buildReplyPreview(replyPreview),
+          const SizedBox(height: 6),
+        ],
+        message.isDeleted
+            ? Text(text, style: baseTextStyle)
+            : RichText(
+                text: TextSpan(
+                  style: baseTextStyle,
+                  children: _buildMentionSpans(
+                    text,
+                    baseStyle: baseTextStyle,
+                    mentionStyle: mentionTextStyle,
+                  ),
+                ),
+              ),
         if (message.isLastInGroup) ...[
           const SizedBox(height: 4),
           Text(
@@ -805,6 +833,76 @@ class _MessageBubbleState extends State<MessageBubble> {
         content,
       ],
     );
+  }
+
+  Widget _buildReplyPreview(ReplyPreview preview) {
+    final isMine = widget.message.isSentByMe;
+    return GestureDetector(
+      onTap: widget.onReplyPreviewTap == null || preview.messageId.trim().isEmpty
+          ? null
+          : () => widget.onReplyPreviewTap!(preview.messageId),
+      child: Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: isMine ? Colors.white24 : Colors.black12,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            preview.senderDisplay,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isMine ? Colors.white70 : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            preview.snippet,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12,
+              color: isMine ? Colors.white60 : Colors.black54,
+            ),
+          ),
+        ],
+      ),
+      ),
+    );
+  }
+
+  List<InlineSpan> _buildMentionSpans(
+    String text, {
+    required TextStyle baseStyle,
+    required TextStyle mentionStyle,
+  }) {
+    final spans = <InlineSpan>[];
+    final regex = RegExp(r'(@all|@[A-Za-z0-9._-]+)');
+    var lastIndex = 0;
+
+    for (final match in regex.allMatches(text)) {
+      if (match.start > lastIndex) {
+        spans.add(TextSpan(text: text.substring(lastIndex, match.start), style: baseStyle));
+      }
+      spans.add(TextSpan(text: match.group(0), style: mentionStyle));
+      lastIndex = match.end;
+    }
+
+    if (lastIndex < text.length) {
+      spans.add(TextSpan(text: text.substring(lastIndex), style: baseStyle));
+    }
+
+    if (spans.isEmpty) {
+      spans.add(TextSpan(text: text, style: baseStyle));
+    }
+
+    return spans;
   }
 
   Widget _buildForwardInfo(BuildContext context, ForwardInfo info) {
@@ -964,5 +1062,162 @@ class _MessageBubbleState extends State<MessageBubble> {
     final minutes = totalSeconds ~/ 60;
     final seconds = totalSeconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+}
+
+class _ContactCardBubble extends ConsumerWidget {
+  final ContactCardChatMessage message;
+
+  const _ContactCardBubble({required this.message});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userAsync = ref.watch(userByIdProvider(message.contactUserId));
+
+    Widget content = Container(
+      constraints: const BoxConstraints(maxWidth: 280),
+      decoration: BoxDecoration(
+        color: message.isSentByMe
+            ? Theme.of(context).colorScheme.primary
+            : Colors.grey[400],
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.blueGrey.withValues(alpha: 0.15)),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: userAsync.when(
+        loading: () => _buildCardRow(context, null, isLoading: true),
+        error: (_, __) => _buildCardRow(context, null),
+        data: (user) => _buildCardRow(context, user),
+      ),
+    );
+
+    final forwardInfo = message.forwardInfo;
+    if (forwardInfo == null) return content;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildForwardInfoBanner(context, forwardInfo),
+        const SizedBox(height: 4),
+        content,
+      ],
+    );
+  }
+
+  Widget _buildCardRow(BuildContext context, MyUser? user, {bool isLoading = false}) {
+    final displayName = _displayName(user);
+    final subText = user?.email ?? user?.phone ?? message.contactUserId;
+    final avatarUrl = user?.avatarUrl;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        _buildAvatar(avatarUrl, isLoading: isLoading),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                isLoading ? '...' : displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+              if (!isLoading) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAvatar(String? avatarUrl, {bool isLoading = false}) {
+    if (isLoading) {
+      return Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: Colors.blueGrey.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: const Padding(
+          padding: EdgeInsets.all(12),
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: CachedNetworkImage(
+          imageUrl: avatarUrl,
+          width: 48,
+          height: 48,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => _defaultAvatarIcon(),
+          errorWidget: (_, __, ___) => _defaultAvatarIcon(),
+        ),
+      );
+    }
+
+    return _defaultAvatarIcon();
+  }
+
+  Widget _defaultAvatarIcon() {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: Colors.blueGrey.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: const Icon(Icons.person_outline, size: 24, color: Colors.blueGrey),
+    );
+  }
+
+  String _displayName(MyUser? user) {
+    if (user == null) return message.contactUserId;
+    final first = user.firstName?.trim() ?? '';
+    final last = user.lastName?.trim() ?? '';
+    final full = '$first $last'.trim();
+    if (full.isNotEmpty) return full;
+    if (user.username.trim().isNotEmpty) return user.username.trim();
+    return user.email;
+  }
+
+  Widget _buildForwardInfoBanner(BuildContext context, forwardInfo) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.forward, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          const SizedBox(width: 4),
+          Text(
+            'Forwarded',
+            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
   }
 }

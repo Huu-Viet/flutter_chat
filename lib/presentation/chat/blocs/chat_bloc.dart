@@ -390,11 +390,14 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   FutureOr<void> _onSendText(SendTextEvent event, Emitter<ChatState> emit) async {
     final messageId = Uuid().v4();
     final localOffset = _nextLocalOffset();
+    final normalizedReplyToId = event.replyToMessageId?.trim();
+    final hasReply = normalizedReplyToId != null && normalizedReplyToId.isNotEmpty;
     final message = TextMessage(
       id: messageId,
       conversationId: event.conversationId,
       senderId: _currentUserId ?? '',
       text: event.content,
+      replyToId: hasReply ? normalizedReplyToId : null,
       offset: localOffset,
       isDeleted: false,
       serverId: messageId,
@@ -402,7 +405,11 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       editedAt: null,
     );
 
-    final sendResult = await sendMessageUseCase(message: message);
+    final sendResult = await sendMessageUseCase(
+      message: message,
+      replyToMessageId: hasReply ? normalizedReplyToId : null,
+      mentions: event.mentions,
+    );
     sendResult.fold(
       (failure) => add(_LocalMessagesErrorEvent(failure.message)),
       (_) {},

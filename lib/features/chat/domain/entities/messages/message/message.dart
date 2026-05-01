@@ -14,6 +14,7 @@ part 'image_message.dart';
 part 'file_message.dart';
 part 'multi_media_message.dart';
 part 'unknow_message.dart';
+part 'contact_card_message.dart';
 
 sealed class Message {
   final String id;

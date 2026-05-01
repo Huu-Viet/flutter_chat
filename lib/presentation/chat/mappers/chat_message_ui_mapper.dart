@@ -25,6 +25,12 @@ class ChatMessageUIMapper {
 
   ) {
     final normalizedCurrentUserId = _normalizeId(currentUserId);
+    final messageById = <String, Message>{
+      for (final msg in messages) ...{
+        if (_normalizeId(msg.id).isNotEmpty) _normalizeId(msg.id): msg,
+        if (_normalizeId(msg.serverId).isNotEmpty) _normalizeId(msg.serverId): msg,
+      },
+    };
 
     final mappedMessages = messages.map((message) {
       final normalizedSenderId = _normalizeId(message.senderId);
@@ -62,6 +68,7 @@ class ChatMessageUIMapper {
 
       return _createMessageByType(
         domainMessage: message,
+        messageById: messageById,
         uploadingImagePaths: uploadingImagePaths,
         imageUrlsByMediaId: imageUrlsByMediaId,
         audioUrlsByMediaId: audioUrlsByMediaId,
@@ -72,6 +79,7 @@ class ChatMessageUIMapper {
         isSentByMe: isSentByMe,
         senderId: normalizedSenderId,
         senderDisplayName: senderDisplayName,
+        senderDisplayNameByUserId: senderDisplayNameByUserId,
         senderAvatarUrl: senderAvatarUrl,
         conversationAvatarUrl: conversationAvatarUrl,
         isGroupConversation: isGroupConversation,
@@ -108,6 +116,7 @@ class ChatMessageUIMapper {
 
   ChatMessage _createMessageByType({
     required Message domainMessage,
+    required Map<String, Message> messageById,
     required Set<String> uploadingImagePaths,
     required Map<String, String> imageUrlsByMediaId,
     required Map<String, String> audioUrlsByMediaId,
@@ -118,6 +127,7 @@ class ChatMessageUIMapper {
     required bool isSentByMe,
     required String senderId,
     required String? senderDisplayName,
+    required Map<String, String> senderDisplayNameByUserId,
     required String? senderAvatarUrl,
     required String? conversationAvatarUrl,
     required bool isGroupConversation,
@@ -126,8 +136,16 @@ class ChatMessageUIMapper {
     final timestamp = domainMessage.createdAt;
 
     if (domainMessage is TextMessage) {
+      final replyPreview = _buildReplyPreview(
+        replyToId: domainMessage.replyToId,
+        messageById: messageById,
+        senderDisplayNameByUserId: senderDisplayNameByUserId,
+      );
+
       return TextChatMessage(
         text: domainMessage.content,
+        replyToId: domainMessage.replyToId,
+        replyPreview: replyPreview,
         isSentByMe: isSentByMe,
         senderId: senderId,
         timestamp: timestamp,
@@ -303,6 +321,26 @@ class ChatMessageUIMapper {
       );
     }
 
+    if (domainMessage is ContactCardMessage) {
+      return ContactCardChatMessage(
+        cardType: domainMessage.cardType,
+        contactUserId: domainMessage.contactUserId,
+        clientMessageId: domainMessage.clientMessageId,
+        isSentByMe: isSentByMe,
+        senderId: senderId,
+        timestamp: timestamp,
+        isDeleted: domainMessage.isDeleted,
+        localId: domainMessage.id,
+        serverId: domainMessage.serverId,
+        senderDisplayName: senderDisplayName,
+        senderAvatarUrl: senderAvatarUrl,
+        conversationAvatarUrl: conversationAvatarUrl,
+        isGroupConversation: isGroupConversation,
+        forwardInfo: domainMessage.forwardInfo,
+        reactions: reactions,
+      );
+    }
+
     return UnknownChatMessage(
       content: domainMessage.content,
       isSentByMe: isSentByMe,
@@ -349,5 +387,55 @@ class ChatMessageUIMapper {
 
   String _normalizeId(String? value) {
     return value?.trim() ?? '';
+  }
+
+  ReplyPreview? _buildReplyPreview({
+    required String? replyToId,
+    required Map<String, Message> messageById,
+    required Map<String, String> senderDisplayNameByUserId,
+  }) {
+    final normalizedReplyToId = _normalizeId(replyToId);
+    if (normalizedReplyToId.isEmpty) {
+      return null;
+    }
+
+    final replied = messageById[normalizedReplyToId];
+    if (replied == null) {
+      return ReplyPreview(
+        messageId: normalizedReplyToId,
+        senderDisplay: 'Unknown',
+        snippet: 'Original message',
+      );
+    }
+
+    final repliedSenderId = _normalizeId(replied.senderId);
+    final senderDisplay =
+        senderDisplayNameByUserId[repliedSenderId]?.trim().isNotEmpty == true
+            ? senderDisplayNameByUserId[repliedSenderId]!.trim()
+            : repliedSenderId;
+
+    final snippet = _snippetFromMessage(replied);
+    return ReplyPreview(
+      messageId: normalizedReplyToId,
+      senderDisplay: senderDisplay.isEmpty ? 'Unknown' : senderDisplay,
+      snippet: snippet,
+    );
+  }
+
+  String _snippetFromMessage(Message message) {
+    if (message is TextMessage) {
+      final text = message.content.trim();
+      if (text.isNotEmpty) return text;
+    }
+
+    if (message is ImageMessage) return '[Image]';
+    if (message is VideoMessage) return '[Video]';
+    if (message is AudioMessage) return '[Audio]';
+    if (message is FileMessage) return '[File]';
+    if (message is StickerMessage) return '[Sticker]';
+    if (message is ContactCardMessage) return '[Contact card]';
+
+    final fallback = message.content.trim();
+    return fallback.isNotEmpty ? fallback : '[Message]';
   }
 }

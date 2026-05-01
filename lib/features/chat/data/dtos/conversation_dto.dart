@@ -10,6 +10,11 @@ class ConversationDto {
   final int? memberCount;
   final int? maxOffset;
   final int? myOffset;
+  final String? createBy;
+  final bool? isPublic;
+  final bool? joinApprovalRequired;
+  final bool? allowMemberMessage;
+  final int? linkVersion;
   final String? createdAt;
   final String? updatedAt;
   final String? avatarUrl;
@@ -25,6 +30,11 @@ class ConversationDto {
     this.memberCount,
     this.maxOffset,
     this.myOffset,
+    this.createBy,
+    this.isPublic,
+    this.joinApprovalRequired,
+    this.allowMemberMessage,
+    this.linkVersion,
     this.createdAt,
     this.updatedAt,
     this.avatarUrl,
@@ -68,6 +78,11 @@ class ConversationDto {
           (participants.isNotEmpty ? participants.length : null),
       maxOffset: _asInt(json['maxOffset']),
       myOffset: _asInt(json['myOffset']),
+      createBy: json['createBy'] as String?,
+      isPublic: json['isPublic'] as bool?,
+      joinApprovalRequired: json['joinApprovalRequired'] as bool?,
+      allowMemberMessage: json['allowMemberMessage'] as bool?,
+      linkVersion: _asInt(json['linkVersion']),
       createdAt: json['createdAt']?.toString(),
       updatedAt: (json['updatedAt'] ?? json['createdAt'])?.toString(),
       avatarUrl: json['avatarUrl'] as String? ?? otherUser?['avatarUrl'] as String?,
@@ -92,6 +107,11 @@ class ConversationDto {
         'memberCount': memberCount,
         'maxOffset': maxOffset,
         'myOffset': myOffset,
+        'createBy': createBy,
+        'isPublic': isPublic,
+        'joinApprovalRequired': joinApprovalRequired,
+        'allowMemberMessage': allowMemberMessage,
+        'linkVersion': linkVersion,
         'createdAt': createdAt,
         'updatedAt': updatedAt,
         'avatarUrl': avatarUrl,

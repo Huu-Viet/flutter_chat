@@ -7,6 +7,7 @@ import 'package:flutter_chat/presentation/home/blocs/add_friend_blocs/add_friend
 import 'package:flutter_chat/presentation/home/blocs/home_bloc.dart';
 import 'package:flutter_chat/presentation/home/home_provider.dart';
 import 'package:flutter_chat/presentation/home/widgets/add_friend_dialog.dart';
+import 'package:flutter_chat/presentation/home/widgets/create_group_dialog.dart';
 import 'package:flutter_chat/presentation/home/widgets/friend_status_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../widgets/chat_list_tile.dart';
@@ -39,6 +40,13 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
+  Future<void> _showCreateGroupDialog(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => const CreateGroupDialog(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -57,9 +65,12 @@ class _HomePageState extends ConsumerState<HomePage> {
             },
             icon: const Icon(Icons.person_add_alt_1),
           ),
-          IconButton(onPressed: () {
-
-          }, icon: const Icon(Icons.people))
+          IconButton(
+            onPressed: () {
+              _showCreateGroupDialog(context);
+            },
+            icon: const Icon(Icons.people),
+          )
         ],
       ),
       body: const HomePageContent(),

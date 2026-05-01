@@ -17,15 +17,19 @@ final class SendTextEvent extends ChatEvent {
   final String conversationId;
   final String content;
   final String? mediaId;
+  final String? replyToMessageId;
+  final List<String> mentions;
 
   const SendTextEvent({
     required this.conversationId,
     required this.content,
     this.mediaId,
+    this.replyToMessageId,
+    this.mentions = const <String>[],
   });
 
   @override
-  List<Object> get props => [conversationId, content, ?mediaId];
+  List<Object?> get props => [conversationId, content, mediaId, replyToMessageId, mentions];
 }
 
 final class SendImageEvent extends ChatEvent {

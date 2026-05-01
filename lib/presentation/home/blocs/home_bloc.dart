@@ -7,6 +7,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/features/friendship/export.dart';
+import 'package:flutter_chat/features/group_manager/domain/usecase/create_group_usecase.dart';
 
 part 'home_event.dart';
 part 'home_state.dart';
@@ -16,6 +17,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   final WatchConversationsLocalUseCase watchConversationsLocalUseCase;
   final SyncFriendshipsToLocalUseCase syncFriendshipsToLocalUseCase;
   final JoinConversationUseCase joinConversationUseCase;
+  final CreateGroupUseCase createGroupUseCase;
 
   StreamSubscription<Either<Failure, List<Conversation>>>? _localSubscription;
   int _currentPage = 1;
@@ -28,6 +30,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     required this.watchConversationsLocalUseCase,
     required this.syncFriendshipsToLocalUseCase,
     required this.joinConversationUseCase,
+    required this.createGroupUseCase,
   }) : super(HomeInitial()) {
     on<InitialLoadHomeEvent>(_onInitialLoadHome);
     on<LoadHomeEvent>(_onLoadHome);
@@ -35,6 +38,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     on<JoinConversationEvent>(_onJoinConversation);
     on<_LocalConversationsChangedEvent>(_onLocalConversationsChanged);
     on<_LocalConversationsErrorEvent>(_onLocalConversationsError);
+    on<CreateGroupEvent>(_createGroup);
   }
 
   Future<void> _onInitialLoadHome(
@@ -176,6 +180,42 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     result.fold(
       (failure) => debugPrint('[HomeBloc] failed to join conversation: ${failure.message}'),
       (_) => debugPrint('[HomeBloc] joined conversation')
+    );
+  }
+
+  Future<void> _createGroup(CreateGroupEvent event, Emitter<HomeState> emit) async {
+    final result = await createGroupUseCase(
+      type: "group",
+      memberIds: event.memberIds,
+      groupName: event.name,
+      description: event.description,
+      mediaId: event.mediaId,
+    );
+
+    result.fold(
+      (failure) => debugPrint('[HomeBloc] failed to create group: ${failure.message}'),
+      (_) async {
+        final result = await fetchConversationUseCase(1, 20);
+
+        result.fold(
+              (failure) {
+            if (state is! HomeLoaded) {
+              emit(HomeFailure(failure));
+            }
+          },
+              (hasMore) {
+            _hasMore = hasMore;
+            if (state is HomeLoaded) {
+              emit((state as HomeLoaded).copyWith(
+                page: _currentPage,
+                limit: _limit,
+                hasMore: _hasMore,
+                isLoadingMore: false,
+              ));
+            }
+          },
+        );
+      }
     );
   }
 }

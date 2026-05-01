@@ -54,3 +54,20 @@ final class JoinConversationEvent extends HomeEvent {
   @override
   List<Object> get props => [conversationId];
 }
+
+final class CreateGroupEvent extends HomeEvent {
+  final String name;
+  final String description;
+  final List<String> memberIds;
+  final String? mediaId;
+
+  const CreateGroupEvent({
+    required this.name,
+    required this.description,
+    required this.memberIds,
+    this.mediaId,
+  });
+
+  @override
+  List<Object> get props => [name, description, memberIds, mediaId ?? ''];
+}

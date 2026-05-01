@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import '../../features/auth/data/entities/user_entity.dart';
 import '../../features/chat/data/entities/conversation_entity.dart';
+import '../../features/group_manager/data/entities/user_group_setting_entity.dart';
 import '../../features/chat/data/entities/message_entity.dart';
 import '../../features/friendship/data/entities/friendship_entity.dart';
 import '../../features/chat/data/entities/sticker_package_entity.dart';
@@ -24,12 +25,13 @@ part 'app_database.g.dart';
   StickerPackages,
   StickerItems,
   PinMessages,
+  UserGroupSettings,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -37,12 +39,14 @@ class AppDatabase extends _$AppDatabase {
           // We do not preserve old local data, so any schema upgrade recreates all tables.
           await m.deleteTable('sticker_items');
           await m.deleteTable('sticker_packages');
+          await m.deleteTable('message_medias');
           await m.deleteTable('chat_messages');
           await m.deleteTable('conversation_users');
           await m.deleteTable('chat_conversations');
           await m.deleteTable('friendships');
           await m.deleteTable('users');
           await m.deleteTable('pin_messages');
+          await m.deleteTable('user_group_settings');
 
           await m.createTable(users);
           await m.createTable(friendships);
@@ -53,6 +57,7 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(stickerPackages);
           await m.createTable(stickerItems);
           await m.createTable(pinMessages);
+          await m.createTable(userGroupSettings);
         },
       );
 
@@ -152,6 +157,14 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> clearConversationUsers() async {
     await delete(conversationUsers).go();
+  }
+
+  Future<void> deleteConversation(String conversationId) async {
+    await transaction(() async {
+      await (delete(conversationUsers)..where((tbl) => tbl.conversationId.equals(conversationId))).go();
+      await (delete(chatMessages)..where((tbl) => tbl.conversationId.equals(conversationId))).go();
+      await (delete(chatConversations)..where((tbl) => tbl.id.equals(conversationId))).go();
+    });
   }
 
   Future<void> clearChatConversations() async {
@@ -345,6 +358,33 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> clearFriendships() async {
     await delete(friendships).go();
+  }
+
+  Future<void> upsertUserGroupSetting(UserGroupSettingsCompanion data) async {
+    await into(userGroupSettings).insertOnConflictUpdate(data);
+  }
+
+  Future<UserGroupSettingEntity?> getUserGroupSetting({
+    required String groupId,
+    required String userId,
+  }) {
+    return (select(userGroupSettings)
+      ..where((t) => t.groupId.equals(groupId) & t.userId.equals(userId)))
+        .getSingleOrNull();
+  }
+
+  Future<void> updateUserGroupMute({
+    required String groupId,
+    required String userId,
+    required bool isMuted,
+  }) {
+    return (update(userGroupSettings)
+      ..where((t) => t.groupId.equals(groupId) & t.userId.equals(userId)))
+        .write(
+      UserGroupSettingsCompanion(
+        isMute: Value(isMuted),
+      ),
+    );
   }
 }
 

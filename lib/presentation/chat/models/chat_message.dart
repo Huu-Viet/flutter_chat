@@ -42,11 +42,27 @@ sealed class ChatMessage {
   String get type;
 }
 
+final class ReplyPreview {
+  final String messageId;
+  final String senderDisplay;
+  final String snippet;
+
+  const ReplyPreview({
+    required this.messageId,
+    required this.senderDisplay,
+    required this.snippet,
+  });
+}
+
 final class TextChatMessage extends ChatMessage {
   final String text;
+  final String? replyToId;
+  final ReplyPreview? replyPreview;
 
   const TextChatMessage({
     required this.text,
+    this.replyToId,
+    this.replyPreview,
     required super.isSentByMe,
     super.senderId,
     required super.timestamp,
@@ -70,6 +86,8 @@ final class TextChatMessage extends ChatMessage {
   TextChatMessage copyWithGrouping({bool? isFirstInGroup, bool? isLastInGroup}) {
     return TextChatMessage(
       text: text,
+      replyToId: replyToId,
+      replyPreview: replyPreview,
       isSentByMe: isSentByMe,
       senderId: senderId,
       timestamp: timestamp,
@@ -356,6 +374,58 @@ final class FileChatMessage extends ChatMessage {
       mediaId: mediaId,
       fileSize: fileSize,
       isUploading: isUploading,
+      isSentByMe: isSentByMe,
+      senderId: senderId,
+      timestamp: timestamp,
+      isDeleted: isDeleted,
+      localId: localId,
+      serverId: serverId,
+      senderDisplayName: senderDisplayName,
+      senderAvatarUrl: senderAvatarUrl,
+      conversationAvatarUrl: conversationAvatarUrl,
+      isGroupConversation: isGroupConversation,
+      isFirstInGroup: isFirstInGroup ?? this.isFirstInGroup,
+      isLastInGroup: isLastInGroup ?? this.isLastInGroup,
+      forwardInfo: forwardInfo,
+      reactions: reactions,
+    );
+  }
+}
+
+final class ContactCardChatMessage extends ChatMessage {
+  final String cardType;
+  final String contactUserId;
+  final String clientMessageId;
+
+  const ContactCardChatMessage({
+    required this.cardType,
+    required this.contactUserId,
+    required this.clientMessageId,
+    required super.isSentByMe,
+    super.senderId,
+    required super.timestamp,
+    super.isDeleted,
+    super.localId,
+    super.serverId,
+    super.senderDisplayName,
+    super.senderAvatarUrl,
+    super.conversationAvatarUrl,
+    super.isGroupConversation,
+    super.isFirstInGroup,
+    super.isLastInGroup,
+    super.forwardInfo,
+    super.reactions,
+  });
+
+  @override
+  String get type => 'contact_card';
+
+  @override
+  ContactCardChatMessage copyWithGrouping({bool? isFirstInGroup, bool? isLastInGroup}) {
+    return ContactCardChatMessage(
+      cardType: cardType,
+      contactUserId: contactUserId,
+      clientMessageId: clientMessageId,
       isSentByMe: isSentByMe,
       senderId: senderId,
       timestamp: timestamp,
