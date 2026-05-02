@@ -619,24 +619,25 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   }
 
   Future<void> _reviewJoinRequest(String requestId, bool approve) async {
+    final normalizedRequestId = requestId.trim();
+    if (normalizedRequestId.isEmpty) {
+      _toast('Invalid request id');
+      return;
+    }
+
+    final action = approve ? 'approve' : 'reject';
     try {
-      await _dio.patch(
-        _url('/conversations/${widget.conversation.id}/join-requests/$requestId'),
-        data: {'status': approve ? 'approved' : 'rejected'},
+      final response = await _dio.patch(
+        _url('/conversations/${widget.conversation.id}/join-requests/$normalizedRequestId'),
+        data: {'action': action},
+      );
+      debugPrint(
+        '[GroupManagementPage] reviewJoinRequest success -> requestId=$normalizedRequestId, action=$action, data=${response.data}',
       );
       _toast(approve ? 'Request approved' : 'Request rejected');
       await _loadJoinRequests();
-    } catch (_) {
-      try {
-        await _dio.patch(
-          _url('/conversations/${widget.conversation.id}/join-requests/$requestId'),
-          data: {'action': approve ? 'approve' : 'reject'},
-        );
-        _toast(approve ? 'Request approved' : 'Request rejected');
-        await _loadJoinRequests();
-      } catch (e) {
-        _toast(_errorMessageFor(e, fallback: 'Failed to review join request.'));
-      }
+    } catch (e) {
+      _toast(_errorMessageFor(e, fallback: 'Failed to review join request.'));
     }
   }
 
