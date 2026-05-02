@@ -50,7 +50,7 @@ class MyApp extends ConsumerWidget {
                   isGroupCall: call.participants.length > 2,
                 ),
               );
-          router.go('/in-call/""/""}');
+          router.go('/in-call');
         },
         onDecline: () {
           overlay.hide();
@@ -83,8 +83,10 @@ class MyApp extends ConsumerWidget {
 
       switch (next.type) {
         case CallActionType.accepted:
-          bloc.add(InCallRemoteAccepted(next.callId));
-          router.go('/in-call');
+          if (bloc.state.session?.call.id == next.callId) {
+            bloc.add(InCallRemoteAccepted(next.callId));
+            router.go('/in-call');
+          }
           break;
 
         case CallActionType.declined:

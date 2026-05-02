@@ -67,7 +67,9 @@ class CallAppEventSubscriber extends AppEventSubscriber {
           '[CALL] parsed accepted call -> id=${call.id}, conversationId=${call.conversationId}, callerId=${call.callerId}, status=${call.status}',
         );
 
-        updateIncomingCall(null);
+        if (!_isGroupPayload(payload)) {
+          updateIncomingCall(null);
+        }
 
         final callId = call.id.trim().isNotEmpty
             ? call.id

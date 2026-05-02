@@ -143,8 +143,9 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
   ) async {
     final callId = event.callId.trim();
     if (callId.isEmpty) return;
-    if (state.session?.call.id == callId &&
-        state.session?.token.isNotEmpty == true) {
+    final session = state.session;
+    if (session?.call.id != callId) return;
+    if (session?.token.isNotEmpty == true) {
       return;
     }
 

@@ -86,7 +86,9 @@ class CallRemoteDSImpl implements CallRemoteDataSource {
         '[CallRemoteDSImpl] acceptCall request -> url=$url, callId=$normalizedCallId',
       );
       final response = await dio.post(url);
-      if (response.statusCode != 200) throw Exception('${response.statusCode}');
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('${response.statusCode}');
+      }
       final data = response.data;
       debugPrint('[CallRemoteDSImpl] acceptCall success -> data=$data');
       return CallAcceptDto.fromJson(data);
