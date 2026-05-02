@@ -1,4 +1,5 @@
 import 'package:flutter_chat/features/call/call_providers.dart';
+import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/presentation/call/blocs/call_bloc.dart';
 import 'package:flutter_chat/presentation/call/blocs/in_call_bloc.dart';
 import 'package:flutter_chat/presentation/call/blocs/outgoing_call_bloc.dart';
@@ -16,6 +17,7 @@ final inCallBlocProvider = Provider<InCallBloc>((ref) {
     acceptIncomingCallUseCase: ref.read(acceptIncomingCallUseCaseProvider),
     endCallUseCase: ref.read(endCallUseCaseProvider),
     callRepository: ref.read(callRepositoryProvider),
+    getCurrentUserIdUseCase: ref.read(getCurrentUserIdUseCaseProvider),
   );
 
   ref.onDispose(bloc.close);

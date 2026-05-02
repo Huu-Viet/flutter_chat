@@ -124,9 +124,7 @@ class InCallPage extends ConsumerWidget {
                             const InCallToggleSpeakerRequested(),
                           ),
                           onEndCall: () => context.read<InCallBloc>().add(
-                            activeSession.isGroupCall
-                                ? const InCallLeaveRequested()
-                                : const InCallEndRequested(),
+                            const InCallEndRequested(),
                           ),
                         ),
                       ),

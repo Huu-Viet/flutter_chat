@@ -4,6 +4,7 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/app/app_permission.dart';
+import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/features/call/export.dart';
 import 'package:livekit_client/livekit_client.dart';
 
@@ -14,6 +15,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
   final AcceptIncomingCallUseCase _acceptIncomingCallUseCase;
   final EndCallUseCase _endCallUseCase;
   final CallRepository _callRepository;
+  final GetCurrentUserIdUseCase _getCurrentUserIdUseCase;
 
   EventsListener<RoomEvent>? _roomListener;
   VoidCallback? _roomRefreshListener;
@@ -23,9 +25,11 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     required AcceptIncomingCallUseCase acceptIncomingCallUseCase,
     required EndCallUseCase endCallUseCase,
     required CallRepository callRepository,
+    required GetCurrentUserIdUseCase getCurrentUserIdUseCase,
   }) : _acceptIncomingCallUseCase = acceptIncomingCallUseCase,
        _endCallUseCase = endCallUseCase,
        _callRepository = callRepository,
+       _getCurrentUserIdUseCase = getCurrentUserIdUseCase,
        super(InCallState.initial()) {
     on<InCallOutgoingStarted>(_onOutgoingStarted);
     on<InCallIncomingAccepted>(_onIncomingAccepted);
@@ -230,7 +234,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
   ) async {
     final session = state.session;
     if (session == null || state.isEndingCall) return;
-    if (session.isGroupCall) {
+    if (session.isGroupCall && !await _isCurrentUserCaller(session)) {
       add(const InCallLeaveRequested());
       return;
     }
@@ -269,6 +273,17 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
         await _disposeLiveKitRoom();
         emit(_endedState(callId));
       },
+    );
+  }
+
+  Future<bool> _isCurrentUserCaller(CallSession session) async {
+    if (!session.isIncoming) return true;
+    final callerId = session.call.callerId.trim();
+    if (callerId.isEmpty) return false;
+    final result = await _getCurrentUserIdUseCase();
+    return result.fold(
+      (_) => false,
+      (currentUserId) => currentUserId.trim() == callerId,
     );
   }
 
