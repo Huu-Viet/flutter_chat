@@ -3,7 +3,9 @@ import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_chat/core/utils/animated_sticker_sprite.dart';
 import 'package:flutter_chat/features/auth/domain/entities/user.dart';
 import 'package:flutter_chat/features/auth/user_providers.dart';
@@ -832,7 +834,7 @@ class _MessageBubbleState extends State<MessageBubble> {
             : RichText(
                 text: TextSpan(
                   style: baseTextStyle,
-                  children: _buildMentionSpans(
+                  children: _buildRichTextSpans(
                     text,
                     baseStyle: baseTextStyle,
                     mentionStyle: mentionTextStyle,
@@ -906,32 +908,112 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
-  List<InlineSpan> _buildMentionSpans(
+  List<InlineSpan> _buildRichTextSpans(
     String text, {
     required TextStyle baseStyle,
     required TextStyle mentionStyle,
   }) {
     final spans = <InlineSpan>[];
-    final regex = RegExp(r'(@all|@[A-Za-z0-9._-]+)');
+    // Regex for detecting mentions and URLs
+    final mentionRegex = RegExp(r'(@all|@[A-Za-z0-9._-]+)');
+    final urlRegex = RegExp(
+      r'https?://[^\s]+|www\.[^\s]+|(?:^|\s)([a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.)+[a-zA-Z]{2,}(?:\s|$)',
+      multiLine: true,
+    );
+    
     var lastIndex = 0;
-
-    for (final match in regex.allMatches(text)) {
-      if (match.start > lastIndex) {
-        spans.add(TextSpan(text: text.substring(lastIndex, match.start), style: baseStyle));
-      }
-      spans.add(TextSpan(text: match.group(0), style: mentionStyle));
-      lastIndex = match.end;
+    final List<({int start, int end, String text, String type})> tokens = [];
+    
+    // Collect all mentions and URLs with their positions
+    for (final match in mentionRegex.allMatches(text)) {
+      tokens.add((start: match.start, end: match.end, text: match.group(0)!, type: 'mention'));
     }
-
+    for (final match in urlRegex.allMatches(text)) {
+      tokens.add((start: match.start, end: match.end, text: match.group(0)!.trim(), type: 'url'));
+    }
+    
+    // Sort tokens by start position
+    tokens.sort((a, b) => a.start.compareTo(b.start));
+    
+    // Filter overlapping tokens (keep mentions over URLs if they overlap)
+    final List<({int start, int end, String text, String type})> filtered = [];
+    for (final token in tokens) {
+      bool overlaps = false;
+      for (final existing in filtered) {
+        if ((token.start >= existing.start && token.start < existing.end) ||
+            (token.end > existing.start && token.end <= existing.end) ||
+            (token.start <= existing.start && token.end >= existing.end)) {
+          overlaps = true;
+          break;
+        }
+      }
+      if (!overlaps) {
+        filtered.add(token);
+      }
+    }
+    filtered.sort((a, b) => a.start.compareTo(b.start));
+    
+    // Build spans from tokens
+    lastIndex = 0;
+    for (final token in filtered) {
+      if (token.start > lastIndex) {
+        spans.add(TextSpan(text: text.substring(lastIndex, token.start), style: baseStyle));
+      }
+      
+      if (token.type == 'mention') {
+        spans.add(TextSpan(text: token.text, style: mentionStyle));
+      } else if (token.type == 'url') {
+        const linkColor = Colors.blue;
+        final linkStyle = baseStyle.copyWith(
+          color: linkColor,
+          decoration: TextDecoration.underline,
+          decorationColor: linkColor,
+        );
+        final urlText = token.text;
+        spans.add(
+          TextSpan(
+            text: urlText,
+            style: linkStyle,
+            recognizer: TapGestureRecognizer()..onTap = () => _launchUrl(urlText),
+          ),
+        );
+      }
+      lastIndex = token.end;
+    }
+    
     if (lastIndex < text.length) {
       spans.add(TextSpan(text: text.substring(lastIndex), style: baseStyle));
     }
-
+    
     if (spans.isEmpty) {
       spans.add(TextSpan(text: text, style: baseStyle));
     }
-
+    
     return spans;
+  }
+
+  Future<void> _launchUrl(String urlText) async {
+    var urlStr = urlText.trim();
+    if (!urlStr.startsWith('http://') && !urlStr.startsWith('https://')) {
+      urlStr = 'https://$urlStr';
+    }
+    
+    final uri = Uri.tryParse(urlStr);
+    if (uri == null) {
+      debugPrint('[MessageBubble] Invalid URL: $urlText');
+      return;
+    }
+    
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('[MessageBubble] Error launching URL: $e');
+      try {
+        await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+      } catch (e2) {
+        debugPrint('[MessageBubble] Fallback browser also failed: $e2');
+      }
+    }
   }
 
   Widget _buildForwardInfo(BuildContext context, ForwardInfo info) {

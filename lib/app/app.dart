@@ -43,7 +43,7 @@ class MyApp extends ConsumerWidget {
           overlay.hide();
           ref.read(incomingCallProvider.notifier).state = null;
           ref.read(inCallBlocProvider).add(InCallIncomingAccepted(call));
-          router.go('/in-call/""/""}');
+          router.go('/in-call');
         },
         onDecline: () {
           overlay.hide();
@@ -76,8 +76,16 @@ class MyApp extends ConsumerWidget {
 
       switch (next.type) {
         case CallActionType.accepted:
+          final currentPath =
+              router.routeInformationProvider.value.uri.path;
+          debugPrint('[MyApp] callActionProvider accepted: callId=${next.callId}, currentPath=$currentPath');
           bloc.add(InCallRemoteAccepted(next.callId));
-          router.go('/in-call');
+          // Only navigate when the caller/callee is NOT already on the
+          // in-call page. The caller is already there after starting the call,
+          // so re-navigating would rebuild the page with empty conversationId.
+          if (currentPath != '/in-call') {
+            router.go('/in-call');
+          }
           break;
 
         case CallActionType.declined:

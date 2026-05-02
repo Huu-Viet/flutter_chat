@@ -184,7 +184,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   }
 
   Future<void> _createGroup(CreateGroupEvent event, Emitter<HomeState> emit) async {
-    final result = await createGroupUseCase(
+    final createResult = await createGroupUseCase(
       type: "group",
       memberIds: event.memberIds,
       groupName: event.name,
@@ -192,18 +192,24 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       mediaId: event.mediaId,
     );
 
-    result.fold(
-      (failure) => debugPrint('[HomeBloc] failed to create group: ${failure.message}'),
+    await createResult.fold(
+      (failure) async {
+        debugPrint('[HomeBloc] failed to create group: ${failure.message}');
+        if (state is! HomeLoaded) {
+          emit(HomeFailure(failure));
+        }
+      },
       (_) async {
-        final result = await fetchConversationUseCase(1, 20);
+        _currentPage = 1;
+        final fetchResult = await fetchConversationUseCase(_currentPage, _limit);
 
-        result.fold(
-              (failure) {
+        fetchResult.fold(
+          (failure) {
             if (state is! HomeLoaded) {
               emit(HomeFailure(failure));
             }
           },
-              (hasMore) {
+          (hasMore) {
             _hasMore = hasMore;
             if (state is HomeLoaded) {
               emit((state as HomeLoaded).copyWith(
@@ -215,7 +221,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
             }
           },
         );
-      }
+      },
     );
   }
 }

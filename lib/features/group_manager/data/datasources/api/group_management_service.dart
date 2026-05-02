@@ -58,16 +58,38 @@ class GroupManagementServiceImpl implements GroupManagementService {
       String? mediaId
   ) async {
     final url = '$_baseUrl/conversations';
-    final body = {
-      'type': type,
-      'memberIds': memberIds,
-      'groupName': groupName,
-      'description': description,
-      'mediaId': mediaId,
+    final normalizedType = type.trim();
+    final normalizedMemberIds = memberIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    final normalizedGroupName = groupName.trim();
+    final normalizedDescription = description?.trim();
+    final normalizedMediaId = mediaId?.trim();
+
+    final body = <String, dynamic>{
+      'type': normalizedType,
+      'memberIds': normalizedMemberIds,
+      // Keep both keys for compatibility because some BE builds still read one of them.
+      'groupName': normalizedGroupName,
+      'name': normalizedGroupName,
+      if (normalizedDescription != null && normalizedDescription.isNotEmpty)
+        'description': normalizedDescription,
+      if (normalizedMediaId != null && normalizedMediaId.isNotEmpty) ...{
+        'mediaId': normalizedMediaId,
+        'avatarMediaId': normalizedMediaId,
+      },
     };
 
+    debugPrint('[GroupManagementService] createGroup request url: $url');
+    debugPrint('[GroupManagementService] realtime gateway: ${_realtimeGateway.runtimeType}');
+    debugPrint('[GroupManagementService] createGroup request body: $body');
+
     try {
-      await _dio.post(url, data: body);
+      final response = await _dio.post(url, data: body);
+      debugPrint('[GroupManagementService] createGroup response status: ${response.statusCode}');
+      debugPrint('[GroupManagementService] createGroup response data: ${response.data}');
     } catch (e) {
       debugPrint('[GroupManagementService] Failed to create group: $e');
       throw Exception('$e');

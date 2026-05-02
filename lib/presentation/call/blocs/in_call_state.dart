@@ -18,6 +18,11 @@ final class InCallState extends Equatable {
   final InCallEndStatus endStatus;
   final String? endedCallId;
   final int mediaRevision;
+  /// Incremented only when video tracks actually change (subscribe/unsubscribe/
+  /// publish/unpublish/mute/unmute, participant join/leave). Does NOT bump for
+  /// speaker-activity events to avoid recreating VideoTrackRenderer on every
+  /// speaking state change.
+  final int videoRevision;
 
   const InCallState({
     required this.session,
@@ -35,6 +40,7 @@ final class InCallState extends Equatable {
     this.endStatus = InCallEndStatus.idle,
     this.endedCallId,
     this.mediaRevision = 0,
+    this.videoRevision = 0,
   });
 
   factory InCallState.initial() => const InCallState(session: null);
@@ -63,6 +69,8 @@ final class InCallState extends Equatable {
     bool clearEndedCallId = false,
     int? mediaRevision,
     bool bumpMediaRevision = false,
+    int? videoRevision,
+    bool bumpVideoRevision = false,
   }) {
     return InCallState(
       session: clearSession ? null : (session ?? this.session),
@@ -84,6 +92,9 @@ final class InCallState extends Equatable {
       mediaRevision: bumpMediaRevision
           ? this.mediaRevision + 1
           : (mediaRevision ?? this.mediaRevision),
+      videoRevision: bumpVideoRevision
+          ? this.videoRevision + 1
+          : (videoRevision ?? this.videoRevision),
     );
   }
 
@@ -104,6 +115,7 @@ final class InCallState extends Equatable {
     endStatus,
     endedCallId,
     mediaRevision,
+    videoRevision,
   ];
 }
 

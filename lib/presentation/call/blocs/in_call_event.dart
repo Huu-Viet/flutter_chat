@@ -86,7 +86,14 @@ final class InCallEndStatusConsumed extends InCallEvent {
 }
 
 final class _InCallRoomChanged extends InCallEvent {
-  const _InCallRoomChanged();
+  /// True when the change was caused by a track or participant event that
+  /// requires the video stage to re-render. False for local mic/camera or
+  /// generic room events that do not affect remote video tiles.
+  final bool videoChanged;
+  const _InCallRoomChanged({this.videoChanged = false});
+
+  @override
+  List<Object?> get props => [videoChanged];
 }
 
 final class _InCallRemoteParticipantLeft extends InCallEvent {
