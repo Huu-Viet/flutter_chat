@@ -42,7 +42,14 @@ class MyApp extends ConsumerWidget {
         onAccept: () {
           overlay.hide();
           ref.read(incomingCallProvider.notifier).state = null;
-          ref.read(inCallBlocProvider).add(InCallIncomingAccepted(call));
+          ref
+              .read(inCallBlocProvider)
+              .add(
+                InCallIncomingAccepted(
+                  call,
+                  isGroupCall: call.participants.length > 2,
+                ),
+              );
           router.go('/in-call/""/""}');
         },
         onDecline: () {

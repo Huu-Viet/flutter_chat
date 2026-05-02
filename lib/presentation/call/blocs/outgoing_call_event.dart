@@ -10,16 +10,16 @@ sealed class OutgoingCallEvent extends Equatable {
 final class OutgoingCallRequested extends OutgoingCallEvent {
   final String conversationId;
   final String callerId;
-  final String receiverId;
+  final List<String> calleeIds;
 
   const OutgoingCallRequested({
     required this.conversationId,
     required this.callerId,
-    required this.receiverId,
+    required this.calleeIds,
   });
 
   @override
-  List<Object?> get props => [conversationId, callerId, receiverId];
+  List<Object?> get props => [conversationId, callerId, calleeIds];
 }
 
 final class OutgoingCallStatusConsumed extends OutgoingCallEvent {

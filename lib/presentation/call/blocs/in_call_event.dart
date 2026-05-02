@@ -9,20 +9,22 @@ sealed class InCallEvent extends Equatable {
 
 final class InCallOutgoingStarted extends InCallEvent {
   final CallInfo call;
+  final bool isGroupCall;
 
-  const InCallOutgoingStarted(this.call);
+  const InCallOutgoingStarted(this.call, {this.isGroupCall = false});
 
   @override
-  List<Object?> get props => [call];
+  List<Object?> get props => [call, isGroupCall];
 }
 
 final class InCallIncomingAccepted extends InCallEvent {
   final CallInfo call;
+  final bool isGroupCall;
 
-  const InCallIncomingAccepted(this.call);
+  const InCallIncomingAccepted(this.call, {this.isGroupCall = false});
 
   @override
-  List<Object?> get props => [call];
+  List<Object?> get props => [call, isGroupCall];
 }
 
 final class InCallIncomingDeclined extends InCallEvent {
@@ -63,6 +65,10 @@ final class InCallRemoteEnded extends InCallEvent {
 
 final class InCallEndRequested extends InCallEvent {
   const InCallEndRequested();
+}
+
+final class InCallLeaveRequested extends InCallEvent {
+  const InCallLeaveRequested();
 }
 
 final class InCallToggleMicrophoneRequested extends InCallEvent {

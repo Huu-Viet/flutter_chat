@@ -139,6 +139,7 @@ class _ActiveCallControls extends StatelessWidget {
   final bool isMicEnabled;
   final bool isCameraEnabled;
   final bool isSpeakerOn;
+  final bool isGroupCall;
   final bool isMicUpdating;
   final bool isCameraUpdating;
   final VoidCallback onToggleMic;
@@ -151,6 +152,7 @@ class _ActiveCallControls extends StatelessWidget {
     required this.isMicEnabled,
     required this.isCameraEnabled,
     required this.isSpeakerOn,
+    required this.isGroupCall,
     required this.isMicUpdating,
     required this.isCameraUpdating,
     required this.onToggleMic,
@@ -219,7 +221,11 @@ class _ActiveCallControls extends StatelessWidget {
                       ),
                     )
                   : const Icon(Icons.call_end),
-              label: Text(isEndingCall ? 'Ending...' : 'End Call'),
+              label: Text(
+                isEndingCall
+                    ? (isGroupCall ? 'Leaving...' : 'Ending...')
+                    : (isGroupCall ? 'Leave' : 'End Call'),
+              ),
             ),
           ),
         ],

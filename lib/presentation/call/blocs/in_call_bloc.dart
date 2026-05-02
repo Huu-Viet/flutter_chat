@@ -34,6 +34,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     on<InCallRemoteDeclined>(_onRemoteDeclined);
     on<InCallRemoteEnded>(_onRemoteEnded);
     on<InCallEndRequested>(_onEndRequested);
+    on<InCallLeaveRequested>(_onLeaveRequested);
     on<InCallToggleMicrophoneRequested>(_onToggleMicrophoneRequested);
     on<InCallToggleCameraRequested>(_onToggleCameraRequested);
     on<InCallToggleSpeakerRequested>(_onToggleSpeakerRequested);
@@ -55,6 +56,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
           roomName: '',
           liveKitUrl: '',
           isIncoming: false,
+          isGroupCall: event.isGroupCall,
         ),
         isAcceptingCall: false,
         isEndingCall: false,
@@ -97,6 +99,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
         final session = _sessionFromAcceptedCall(
           acceptedCall,
           isIncoming: true,
+          isGroupCall: event.isGroupCall,
         );
         emit(
           state.copyWith(
@@ -184,6 +187,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
           roomName: token.roomName,
           liveKitUrl: token.liveKitUrl,
           isIncoming: false,
+          isGroupCall: _isGroupCall(call),
         );
         emit(
           state.copyWith(
@@ -203,6 +207,12 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     InCallRemoteDeclined event,
     Emitter<InCallState> emit,
   ) async {
+    final session = state.session;
+    if (session != null &&
+        session.call.id == event.callId &&
+        session.isGroupCall) {
+      return;
+    }
     await _finishRemoteCall(event.callId, emit);
   }
 
@@ -219,6 +229,10 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
   ) async {
     final session = state.session;
     if (session == null || state.isEndingCall) return;
+    if (session.isGroupCall) {
+      add(const InCallLeaveRequested());
+      return;
+    }
 
     emit(
       state.copyWith(
@@ -255,6 +269,29 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
         emit(_endedState(callId));
       },
     );
+  }
+
+  Future<void> _onLeaveRequested(
+    InCallLeaveRequested event,
+    Emitter<InCallState> emit,
+  ) async {
+    final session = state.session;
+    if (session == null || state.isEndingCall) return;
+
+    final callId = session.call.id.trim();
+    if (callId.isEmpty) return;
+
+    emit(
+      state.copyWith(
+        isEndingCall: true,
+        clearError: true,
+        endStatus: InCallEndStatus.idle,
+      ),
+    );
+
+    await _callRepository.leaveSocketCall(callId);
+    await _disposeLiveKitRoom();
+    emit(_endedState(session.isGroupCall ? null : callId));
   }
 
   Future<void> _onToggleMicrophoneRequested(
@@ -396,8 +433,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     final room = state.room;
     if (session == null || room == null) return;
 
-    final isDirectCall = session.call.participants.length <= 2;
-    if (!isDirectCall || room.remoteParticipants.isNotEmpty) return;
+    if (session.isGroupCall || room.remoteParticipants.isNotEmpty) return;
 
     final callId = session.call.id.trim();
     if (callId.isEmpty) return;
@@ -418,9 +454,12 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     emit(_endedState(normalizedCallId));
   }
 
-  InCallEnded _endedState(String callId) {
+  InCallEnded _endedState(String? callId) {
+    final normalizedCallId = callId?.trim();
     return InCallEnded(
-      endedCallId: callId.trim().isEmpty ? null : callId.trim(),
+      endedCallId: normalizedCallId == null || normalizedCallId.isEmpty
+          ? null
+          : normalizedCallId,
       mediaRevision: state.mediaRevision + 1,
     );
   }
@@ -558,6 +597,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
   CallSession _sessionFromAcceptedCall(
     CallAccept acceptedCall, {
     required bool isIncoming,
+    required bool isGroupCall,
   }) {
     return CallSession(
       call: acceptedCall.call,
@@ -565,8 +605,11 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
       roomName: acceptedCall.roomName,
       liveKitUrl: acceptedCall.liveKitUrl,
       isIncoming: isIncoming,
+      isGroupCall: isGroupCall || _isGroupCall(acceptedCall.call),
     );
   }
+
+  bool _isGroupCall(CallInfo call) => call.participants.length > 2;
 
   Future<void> _disposeLiveKitRoom() async {
     final room = state.room;

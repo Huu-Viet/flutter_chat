@@ -11,12 +11,12 @@ class StartOutgoingCallUseCase {
   Future<Either<Failure, CallInfo>> call({
     required String conversationId,
     required String callerId,
-    required String receiverId,
+    required List<String> calleeIds,
   }) async {
     final startResult = await _repository.startCall(
       conversationId,
       callerId,
-      receiverId,
+      calleeIds,
     );
     return startResult.fold((failure) async => Left(failure), (call) async {
       if (call.id.trim().isEmpty) {

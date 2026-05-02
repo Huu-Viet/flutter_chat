@@ -11,5 +11,5 @@ class CallParticipant {
     required this.joinedAt,
     required this.leftAt,
     required this.createdAt,
-   });
+  });
 }
