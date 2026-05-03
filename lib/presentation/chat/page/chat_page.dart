@@ -41,7 +41,14 @@ class ChatPage extends ConsumerStatefulWidget {
 }
 
 class _ChatPageState extends ConsumerState<ChatPage> {
-  static const List<String> _reactionEmojis = <String>['❤️', '👍', '🤣', '😮', '😭', '😡',];
+  static const List<String> _reactionEmojis = <String>[
+    '❤️',
+    '👍',
+    '🤣',
+    '😮',
+    '😭',
+    '😡',
+  ];
   static const double _messageActionDialogWidth = 280;
   static const double _messageActionDialogMargin = 16;
   static const Duration _messageEditWindow = Duration(hours: 1);
@@ -204,8 +211,15 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   state.call != null) {
                 ref
                     .read(inCallBlocProvider)
-                    .add(InCallOutgoingStarted(state.call!));
-                context.go('/in-call?conversationId=${widget.conversationId}&roomName=${widget.friendName}');
+                    .add(
+                      InCallOutgoingStarted(
+                        state.call!,
+                        isGroupCall: state.isGroupCall,
+                      ),
+                    );
+                context.go(
+                  '/in-call?conversationId=${widget.conversationId}&roomName=${widget.friendName}',
+                );
 
                 context.read<OutgoingCallBloc>().add(
                   const OutgoingCallStatusConsumed(),
@@ -260,15 +274,21 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       textAlign: TextAlign.left,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    state is ChatLoaded && state.conversation != null && state.conversation?.type == 'group'
-                    ? Text(
-                      '${state.conversation?.memberCount ?? 0} members',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      textAlign: TextAlign.left,
-                      overflow: TextOverflow.ellipsis,
-                    ) : const SizedBox.shrink(),
+                    state is ChatLoaded &&
+                            state.conversation != null &&
+                            state.conversation?.type == 'group'
+                        ? Text(
+                            '${state.conversation?.memberCount ?? 0} members',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
+                            textAlign: TextAlign.left,
+                            overflow: TextOverflow.ellipsis,
+                          )
+                        : const SizedBox.shrink(),
                   ],
                 ),
               ),
@@ -287,7 +307,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Icon(Icons.call_outlined),
                         ),
@@ -568,12 +590,12 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       return;
     }
 
-    final receiverId = _resolveOutgoingCallReceiverId(state, callerId);
+    final calleeIds = _resolveOutgoingCallCalleeIds(state, callerId);
 
-    if (receiverId == null || receiverId.isEmpty) {
+    if (calleeIds.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Missing receiver')));
+      ).showSnackBar(const SnackBar(content: Text('Missing callee')));
       return;
     }
 
@@ -581,29 +603,43 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       OutgoingCallRequested(
         conversationId: widget.conversationId,
         callerId: callerId,
-        receiverId: receiverId,
+        calleeIds: calleeIds,
       ),
     );
   }
 
-  String? _resolveOutgoingCallReceiverId(ChatLoaded state, String callerId) {
+  List<String> _resolveOutgoingCallCalleeIds(
+    ChatLoaded state,
+    String callerId,
+  ) {
     final participants =
         state.conversation?.participants ?? const <ConversationParticipant>[];
+    final isGroupConversation =
+        state.conversation?.type.trim().toLowerCase() == 'group';
+    if (isGroupConversation) {
+      final activeCalleeIds = participants
+          .map((participant) => participant.userId.trim())
+          .where((userId) => userId.isNotEmpty && userId != callerId)
+          .toSet()
+          .toList();
+      return activeCalleeIds;
+    }
+
     for (final participant in participants) {
       final userId = participant.userId.trim();
       if (userId.isNotEmpty && userId != callerId && participant.isActive) {
-        return userId;
+        return [userId];
       }
     }
 
     for (final participant in participants) {
       final userId = participant.userId.trim();
       if (userId.isNotEmpty && userId != callerId) {
-        return userId;
+        return [userId];
       }
     }
 
-    return null;
+    return const [];
   }
 
   void _sendMessage(ChatState state) {

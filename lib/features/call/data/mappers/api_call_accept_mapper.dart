@@ -6,10 +6,10 @@ class ApiCallAcceptMapper extends RemoteMapper<CallAcceptDto, CallAccept> {
   @override
   CallAccept toDomain(CallAcceptDto dto) {
     return CallAccept(
-        call: ApiCallMapper().toDomain(dto.call ?? CallDto(participants: [])),
-        token: dto.token ?? '',
-        roomName: dto.roomName ?? '',
-        liveKitUrl: dto.liveKitUrl ?? ''
+      call: ApiCallMapper().toDomain(dto.call ?? CallDto(participants: [])),
+      token: dto.token ?? '',
+      roomName: dto.roomName ?? '',
+      liveKitUrl: dto.liveKitUrl ?? '',
     );
   }
 }

@@ -11,7 +11,7 @@ class CallParticipantDto {
     this.joinedAt,
     this.leftAt,
     this.createdAt,
-   });
+  });
 
   //toJson
   Map<String, dynamic> toJson() {
@@ -29,9 +29,15 @@ class CallParticipantDto {
     return CallParticipantDto(
       userId: json['userId'] as String?,
       role: json['role'] as String?,
-      joinedAt: json['joinedAt'] != null ? DateTime.parse(json['joinedAt'] as String) : null,
-      leftAt: json['leftAt'] != null ? DateTime.parse(json['leftAt'] as String) : null,
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt'] as String) : null,
+      joinedAt: json['joinedAt'] != null
+          ? DateTime.parse(json['joinedAt'] as String)
+          : null,
+      leftAt: json['leftAt'] != null
+          ? DateTime.parse(json['leftAt'] as String)
+          : null,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : null,
     );
   }
 }

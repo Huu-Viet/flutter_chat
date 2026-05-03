@@ -21,25 +21,27 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SplashPage(),
       ),
       GoRoute(
-          path: '/login',
-          name: 'login',
-          builder: (context, state) => const LoginPage()
+        path: '/login',
+        name: 'login',
+        builder: (context, state) => const LoginPage(),
       ),
       GoRoute(
-          path: '/forgot-password',
-          name: 'forgot-password',
-          builder: (context, state) => const ForgotPasswordPage()
+        path: '/forgot-password',
+        name: 'forgot-password',
+        builder: (context, state) => const ForgotPasswordPage(),
       ),
-        GoRoute(
-          path: '/register',
-          name: 'register',
-          builder: (context, state) => const RegistryPage()
-        ),
+      GoRoute(
+        path: '/register',
+        name: 'register',
+        builder: (context, state) => const RegistryPage(),
+      ),
       GoRoute(
         path: '/set-profile',
         name: 'set-profile',
         builder: (context, state) {
-          final initialUser = state.extra is MyUser ? state.extra as MyUser : null;
+          final initialUser = state.extra is MyUser
+              ? state.extra as MyUser
+              : null;
           return SetProfilePage(initialUser: initialUser);
         },
       ),

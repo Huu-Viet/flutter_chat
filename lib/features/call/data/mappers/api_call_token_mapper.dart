@@ -5,9 +5,9 @@ class ApiCallTokenMapper extends RemoteMapper<CallTokenDto, CallToken> {
   @override
   CallToken toDomain(CallTokenDto dto) {
     return CallToken(
-        token: dto.token ?? '',
-        roomName: dto.roomName ?? '',
-        liveKitUrl: dto.liveKitUrl ?? ''
+      token: dto.token ?? '',
+      roomName: dto.roomName ?? '',
+      liveKitUrl: dto.liveKitUrl ?? '',
     );
   }
 }

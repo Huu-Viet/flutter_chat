@@ -19,9 +19,6 @@ class AcceptIncomingCallUseCase {
     );
 
     final joinResult = await _repository.joinSocketCall(acceptedCall.call.id);
-    return joinResult.fold(
-      Left.new,
-      (_) => Right(acceptedCall),
-    );
+    return joinResult.fold(Left.new, (_) => Right(acceptedCall));
   }
 }

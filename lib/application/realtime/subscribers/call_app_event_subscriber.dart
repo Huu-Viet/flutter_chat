@@ -67,7 +67,9 @@ class CallAppEventSubscriber extends AppEventSubscriber {
           '[CALL] parsed accepted call -> id=${call.id}, conversationId=${call.conversationId}, callerId=${call.callerId}, status=${call.status}',
         );
 
-        updateIncomingCall(null);
+        if (!_isGroupPayload(payload)) {
+          updateIncomingCall(null);
+        }
 
         final callId = call.id.trim().isNotEmpty
             ? call.id
@@ -79,12 +81,15 @@ class CallAppEventSubscriber extends AppEventSubscriber {
       case 'call:declined':
         final payload = _eventPayloadMap(event.payload);
         final callId = _extractCallId(payload);
+        final isGroupCall = _isGroupPayload(payload);
 
-        _markClosedCall(callId);
+        if (!isGroupCall) {
+          _markClosedCall(callId);
+        }
 
         updateIncomingCall(null);
 
-        if (callId != null && callId.isNotEmpty) {
+        if (!isGroupCall && callId != null && callId.isNotEmpty) {
           onCallDeclined(callId);
         }
 
@@ -148,5 +153,13 @@ class CallAppEventSubscriber extends AppEventSubscriber {
       if (value != null && value.isNotEmpty) return value;
     }
     return null;
+  }
+
+  bool _isGroupPayload(Map<String, dynamic> payload) {
+    final type = payload['conversationType'] ?? payload['type'];
+    if (type?.toString().toLowerCase() == 'group') return true;
+    final participants = payload['participants'];
+    if (participants is List && participants.length > 2) return true;
+    return false;
   }
 }

@@ -8,7 +8,7 @@ abstract class CallRepository {
   Future<Either<Failure, CallInfo>> startCall(
     String conversationId,
     String callerId,
-    String receiverId,
+    List<String> calleeIds,
   );
   Future<Either<Failure, CallAccept>> acceptCall(String callId);
   Future<Either<Failure, CallInfo>> declineCall(String callId);

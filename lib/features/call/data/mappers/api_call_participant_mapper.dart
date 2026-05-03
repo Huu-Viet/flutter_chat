@@ -1,7 +1,8 @@
 import 'package:flutter_chat/core/mappers/remote_mapper.dart';
 import 'package:flutter_chat/features/call/export.dart';
 
-class ApiCallParticipantMapper extends RemoteMapper<CallParticipantDto, CallParticipant> {
+class ApiCallParticipantMapper
+    extends RemoteMapper<CallParticipantDto, CallParticipant> {
   @override
   CallParticipant toDomain(CallParticipantDto dto) {
     return CallParticipant(

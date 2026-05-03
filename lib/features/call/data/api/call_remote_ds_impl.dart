@@ -16,11 +16,15 @@ class CallRemoteDSImpl implements CallRemoteDataSource {
   Future<CallDto> startCall(
     String conversationId,
     String callerId,
-    String receiverId,
+    List<String> calleeIds,
   ) async {
     final normalizedConversationId = conversationId.trim();
     final normalizedCallerId = callerId.trim();
-    final normalizedReceiverId = receiverId.trim();
+    final normalizedCalleeIds = calleeIds
+        .map((calleeId) => calleeId.trim())
+        .where((calleeId) => calleeId.isNotEmpty)
+        .toSet()
+        .toList();
     final url = '$_baseUrl/calls/start';
 
     try {
@@ -30,13 +34,13 @@ class CallRemoteDSImpl implements CallRemoteDataSource {
       if (normalizedCallerId.isEmpty) {
         throw Exception('Caller ID is empty');
       }
-      if (normalizedReceiverId.isEmpty) {
-        throw Exception('Receiver ID is empty');
+      if (normalizedCalleeIds.isEmpty) {
+        throw Exception('Callee IDs is empty');
       }
 
       final body = {
         'conversationId': normalizedConversationId,
-        'calleeIds': [normalizedReceiverId],
+        'calleeIds': normalizedCalleeIds,
       };
       debugPrint(
         '[CallRemoteDSImpl] startCall request -> url=$url, body=$body',
@@ -49,7 +53,7 @@ class CallRemoteDSImpl implements CallRemoteDataSource {
     } on DioException catch (e) {
       debugPrint(
         '[CallRemoteDSImpl] startCall dio error -> url=$url, conversationId=$normalizedConversationId, '
-        'receiverId=$normalizedReceiverId, status=${e.response?.statusCode}, data=${e.response?.data}',
+        'calleeIds=$normalizedCalleeIds, status=${e.response?.statusCode}, data=${e.response?.data}',
       );
       rethrow;
     } catch (e) {
@@ -82,7 +86,9 @@ class CallRemoteDSImpl implements CallRemoteDataSource {
         '[CallRemoteDSImpl] acceptCall request -> url=$url, callId=$normalizedCallId',
       );
       final response = await dio.post(url);
-      if (response.statusCode != 200) throw Exception('${response.statusCode}');
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('${response.statusCode}');
+      }
       final data = response.data;
       debugPrint('[CallRemoteDSImpl] acceptCall success -> data=$data');
       return CallAcceptDto.fromJson(data);

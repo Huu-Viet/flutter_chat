@@ -17,7 +17,11 @@ class ApiCallMapper extends RemoteMapper<CallDto, CallInfo> {
     );
   }
 
-  List<CallParticipant> _mapParticipants(List<CallParticipantDto> participantDtos) {
-    return participantDtos.map((dto) => ApiCallParticipantMapper().toDomain(dto)).toList();
+  List<CallParticipant> _mapParticipants(
+    List<CallParticipantDto> participantDtos,
+  ) {
+    return participantDtos
+        .map((dto) => ApiCallParticipantMapper().toDomain(dto))
+        .toList();
   }
 }

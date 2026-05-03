@@ -5,10 +5,7 @@ part 'call_event.dart';
 part 'call_state.dart';
 
 class CallBloc extends Bloc<CallEvent, CallState> {
-
-  CallBloc(
-
-  ) : super(CallInitial()) {
+  CallBloc() : super(CallInitial()) {
     // on<CallStarted>(_onCallStarted);
   }
 

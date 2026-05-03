@@ -26,13 +26,14 @@ class OutgoingCallBloc extends Bloc<OutgoingCallEvent, OutgoingCallState> {
         status: OutgoingCallStatus.loading,
         clearError: true,
         clearCall: true,
+        isGroupCall: event.calleeIds.length > 1,
       ),
     );
 
     final result = await _startOutgoingCallUseCase(
       conversationId: event.conversationId,
       callerId: event.callerId,
-      receiverId: event.receiverId,
+      calleeIds: event.calleeIds,
     );
 
     result.fold(
@@ -47,6 +48,7 @@ class OutgoingCallBloc extends Bloc<OutgoingCallEvent, OutgoingCallState> {
           status: OutgoingCallStatus.success,
           call: call,
           clearError: true,
+          isGroupCall: event.calleeIds.length > 1,
         ),
       ),
     );
@@ -62,6 +64,7 @@ class OutgoingCallBloc extends Bloc<OutgoingCallEvent, OutgoingCallState> {
         status: OutgoingCallStatus.idle,
         clearError: true,
         clearCall: true,
+        isGroupCall: false,
       ),
     );
   }

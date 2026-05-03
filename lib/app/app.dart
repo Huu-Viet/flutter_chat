@@ -42,6 +42,14 @@ class MyApp extends ConsumerWidget {
         onAccept: () {
           overlay.hide();
           ref.read(incomingCallProvider.notifier).state = null;
+          ref
+              .read(inCallBlocProvider)
+              .add(
+                InCallIncomingAccepted(
+                  call,
+                  isGroupCall: call.participants.length > 2,
+                ),
+              );
           ref.read(inCallBlocProvider).add(InCallIncomingAccepted(call));
           router.go('/in-call');
         },
@@ -76,6 +84,8 @@ class MyApp extends ConsumerWidget {
 
       switch (next.type) {
         case CallActionType.accepted:
+          if (bloc.state.session?.call.id == next.callId) {
+            bloc.add(InCallRemoteAccepted(next.callId));
           final currentPath =
               router.routeInformationProvider.value.uri.path;
           debugPrint('[MyApp] callActionProvider accepted: callId=${next.callId}, currentPath=$currentPath');

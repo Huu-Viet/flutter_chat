@@ -30,13 +30,13 @@ class CallRepoImpl extends CallRepository {
   Future<Either<Failure, CallInfo>> startCall(
     String conversationId,
     String callerId,
-    String receiverId,
+    List<String> calleeIds,
   ) async {
     try {
       final response = await _callRemoteDataSource.startCall(
         conversationId,
         callerId,
-        receiverId,
+        calleeIds,
       );
       return Right(_apiCallMapper.toDomain(response));
     } catch (e) {

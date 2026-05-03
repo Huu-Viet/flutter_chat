@@ -35,7 +35,7 @@ class InCallPage extends ConsumerWidget {
         listener: (context, state) {
           if (state is InCallEnded) {
             debugPrint('[InCallPage]Check conversation: $conversationId');
-            if(conversationId.trim().isNotEmpty) {
+            if (conversationId.trim().isNotEmpty) {
               context.go('/chat/$conversationId/$initialRoomName');
             } else {
               context.go('/home');
@@ -124,6 +124,7 @@ class InCallPage extends ConsumerWidget {
                           isMicEnabled: state.isMicEnabled,
                           isCameraEnabled: state.isCameraEnabled,
                           isSpeakerOn: state.isSpeakerOn,
+                          isGroupCall: activeSession.isGroupCall,
                           isMicUpdating: state.isMicUpdating,
                           isCameraUpdating: state.isCameraUpdating,
                           onToggleMic: () => context.read<InCallBloc>().add(

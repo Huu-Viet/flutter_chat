@@ -6,6 +6,7 @@ class CallSession {
   final String roomName;
   final String liveKitUrl;
   final bool isIncoming;
+  final bool isGroupCall;
 
   CallSession({
     required this.call,
@@ -13,5 +14,6 @@ class CallSession {
     required this.roomName,
     required this.liveKitUrl,
     required this.isIncoming,
+    required this.isGroupCall,
   });
 }

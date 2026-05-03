@@ -6,11 +6,13 @@ final class OutgoingCallState extends Equatable {
   final OutgoingCallStatus status;
   final CallInfo? call;
   final String? errorMessage;
+  final bool isGroupCall;
 
   const OutgoingCallState({
     this.status = OutgoingCallStatus.idle,
     this.call,
     this.errorMessage,
+    this.isGroupCall = false,
   });
 
   factory OutgoingCallState.initial() => const OutgoingCallState();
@@ -23,14 +25,16 @@ final class OutgoingCallState extends Equatable {
     bool clearCall = false,
     String? errorMessage,
     bool clearError = false,
+    bool? isGroupCall,
   }) {
     return OutgoingCallState(
       status: status ?? this.status,
       call: clearCall ? null : (call ?? this.call),
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      isGroupCall: isGroupCall ?? this.isGroupCall,
     );
   }
 
   @override
-  List<Object?> get props => [status, call, errorMessage];
+  List<Object?> get props => [status, call, errorMessage, isGroupCall];
 }

@@ -27,4 +27,3 @@ final class CallFailure extends CallState {
   @override
   List<Object> get props => [message];
 }
-
