@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_chat/core/platform_services/platform_service_providers.dart';
 import 'package:flutter_chat/features/call/export.dart';
 import 'package:flutter_chat/presentation/call/blocs/in_call_bloc.dart';
 import 'package:flutter_chat/presentation/call/providers/call_bloc_provider.dart';
@@ -34,6 +35,7 @@ class InCallPage extends ConsumerWidget {
             previous.endStatus != current.endStatus,
         listener: (context, state) {
           if (state is InCallEnded) {
+            ref.read(notiServiceProvider).endCallKit(state.endedCallId);
             debugPrint('[InCallPage]Check conversation: $conversationId');
             final navigator = Navigator.of(context);
             if (navigator.canPop()) {

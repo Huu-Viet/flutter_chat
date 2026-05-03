@@ -4,7 +4,8 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/app/app_providers.dart';
 import 'package:flutter_chat/application/realtime/call_action.dart';
-import 'package:flutter_chat/core/widgets/call_banner_overlay.dart';
+import 'package:flutter_callkit_incoming/entities/call_event.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_chat/features/auth/auth_session_providers.dart';
 import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/core/platform_services/platform_service_providers.dart';
@@ -30,12 +31,87 @@ class _MyAppState extends ConsumerState<MyApp> {
 
   late final AppLinks _appLinks;
   StreamSubscription<Uri>? _deepLinkSubscription;
+  StreamSubscription<CallEvent?>? _callKitEventSubscription;
+  final Map<String, CallInfo> _incomingCallsById = <String, CallInfo>{};
+  final Set<String> _shownCallKitIds = <String>{};
 
   @override
   void initState() {
     super.initState();
     _appLinks = AppLinks();
     _initDeepLinks();
+    _initCallKitEvents();
+  }
+
+  void _initCallKitEvents() {
+    _callKitEventSubscription = FlutterCallkitIncoming.onEvent.listen((event) {
+      if (event == null) {
+        return;
+      }
+
+      final callId = _extractCallIdFromCallKitEvent(event);
+      if (callId == null || callId.isEmpty) {
+        return;
+      }
+
+      switch (event.event) {
+        case Event.actionCallAccept:
+          final call = _incomingCallsById[callId];
+          if (call == null) {
+            break;
+          }
+
+          ref
+              .read(inCallBlocProvider)
+              .add(
+                InCallIncomingAccepted(
+                  call,
+                  isGroupCall: call.participants.length > 2,
+                ),
+              );
+          ref.read(incomingCallProvider.notifier).state = null;
+          _incomingCallsById.remove(callId);
+          _shownCallKitIds.remove(callId);
+
+          final router = ref.read(routerProvider);
+          final currentPath = router.routeInformationProvider.value.uri.path;
+          if (currentPath != '/in-call') {
+            router.go('/in-call');
+          }
+          break;
+
+        case Event.actionCallDecline:
+        case Event.actionCallEnded:
+        case Event.actionCallTimeout:
+          if (!_incomingCallsById.containsKey(callId) &&
+              !_shownCallKitIds.contains(callId)) {
+            break;
+          }
+          ref.read(inCallBlocProvider).add(InCallIncomingDeclined(callId));
+          ref.read(incomingCallProvider.notifier).state = null;
+          _incomingCallsById.remove(callId);
+          _shownCallKitIds.remove(callId);
+          break;
+
+        default:
+          break;
+      }
+    });
+  }
+
+  String? _extractCallIdFromCallKitEvent(CallEvent event) {
+    final body = event.body;
+    if (body is! Map) {
+      return null;
+    }
+
+    final id = body['id'] ?? body['callId'];
+    if (id == null) {
+      return null;
+    }
+
+    final callId = id.toString().trim();
+    return callId.isEmpty ? null : callId;
   }
 
   Future<void> _initDeepLinks() async {
@@ -102,6 +178,7 @@ class _MyAppState extends ConsumerState<MyApp> {
   @override
   void dispose() {
     _deepLinkSubscription?.cancel();
+    _callKitEventSubscription?.cancel();
     super.dispose();
   }
 
@@ -113,55 +190,33 @@ class _MyAppState extends ConsumerState<MyApp> {
     ref.read(databaseProvider);
     ref.read(fcmServiceProvider);
 
-    Future<void> handleIncomingCall(
-      WidgetRef ref,
-      CallInfo call,
-      CallBannerOverlay overlay,
-      OverlayState overlayState,
-    ) async {
-      final result = await ref.read(getUserByIdUseCaseProvider)(call.callerId);
-
-      final callerName = result.fold((l) => 'Unknown', (r) => r.fullName);
-
-      overlay.show(
-        overlayState: overlayState,
-        callerName: callerName,
-        onAccept: () {
-          overlay.hide();
-          ref.read(incomingCallProvider.notifier).state = null;
-          ref
-              .read(inCallBlocProvider)
-              .add(
-                InCallIncomingAccepted(
-                  call,
-                  isGroupCall: call.participants.length > 2,
-                ),
-              );
-          ref.read(inCallBlocProvider).add(InCallIncomingAccepted(call));
-          router.go('/in-call');
-        },
-        onDecline: () {
-          overlay.hide();
-          ref.read(incomingCallProvider.notifier).state = null;
-          ref.read(inCallBlocProvider).add(InCallIncomingDeclined(call.id));
-        },
-      );
-    }
-
     ref.listen<CallInfo?>(incomingCallProvider, (prev, next) async {
-      final overlay = ref.read(callBannerOverlayProvider);
-
-      final overlayState =
-          router.routerDelegate.navigatorKey.currentState?.overlay;
-
-      if (overlayState == null) return;
-
       if (next == null) {
-        overlay.hide();
         return;
       }
 
-      handleIncomingCall(ref, next, overlay, overlayState);
+      final callId = next.id.trim();
+      if (callId.isEmpty) {
+        return;
+      }
+
+      _incomingCallsById[callId] = next;
+      if (_shownCallKitIds.contains(callId)) {
+        return;
+      }
+
+      final result = await ref.read(getUserByIdUseCaseProvider)(next.callerId);
+      final callerName = result.fold((_) => 'Incoming call', (user) {
+        final fullName = user.fullName.trim();
+        return fullName.isNotEmpty ? fullName : user.username;
+      });
+
+      if (!mounted) {
+        return;
+      }
+
+      _shownCallKitIds.add(callId);
+      await ref.read(notiServiceProvider).showCallKitIncoming(callId, null, callerName);
     });
 
     ref.listen<CallAction?>(callActionProvider, (prev, next) {
@@ -188,10 +243,12 @@ class _MyAppState extends ConsumerState<MyApp> {
           break;
 
         case CallActionType.declined:
+          ref.read(notiServiceProvider).endCallKit(next.callId);
           bloc.add(InCallRemoteDeclined(next.callId));
           break;
 
         case CallActionType.ended:
+          ref.read(notiServiceProvider).endCallKit(next.callId);
           bloc.add(InCallRemoteEnded(next.callId));
           break;
       }

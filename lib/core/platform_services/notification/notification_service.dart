@@ -107,6 +107,22 @@ class NotificationService {
     debugPrint('$_tag: showCallKitIncoming-checkNotificationId: ${notificationKey.hashCode}');
   }
 
+  Future<void> endCallKit(String? callId) async {
+    final normalizedCallId = callId?.trim() ?? '';
+    try {
+      if (normalizedCallId.isNotEmpty) {
+        await FlutterCallkitIncoming.endCall(normalizedCallId);
+        debugPrint('$_tag: endCallKit id=$normalizedCallId');
+        return;
+      }
+
+      await FlutterCallkitIncoming.endAllCalls();
+      debugPrint('$_tag: endCallKit fallback endAllCalls');
+    } catch (error) {
+      debugPrint('$_tag: endCallKit failed: $error');
+    }
+  }
+
   Future<void> createChatNotification(Map<String, dynamic> data) async {
     await ensureInitialized();
 
