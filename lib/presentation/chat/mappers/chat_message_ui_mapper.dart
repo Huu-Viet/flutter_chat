@@ -8,33 +8,34 @@ class ChatMessageUIMapper {
   static const Duration _groupingWindow = Duration(minutes: 1);
 
   List<ChatMessage> mapStateMessagesToUI(
-      List<Message> messages,
-      Set<String> uploadingImagePaths,
-      Map<String, String> imageUrlsByMediaId,
-      Map<String, String> audioUrlsByMediaId,
-      Map<String, String> videoUrlsByMediaId,
-      Set<String> resolvingImageMediaIds,
-      Set<String> resolvingAudioMediaIds,
-      Set<String> resolvingVideoMediaIds,
-      String? currentUserId,
-      Map<String, String> senderDisplayNameByUserId,
-      Map<String, String> senderAvatarUrlByUserId,
-      bool isGroupConversation,
-      String? conversationAvatarUrl,
-      String deletedMessageText,
-
+    List<Message> messages,
+    Set<String> uploadingImagePaths,
+    Map<String, String> imageUrlsByMediaId,
+    Map<String, String> audioUrlsByMediaId,
+    Map<String, String> videoUrlsByMediaId,
+    Set<String> resolvingImageMediaIds,
+    Set<String> resolvingAudioMediaIds,
+    Set<String> resolvingVideoMediaIds,
+    String? currentUserId,
+    Map<String, String> senderDisplayNameByUserId,
+    Map<String, String> senderAvatarUrlByUserId,
+    bool isGroupConversation,
+    String? conversationAvatarUrl,
+    String deletedMessageText,
   ) {
     final normalizedCurrentUserId = _normalizeId(currentUserId);
     final messageById = <String, Message>{
       for (final msg in messages) ...{
         if (_normalizeId(msg.id).isNotEmpty) _normalizeId(msg.id): msg,
-        if (_normalizeId(msg.serverId).isNotEmpty) _normalizeId(msg.serverId): msg,
+        if (_normalizeId(msg.serverId).isNotEmpty)
+          _normalizeId(msg.serverId): msg,
       },
     };
 
     final mappedMessages = messages.map((message) {
       final normalizedSenderId = _normalizeId(message.senderId);
-      final isSentByMe = normalizedCurrentUserId.isNotEmpty &&
+      final isSentByMe =
+          normalizedCurrentUserId.isNotEmpty &&
           normalizedSenderId == normalizedCurrentUserId;
       final senderDisplayName = senderDisplayNameByUserId[normalizedSenderId];
       final senderAvatarUrl = senderAvatarUrlByUserId[normalizedSenderId];
@@ -63,7 +64,10 @@ class ChatMessageUIMapper {
               myReaction: item.myReaction,
             ),
           )
-          .where((reaction) => reaction.emoji.trim().isNotEmpty && reaction.count > 0)
+          .where(
+            (reaction) =>
+                reaction.emoji.trim().isNotEmpty && reaction.count > 0,
+          )
           .toList(growable: false);
 
       return _createMessageByType(
@@ -174,8 +178,10 @@ class ChatMessageUIMapper {
       return ImageChatMessage(
         imagePath: imagePath,
         mediaId: mediaId,
-        isUploading: localPath != null && uploadingImagePaths.contains(localPath),
-        isResolvingImage: imagePath == null &&
+        isUploading:
+            localPath != null && uploadingImagePaths.contains(localPath),
+        isResolvingImage:
+            imagePath == null &&
             mediaId != null &&
             mediaId.isNotEmpty &&
             resolvingImageMediaIds.contains(mediaId),
@@ -200,7 +206,8 @@ class ChatMessageUIMapper {
       final resolvedAudioUrl = mediaId != null && mediaId.isNotEmpty
           ? audioUrlsByMediaId[mediaId]
           : null;
-      final audioUrl = (resolvedAudioUrl != null && resolvedAudioUrl.trim().isNotEmpty)
+      final audioUrl =
+          (resolvedAudioUrl != null && resolvedAudioUrl.trim().isNotEmpty)
           ? resolvedAudioUrl.trim()
           : media.url;
 
@@ -230,36 +237,40 @@ class ChatMessageUIMapper {
       final media = domainMessage.media;
       final thumbMediaId = media.thumbMediaId?.trim();
       final resolvedThumbUrl = thumbMediaId != null && thumbMediaId.isNotEmpty
-        ? imageUrlsByMediaId[thumbMediaId]
-        : null;
-      final thumbnailPath = (resolvedThumbUrl != null && resolvedThumbUrl.trim().isNotEmpty)
-        ? resolvedThumbUrl.trim()
-        : null;
+          ? imageUrlsByMediaId[thumbMediaId]
+          : null;
+      final thumbnailPath =
+          (resolvedThumbUrl != null && resolvedThumbUrl.trim().isNotEmpty)
+          ? resolvedThumbUrl.trim()
+          : null;
 
       final resolvedVideoUrl = mediaId != null && mediaId.isNotEmpty
-        ? videoUrlsByMediaId[mediaId]
-        : null;
-      final videoUrl = (resolvedVideoUrl != null && resolvedVideoUrl.trim().isNotEmpty)
-        ? resolvedVideoUrl.trim()
-        : media.url;
+          ? videoUrlsByMediaId[mediaId]
+          : null;
+      final videoUrl =
+          (resolvedVideoUrl != null && resolvedVideoUrl.trim().isNotEmpty)
+          ? resolvedVideoUrl.trim()
+          : media.url;
 
       return VideoChatMessage(
-      thumbnailPath: thumbnailPath,
-      videoUrl: videoUrl,
+        thumbnailPath: thumbnailPath,
+        videoUrl: videoUrl,
         mediaId: mediaId,
-      thumbMediaId: thumbMediaId,
+        thumbMediaId: thumbMediaId,
         durationMs: media.durationMs,
         isUploading: false,
-        isResolvingImage: mediaId != null &&
-        mediaId.isNotEmpty &&
-        thumbMediaId != null &&
-        thumbMediaId.isNotEmpty &&
-        thumbnailPath == null &&
-        resolvingImageMediaIds.contains(thumbMediaId),
-      isResolvingVideo: mediaId != null &&
-        mediaId.isNotEmpty &&
-        (videoUrl == null || videoUrl.trim().isEmpty) &&
-        resolvingVideoMediaIds.contains(mediaId),
+        isResolvingImage:
+            mediaId != null &&
+            mediaId.isNotEmpty &&
+            thumbMediaId != null &&
+            thumbMediaId.isNotEmpty &&
+            thumbnailPath == null &&
+            resolvingImageMediaIds.contains(thumbMediaId),
+        isResolvingVideo:
+            mediaId != null &&
+            mediaId.isNotEmpty &&
+            (videoUrl == null || videoUrl.trim().isEmpty) &&
+            resolvingVideoMediaIds.contains(mediaId),
         isSentByMe: isSentByMe,
         senderId: senderId,
         timestamp: timestamp,
@@ -295,11 +306,15 @@ class ChatMessageUIMapper {
 
     if (domainMessage is FileMessage) {
       final mediaId = domainMessage.mediaId?.trim();
-      final media = domainMessage.medias.isNotEmpty ? domainMessage.medias.first : null;
+      final media = domainMessage.medias.isNotEmpty
+          ? domainMessage.medias.first
+          : null;
       // Extract fileName from media first, fallback to caption (which stores fileName)
       final fileName = media?.fileName?.trim().isEmpty == false
           ? media?.fileName?.trim()
-          : (domainMessage.caption?.trim().isEmpty == false ? domainMessage.caption : null);
+          : (domainMessage.caption?.trim().isEmpty == false
+                ? domainMessage.caption
+                : null);
 
       return FileChatMessage(
         fileName: fileName,
@@ -379,18 +394,22 @@ class ChatMessageUIMapper {
       final prev = i > 0 ? messages[i - 1] : null;
       final next = i < messages.length - 1 ? messages[i + 1] : null;
 
-      final sameAsPrev = prev != null &&
+      final sameAsPrev =
+          prev != null &&
           _normalizeId(prev.senderId) == _normalizeId(current.senderId) &&
           current.timestamp.difference(prev.timestamp) <= _groupingWindow;
 
-      final sameAsNext = next != null &&
+      final sameAsNext =
+          next != null &&
           _normalizeId(next.senderId) == _normalizeId(current.senderId) &&
           next.timestamp.difference(current.timestamp) <= _groupingWindow;
 
-      result.add(current.copyWithGrouping(
-        isFirstInGroup: !sameAsPrev,
-        isLastInGroup: !sameAsNext,
-      ));
+      result.add(
+        current.copyWithGrouping(
+          isFirstInGroup: !sameAsPrev,
+          isLastInGroup: !sameAsNext,
+        ),
+      );
     }
 
     return result;
@@ -422,8 +441,8 @@ class ChatMessageUIMapper {
     final repliedSenderId = _normalizeId(replied.senderId);
     final senderDisplay =
         senderDisplayNameByUserId[repliedSenderId]?.trim().isNotEmpty == true
-            ? senderDisplayNameByUserId[repliedSenderId]!.trim()
-            : repliedSenderId;
+        ? senderDisplayNameByUserId[repliedSenderId]!.trim()
+        : repliedSenderId;
 
     final snippet = _snippetFromMessage(replied);
     return ReplyPreview(
@@ -458,11 +477,34 @@ class ChatMessageUIMapper {
   String _buildSystemText(SystemMessage message) {
     final metadata = message.metadata;
     final action = message.action.trim().toUpperCase();
-    final actorName = _readString(metadata['actorName']) ?? _readString(metadata['updatedByName']) ?? 'Someone';
+    final actorName =
+        _readString(metadata['actorName']) ??
+        _readString(metadata['updatedByName']) ??
+        'Someone';
     final targetNames = _readStringList(metadata['targetNames']);
 
     switch (action) {
       case 'MEMBER_ADDED':
+        final actorId = _readString(metadata['actorId']) ?? '';
+        final targetIds = _readStringList(metadata['targetIds']);
+        final joinSource =
+            _readString(metadata['joinVia']) ??
+            _readString(metadata['source']) ??
+            _readString(metadata['method']) ??
+            _readString(metadata['joinMethod']);
+        final isInviteJoin =
+            (joinSource?.toLowerCase().contains('invite') ?? false) ||
+            (targetIds.length == 1 &&
+                actorId.isNotEmpty &&
+                actorId == targetIds.first);
+
+        if (isInviteJoin) {
+          final joinedName = targetNames.isNotEmpty
+              ? targetNames.first
+              : actorName;
+          return '$joinedName joined the group via invite link';
+        }
+
         if (targetNames.isNotEmpty) {
           return '$actorName added ${targetNames.join(', ')} to the group';
         }

@@ -4,6 +4,7 @@ import 'package:flutter_chat/features/group_manager/data/datasources/api/group_m
 import 'package:flutter_chat/features/group_manager/data/repo_impl/group_management_repo_impl.dart';
 import 'package:flutter_chat/features/group_manager/domain/repositories/group_management_repo.dart';
 import 'package:flutter_chat/features/group_manager/domain/usecase/create_group_usecase.dart';
+import 'package:flutter_chat/features/group_manager/domain/usecase/join_group_via_invite_usecase.dart';
 import 'package:riverpod/riverpod.dart';
 
 // service
@@ -25,3 +26,9 @@ final createGroupUseCaseProvider = Provider<CreateGroupUseCase>((ref) {
   return CreateGroupUseCase(repo);
 });
 
+final joinGroupViaInviteUseCaseProvider = Provider<JoinGroupViaInviteUseCase>((
+  ref,
+) {
+  final repo = ref.watch(groupManagementRepositoryProvider);
+  return JoinGroupViaInviteUseCase(repo);
+});

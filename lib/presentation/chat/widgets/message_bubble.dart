@@ -98,7 +98,9 @@ class _MessageBubbleState extends State<MessageBubble> {
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Center(
           child: Container(
-            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.8,
+            ),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -108,9 +110,9 @@ class _MessageBubbleState extends State<MessageBubble> {
               message.text,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ),
@@ -121,18 +123,20 @@ class _MessageBubbleState extends State<MessageBubble> {
       ImageChatMessage(:final imagePath) => imagePath != null,
       VideoChatMessage(:final thumbnailPath, :final videoUrl) =>
         thumbnailPath != null ||
-        (videoUrl != null && videoUrl.trim().isNotEmpty),
+            (videoUrl != null && videoUrl.trim().isNotEmpty),
       StickerChatMessage(:final stickerPath) => stickerPath != null,
       ContactCardChatMessage() => true,
       _ => false,
     };
 
     final senderAvatarUrl = message.senderAvatarUrl?.trim();
-    final effectiveAvatarUrl = senderAvatarUrl != null && senderAvatarUrl.isNotEmpty
+    final effectiveAvatarUrl =
+        senderAvatarUrl != null && senderAvatarUrl.isNotEmpty
         ? senderAvatarUrl
         : null;
     final senderDisplayName = message.senderDisplayName?.trim();
-    final canShowSenderName = message.isGroupConversation &&
+    final canShowSenderName =
+        message.isGroupConversation &&
         !message.isSentByMe &&
         message.isFirstInGroup &&
         senderDisplayName != null &&
@@ -144,13 +148,15 @@ class _MessageBubbleState extends State<MessageBubble> {
         Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: hasVisualMedia ? EdgeInsets.zero : const EdgeInsets.all(12),
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.7,
+          ),
           decoration: BoxDecoration(
             color: hasVisualMedia
                 ? Colors.transparent
                 : message.isSentByMe
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.grey[300],
+                ? Theme.of(context).colorScheme.primary
+                : Colors.grey[300],
             borderRadius: BorderRadius.circular(hasVisualMedia ? 8 : 16),
           ),
           child: _buildMessageContent(context, widget.onOpenFile),
@@ -173,7 +179,9 @@ class _MessageBubbleState extends State<MessageBubble> {
                     color: Theme.of(context).colorScheme.surfaceBright,
                     boxShadow: [
                       BoxShadow(
-                        color: Theme.of(context).colorScheme.surfaceBright.withAlpha(20),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceBright.withAlpha(20),
                         blurRadius: 36,
                         offset: const Offset(0, 2),
                       ),
@@ -192,14 +200,18 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
 
     return Align(
-      alignment: message.isSentByMe ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: message.isSentByMe
+          ? Alignment.centerRight
+          : Alignment.centerLeft,
       child: GestureDetector(
         onLongPress: widget.onLongPress,
         onLongPressStart: widget.onLongPressStart,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.end,
-          mainAxisAlignment: message.isSentByMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+          mainAxisAlignment: message.isSentByMe
+              ? MainAxisAlignment.end
+              : MainAxisAlignment.start,
           children: [
             if (!message.isSentByMe)
               Padding(
@@ -227,12 +239,11 @@ class _MessageBubbleState extends State<MessageBubble> {
                     child: Text(
                       senderDisplayName,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.75),
-                            fontWeight: FontWeight.w600,
-                          ),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.75),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 bubble,
@@ -253,12 +264,13 @@ class _MessageBubbleState extends State<MessageBubble> {
 
     return switch (message) {
       ImageChatMessage(
-          :final imagePath,
-          :final mediaId,
-          :final isUploading,
-          :final isResolvingImage,
-          :final forwardInfo
-      ) => _buildImageContent(
+        :final imagePath,
+        :final mediaId,
+        :final isUploading,
+        :final isResolvingImage,
+        :final forwardInfo,
+      ) =>
+        _buildImageContent(
           context,
           imagePath,
           mediaId,
@@ -267,18 +279,18 @@ class _MessageBubbleState extends State<MessageBubble> {
           false,
           false,
           forwardInfo,
-      ),
+        ),
 
       StickerChatMessage(:final stickerPath, :final stickerId) =>
         _buildImageContent(
-            context,
-            stickerPath,
-            null,
-            false,
-            false,
-            _isSpriteSticker(stickerPath, stickerId),
-            true,
-            message.forwardInfo,
+          context,
+          stickerPath,
+          null,
+          false,
+          false,
+          _isSpriteSticker(stickerPath, stickerId),
+          true,
+          message.forwardInfo,
         ),
 
       VideoChatMessage(
@@ -289,34 +301,50 @@ class _MessageBubbleState extends State<MessageBubble> {
         :final isResolvingImage,
         :final isResolvingVideo,
         :final forwardInfo,
-      ) => _buildVideoContent(
-        context,
-        thumbnailPath,
-        videoUrl,
-        mediaId,
-        durationMs,
-        isResolvingImage,
-        isResolvingVideo,
-        forwardInfo,
-      ),
+      ) =>
+        _buildVideoContent(
+          context,
+          thumbnailPath,
+          videoUrl,
+          mediaId,
+          durationMs,
+          isResolvingImage,
+          isResolvingVideo,
+          forwardInfo,
+        ),
 
-      AudioChatMessage(:final audioUrl, :final durationMs, :final waveform, :final forwardInfo) =>
-        _buildAudioContent(context, audioUrl, durationMs, waveform, forwardInfo),
+      AudioChatMessage(
+        :final audioUrl,
+        :final durationMs,
+        :final waveform,
+        :final forwardInfo,
+      ) =>
+        _buildAudioContent(
+          context,
+          audioUrl,
+          durationMs,
+          waveform,
+          forwardInfo,
+        ),
 
       FileChatMessage(:final isDownloading, :final forwardInfo) =>
-          _buildFileContent(forwardInfo, message, isDownloading: isDownloading, onOpen: onOpenFile ?? () {}),
+        _buildFileContent(
+          forwardInfo,
+          message,
+          isDownloading: isDownloading,
+          onOpen: onOpenFile ?? () {},
+        ),
 
       ContactCardChatMessage() => _ContactCardBubble(message: message),
 
       SystemChatMessage() => const SizedBox.shrink(),
 
-        TextChatMessage(:final text, :final forwardInfo, :final replyPreview) =>
-          _buildTextContent(text, forwardInfo, replyPreview: replyPreview),
-      UnknownChatMessage(:final content, :final forwardInfo) => _buildTextContent(content ?? '', forwardInfo),
+      TextChatMessage(:final text, :final forwardInfo, :final replyPreview) =>
+        _buildTextContent(text, forwardInfo, replyPreview: replyPreview),
+      UnknownChatMessage(:final content, :final forwardInfo) =>
+        _buildTextContent(content ?? '', forwardInfo),
     };
   }
-
-
 
   Widget _buildImageContent(
     BuildContext context,
@@ -344,7 +372,8 @@ class _MessageBubbleState extends State<MessageBubble> {
     }
 
     final uri = Uri.tryParse(imagePath);
-    final isNetworkImage = uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+    final isNetworkImage =
+        uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
     final imageHeight = isSticker ? 120.0 : 200.0;
     final imageFit = isSticker ? BoxFit.contain : BoxFit.cover;
 
@@ -359,20 +388,22 @@ class _MessageBubbleState extends State<MessageBubble> {
               fit: BoxFit.contain,
             )
           : isNetworkImage
-              ? CachedNetworkImage(
-                  imageUrl: imagePath,
-                  cacheKey: mediaId,
-                  height: imageHeight,
-                  fit: imageFit,
-                  errorWidget: (context, url, error) => const Icon(Icons.broken_image),
-                  cacheManager: chatImageCacheManager,
-                )
-              : Image.file(
-                  File(imagePath),
-                  height: imageHeight,
-                  fit: imageFit,
-                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image),
-                ),
+          ? CachedNetworkImage(
+              imageUrl: imagePath,
+              cacheKey: mediaId,
+              height: imageHeight,
+              fit: imageFit,
+              errorWidget: (context, url, error) =>
+                  const Icon(Icons.broken_image),
+              cacheManager: chatImageCacheManager,
+            )
+          : Image.file(
+              File(imagePath),
+              height: imageHeight,
+              fit: imageFit,
+              errorBuilder: (context, error, stackTrace) =>
+                  const Icon(Icons.broken_image),
+            ),
     );
 
     Widget content;
@@ -511,7 +542,10 @@ class _MessageBubbleState extends State<MessageBubble> {
                   right: 8,
                   bottom: 8,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.6),
                       borderRadius: BorderRadius.circular(6),
@@ -549,7 +583,8 @@ class _MessageBubbleState extends State<MessageBubble> {
     }
 
     final uri = Uri.tryParse(thumbnailPath);
-    final isNetworkImage = uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+    final isNetworkImage =
+        uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
 
     final imageWidget = ClipRRect(
       borderRadius: BorderRadius.circular(8),
@@ -559,14 +594,16 @@ class _MessageBubbleState extends State<MessageBubble> {
               cacheKey: mediaId,
               height: 200,
               fit: BoxFit.cover,
-              errorWidget: (context, url, error) => const Icon(Icons.broken_image),
+              errorWidget: (context, url, error) =>
+                  const Icon(Icons.broken_image),
               cacheManager: chatImageCacheManager,
             )
           : Image.file(
               File(thumbnailPath),
               height: 200,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image),
+              errorBuilder: (context, error, stackTrace) =>
+                  const Icon(Icons.broken_image),
             ),
     );
 
@@ -575,47 +612,49 @@ class _MessageBubbleState extends State<MessageBubble> {
     content = GestureDetector(
       onTap: hasVideo ? () => _initializeAndPlayVideo(videoUrl) : null,
       child: Stack(
-      alignment: Alignment.center,
-      children: [
-        imageWidget,
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-        if (_isVideoInitializing)
-          const SizedBox(
-            width: 26,
-            height: 26,
-            child: CircularProgressIndicator(strokeWidth: 2.2),
-          )
-        else
-          Icon(
-            hasVideo ? Icons.play_circle_filled : Icons.hourglass_empty_rounded,
-            color: Colors.white,
-            size: 48,
-          ),
-        Positioned(
-          right: 8,
-          bottom: 8,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        alignment: Alignment.center,
+        children: [
+          imageWidget,
+          Container(
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(6),
+              color: Colors.black.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(
-              _formatDuration(durationMs),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
+          ),
+          if (_isVideoInitializing)
+            const SizedBox(
+              width: 26,
+              height: 26,
+              child: CircularProgressIndicator(strokeWidth: 2.2),
+            )
+          else
+            Icon(
+              hasVideo
+                  ? Icons.play_circle_filled
+                  : Icons.hourglass_empty_rounded,
+              color: Colors.white,
+              size: 48,
+            ),
+          Positioned(
+            right: 8,
+            bottom: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                _formatDuration(durationMs),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
       ),
     );
 
@@ -638,7 +677,10 @@ class _MessageBubbleState extends State<MessageBubble> {
     ForwardInfo? forwardInfo,
   ) {
     final hasAudio = audioUrl != null && audioUrl.trim().isNotEmpty;
-    final bars = WaveformUtils.normalize(waveform ?? const <double>[], maxBars: 48);
+    final bars = WaveformUtils.normalize(
+      waveform ?? const <double>[],
+      maxBars: 48,
+    );
     final isMine = widget.message.isSentByMe;
     final primary = Theme.of(context).colorScheme.primary;
 
@@ -649,7 +691,9 @@ class _MessageBubbleState extends State<MessageBubble> {
     Widget content;
 
     content = Column(
-      crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: isMine
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisSize: MainAxisSize.min,
@@ -690,7 +734,9 @@ class _MessageBubbleState extends State<MessageBubble> {
                             .map(
                               (value) => Container(
                                 width: 2,
-                                height: WaveformUtils.barHeight(value).clamp(4, 20).toDouble(),
+                                height: WaveformUtils.barHeight(
+                                  value,
+                                ).clamp(4, 20).toDouble(),
                                 decoration: BoxDecoration(
                                   color: waveformColor,
                                   borderRadius: BorderRadius.circular(999),
@@ -727,11 +773,11 @@ class _MessageBubbleState extends State<MessageBubble> {
   }
 
   Widget _buildFileContent(
-      ForwardInfo? forwardInfo,
-      FileChatMessage fileMessage, {
-        required bool isDownloading,
-        required VoidCallback onOpen,
-      }) {
+    ForwardInfo? forwardInfo,
+    FileChatMessage fileMessage, {
+    required bool isDownloading,
+    required VoidCallback onOpen,
+  }) {
     final fileName = fileMessage.fileName?.trim() ?? 'File';
     final fileSize = fileMessage.fileSize;
 
@@ -747,10 +793,7 @@ class _MessageBubbleState extends State<MessageBubble> {
             color: Colors.grey.shade200,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(
-            _getFileIcon(fileMessage.fileName),
-            size: 20,
-          ),
+          child: Icon(_getFileIcon(fileMessage.fileName), size: 20),
         ),
 
         const SizedBox(width: 8),
@@ -761,18 +804,11 @@ class _MessageBubbleState extends State<MessageBubble> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                fileName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              Text(fileName, maxLines: 1, overflow: TextOverflow.ellipsis),
               if (fileSize != null)
                 Text(
                   _formatSize(fileSize),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
             ],
           ),
@@ -783,14 +819,14 @@ class _MessageBubbleState extends State<MessageBubble> {
         /// Action
         isDownloading
             ? const SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        )
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
             : IconButton(
-          icon: const Icon(Icons.open_in_new),
-          onPressed: onOpen,
-        ),
+                icon: const Icon(Icons.open_in_new),
+                onPressed: onOpen,
+              ),
       ],
     );
 
@@ -805,7 +841,11 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
-  Widget _buildTextContent(String text, ForwardInfo? forwardInfo, {ReplyPreview? replyPreview}) {
+  Widget _buildTextContent(
+    String text,
+    ForwardInfo? forwardInfo, {
+    ReplyPreview? replyPreview,
+  }) {
     final message = widget.message;
     final baseTextStyle = TextStyle(
       color: message.isDeleted
@@ -823,7 +863,9 @@ class _MessageBubbleState extends State<MessageBubble> {
 
     Widget content;
     content = Column(
-      crossAxisAlignment: message.isSentByMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: message.isSentByMe
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         if (replyPreview != null) ...[
           _buildReplyPreview(replyPreview),
@@ -869,41 +911,42 @@ class _MessageBubbleState extends State<MessageBubble> {
   Widget _buildReplyPreview(ReplyPreview preview) {
     final isMine = widget.message.isSentByMe;
     return GestureDetector(
-      onTap: widget.onReplyPreviewTap == null || preview.messageId.trim().isEmpty
+      onTap:
+          widget.onReplyPreviewTap == null || preview.messageId.trim().isEmpty
           ? null
           : () => widget.onReplyPreviewTap!(preview.messageId),
       child: Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: isMine ? Colors.white24 : Colors.black12,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            preview.senderDisplay,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: isMine ? Colors.white70 : Colors.black87,
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: isMine ? Colors.white24 : Colors.black12,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              preview.senderDisplay,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isMine ? Colors.white70 : Colors.black87,
+              ),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            preview.snippet,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 12,
-              color: isMine ? Colors.white60 : Colors.black54,
+            const SizedBox(height: 2),
+            Text(
+              preview.snippet,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                color: isMine ? Colors.white60 : Colors.black54,
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
@@ -920,21 +963,31 @@ class _MessageBubbleState extends State<MessageBubble> {
       r'https?://[^\s]+|www\.[^\s]+|(?:^|\s)([a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.)+[a-zA-Z]{2,}(?:\s|$)',
       multiLine: true,
     );
-    
+
     var lastIndex = 0;
     final List<({int start, int end, String text, String type})> tokens = [];
-    
+
     // Collect all mentions and URLs with their positions
     for (final match in mentionRegex.allMatches(text)) {
-      tokens.add((start: match.start, end: match.end, text: match.group(0)!, type: 'mention'));
+      tokens.add((
+        start: match.start,
+        end: match.end,
+        text: match.group(0)!,
+        type: 'mention',
+      ));
     }
     for (final match in urlRegex.allMatches(text)) {
-      tokens.add((start: match.start, end: match.end, text: match.group(0)!.trim(), type: 'url'));
+      tokens.add((
+        start: match.start,
+        end: match.end,
+        text: match.group(0)!.trim(),
+        type: 'url',
+      ));
     }
-    
+
     // Sort tokens by start position
     tokens.sort((a, b) => a.start.compareTo(b.start));
-    
+
     // Filter overlapping tokens (keep mentions over URLs if they overlap)
     final List<({int start, int end, String text, String type})> filtered = [];
     for (final token in tokens) {
@@ -952,18 +1005,25 @@ class _MessageBubbleState extends State<MessageBubble> {
       }
     }
     filtered.sort((a, b) => a.start.compareTo(b.start));
-    
+
     // Build spans from tokens
     lastIndex = 0;
     for (final token in filtered) {
       if (token.start > lastIndex) {
-        spans.add(TextSpan(text: text.substring(lastIndex, token.start), style: baseStyle));
+        spans.add(
+          TextSpan(
+            text: text.substring(lastIndex, token.start),
+            style: baseStyle,
+          ),
+        );
       }
-      
+
       if (token.type == 'mention') {
         spans.add(TextSpan(text: token.text, style: mentionStyle));
       } else if (token.type == 'url') {
-        const linkColor = Colors.blue;
+        final linkColor = widget.message.isSentByMe
+            ? Colors.white
+            : Colors.blue.shade700;
         final linkStyle = baseStyle.copyWith(
           color: linkColor,
           decoration: TextDecoration.underline,
@@ -974,21 +1034,22 @@ class _MessageBubbleState extends State<MessageBubble> {
           TextSpan(
             text: urlText,
             style: linkStyle,
-            recognizer: TapGestureRecognizer()..onTap = () => _launchUrl(urlText),
+            recognizer: TapGestureRecognizer()
+              ..onTap = () => _launchUrl(urlText),
           ),
         );
       }
       lastIndex = token.end;
     }
-    
+
     if (lastIndex < text.length) {
       spans.add(TextSpan(text: text.substring(lastIndex), style: baseStyle));
     }
-    
+
     if (spans.isEmpty) {
       spans.add(TextSpan(text: text, style: baseStyle));
     }
-    
+
     return spans;
   }
 
@@ -997,13 +1058,13 @@ class _MessageBubbleState extends State<MessageBubble> {
     if (!urlStr.startsWith('http://') && !urlStr.startsWith('https://')) {
       urlStr = 'https://$urlStr';
     }
-    
+
     final uri = Uri.tryParse(urlStr);
     if (uri == null) {
       debugPrint('[MessageBubble] Invalid URL: $urlText');
       return;
     }
-    
+
     try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {
@@ -1066,7 +1127,6 @@ class _MessageBubbleState extends State<MessageBubble> {
     return "${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB";
   }
 
-
   Future<void> _togglePlayAudio(String audioUrl) async {
     try {
       if (_isPlaying) {
@@ -1076,7 +1136,8 @@ class _MessageBubbleState extends State<MessageBubble> {
 
       final normalized = audioUrl.trim();
       final uri = Uri.tryParse(normalized);
-      final isRemote = uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+      final isRemote =
+          uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
       if (isRemote) {
         await _audioPlayer.play(UrlSource(normalized));
       } else {
@@ -1105,7 +1166,8 @@ class _MessageBubbleState extends State<MessageBubble> {
     try {
       _disposeVideoController();
       final uri = Uri.tryParse(normalized);
-      final isRemote = uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+      final isRemote =
+          uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
       final controller = isRemote
           ? VideoPlayerController.networkUrl(Uri.parse(normalized))
           : VideoPlayerController.file(File(normalized));
@@ -1184,10 +1246,13 @@ class _ContactCardBubble extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(userByIdProvider(message.contactUserId));
-    final statusAsync = ref.watch(friendshipStatusProvider(message.contactUserId));
+    final statusAsync = ref.watch(
+      friendshipStatusProvider(message.contactUserId),
+    );
 
     // Don't show action buttons if this is our own card
-    final isSelf = message.isSentByMe &&
+    final isSelf =
+        message.isSentByMe &&
         (statusAsync.valueOrNull?.userId == message.contactUserId);
 
     Widget content = Container(
@@ -1246,7 +1311,9 @@ class _ContactCardBubble extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 4),
               foregroundColor: Theme.of(context).colorScheme.onPrimary,
               side: BorderSide(
-                color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.6),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onPrimary.withValues(alpha: 0.6),
               ),
               textStyle: const TextStyle(fontSize: 13),
             ),
@@ -1257,7 +1324,9 @@ class _ContactCardBubble extends ConsumerWidget {
           child: statusAsync.when(
             loading: () => OutlinedButton(
               onPressed: null,
-              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 4)),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+              ),
               child: const SizedBox(
                 height: 16,
                 width: 16,
@@ -1328,40 +1397,60 @@ class _ContactCardBubble extends ConsumerWidget {
   }
 
   ButtonStyle _friendBtnStyle(BuildContext context) => OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        foregroundColor: Theme.of(context).colorScheme.onPrimary,
-        side: BorderSide(
-          color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.6),
-        ),
-        textStyle: const TextStyle(fontSize: 13),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+    side: BorderSide(
+      color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.6),
+    ),
+    textStyle: const TextStyle(fontSize: 13),
+  );
 
   void _onMessageTap(BuildContext context) {
     // Navigate to home — user can find or start a conversation from there.
     context.go('/');
   }
 
-  Future<void> _sendRequest(BuildContext context, WidgetRef ref, String targetId) async {
+  Future<void> _sendRequest(
+    BuildContext context,
+    WidgetRef ref,
+    String targetId,
+  ) async {
     await ref.read(sendFriendRequestUseCaseProvider)(targetId);
     ref.invalidate(friendshipStatusProvider(targetId));
   }
 
-  Future<void> _cancelRequest(BuildContext context, WidgetRef ref, String targetId) async {
+  Future<void> _cancelRequest(
+    BuildContext context,
+    WidgetRef ref,
+    String targetId,
+  ) async {
     await ref.read(rejectFriendRequestUseCaseProvider)(targetId);
     ref.invalidate(friendshipStatusProvider(targetId));
   }
 
-  Future<void> _acceptRequest(BuildContext context, WidgetRef ref, String targetId) async {
+  Future<void> _acceptRequest(
+    BuildContext context,
+    WidgetRef ref,
+    String targetId,
+  ) async {
     await ref.read(acceptFriendRequestUseCaseProvider)(targetId);
     ref.invalidate(friendshipStatusProvider(targetId));
   }
 
-  Future<void> _unblock(BuildContext context, WidgetRef ref, String targetId) async {
+  Future<void> _unblock(
+    BuildContext context,
+    WidgetRef ref,
+    String targetId,
+  ) async {
     await ref.read(unblockUserUseCaseProvider)(targetId);
     ref.invalidate(friendshipStatusProvider(targetId));
   }
 
-  Widget _buildCardRow(BuildContext context, MyUser? user, {bool isLoading = false}) {
+  Widget _buildCardRow(
+    BuildContext context,
+    MyUser? user, {
+    bool isLoading = false,
+  }) {
     final displayName = _displayName(user);
     final subText = user?.email ?? user?.phone ?? message.contactUserId;
     final avatarUrl = user?.avatarUrl;
@@ -1381,7 +1470,10 @@ class _ContactCardBubble extends ConsumerWidget {
                 isLoading ? '...' : displayName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               if (!isLoading) ...[
                 const SizedBox(height: 2),
@@ -1467,11 +1559,18 @@ class _ContactCardBubble extends ConsumerWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.forward, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          Icon(
+            Icons.forward,
+            size: 14,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(width: 4),
           Text(
             'Forwarded',
-            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),

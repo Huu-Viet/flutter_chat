@@ -57,6 +57,7 @@ dependencies:
   
   # Navigation
   go_router: ^14.3.0
+  app_links: ^7.0.0
   
   # Network & HTTP
   dio: ^5.7.0

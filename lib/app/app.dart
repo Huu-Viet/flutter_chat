@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/app/app_providers.dart';
 import 'package:flutter_chat/application/realtime/call_action.dart';
@@ -15,11 +18,95 @@ import 'router.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
 
-class MyApp extends ConsumerWidget {
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends ConsumerState<MyApp> {
+  static const String _inviteDeepLinkHost = 'zolo-smoky.vercel.app';
+
+  late final AppLinks _appLinks;
+  StreamSubscription<Uri>? _deepLinkSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _appLinks = AppLinks();
+    _initDeepLinks();
+  }
+
+  Future<void> _initDeepLinks() async {
+    try {
+      final initialUri = await _appLinks.getInitialLink();
+      if (initialUri != null) {
+        _handleDeepLink(initialUri);
+      }
+    } catch (error) {
+      debugPrint('[MyApp] failed to read initial deep link: $error');
+    }
+
+    _deepLinkSubscription = _appLinks.uriLinkStream.listen(
+      _handleDeepLink,
+      onError: (Object error) {
+        debugPrint('[MyApp] deep link stream error: $error');
+      },
+    );
+  }
+
+  void _handleDeepLink(Uri uri) {
+    if (!_isJoinInviteDeepLink(uri)) {
+      return;
+    }
+
+    final pathSegments = uri.pathSegments;
+    final token = pathSegments[1].trim();
+    if (token.isEmpty) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      final router = ref.read(routerProvider);
+      final targetPath = '/join/${Uri.encodeComponent(token)}';
+      final currentPath = router.routeInformationProvider.value.uri.path;
+      if (currentPath == targetPath) {
+        return;
+      }
+
+      router.go(targetPath);
+    });
+  }
+
+  bool _isJoinInviteDeepLink(Uri uri) {
+    final scheme = uri.scheme.toLowerCase();
+    final host = uri.host.toLowerCase();
+    if ((scheme != 'https' && scheme != 'http') ||
+        host != _inviteDeepLinkHost) {
+      return false;
+    }
+
+    final pathSegments = uri.pathSegments;
+    if (pathSegments.length < 2) {
+      return false;
+    }
+
+    return pathSegments.first == 'join';
+  }
+
+  @override
+  void dispose() {
+    _deepLinkSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
     final locale = ref.watch(localeProvider);
     final themeAsync = ref.watch(themeProvider);

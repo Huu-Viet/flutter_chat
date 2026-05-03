@@ -3,6 +3,7 @@ import 'package:flutter_chat/presentation/auth/pages/login_page.dart';
 import 'package:flutter_chat/presentation/auth/pages/registry_page.dart';
 import 'package:flutter_chat/presentation/call/presentation/in_call_page.dart';
 import 'package:flutter_chat/presentation/chat/page/chat_page.dart';
+import 'package:flutter_chat/presentation/chat/page/join_group_invite_page.dart';
 import 'package:flutter_chat/presentation/main_scaffold.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/presentation/profile/pages/profile_page.dart';
@@ -79,6 +80,16 @@ final routerProvider = Provider<GoRouter>((ref) {
             conversationId: conversationId,
             initialRoomName: roomName,
           );
+        },
+      ),
+      GoRoute(
+        path: '/join/:token',
+        name: 'join-group-invite',
+        builder: (context, state) {
+          final token = Uri.decodeComponent(
+            state.pathParameters['token'] ?? '',
+          );
+          return JoinGroupInvitePage(token: token);
         },
       ),
       GoRoute(

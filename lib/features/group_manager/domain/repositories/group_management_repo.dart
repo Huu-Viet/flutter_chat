@@ -1,5 +1,6 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
+import 'package:flutter_chat/features/group_manager/domain/entities/join_group_invite_result.dart';
 
 abstract class GroupManagementRepo {
   Future<Either<Failure, void>> createGroup({
@@ -15,5 +16,10 @@ abstract class GroupManagementRepo {
     required String allowMemberMessage,
     required bool isPublic,
     required bool joinApprovalRequired,
+  });
+
+  Future<Either<Failure, JoinGroupInviteResult>> joinGroupViaInvite({
+    required String token,
+    String? requestMessage,
   });
 }

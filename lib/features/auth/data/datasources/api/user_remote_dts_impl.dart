@@ -19,9 +19,7 @@ class UserRemoteDtsImpl extends UserRemoteDataSource {
     try {
       final response = await dio.get(
         '$_baseUrl/users/me',
-        options: Options(
-          headers: {'Authorization': 'Bearer $accessToken'},
-        ),
+        options: Options(headers: {'Authorization': 'Bearer $accessToken'}),
       );
 
       if (response.statusCode != 200 || response.data == null) {
@@ -61,24 +59,28 @@ class UserRemoteDtsImpl extends UserRemoteDataSource {
         '$_baseUrl/users/search',
         options: Options(
           method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-          },
+          headers: {'Accept': 'application/json'},
           validateStatus: (status) => status != null && status < 600,
         ),
         queryParameters: {
           'q': q,
+          // Compatibility aliases for BE variants.
+          'username': q,
+          'query': q,
           'page': page,
           'limit': limit,
         },
       );
 
-      debugPrint('[UserRemoteDtsImpl] Search users response: status=${response.statusCode}, body=${response.data}');
+      debugPrint(
+        '[UserRemoteDtsImpl] Search users response: status=${response.statusCode}, body=${response.data}',
+      );
 
       if (response.statusCode != 200 || response.data == null) {
         final responseBody = response.data;
         final message = responseBody is Map
-            ? (responseBody['message']?.toString() ?? responseBody['error']?.toString())
+            ? (responseBody['message']?.toString() ??
+                  responseBody['error']?.toString())
             : null;
         throw Exception(
           message == null || message.trim().isEmpty
@@ -88,23 +90,57 @@ class UserRemoteDtsImpl extends UserRemoteDataSource {
       }
 
       final responseBody = response.data;
-      final dynamic data = responseBody is Map<String, dynamic>
+      final dynamic raw = responseBody is Map<String, dynamic>
           ? responseBody['data']
           : responseBody;
+      final List<dynamic>? resolvedList = _resolveUserList(raw, responseBody);
 
-      if (data is! List) {
-        debugPrint('[UserRemoteDtsImpl] Search users returned unexpected payload: ${response.data}');
+      if (resolvedList == null) {
+        debugPrint(
+          '[UserRemoteDtsImpl] Search users returned unexpected payload: ${response.data}',
+        );
         return const <UserDto>[];
       }
 
-      return data
+      return resolvedList
           .whereType<Map>()
-          .map((e) => UserDto.fromJson(e.map((k, v) => MapEntry(k.toString(), v))))
+          .map(
+            (e) => UserDto.fromJson(e.map((k, v) => MapEntry(k.toString(), v))),
+          )
           .toList(growable: false);
     } on DioException catch (e) {
-      debugPrint('Error searching users by username: ${e.message}, response=${e.response?.data}');
+      debugPrint(
+        'Error searching users by username: ${e.message}, response=${e.response?.data}',
+      );
       throw Exception('[UserRemoteDtsImpl] Search users error: ${e.message}');
     }
+  }
+
+  List<dynamic>? _resolveUserList(dynamic raw, dynamic fullResponse) {
+    if (raw is List) {
+      return raw;
+    }
+
+    if (raw is Map<String, dynamic>) {
+      final nested =
+          raw['users'] ?? raw['items'] ?? raw['results'] ?? raw['data'];
+      if (nested is List) {
+        return nested;
+      }
+    }
+
+    if (fullResponse is Map<String, dynamic>) {
+      final direct =
+          fullResponse['users'] ??
+          fullResponse['items'] ??
+          fullResponse['results'] ??
+          fullResponse['list'];
+      if (direct is List) {
+        return direct;
+      }
+    }
+
+    return null;
   }
 
   @override
@@ -119,7 +155,9 @@ class UserRemoteDtsImpl extends UserRemoteDataSource {
       final response = await dio.get('$_baseUrl/users/$id');
 
       if (response.statusCode != 200 || response.data == null) {
-        debugPrint('[UserRemoteDtsImpl] Get user by id failed: status=${response.statusCode}, body=${response.data}');
+        debugPrint(
+          '[UserRemoteDtsImpl] Get user by id failed: status=${response.statusCode}, body=${response.data}',
+        );
         throw Exception(response.statusCode);
       }
 
@@ -160,14 +198,20 @@ class UserRemoteDtsImpl extends UserRemoteDataSource {
 
       return data
           .whereType<Map>()
-          .map((session) => SessionDto.fromJson(
-                session.map((key, value) => MapEntry(key.toString(), value)),
-              ))
+          .map(
+            (session) => SessionDto.fromJson(
+              session.map((key, value) => MapEntry(key.toString(), value)),
+            ),
+          )
           .where((session) => session.id.trim().isNotEmpty)
           .toList(growable: false);
     } on DioException catch (e) {
-      debugPrint('Error fetching active sessions: ${e.message}, response=${e.response?.data}');
-      throw Exception('[UserRemoteDtsImpl] Get active sessions error: ${e.message}');
+      debugPrint(
+        'Error fetching active sessions: ${e.message}, response=${e.response?.data}',
+      );
+      throw Exception(
+        '[UserRemoteDtsImpl] Get active sessions error: ${e.message}',
+      );
     }
   }
 
@@ -182,8 +226,12 @@ class UserRemoteDtsImpl extends UserRemoteDataSource {
         throw Exception(response.statusCode);
       }
     } on DioException catch (e) {
-      debugPrint('Error revoking other sessions: ${e.message}, response=${e.response?.data}');
-      throw Exception('[UserRemoteDtsImpl] Revoke other sessions error: ${e.message}');
+      debugPrint(
+        'Error revoking other sessions: ${e.message}, response=${e.response?.data}',
+      );
+      throw Exception(
+        '[UserRemoteDtsImpl] Revoke other sessions error: ${e.message}',
+      );
     }
   }
 
@@ -205,7 +253,9 @@ class UserRemoteDtsImpl extends UserRemoteDataSource {
         throw Exception(response.statusCode);
       }
     } on DioException catch (e) {
-      debugPrint('Error revoking session: ${e.message}, response=${e.response?.data}');
+      debugPrint(
+        'Error revoking session: ${e.message}, response=${e.response?.data}',
+      );
       throw Exception('[UserRemoteDtsImpl] Revoke session error: ${e.message}');
     }
   }
@@ -241,11 +291,7 @@ class UserRemoteDtsImpl extends UserRemoteDataSource {
           if (avatarVariant != null && avatarVariant.trim().isNotEmpty)
             'avatarVariant': avatarVariant,
         },
-        options: Options(
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        ),
+        options: Options(headers: {'Content-Type': 'application/json'}),
       );
 
       if ((response.statusCode != 200 && response.statusCode != 201) ||

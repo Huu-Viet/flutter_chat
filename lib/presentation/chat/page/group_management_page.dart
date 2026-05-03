@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_chat/core/platform_services/export.dart';
 import 'package:flutter_chat/core/utils/file_utils.dart';
+import 'package:flutter_chat/features/auth/domain/entities/user.dart';
 import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/chat/domain/entities/conversation.dart';
 import 'package:flutter_chat/features/chat/domain/entities/conversation_participant.dart';
@@ -24,7 +25,8 @@ class GroupManagementPage extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<GroupManagementPage> createState() => _GroupManagementPageState();
+  ConsumerState<GroupManagementPage> createState() =>
+      _GroupManagementPageState();
 }
 
 class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
@@ -38,6 +40,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
 
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
+  late final TextEditingController _memberSearchController;
   final MediaService _mediaService = MediaService();
   String? _pickedAvatarPath;
   String? _uploadedAvatarMediaId;
@@ -50,6 +53,9 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   bool _busyAppointments = false;
   bool _busyNotify = false;
   bool _busyDanger = false;
+  bool _busyMemberSearch = false;
+  bool _busyAddMember = false;
+  bool _hasSearchedMember = false;
 
   String? _inviteUrl;
   String? _inviteExpiresAt;
@@ -58,18 +64,25 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   List<Map<String, dynamic>> _joinRequests = <Map<String, dynamic>>[];
   List<Map<String, dynamic>> _polls = <Map<String, dynamic>>[];
   List<Map<String, dynamic>> _appointments = <Map<String, dynamic>>[];
+  List<MyUser> _memberSearchResults = const <MyUser>[];
 
   @override
   void initState() {
     super.initState();
-    _participants = List<ConversationParticipant>.from(widget.conversation.participants);
+    _participants = List<ConversationParticipant>.from(
+      widget.conversation.participants,
+    );
     _allowMemberMessage = widget.conversation.allowMemberMessage;
     _isPublic = widget.conversation.isPublic;
     _joinApprovalRequired = widget.conversation.joinApprovalRequired;
     _nameController = TextEditingController(text: widget.conversation.name);
-    _descriptionController = TextEditingController(text: widget.conversation.description);
+    _descriptionController = TextEditingController(
+      text: widget.conversation.description,
+    );
+    _memberSearchController = TextEditingController();
     _tabController = TabController(length: _visibleTabs.length, vsync: this);
 
+    _syncParticipantsFromServer();
     _loadJoinRequests();
     _loadPolls();
     _loadAppointments();
@@ -80,6 +93,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     _tabController.dispose();
     _nameController.dispose();
     _descriptionController.dispose();
+    _memberSearchController.dispose();
     super.dispose();
   }
 
@@ -87,7 +101,9 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   static String get _baseUrl => dotenv.get('NEST_API_BASE_URL');
 
   String _url(String path) {
-    final base = _baseUrl.endsWith('/') ? _baseUrl.substring(0, _baseUrl.length - 1) : _baseUrl;
+    final base = _baseUrl.endsWith('/')
+        ? _baseUrl.substring(0, _baseUrl.length - 1)
+        : _baseUrl;
     final normalizedPath = path.startsWith('/') ? path : '/$path';
     return '$base$normalizedPath';
   }
@@ -111,6 +127,13 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
 
   bool get _isAdminOrOwner => _myRole == 'owner' || _myRole == 'admin';
 
+  Set<String> get _participantIds {
+    return _participants
+        .map((item) => item.userId.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+  }
+
   List<String> get _visibleTabs {
     if (_isAdminOrOwner) {
       return const <String>['Info', 'Member', 'Settings', 'Invite', 'Request'];
@@ -125,10 +148,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     return payload;
   }
 
-  String _errorMessageFor(
-    Object error, {
-    required String fallback,
-  }) {
+  String _errorMessageFor(Object error, {required String fallback}) {
     final parsed = _parseBackendError(error);
     if (parsed == null) {
       return fallback;
@@ -139,17 +159,24 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     final backendMessage = (parsed['message'] as String?)?.trim();
 
     const codeMessageMap = <String, String>{
-      'RESOURCE_CONFLICT': 'Action cannot be completed because the current state has changed.',
+      'RESOURCE_CONFLICT':
+          'Action cannot be completed because the current state has changed.',
       'FORBIDDEN_NOT_MEMBER': 'You are no longer a member of this group.',
       'FORBIDDEN_ROLE_REQUIRED': 'You do not have permission for this action.',
       'FORBIDDEN_NOT_OWNER': 'Only the owner can perform this action.',
-      'FORBIDDEN_TIME_WINDOW': 'This action is no longer allowed due to time limit.',
+      'FORBIDDEN_TIME_WINDOW':
+          'This action is no longer allowed due to time limit.',
       'FORBIDDEN_MENTION_ALL': 'Only owner/admin can use @all.',
-      'FORBIDDEN_REVOKE_WINDOW_EXPIRED': 'This message can no longer be revoked.',
-      'MENTIONS_NOT_SUPPORTED_FOR_CONVERSATION_TYPE': 'Mentions are not supported in this conversation.',
-      'MENTION_TARGET_NOT_MEMBER': 'One or more mentioned users are not group members.',
-      'CONTACT_USER_NOT_FRIEND': 'You can only share contact cards of your friends.',
-      'CONTACT_CARD_MEDIA_NOT_ALLOWED': 'Contact card cannot include media attachments.',
+      'FORBIDDEN_REVOKE_WINDOW_EXPIRED':
+          'This message can no longer be revoked.',
+      'MENTIONS_NOT_SUPPORTED_FOR_CONVERSATION_TYPE':
+          'Mentions are not supported in this conversation.',
+      'MENTION_TARGET_NOT_MEMBER':
+          'One or more mentioned users are not group members.',
+      'CONTACT_USER_NOT_FRIEND':
+          'You can only share contact cards of your friends.',
+      'CONTACT_CARD_MEDIA_NOT_ALLOWED':
+          'Contact card cannot include media attachments.',
       'CONTACT_USER_REQUIRED': 'Contact user is required.',
       'CANNOT_SHARE_SELF_CONTACT': 'You cannot share your own contact card.',
       'CALL_CALLEE_BUSY': 'The callee is currently busy.',
@@ -239,7 +266,9 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
 
     setState(() => _busyRequests = true);
     try {
-      final response = await _dio.get(_url('/conversations/${widget.conversation.id}/join-requests'));
+      final response = await _dio.get(
+        _url('/conversations/${widget.conversation.id}/join-requests'),
+      );
       final data = _unwrap(response.data);
 
       List<dynamic> raw = <dynamic>[];
@@ -270,7 +299,9 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   Future<void> _loadPolls() async {
     setState(() => _busyPolls = true);
     try {
-      final response = await _dio.get(_url('/conversations/${widget.conversation.id}/polls'));
+      final response = await _dio.get(
+        _url('/conversations/${widget.conversation.id}/polls'),
+      );
       final data = _unwrap(response.data);
 
       List<dynamic> raw = <dynamic>[];
@@ -301,7 +332,9 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   Future<void> _loadAppointments() async {
     setState(() => _busyAppointments = true);
     try {
-      final response = await _dio.get(_url('/conversations/${widget.conversation.id}/appointments'));
+      final response = await _dio.get(
+        _url('/conversations/${widget.conversation.id}/appointments'),
+      );
       final data = _unwrap(response.data);
 
       List<dynamic> raw = <dynamic>[];
@@ -348,7 +381,10 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
 
     setState(() => _busyInfo = true);
     try {
-      await _dio.patch(_url('/conversations/${widget.conversation.id}/info'), data: body);
+      await _dio.patch(
+        _url('/conversations/${widget.conversation.id}/info'),
+        data: body,
+      );
       _toast('Group info updated');
       if (!mounted) return;
       setState(() {
@@ -423,7 +459,11 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
 
       result.fold(
         (failure) {
-          _toast(failure.message.isNotEmpty ? failure.message : 'Avatar upload failed');
+          _toast(
+            failure.message.isNotEmpty
+                ? failure.message
+                : 'Avatar upload failed',
+          );
         },
         (mediaInfo) {
           final mediaId = mediaInfo.mediaId?.trim();
@@ -471,28 +511,20 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     }
   }
 
-  Future<void> _updateMemberRole(ConversationParticipant member, String newRole) async {
+  Future<void> _updateMemberRole(
+    ConversationParticipant member,
+    String newRole,
+  ) async {
     if (!_isAdminOrOwner) return;
 
     try {
       await _dio.patch(
-        _url('/conversations/${widget.conversation.id}/members/${member.userId}/role'),
+        _url(
+          '/conversations/${widget.conversation.id}/members/${member.userId}/role',
+        ),
         data: {'role': newRole},
       );
-      if (!mounted) return;
-      setState(() {
-        _participants = _participants.map((item) {
-          if (item.userId.trim() != member.userId.trim()) return item;
-          return ConversationParticipant(
-            userId: item.userId,
-            username: item.username,
-            displayName: item.displayName,
-            avatarUrl: item.avatarUrl,
-            role: newRole,
-            isActive: item.isActive,
-          );
-        }).toList(growable: false);
-      });
+      await _syncParticipantsFromServer();
       _toast('Role updated');
     } catch (e) {
       _toast(_errorMessageFor(e, fallback: 'Failed to update member role.'));
@@ -503,17 +535,179 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     if (!_isAdminOrOwner) return;
 
     try {
-      await _dio.delete(_url('/conversations/${widget.conversation.id}/members/${member.userId}'));
-      if (!mounted) return;
-      setState(() {
-        _participants = _participants
-            .where((item) => item.userId.trim() != member.userId.trim())
-            .toList(growable: false);
-      });
+      await _dio.delete(
+        _url(
+          '/conversations/${widget.conversation.id}/members/${member.userId}',
+        ),
+      );
+      await _syncParticipantsFromServer();
       _toast('Member removed');
     } catch (e) {
       _toast(_errorMessageFor(e, fallback: 'Failed to remove member.'));
     }
+  }
+
+  Future<void> _searchUsersForMemberAdd() async {
+    if (!_isAdminOrOwner) return;
+
+    final query = _memberSearchController.text.trim();
+    if (query.isEmpty) {
+      setState(() {
+        _hasSearchedMember = false;
+        _memberSearchResults = const <MyUser>[];
+      });
+      return;
+    }
+
+    setState(() {
+      _busyMemberSearch = true;
+      _hasSearchedMember = true;
+    });
+    try {
+      final result = await ref.read(searchUsersByUsernameUseCaseProvider)(
+        query,
+        page: 1,
+        limit: 20,
+      );
+
+      if (!mounted) return;
+
+      result.fold(
+        (failure) {
+          _toast(
+            failure.message.isNotEmpty ? failure.message : 'Search failed',
+          );
+          setState(() {
+            _memberSearchResults = const <MyUser>[];
+          });
+        },
+        (users) {
+          final currentUserId = widget.currentUserId.trim();
+          final filtered = users
+              .where((user) {
+                final id = user.id.trim();
+                if (id == currentUserId) return false;
+                return true;
+              })
+              .toList(growable: false);
+
+          setState(() {
+            _memberSearchResults = filtered;
+          });
+        },
+      );
+    } catch (e) {
+      _toast(_errorMessageFor(e, fallback: 'Failed to search users.'));
+    } finally {
+      if (mounted) {
+        setState(() => _busyMemberSearch = false);
+      }
+    }
+  }
+
+  Future<void> _addMember(MyUser user) async {
+    if (!_isAdminOrOwner) return;
+
+    final userId = user.id.trim();
+    if (userId.isEmpty) {
+      _toast('Invalid user');
+      return;
+    }
+    if (_participantIds.contains(userId)) {
+      _toast('User is already a member');
+      return;
+    }
+
+    setState(() => _busyAddMember = true);
+    try {
+      await _dio.post(
+        _url('/conversations/${widget.conversation.id}/members'),
+        data: {
+          'userIds': <String>[userId],
+        },
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _memberSearchResults = _memberSearchResults
+            .where((item) => item.id.trim() != userId)
+            .toList(growable: false);
+      });
+
+      await _syncParticipantsFromServer();
+
+      _toast('Member added');
+    } catch (e) {
+      _toast(_errorMessageFor(e, fallback: 'Failed to add member.'));
+    } finally {
+      if (mounted) {
+        setState(() => _busyAddMember = false);
+      }
+    }
+  }
+
+  Future<void> _syncParticipantsFromServer() async {
+    try {
+      final response = await _dio.get(
+        _url('/conversations/${widget.conversation.id}'),
+        queryParameters: {'avatarVariant': 'thumb'},
+      );
+
+      final participants = _extractParticipants(response.data);
+      if (participants.isEmpty || !mounted) {
+        return;
+      }
+
+      setState(() {
+        _participants = participants;
+      });
+    } catch (_) {
+      // Keep current in-memory participants if refresh fails.
+    }
+  }
+
+  List<ConversationParticipant> _extractParticipants(dynamic payload) {
+    dynamic current = payload;
+
+    if (current is Map && current['data'] is Map) {
+      current = current['data'];
+    }
+
+    if (current is! Map) {
+      return const <ConversationParticipant>[];
+    }
+
+    final rawParticipants = current['participants'];
+    if (rawParticipants is! List) {
+      return const <ConversationParticipant>[];
+    }
+
+    return rawParticipants
+        .whereType<Map>()
+        .map((item) => item.map((key, value) => MapEntry('$key', value)))
+        .map(_toConversationParticipant)
+        .where((item) => item.userId.trim().isNotEmpty)
+        .toList(growable: false);
+  }
+
+  ConversationParticipant _toConversationParticipant(Map<String, dynamic> map) {
+    final userId = _readString(map['userId']) ?? _readString(map['id']) ?? '';
+    final username = _readString(map['username']) ?? '';
+    final displayName =
+        _readString(map['displayName']) ?? _readString(map['name']) ?? username;
+    final avatarUrl = _readString(map['avatarUrl']) ?? '';
+    final role = (_readString(map['role']) ?? 'member').toLowerCase();
+    final isActive = map['isActive'] == true;
+
+    return ConversationParticipant(
+      userId: userId,
+      username: username,
+      displayName: displayName,
+      avatarUrl: avatarUrl,
+      role: role,
+      isActive: isActive,
+    );
   }
 
   Future<void> _createInviteLink() async {
@@ -521,11 +715,15 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
 
     setState(() => _busyInvite = true);
     try {
-      final response = await _dio.post(_url('/conversations/${widget.conversation.id}/invite-link'));
+      final response = await _dio.post(
+        _url('/conversations/${widget.conversation.id}/invite-link'),
+      );
       final data = _unwrap(response.data);
       if (!mounted) return;
       setState(() {
-        _inviteUrl = data is Map<String, dynamic> ? data['url']?.toString() : null;
+        _inviteUrl = data is Map<String, dynamic>
+            ? data['url']?.toString()
+            : null;
         _inviteExpiresAt = data is Map<String, dynamic>
             ? data['expiresAt']?.toString()
             : null;
@@ -546,7 +744,9 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     setState(() => _busyInvite = true);
     try {
       // Preferred by FE guide
-      await _dio.post(_url('/conversations/${widget.conversation.id}/invite-link/reset'));
+      await _dio.post(
+        _url('/conversations/${widget.conversation.id}/invite-link/reset'),
+      );
       if (!mounted) return;
       setState(() {
         _inviteUrl = null;
@@ -556,7 +756,9 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     } catch (_) {
       try {
         // Fallback for older contract variant
-        await _dio.delete(_url('/conversations/${widget.conversation.id}/invite-link'));
+        await _dio.delete(
+          _url('/conversations/${widget.conversation.id}/invite-link'),
+        );
         if (!mounted) return;
         setState(() {
           _inviteUrl = null;
@@ -578,7 +780,10 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     if (result == null) return;
 
     try {
-      await _dio.post(_url('/conversations/${widget.conversation.id}/polls'), data: result);
+      await _dio.post(
+        _url('/conversations/${widget.conversation.id}/polls'),
+        data: result,
+      );
       _toast('Poll created');
       await _loadPolls();
     } catch (e) {
@@ -588,7 +793,9 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
 
   Future<void> _closePoll(String pollId) async {
     try {
-      await _dio.post(_url('/conversations/${widget.conversation.id}/polls/$pollId/close'));
+      await _dio.post(
+        _url('/conversations/${widget.conversation.id}/polls/$pollId/close'),
+      );
       _toast('Poll closed');
       await _loadPolls();
     } catch (e) {
@@ -601,7 +808,10 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     if (result == null) return;
 
     try {
-      await _dio.post(_url('/conversations/${widget.conversation.id}/appointments'), data: result);
+      await _dio.post(
+        _url('/conversations/${widget.conversation.id}/appointments'),
+        data: result,
+      );
       _toast('Appointment created');
       await _loadAppointments();
     } catch (e) {
@@ -629,7 +839,9 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     final action = approve ? 'approve' : 'reject';
     try {
       final response = await _dio.patch(
-        _url('/conversations/${widget.conversation.id}/join-requests/$normalizedRequestId'),
+        _url(
+          '/conversations/${widget.conversation.id}/join-requests/$normalizedRequestId',
+        ),
         data: {'action': action},
       );
       debugPrint(
@@ -652,9 +864,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Leave Group'),
-          content: const Text(
-            'Choose how you want to leave this group.',
-          ),
+          content: const Text('Choose how you want to leave this group.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
@@ -711,9 +921,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
               child: const Text('Cancel'),
             ),
             FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.red,
-              ),
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () => Navigator.pop(dialogContext, true),
               child: const Text('Disband'),
             ),
@@ -751,9 +959,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
               child: const Text('Cancel'),
             ),
             FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.red,
-              ),
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () => Navigator.pop(dialogContext, true),
               child: const Text('Delete'),
             ),
@@ -784,9 +990,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     final onErrorContainer = colorScheme.onErrorContainer;
 
     return Theme(
-      data: Theme.of(context).copyWith(
-        dividerColor: Colors.transparent,
-      ),
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
@@ -807,20 +1011,13 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
               fontWeight: FontWeight.w600,
             ),
           ),
-          subtitle: Text(
-            isOwner
-                ? 'Disband group or delete your messages.'
-                : 'Leave group or delete your messages.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: onErrorContainer.withValues(alpha: 0.7),
-            ),
-          ),
           children: [
             // ── Delete my messages (all roles) ──────────────────────────
             _DangerActionTile(
               icon: Icons.delete_sweep_outlined,
               label: 'Delete My Messages',
-              description: 'Permanently remove all messages you sent in this group.',
+              description:
+                  'Permanently remove all messages you sent in this group.',
               busy: _busyDanger,
               onTap: _clearMyMessages,
             ),
@@ -832,7 +1029,8 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
               _DangerActionTile(
                 icon: Icons.exit_to_app_outlined,
                 label: 'Leave Group',
-                description: 'You can choose to leave silently or with a notification.',
+                description:
+                    'You can choose to leave silently or with a notification.',
                 busy: _busyDanger,
                 onTap: _leaveGroup,
               )
@@ -862,7 +1060,9 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
       );
       _toast('Notification mute updated');
     } catch (e) {
-      _toast(_errorMessageFor(e, fallback: 'Failed to update notification mute.'));
+      _toast(
+        _errorMessageFor(e, fallback: 'Failed to update notification mute.'),
+      );
     } finally {
       if (mounted) {
         setState(() => _busyNotify = false);
@@ -872,7 +1072,9 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
 
   void _toast(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -893,14 +1095,13 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
           controller: _tabController,
           isScrollable: true,
           tabAlignment: TabAlignment.start,
-          tabs: visibleTabs.map((label) => Tab(text: label)).toList(growable: false),
+          tabs: visibleTabs
+              .map((label) => Tab(text: label))
+              .toList(growable: false),
         ),
       ),
       body: SafeArea(
-        child: TabBarView(
-          controller: _tabController,
-          children: tabViews,
-        ),
+        child: TabBarView(controller: _tabController, children: tabViews),
       ),
     );
   }
@@ -941,31 +1142,43 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
                             fit: BoxFit.cover,
                           )
                         : (widget.conversation.avatarUrl.trim().isNotEmpty
-                            ? Image.network(
-                                widget.conversation.avatarUrl,
-                                width: 48,
-                                height: 48,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(
+                              ? Image.network(
+                                  widget.conversation.avatarUrl,
+                                  width: 48,
+                                  height: 48,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    width: 48,
+                                    height: 48,
+                                    alignment: Alignment.center,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerHighest,
+                                    child: const Icon(
+                                      Icons.group_outlined,
+                                      size: 20,
+                                    ),
+                                  ),
+                                )
+                              : Container(
                                   width: 48,
                                   height: 48,
                                   alignment: Alignment.center,
-                                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                  child: const Icon(Icons.group_outlined, size: 20),
-                                ),
-                              )
-                            : Container(
-                                width: 48,
-                                height: 48,
-                                alignment: Alignment.center,
-                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                child: const Icon(Icons.group_outlined, size: 20),
-                              )),
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerHighest,
+                                  child: const Icon(
+                                    Icons.group_outlined,
+                                    size: 20,
+                                  ),
+                                )),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: _isAdminOrOwner && !_busyInfo ? _pickAndUploadAvatar : null,
+                      onPressed: _isAdminOrOwner && !_busyInfo
+                          ? _pickAndUploadAvatar
+                          : null,
                       icon: const Icon(Icons.photo_camera_outlined),
                       label: Text(
                         _uploadedAvatarMediaId == null
@@ -980,7 +1193,9 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
               Align(
                 alignment: Alignment.centerRight,
                 child: FilledButton(
-                  onPressed: _isAdminOrOwner && !_busyInfo ? _updateGroupInfo : null,
+                  onPressed: _isAdminOrOwner && !_busyInfo
+                      ? _updateGroupInfo
+                      : null,
                   child: _busyInfo
                       ? const SizedBox(
                           width: 16,
@@ -1019,7 +1234,8 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
               if (_busyPolls) const LinearProgressIndicator(),
               ..._polls.map((poll) {
                 final pollId = poll['id']?.toString() ?? '';
-                final question = poll['question']?.toString() ?? 'Untitled poll';
+                final question =
+                    poll['question']?.toString() ?? 'Untitled poll';
                 final isClosed = poll['isClosed'] == true;
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -1028,7 +1244,9 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
                   trailing: isClosed
                       ? null
                       : TextButton(
-                          onPressed: pollId.isEmpty ? null : () => _closePoll(pollId),
+                          onPressed: pollId.isEmpty
+                              ? null
+                              : () => _closePoll(pollId),
                           child: const Text('Close'),
                         ),
                 );
@@ -1067,7 +1285,8 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
               if (_busyAppointments) const LinearProgressIndicator(),
               ..._appointments.map((appointment) {
                 final appointmentId = appointment['id']?.toString() ?? '';
-                final title = appointment['title']?.toString() ?? 'Untitled appointment';
+                final title =
+                    appointment['title']?.toString() ?? 'Untitled appointment';
                 final at = appointment['scheduledAt']?.toString() ?? '';
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -1098,6 +1317,94 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        if (_isAdminOrOwner)
+          _buildSectionCard(
+            context,
+            title: 'Add Member',
+            subtitle: 'Search users by username and add them to this group.',
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _memberSearchController,
+                        textInputAction: TextInputAction.search,
+                        onSubmitted: (_) => _searchUsersForMemberAdd(),
+                        decoration: const InputDecoration(
+                          labelText: 'Search users by username',
+                          prefixIcon: Icon(Icons.search),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    FilledButton.icon(
+                      onPressed: _busyMemberSearch
+                          ? null
+                          : _searchUsersForMemberAdd,
+                      icon: const Icon(Icons.search),
+                      label: const Text('Search'),
+                    ),
+                  ],
+                ),
+                if (_busyMemberSearch) ...[
+                  const SizedBox(height: 10),
+                  const LinearProgressIndicator(),
+                ],
+                if (_memberSearchResults.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  ..._memberSearchResults.map((user) {
+                    final displayName = user.displayName.trim();
+                    final nameToShow = displayName.isNotEmpty
+                        ? displayName
+                        : user.username;
+                    final userId = user.id.trim();
+                    final isAlreadyMember = _participantIds.contains(userId);
+                    final hasValidId = userId.isNotEmpty;
+                    final canAdd =
+                        !_busyAddMember && hasValidId && !isAlreadyMember;
+                    final statusText = isAlreadyMember
+                        ? 'Already a member'
+                        : !hasValidId
+                        ? 'Invalid user id'
+                        : '@${user.username}';
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: CircleAvatar(
+                        child: Text(
+                          nameToShow.isNotEmpty
+                              ? nameToShow[0].toUpperCase()
+                              : '?',
+                        ),
+                      ),
+                      title: Text(nameToShow),
+                      subtitle: Text(statusText),
+                      trailing: isAlreadyMember
+                          ? const Icon(
+                              Icons.check_circle_outline,
+                              color: Colors.green,
+                            )
+                          : FilledButton.tonalIcon(
+                              onPressed: canAdd ? () => _addMember(user) : null,
+                              icon: const Icon(Icons.person_add_alt_1_outlined),
+                              label: const Text('Add'),
+                            ),
+                    );
+                  }),
+                ],
+                if (_hasSearchedMember &&
+                    !_busyMemberSearch &&
+                    _memberSearchResults.isEmpty) ...[
+                  const SizedBox(height: 10),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('No users found.'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        if (_isAdminOrOwner) const SizedBox(height: 14),
         _buildSectionCard(
           context,
           title: 'Member Role Management',
@@ -1105,45 +1412,64 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
               ? 'Owner/Admin can update roles and remove members (server still enforces final RBAC).'
               : 'Only Owner/Admin can manage member roles.',
           child: Column(
-            children: _participants.map((member) {
-              final isMe = member.userId.trim() == widget.currentUserId.trim();
-              final displayName = member.displayName.trim().isNotEmpty
-                  ? member.displayName.trim()
-                  : member.username.trim();
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(
-                  child: Text(displayName.isNotEmpty ? displayName[0].toUpperCase() : '?'),
-                ),
-                title: Text(displayName),
-                subtitle: Text(member.role.toUpperCase()),
-                trailing: !_isAdminOrOwner
-                    ? null
-                    : Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          PopupMenuButton<String>(
-                            tooltip: 'Change role',
-                            onSelected: (role) => _updateMemberRole(member, role),
-                            itemBuilder: (_) => const [
-                              PopupMenuItem(value: 'member', child: Text('Set MEMBER')),
-                              PopupMenuItem(value: 'admin', child: Text('Set ADMIN')),
-                              PopupMenuItem(value: 'owner', child: Text('Set OWNER')),
-                            ],
-                            child: const Padding(
-                              padding: EdgeInsets.all(8.0),
-                              child: Icon(Icons.manage_accounts_outlined),
-                            ),
-                          ),
-                          IconButton(
-                            tooltip: 'Remove',
-                            onPressed: isMe ? null : () => _kickMember(member),
-                            icon: const Icon(Icons.person_remove_outlined),
-                          ),
-                        ],
+            children: _participants
+                .map((member) {
+                  final isMe =
+                      member.userId.trim() == widget.currentUserId.trim();
+                  final displayName = member.displayName.trim().isNotEmpty
+                      ? member.displayName.trim()
+                      : member.username.trim();
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(
+                      child: Text(
+                        displayName.isNotEmpty
+                            ? displayName[0].toUpperCase()
+                            : '?',
                       ),
-              );
-            }).toList(growable: false),
+                    ),
+                    title: Text(displayName),
+                    subtitle: Text(member.role.toUpperCase()),
+                    trailing: !_isAdminOrOwner
+                        ? null
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              PopupMenuButton<String>(
+                                tooltip: 'Change role',
+                                onSelected: (role) =>
+                                    _updateMemberRole(member, role),
+                                itemBuilder: (_) => const [
+                                  PopupMenuItem(
+                                    value: 'member',
+                                    child: Text('Set MEMBER'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'admin',
+                                    child: Text('Set ADMIN'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'owner',
+                                    child: Text('Set OWNER'),
+                                  ),
+                                ],
+                                child: const Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: Icon(Icons.manage_accounts_outlined),
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Remove',
+                                onPressed: isMe
+                                    ? null
+                                    : () => _kickMember(member),
+                                icon: const Icon(Icons.person_remove_outlined),
+                              ),
+                            ],
+                          ),
+                  );
+                })
+                .toList(growable: false),
           ),
         ),
       ],
@@ -1267,13 +1593,17 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
               Row(
                 children: [
                   FilledButton.icon(
-                    onPressed: _isAdminOrOwner && !_busyInvite ? _createInviteLink : null,
+                    onPressed: _isAdminOrOwner && !_busyInvite
+                        ? _createInviteLink
+                        : null,
                     icon: const Icon(Icons.link),
                     label: const Text('Generate'),
                   ),
                   const SizedBox(width: 10),
                   OutlinedButton.icon(
-                    onPressed: _isAdminOrOwner && !_busyInvite ? _resetInviteLink : null,
+                    onPressed: _isAdminOrOwner && !_busyInvite
+                        ? _resetInviteLink
+                        : null,
                     icon: const Icon(Icons.refresh),
                     label: const Text('Reset'),
                   ),
@@ -1353,11 +1683,13 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             TextButton(
-                              onPressed: () => _reviewJoinRequest(requestId, true),
+                              onPressed: () =>
+                                  _reviewJoinRequest(requestId, true),
                               child: const Text('Approve'),
                             ),
                             TextButton(
-                              onPressed: () => _reviewJoinRequest(requestId, false),
+                              onPressed: () =>
+                                  _reviewJoinRequest(requestId, false),
                               child: const Text('Reject'),
                             ),
                           ],
@@ -1436,13 +1768,7 @@ class _DangerActionTile extends StatelessWidget {
         label,
         style: TextStyle(color: errorColor, fontWeight: FontWeight.w600),
       ),
-      subtitle: Text(
-        description,
-        style: Theme.of(context)
-            .textTheme
-            .bodySmall
-            ?.copyWith(color: errorColor.withValues(alpha: 0.7)),
-      ),
+      subtitle: Text(description, style: Theme.of(context).textTheme.bodySmall),
       trailing: busy
           ? const SizedBox(
               width: 20,
@@ -1457,7 +1783,9 @@ class _DangerActionTile extends StatelessWidget {
 
 // ──────────────────────────────────────────────────────────────────────────────
 
-Future<Map<String, dynamic>?> _showCreatePollDialog(BuildContext context) async {
+Future<Map<String, dynamic>?> _showCreatePollDialog(
+  BuildContext context,
+) async {
   final questionController = TextEditingController();
   final optionsController = TextEditingController();
   bool multipleChoice = false;
@@ -1527,7 +1855,9 @@ Future<Map<String, dynamic>?> _showCreatePollDialog(BuildContext context) async 
   );
 }
 
-Future<Map<String, dynamic>?> _showCreateAppointmentDialog(BuildContext context) async {
+Future<Map<String, dynamic>?> _showCreateAppointmentDialog(
+  BuildContext context,
+) async {
   final titleController = TextEditingController();
   final descriptionController = TextEditingController();
   final locationController = TextEditingController();
@@ -1573,7 +1903,10 @@ Future<Map<String, dynamic>?> _showCreateAppointmentDialog(BuildContext context)
                 'description': descriptionController.text.trim(),
                 'location': locationController.text.trim(),
                 // Default: schedule 1 hour from now; user can edit from server UI later.
-                'scheduledAt': DateTime.now().toUtc().add(const Duration(hours: 1)).toIso8601String(),
+                'scheduledAt': DateTime.now()
+                    .toUtc()
+                    .add(const Duration(hours: 1))
+                    .toIso8601String(),
               });
             },
             child: const Text('Create'),
