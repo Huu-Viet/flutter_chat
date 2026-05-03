@@ -38,6 +38,18 @@ class SessionDto {
     return client.isEmpty ? const [] : [client];
   }
 
+  static List<String> _parseClientInfo(Map<String, dynamic> json) {
+    final clients = _parseClients(json['clients']);
+    if (clients.isNotEmpty) {
+      return clients;
+    }
+
+    return [json['platform'], json['deviceName'], json['userAgent']]
+        .map((client) => client?.toString().trim() ?? '')
+        .where((client) => client.isNotEmpty)
+        .toList(growable: false);
+  }
+
   factory SessionDto.fromJson(Map<String, dynamic> json) {
     return SessionDto(
       id: json['id']?.toString() ?? '',
@@ -47,7 +59,7 @@ class SessionDto {
           json['last_access'] ??
           json['lastAccessAt'] ??
           json['lastAccessedAt'],
-      clients: _parseClients(json['clients']),
+      clients: _parseClientInfo(json),
     );
   }
 }
