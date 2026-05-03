@@ -49,6 +49,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   bool _busyPolls = false;
   bool _busyAppointments = false;
   bool _busyNotify = false;
+  bool _busyDanger = false;
 
   String? _inviteUrl;
   String? _inviteExpiresAt;
@@ -641,6 +642,217 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     }
   }
 
+  // ── Danger zone ─────────────────────────────────────────────────────────
+
+  /// Shows a dialog that lets the user pick between silent leave and leave
+  /// with notification. Returns `null` when the user cancels.
+  Future<bool?> _askLeaveSilent() {
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Leave Group'),
+          content: const Text(
+            'Choose how you want to leave this group.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.notifications_off_outlined, size: 18),
+              label: const Text('Leave silently'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              icon: const Icon(Icons.exit_to_app_outlined, size: 18),
+              label: const Text('Leave & notify'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _leaveGroup() async {
+    final silent = await _askLeaveSilent();
+    if (silent == null) return; // cancelled
+
+    if (!mounted) return;
+    setState(() => _busyDanger = true);
+    try {
+      await _dio.post(
+        _url('/conversations/${widget.conversation.id}/leave'),
+        data: {'silent': silent},
+      );
+      if (!mounted) return;
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } catch (e) {
+      _toast(_errorMessageFor(e, fallback: 'Failed to leave the group.'));
+    } finally {
+      if (mounted) setState(() => _busyDanger = false);
+    }
+  }
+
+  Future<void> _disbandGroup() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Disband Group'),
+          content: const Text(
+            'This will permanently delete the group and remove all members. This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.red,
+              ),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Disband'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true) return;
+
+    if (!mounted) return;
+    setState(() => _busyDanger = true);
+    try {
+      await _dio.delete(_url('/conversations/${widget.conversation.id}'));
+      if (!mounted) return;
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } catch (e) {
+      _toast(_errorMessageFor(e, fallback: 'Failed to disband the group.'));
+    } finally {
+      if (mounted) setState(() => _busyDanger = false);
+    }
+  }
+
+  Future<void> _clearMyMessages() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete My Messages'),
+          content: const Text(
+            'This will delete all messages you sent in this group from your view. Other members will no longer see them either.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.red,
+              ),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true) return;
+
+    if (!mounted) return;
+    setState(() => _busyDanger = true);
+    try {
+      await _dio.delete(
+        _url('/conversations/${widget.conversation.id}/messages/mine'),
+      );
+      _toast('All your messages have been deleted.');
+    } catch (e) {
+      _toast(_errorMessageFor(e, fallback: 'Failed to delete your messages.'));
+    } finally {
+      if (mounted) setState(() => _busyDanger = false);
+    }
+  }
+
+  Widget _buildDangerZoneCard(BuildContext context) {
+    final isOwner = _myRole == 'owner';
+    final colorScheme = Theme.of(context).colorScheme;
+    final errorColor = colorScheme.error;
+    final onErrorContainer = colorScheme.onErrorContainer;
+
+    return Theme(
+      data: Theme.of(context).copyWith(
+        dividerColor: Colors.transparent,
+      ),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: colorScheme.errorContainer.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: errorColor.withValues(alpha: 0.35)),
+        ),
+        child: ExpansionTile(
+          collapsedIconColor: errorColor,
+          iconColor: errorColor,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+          leading: Icon(Icons.warning_amber_rounded, color: errorColor),
+          title: Text(
+            'Danger Zone',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: errorColor,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          subtitle: Text(
+            isOwner
+                ? 'Disband group or delete your messages.'
+                : 'Leave group or delete your messages.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: onErrorContainer.withValues(alpha: 0.7),
+            ),
+          ),
+          children: [
+            // ── Delete my messages (all roles) ──────────────────────────
+            _DangerActionTile(
+              icon: Icons.delete_sweep_outlined,
+              label: 'Delete My Messages',
+              description: 'Permanently remove all messages you sent in this group.',
+              busy: _busyDanger,
+              onTap: _clearMyMessages,
+            ),
+            const SizedBox(height: 8),
+            const Divider(height: 1),
+            const SizedBox(height: 8),
+            // ── Leave (non-owners) or Disband (owner) ───────────────────
+            if (!isOwner)
+              _DangerActionTile(
+                icon: Icons.exit_to_app_outlined,
+                label: 'Leave Group',
+                description: 'You can choose to leave silently or with a notification.',
+                busy: _busyDanger,
+                onTap: _leaveGroup,
+              )
+            else
+              _DangerActionTile(
+                icon: Icons.delete_forever_outlined,
+                label: 'Disband Group',
+                description:
+                    'Permanently delete this group and remove all members. You cannot undo this.',
+                busy: _busyDanger,
+                onTap: _disbandGroup,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── End danger zone ───────────────────────────────────────────────────────
+
   Future<void> _applyMute() async {
     setState(() => _busyNotify = true);
     try {
@@ -684,9 +896,11 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
           tabs: visibleTabs.map((label) => Tab(text: label)).toList(growable: false),
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: tabViews,
+      body: SafeArea(
+        child: TabBarView(
+          controller: _tabController,
+          children: tabViews,
+        ),
       ),
     );
   }
@@ -1031,6 +1245,8 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
             ],
           ),
         ),
+        const SizedBox(height: 14),
+        _buildDangerZoneCard(context),
       ],
     );
   }
@@ -1192,6 +1408,54 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     );
   }
 }
+
+// ── Danger Zone action tile ────────────────────────────────────────────────
+
+class _DangerActionTile extends StatelessWidget {
+  const _DangerActionTile({
+    required this.icon,
+    required this.label,
+    required this.description,
+    required this.busy,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String description;
+  final bool busy;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final errorColor = Theme.of(context).colorScheme.error;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, color: errorColor),
+      title: Text(
+        label,
+        style: TextStyle(color: errorColor, fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(
+        description,
+        style: Theme.of(context)
+            .textTheme
+            .bodySmall
+            ?.copyWith(color: errorColor.withValues(alpha: 0.7)),
+      ),
+      trailing: busy
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(Icons.chevron_right, color: errorColor),
+      onTap: busy ? null : onTap,
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 
 Future<Map<String, dynamic>?> _showCreatePollDialog(BuildContext context) async {
   final questionController = TextEditingController();
