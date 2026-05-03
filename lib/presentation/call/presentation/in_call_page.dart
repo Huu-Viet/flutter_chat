@@ -35,7 +35,10 @@ class InCallPage extends ConsumerWidget {
         listener: (context, state) {
           if (state is InCallEnded) {
             debugPrint('[InCallPage]Check conversation: $conversationId');
-            if (conversationId.trim().isNotEmpty) {
+            final navigator = Navigator.of(context);
+            if (navigator.canPop()) {
+              navigator.pop();
+            } else if (conversationId.trim().isNotEmpty) {
               context.go('/chat/$conversationId/$initialRoomName');
             } else {
               context.go('/home');
@@ -79,14 +82,19 @@ class InCallPage extends ConsumerWidget {
                       child: BlocBuilder<InCallBloc, InCallState>(
                         buildWhen: (previous, current) =>
                             previous.room != current.room ||
-                            previous.isConnectingRoom != current.isConnectingRoom ||
-                            previous.isAcceptingCall != current.isAcceptingCall ||
-                            previous.mediaErrorMessage != current.mediaErrorMessage ||
+                            previous.isConnectingRoom !=
+                                current.isConnectingRoom ||
+                            previous.isAcceptingCall !=
+                                current.isAcceptingCall ||
+                            previous.mediaErrorMessage !=
+                                current.mediaErrorMessage ||
                             previous.videoRevision != current.videoRevision,
                         builder: (context, videoState) => _LiveKitCallStage(
                           room: videoState.room,
                           session: activeSession,
-                          isConnecting: videoState.isConnectingRoom || videoState.isAcceptingCall,
+                          isConnecting:
+                              videoState.isConnectingRoom ||
+                              videoState.isAcceptingCall,
                           errorMessage: videoState.mediaErrorMessage,
                         ),
                       ),
