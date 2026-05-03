@@ -8,6 +8,9 @@ abstract class UserRemoteDataSource {
     int limit = 10,
   });
   Future<UserDto?> getUserById(String userId);
+  Future<List<SessionDto>> getActiveSessions();
+  Future<void> revokeOtherSessions();
+  Future<void> revokeSession(String sessionId);
   Future<UserDto?> updateProfile({
     String? username,
     String? firstName,

@@ -61,6 +61,10 @@ final localUserMapperProvider = Provider<LocalUserMapper>((ref) {
   return LocalUserMapper();
 });
 
+final sessionMapperProvider = Provider<SessionMapper>((ref) {
+  return SessionMapper();
+});
+
 final authNotificationTokenRegistrarProvider = Provider<NotificationTokenRegistrar>((ref) {
   return NotificationTokenRegistrarImpl.fromEnv(
     ref.watch(authDioProvider),
@@ -78,6 +82,7 @@ final authRepositoryProvider = Provider<AuthRemoteRepoImpl>((ref) {
     userDao: ref.watch(userDaoProvider),
     apiMapper: ref.watch(apiUserMapperProvider),
     localMapper: ref.watch(localUserMapperProvider),
+    sessionMapper: ref.watch(sessionMapperProvider),
     notificationTokenRegistrar: ref.watch(authNotificationTokenRegistrarProvider),
   );
 });
@@ -93,6 +98,18 @@ final authLocalRepoProvider = Provider<AuthLocalRepo>((ref) {
 // UseCase
 final getCurrentUserUseCaseProvider = Provider<GetFullCurrentUserUseCase>((ref) {
   return GetFullCurrentUserUseCase(ref.watch(authRemoteRepoProvider));
+});
+
+final getActiveSessionsUseCaseProvider = Provider<GetActiveSessionsUseCase>((ref) {
+  return GetActiveSessionsUseCase(ref.watch(authRemoteRepoProvider));
+});
+
+final revokeOtherSessionsUseCaseProvider = Provider<RevokeOtherSessionsUseCase>((ref) {
+  return RevokeOtherSessionsUseCase(ref.watch(authRemoteRepoProvider));
+});
+
+final revokeSessionUseCaseProvider = Provider<RevokeSessionUseCase>((ref) {
+  return RevokeSessionUseCase(ref.watch(authRemoteRepoProvider));
 });
 
 final getUserByIdUseCaseProvider = Provider<GetUserByIdUseCase>((ref) {

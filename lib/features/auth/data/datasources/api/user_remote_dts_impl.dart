@@ -141,6 +141,76 @@ class UserRemoteDtsImpl extends UserRemoteDataSource {
   }
 
   @override
+  Future<List<SessionDto>> getActiveSessions() async {
+    try {
+      final response = await dio.get('$_baseUrl/users/me/sessions');
+
+      if (response.statusCode != 200 || response.data == null) {
+        throw Exception(response.statusCode);
+      }
+
+      final responseBody = response.data;
+      final dynamic data = responseBody is Map<String, dynamic>
+          ? responseBody['data']
+          : responseBody;
+
+      if (data is! List) {
+        throw Exception('Invalid sessions payload format');
+      }
+
+      return data
+          .whereType<Map>()
+          .map((session) => SessionDto.fromJson(
+                session.map((key, value) => MapEntry(key.toString(), value)),
+              ))
+          .where((session) => session.id.trim().isNotEmpty)
+          .toList(growable: false);
+    } on DioException catch (e) {
+      debugPrint('Error fetching active sessions: ${e.message}, response=${e.response?.data}');
+      throw Exception('[UserRemoteDtsImpl] Get active sessions error: ${e.message}');
+    }
+  }
+
+  @override
+  Future<void> revokeOtherSessions() async {
+    try {
+      final response = await dio.delete('$_baseUrl/users/me/sessions');
+
+      if (response.statusCode == null ||
+          response.statusCode! < 200 ||
+          response.statusCode! >= 300) {
+        throw Exception(response.statusCode);
+      }
+    } on DioException catch (e) {
+      debugPrint('Error revoking other sessions: ${e.message}, response=${e.response?.data}');
+      throw Exception('[UserRemoteDtsImpl] Revoke other sessions error: ${e.message}');
+    }
+  }
+
+  @override
+  Future<void> revokeSession(String sessionId) async {
+    final normalizedSessionId = sessionId.trim();
+    if (normalizedSessionId.isEmpty) {
+      throw Exception('Session id is required');
+    }
+
+    try {
+      final response = await dio.delete(
+        '$_baseUrl/users/me/sessions/$normalizedSessionId',
+      );
+
+      if (response.statusCode == null ||
+          response.statusCode! < 200 ||
+          response.statusCode! >= 300) {
+        throw Exception(response.statusCode);
+      }
+    } on DioException catch (e) {
+      debugPrint('Error revoking session: ${e.message}, response=${e.response?.data}');
+      throw Exception('[UserRemoteDtsImpl] Revoke session error: ${e.message}');
+    }
+  }
+
+  @override
   Future<UserDto?> updateProfile({
     String? username,
     String? firstName,

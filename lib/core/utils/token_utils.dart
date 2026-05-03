@@ -39,6 +39,21 @@ class TokenUtils {
     return isTokenValid(refreshToken);
   }
 
+  static String? getSessionId(String? token) {
+    if (token == null || token.trim().isEmpty) {
+      return null;
+    }
+
+    try {
+      final payload = _decodePayload(token);
+      final sid = payload['sid'];
+      final sessionId = sid?.toString().trim();
+      return sessionId == null || sessionId.isEmpty ? null : sessionId;
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Map<String, dynamic> _decodePayload(String token) {
     final parts = token.split('.');
     if (parts.length != 3) {
