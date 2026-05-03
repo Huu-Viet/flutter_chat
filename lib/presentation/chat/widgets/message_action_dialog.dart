@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
 
-enum MessageAction { copy, edit, forward, revoke, delete }
+enum MessageAction { copy, reply, edit, forward, revoke, delete }
 
 class MessageActionResult {
   final MessageAction? action;
@@ -21,6 +21,7 @@ class MessageActionResult {
 
 class MessageActionDialog extends StatelessWidget {
   final bool canCopy;
+  final bool canReply;
   final bool canEdit;
   final bool canForward;
   final bool canRevoke;
@@ -30,6 +31,7 @@ class MessageActionDialog extends StatelessWidget {
   const MessageActionDialog({
     super.key,
     required this.canCopy,
+    required this.canReply,
     required this.canEdit,
     required this.canForward,
     required this.canRevoke,
@@ -46,6 +48,12 @@ class MessageActionDialog extends StatelessWidget {
           icon: Icons.copy_rounded,
           label: l10n.action_copy,
           action: MessageAction.copy,
+        ),
+      if (canReply)
+        const _ActionItem(
+          icon: Icons.reply,
+          label: 'Reply',
+          action: MessageAction.reply,
         ),
       if (canEdit)
         _ActionItem(

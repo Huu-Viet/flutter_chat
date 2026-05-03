@@ -22,7 +22,8 @@ class AppPermission {
     );
     if (notifySettings.authorizationStatus == AuthorizationStatus.authorized) {
       debugPrint('User granted notification permission');
-    } else if (notifySettings.authorizationStatus == AuthorizationStatus.provisional) {
+    } else if (notifySettings.authorizationStatus ==
+        AuthorizationStatus.provisional) {
       debugPrint('User granted provisional notification permission');
     } else {
       debugPrint('User declined or has not accepted notification permission');
@@ -35,5 +36,10 @@ class AppPermission {
     ].request();
 
     return permissions[Permission.microphone] == PermissionStatus.granted;
+  }
+
+  static Future<bool> requestCameraPermission() async {
+    final status = await Permission.camera.request();
+    return status == PermissionStatus.granted;
   }
 }

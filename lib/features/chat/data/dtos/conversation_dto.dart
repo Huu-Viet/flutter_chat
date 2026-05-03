@@ -5,9 +5,17 @@ class ConversationDto {
   final String? orgId;
   final String? type;
   final String? name;
+  final String? description;
   final String? avatarMediaId;
   final int? memberCount;
-  final String? maxOffset;
+  final int? maxOffset;
+  final int? myOffset;
+  final String? createBy;
+  final bool? isPublic;
+  final bool? joinApprovalRequired;
+  final bool? allowMemberMessage;
+  final int? linkVersion;
+  final String? createdAt;
   final String? updatedAt;
   final String? avatarUrl;
   final List<UserInRoomDto> participants;
@@ -17,15 +25,28 @@ class ConversationDto {
     this.orgId,
     this.type,
     this.name,
+    this.description,
     this.avatarMediaId,
     this.memberCount,
     this.maxOffset,
+    this.myOffset,
+    this.createBy,
+    this.isPublic,
+    this.joinApprovalRequired,
+    this.allowMemberMessage,
+    this.linkVersion,
+    this.createdAt,
     this.updatedAt,
     this.avatarUrl,
     this.participants = const <UserInRoomDto>[],
   });
 
   factory ConversationDto.fromJson(Map<String, dynamic> json) {
+    final nested = json['data'];
+    if (nested is Map) {
+      return ConversationDto.fromJson(Map<String, dynamic>.from(nested));
+    }
+
     final otherUser = json['otherUser'] as Map<String, dynamic>?;
     final rawParticipants = json['participants'];
     final participants = <UserInRoomDto>[
@@ -51,14 +72,29 @@ class ConversationDto {
       orgId: json['orgId'] as String?,
       type: json['type'] as String?,
       name: json['name'] as String?,
+      description: json['description'] as String?,
       avatarMediaId: json['avatarMediaId'] as String?,
-      memberCount: (json['memberCount'] as num?)?.toInt(),
-      maxOffset: json['maxOffset'] as String?,
-      updatedAt: json['updatedAt']?.toString(),
-      avatarUrl: json['avatarUrl'] as String?
-          ?? otherUser?['avatarUrl'] as String?,
+      memberCount: (json['memberCount'] as num?)?.toInt() ??
+          (participants.isNotEmpty ? participants.length : null),
+      maxOffset: _asInt(json['maxOffset']),
+      myOffset: _asInt(json['myOffset']),
+      createBy: json['createBy'] as String?,
+      isPublic: json['isPublic'] as bool?,
+      joinApprovalRequired: json['joinApprovalRequired'] as bool?,
+      allowMemberMessage: json['allowMemberMessage'] as bool?,
+      linkVersion: _asInt(json['linkVersion']),
+      createdAt: json['createdAt']?.toString(),
+      updatedAt: (json['updatedAt'] ?? json['createdAt'])?.toString(),
+      avatarUrl: json['avatarUrl'] as String? ?? otherUser?['avatarUrl'] as String?,
       participants: participants,
     );
+  }
+
+  static int? _asInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
   }
 
   Map<String, dynamic> toJson() => {
@@ -66,9 +102,17 @@ class ConversationDto {
         'orgId': orgId,
         'type': type,
         'name': name,
+        'description': description,
         'avatarMediaId': avatarMediaId,
         'memberCount': memberCount,
         'maxOffset': maxOffset,
+        'myOffset': myOffset,
+        'createBy': createBy,
+        'isPublic': isPublic,
+        'joinApprovalRequired': joinApprovalRequired,
+        'allowMemberMessage': allowMemberMessage,
+        'linkVersion': linkVersion,
+        'createdAt': createdAt,
         'updatedAt': updatedAt,
         'avatarUrl': avatarUrl,
         'participants': participants.map((e) => e.toJson()).toList(growable: false),

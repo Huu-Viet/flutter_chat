@@ -48,3 +48,10 @@ final writeUserInfoUseCaseProvider = Provider<WriteUserInfoUseCase>((ref) {
     ref.watch(authLocalRepoProvider),
   );
 });
+
+final userByIdProvider = FutureProvider.family<MyUser?, String>((ref, userId) async {
+  if (userId.trim().isEmpty) return null;
+  final useCase = ref.watch(getUserByIdUseCaseProvider);
+  final result = await useCase(userId.trim());
+  return result.fold((_) => null, (user) => user);
+});

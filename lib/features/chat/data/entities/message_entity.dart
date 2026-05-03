@@ -16,6 +16,7 @@ class ChatMessages extends Table {
   TextColumn get createdAt => text().named('created_at')();
   TextColumn get editedAt => text().named('edited_at').nullable()();
   TextColumn get forwardInfoJson => text().nullable()();
+  TextColumn get replyToId => text().named('reply_to_id').nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -43,6 +44,9 @@ class MessageMedias extends Table {
   IntColumn get height => integer().nullable()();
   IntColumn get orderIndex => integer().named('order_index').withDefault(const Constant(0))();
   TextColumn get waveform => text().nullable()();
+  TextColumn get cardType => text().named('card_type').nullable()();
+  TextColumn get contactUserId => text().named('contact_user_id').nullable()();
+  TextColumn get clientMessageId => text().named('client_message_id').nullable()();
 
   @override
   Set<Column> get primaryKey => {messageId, id};

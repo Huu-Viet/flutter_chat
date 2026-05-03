@@ -47,6 +47,30 @@ class ChatServiceImpl implements ChatService {
   }
 
   @override
+  Future<ConversationDto> fetchConversation(String conversationId) async {
+    try {
+      final response = await _dio.get(
+        '$_baseUrl/conversations/$conversationId',
+        queryParameters: {'avatarVariant': 'thumb'},
+      );
+
+      if (response.statusCode != 200 || response.data == null) {
+        throw Exception('Failed to fetch conversation: ${response.statusCode}');
+      }
+
+      final responseBody = response.data;
+      if (responseBody is! Map<String, dynamic>) {
+        throw Exception('Invalid response body format');
+      }
+
+      return ConversationDto.fromJson(responseBody);
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] Fetch conversation error: $e');
+      throw Exception('Failed to fetch conversation: $e');
+    }
+  }
+
+  @override
   Future<void> joinConversation(String conversationId) async {
     try {
       await _realtimeGateway.emitChatEvent(
@@ -102,6 +126,7 @@ class ChatServiceImpl implements ChatService {
     String? mediaId,
     String? clientMessageId,
     String? replyToMessageId,
+    List<String>? mentions,
     Map<String, dynamic>? metadata,
   }) async {
     try {
@@ -114,6 +139,7 @@ class ChatServiceImpl implements ChatService {
         if (mediaId != null) 'mediaId': mediaId,
         'clientMessageId': normalizedClientMessageId,
         if (replyToMessageId != null) 'replyToMessageId': replyToMessageId,
+        if (mentions != null && mentions.isNotEmpty) 'mentions': mentions,
         if (metadata != null) 'metadata': metadata,
         if (content.trim().isNotEmpty) 'content': content,
       };
@@ -148,6 +174,7 @@ class ChatServiceImpl implements ChatService {
           'type': type,
           'clientMessageId': normalizedClientMessageId,
           if (replyToMessageId != null) 'replyToMessageId': replyToMessageId,
+          if (mentions != null && mentions.isNotEmpty) 'mentions': mentions,
           if (legacyMetadata.isNotEmpty) 'metadata': legacyMetadata,
           'conversationId': normalizedConversationId,
           if (legacyContent.trim().isNotEmpty) 'content': legacyContent,

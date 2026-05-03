@@ -3,8 +3,6 @@ import 'package:flutter_chat/features/chat/export.dart';
 
 class ApiConversationMapper implements RemoteMapper<ConversationDto, Conversation> {
   DateTime _parseUpdatedAt(String? value) {
-    // Keep domain strict (DateTime) while DTO stores raw string.
-    // If backend sends null/invalid, fall back to epoch.
     return DateTime.tryParse(value ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
   }
 
@@ -31,9 +29,17 @@ class ApiConversationMapper implements RemoteMapper<ConversationDto, Conversatio
       orgId: dto.orgId ?? '',
       type: dto.type ?? '',
       name: dto.name ?? '',
+      description: dto.description ?? '',
       avatarMediaId: dto.avatarMediaId ?? '',
       memberCount: dto.memberCount ?? 0,
-      maxOffset: dto.maxOffset ?? '',
+      maxOffset: dto.maxOffset ?? 0,
+      myOffset: dto.myOffset ?? 0,
+      createBy: dto.createBy ?? '',
+      isPublic: dto.isPublic ?? false,
+      joinApprovalRequired: dto.joinApprovalRequired ?? false,
+      allowMemberMessage: dto.allowMemberMessage ?? false,
+      linkVersion: dto.linkVersion ?? 0,
+      createdAt: _parseUpdatedAt(dto.createdAt),
       updatedAt: _parseUpdatedAt(dto.updatedAt),
       avatarUrl: dto.avatarUrl ?? '',
       participants: _mapParticipants(dto.participants),
@@ -52,9 +58,17 @@ class ApiConversationMapper implements RemoteMapper<ConversationDto, Conversatio
       orgId: domain.orgId,
       type: domain.type,
       name: domain.name,
+      description: domain.description,
       avatarMediaId: domain.avatarMediaId,
       memberCount: domain.memberCount,
       maxOffset: domain.maxOffset,
+      myOffset: domain.myOffset,
+      createBy: domain.createBy,
+      isPublic: domain.isPublic,
+      joinApprovalRequired: domain.joinApprovalRequired,
+      allowMemberMessage: domain.allowMemberMessage,
+      linkVersion: domain.linkVersion,
+      createdAt: domain.createdAt.toIso8601String(),
       updatedAt: domain.updatedAt.toIso8601String(),
       avatarUrl: domain.avatarUrl,
       participants: domain.participants

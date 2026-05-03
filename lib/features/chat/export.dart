@@ -57,6 +57,7 @@ export '../chat/domain/repositories/chat_repo.dart';
 
 //use cases
 export '../chat/domain/usecases/fetch_conversation_usecase.dart';
+export '../chat/domain/usecases/fetch_conversation_detail_usecase.dart';
 export '../chat/domain/usecases/fetch_messages_usecase.dart';
 export '../chat/domain/usecases/join_conversation_usecase.dart';
 export '../chat/domain/usecases/send_message_usecase.dart';
@@ -73,3 +74,4 @@ export '../chat/domain/usecases/update_message_reaction_usecase.dart';
 export '../chat/domain/usecases/emit_typing_usecase.dart';
 export '../chat/domain/usecases/watch_pin_message_usecase.dart';
 export '../chat/domain/usecases/fetch_pin_message_usecase.dart';
+export '../chat/domain/usecases/delete_local_conversation_usecase.dart';

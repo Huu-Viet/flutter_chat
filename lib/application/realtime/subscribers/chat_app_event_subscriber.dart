@@ -8,6 +8,7 @@ import 'package:flutter_chat/presentation/chat/blocs/chat_bloc.dart';
 class ChatAppEventSubscriber extends AppEventSubscriber {
   final FetchConversationUseCase _fetchConversationUseCase;
   final FetchMessagesUseCase fetchMessagesUseCase;
+  final DeleteLocalConversationUseCase _deleteLocalConversationUseCase;
   final MarkMessageDeletedLocalUseCase _markMessageDeletedLocalUseCase;
   final MarkMessageReactionsLocalUseCase _markMessageReactionsLocalUseCase;
   final UpdateUserPresenceLocalUseCase _updateUserPresenceLocalUseCase;
@@ -16,12 +17,14 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
   ChatAppEventSubscriber({
     required FetchConversationUseCase fetchConversationUseCase,
     required this.fetchMessagesUseCase,
+    required DeleteLocalConversationUseCase deleteLocalConversationUseCase,
     required MarkMessageDeletedLocalUseCase markMessageDeletedLocalUseCase,
     required MarkMessageReactionsLocalUseCase markMessageReactionsLocalUseCase,
     required UpdateUserPresenceLocalUseCase updateUserPresenceLocalUseCase,
     this.onTyping,
   })
       : _fetchConversationUseCase = fetchConversationUseCase,
+        _deleteLocalConversationUseCase = deleteLocalConversationUseCase,
         _markMessageDeletedLocalUseCase = markMessageDeletedLocalUseCase,
         _markMessageReactionsLocalUseCase = markMessageReactionsLocalUseCase,
         _updateUserPresenceLocalUseCase = updateUserPresenceLocalUseCase;
@@ -42,6 +45,9 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
       case 'conversation:removed':
       case 'conversation:updated':
         await _syncConversations(event.type, event.payload);
+        return;
+      case 'group:disbanded':
+        await _deleteLocalConversation(event.type, event.payload);
         return;
       case 'message:new':
       case 'message:saved':
@@ -197,6 +203,26 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
       },
       (messages) {
         debugPrint('[ChatAppEventSubscriber] sync recent messages ok: count=${messages.length}');
+      },
+    );
+  }
+
+  Future<void> _deleteLocalConversation(String eventType, Map<String, dynamic> payload) async {
+    debugPrint('[ChatAppEventSubscriber] delete local conversation for $eventType: $payload');
+
+    final conversationId = _resolveConversationId(payload);
+    if (conversationId == null || conversationId.isEmpty) {
+      debugPrint('[ChatAppEventSubscriber] skip $eventType: missing conversationId');
+      return;
+    }
+
+    final result = await _deleteLocalConversationUseCase(conversationId);
+    result.fold(
+      (failure) {
+        debugPrint('[ChatAppEventSubscriber] delete local conversation failed: ${failure.message}');
+      },
+      (_) {
+        debugPrint('[ChatAppEventSubscriber] delete local conversation ok: conversationId=$conversationId');
       },
     );
   }

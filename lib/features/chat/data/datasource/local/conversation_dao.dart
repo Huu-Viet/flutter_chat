@@ -28,7 +28,8 @@ abstract class ConversationDao {
   Future<void> saveConversation(ChatConversationEntity item);
   Future<List<ChatConversationEntity>> getAllConversations();
   Stream<List<ChatConversationEntity>> watchAllConversations();
-    Stream<List<ConversationWithUsersLocal>> watchConversationsWithUsers();
+  Stream<List<ConversationWithUsersLocal>> watchConversationsWithUsers();
+  Future<void> deleteConversation(String conversationId);
   Future<void> clearConversations();
 }
 
@@ -120,6 +121,16 @@ class DriftConversationDaoImpl implements ConversationDao {
           .map((item) => item.build())
           .toList(growable: false);
     });
+  }
+
+  @override
+  Future<void> deleteConversation(String conversationId) {
+    try {
+      return _database.deleteConversation(conversationId);
+    } catch (e) {
+      log(e.toString());
+      rethrow;
+    }
   }
 
   @override

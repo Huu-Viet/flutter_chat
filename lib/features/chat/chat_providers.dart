@@ -2,13 +2,10 @@ import 'package:flutter_chat/app/app_providers.dart';
 import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/auth/user_providers.dart';
 import 'package:flutter_chat/features/chat/data/datasource/api/chat_service_impl.dart';
-import 'package:flutter_chat/features/chat/data/mappers/api_pin_message_mapper.dart';
-import 'package:flutter_chat/features/chat/data/mappers/local_pin_message_mapper.dart';
 import 'package:flutter_chat/features/chat/data/repositories/chat_repo_impl.dart';
 import 'package:flutter_chat/features/chat/domain/usecases/get_conversation_usecase.dart';
 import 'package:flutter_chat/features/chat/domain/usecases/get_sticker_packages_usecase.dart';
 import 'package:flutter_chat/features/chat/domain/usecases/get_stickers_in_package_usecase.dart';
-import 'package:flutter_chat/features/chat/domain/usecases/hidden_for_me_usecase.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:riverpod/riverpod.dart';
 
@@ -123,6 +120,10 @@ final fetchConversationUseCaseProvider = Provider<FetchConversationUseCase>((ref
   return FetchConversationUseCase(ref.read(chatRepoProvider));
 });
 
+final fetchConversationDetailUseCaseProvider = Provider<FetchConversationDetailUseCase>((ref) {
+  return FetchConversationDetailUseCase(ref.read(chatRepoProvider));
+});
+
 final joinConversationUseCaseProvider = Provider<JoinConversationUseCase>((ref) {
   return JoinConversationUseCase(ref.read(chatRepoProvider));
 });
@@ -197,4 +198,8 @@ final watchPinMessageUseCaseProvider = Provider<WatchPinMessageUseCase>((ref) {
 
 final fetchPinMessageUseCaseProvider = Provider<FetchPinMessageUseCase>((ref) {
   return FetchPinMessageUseCase(ref.read(chatRepoProvider));
+});
+
+final deleteLocalConversationUseCaseProvider = Provider<DeleteLocalConversationUseCase>((ref) {
+  return DeleteLocalConversationUseCase(ref.read(chatRepoProvider));
 });

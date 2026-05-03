@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
-import 'package:flutter_chat/presentation/call/presentation/call_page.dart';
 import 'package:flutter_chat/presentation/contact/pages/contact_page.dart';
 import 'package:flutter_chat/presentation/home/page/home_page.dart';
 import 'package:flutter_chat/presentation/profile/pages/profile_page.dart';
@@ -26,9 +25,9 @@ class MainScaffold extends ConsumerWidget{
           ref.read(pendingContactRequestsCountProvider.notifier).state = amount;
         },
       ),
-      const CallPage(),
       const ProfilePage(),
     ];
+    final safeIndex = selectedIndex >= pages.length ? 0 : selectedIndex;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -36,7 +35,7 @@ class MainScaffold extends ConsumerWidget{
       ),
       child: Scaffold(
         body: IndexedStack(
-          index: selectedIndex,
+          index: safeIndex,
           children: pages,
         ),
         bottomNavigationBar: Container(
@@ -51,7 +50,7 @@ class MainScaffold extends ConsumerWidget{
           child: BottomNavigationBar(
             backgroundColor: Theme.of(context).colorScheme.surfaceBright,
             type: BottomNavigationBarType.fixed,
-            currentIndex: selectedIndex,
+            currentIndex: safeIndex,
             onTap: (index) {
               ref.read(selectedTabProvider.notifier).state = index;
             },
@@ -63,10 +62,6 @@ class MainScaffold extends ConsumerWidget{
               BottomNavigationBarItem(
                 icon: _ContactTabIcon(pendingCount: pendingCount),
                 label: l10n.contacts,
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.call),
-                label: l10n.call,
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.settings),

@@ -19,5 +19,6 @@ abstract class RealtimeGateway {
   Future<void> initialize();
   Future<void> reconnect();
   Future<void> emitChatEvent(String event, Map<String, dynamic> payload);
+  Future<void> emitCallEvent(String event, Map<String, dynamic> payload);
   Future<void> dispose();
 }

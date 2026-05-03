@@ -31,6 +31,7 @@ class ChatRealtimeHandler extends RealtimeHandler {
     'conversation:member-removed',
     'conversation:removed',
     'conversation:updated',
+    'group:disbanded',
     'cursor:seen_updated',
     'cursor:delivered_updated',
     'heartbeat:ack',

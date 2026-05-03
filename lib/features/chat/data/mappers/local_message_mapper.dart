@@ -15,9 +15,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
   @override
   Message toDomain(ChatMessageWithMediasEntity entity) {
     final message = entity.message;
-    final metadata = message.metadata == null
-        ? null
-        : jsonDecode(message.metadata!) as Map<String, dynamic>;
+    final metadata = _decodeMetadata(message.metadata);
     final normalizedType = message.type.trim().toLowerCase();
     final reactions = _extractReactions(metadata, message.id);
     final isRevoked = message.isRevoked;
@@ -27,12 +25,47 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
         : null;
 
     switch (normalizedType) {
+      case 'system':
+        return SystemMessage(
+          id: message.id,
+          conversationId: message.conversationId,
+          senderId: message.senderId,
+          text: message.content,
+          action: (metadata?['action'] ?? '').toString(),
+          metadata: metadata ?? const <String, dynamic>{},
+          offset: message.offset,
+          isDeleted: message.isDeleted,
+          isRevoked: isRevoked,
+          serverId: message.serverId,
+          createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
+          editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
+          reactions: reactions,
+        );
+      case 'contact_page':
+      case 'contact_card':
+        return ContactCardMessage(
+          id: message.id,
+          conversationId: message.conversationId,
+          senderId: message.senderId,
+          offset: message.offset,
+          isDeleted: message.isDeleted,
+          isRevoked: isRevoked,
+          serverId: message.serverId,
+          createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
+          editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
+          reactions: reactions,
+          forwardInfo: forwardInfo,
+          cardType: _extractContactCardType(metadata, entity.medias, normalizedType),
+          contactUserId: _extractContactUserId(metadata, entity.medias),
+          clientMessageId: _extractContactClientMessageId(metadata, entity.medias, message),
+        );
       case 'text':
         return TextMessage(
           id: message.id,
           conversationId: message.conversationId,
           senderId: message.senderId,
           text: message.content,
+          replyToId: message.replyToId,
           offset: message.offset,
           isDeleted: message.isDeleted,
           isRevoked: isRevoked,
@@ -187,6 +220,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
       forwardInfoJson: domain.forwardInfo != null
           ? jsonEncode(_forwardInfoToJson(domain.forwardInfo!))
           : null,
+      replyToId: domain is TextMessage ? domain.replyToId : null,
     );
 
     final medias = domain.attachments
@@ -217,7 +251,40 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
             orderIndex: entry.key,
           ),
         )
-        .toList(growable: false);
+        .toList();
+
+    if (domain is ContactCardMessage) {
+      final fallbackMediaId = domain.contactUserId.trim().isNotEmpty
+          ? domain.contactUserId.trim()
+          : 'contact_${domain.id}';
+      medias.add(
+        MessageMediaEntity(
+          id: fallbackMediaId,
+          messageId: domain.id,
+          mediaType: domain.type,
+          url: null,
+          mimeType: null,
+          fileName: null,
+          size: null,
+          durationMs: 0,
+          bitrate: 0,
+          codec: null,
+          format: null,
+          prefer: null,
+          status: null,
+          variantsReady: null,
+          thumbReady: null,
+          thumbMediaId: null,
+          width: null,
+          height: null,
+          waveform: null,
+          orderIndex: medias.length,
+          cardType: domain.cardType,
+          contactUserId: domain.contactUserId,
+          clientMessageId: domain.clientMessageId,
+        ),
+      );
+    }
 
     return ChatMessageWithMediasEntity(
       message: message,
@@ -390,6 +457,13 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
   String? _buildMetadata(Message message) {
     final metadata = <String, dynamic>{};
 
+    if (message is SystemMessage) {
+      metadata.addAll(message.metadata);
+      if (message.action.trim().isNotEmpty) {
+        metadata['action'] = message.action.trim();
+      }
+    }
+
     if (message is StickerMessage) {
       metadata['url'] = message.stickerUrl;
       if (message.stickerId != null && message.stickerId!.trim().isNotEmpty) {
@@ -437,6 +511,96 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
       return null;
     }
     return id;
+  }
+
+  Map<String, dynamic>? _decodeMetadata(String? raw) {
+    if (raw == null || raw.trim().isEmpty) {
+      return null;
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+      if (decoded is Map) {
+        return decoded.map(
+          (key, value) => MapEntry(key.toString(), value),
+        );
+      }
+    } catch (_) {
+      return null;
+    }
+
+    return null;
+  }
+
+  MessageMediaEntity? _contactMedia(List<MessageMediaEntity> medias) {
+    for (final media in medias) {
+      final type = media.mediaType.trim().toLowerCase();
+      if (type == 'contact_page' || type == 'contact_card') {
+        return media;
+      }
+    }
+    return null;
+  }
+
+  String _extractContactCardType(
+    Map<String, dynamic>? metadata,
+    List<MessageMediaEntity> medias,
+    String fallbackType,
+  ) {
+    final fromMetadata = metadata?['cardType']?.toString().trim() ??
+        metadata?['card_type']?.toString().trim();
+    if (fromMetadata != null && fromMetadata.isNotEmpty) {
+      return fromMetadata;
+    }
+
+    final fromMedia = _contactMedia(medias)?.cardType?.trim();
+    if (fromMedia != null && fromMedia.isNotEmpty) {
+      return fromMedia;
+    }
+
+    return fallbackType;
+  }
+
+  String _extractContactUserId(
+    Map<String, dynamic>? metadata,
+    List<MessageMediaEntity> medias,
+  ) {
+    final fromMetadata = metadata?['contactUserId']?.toString().trim() ??
+        metadata?['contact_user_id']?.toString().trim() ??
+        metadata?['userId']?.toString().trim() ??
+        metadata?['user_id']?.toString().trim();
+    if (fromMetadata != null && fromMetadata.isNotEmpty) {
+      return fromMetadata;
+    }
+
+    final fromMedia = _contactMedia(medias)?.contactUserId?.trim();
+    if (fromMedia != null && fromMedia.isNotEmpty) {
+      return fromMedia;
+    }
+
+    return '';
+  }
+
+  String _extractContactClientMessageId(
+    Map<String, dynamic>? metadata,
+    List<MessageMediaEntity> medias,
+    ChatMessageEntity message,
+  ) {
+    final fromMetadata = metadata?['clientMessageId']?.toString().trim() ??
+        metadata?['client_message_id']?.toString().trim();
+    if (fromMetadata != null && fromMetadata.isNotEmpty) {
+      return fromMetadata;
+    }
+
+    final fromMedia = _contactMedia(medias)?.clientMessageId?.trim();
+    if (fromMedia != null && fromMedia.isNotEmpty) {
+      return fromMedia;
+    }
+
+    return message.serverId?.trim() ?? '';
   }
 
   int? _toInt(dynamic value) {

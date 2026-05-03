@@ -8,7 +8,15 @@ class SendMessageUseCase {
 
   SendMessageUseCase(this._repository);
 
-  Future<Either<Failure, Message>> call({required Message message}) {
-    return _repository.sendMessage(message: message);
+  Future<Either<Failure, Message>> call({
+    required Message message,
+    String? replyToMessageId,
+    List<String>? mentions,
+  }) {
+    return _repository.sendMessage(
+      message: message,
+      replyToMessageId: replyToMessageId,
+      mentions: mentions,
+    );
   }
 }
