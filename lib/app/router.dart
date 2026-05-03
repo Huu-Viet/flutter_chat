@@ -65,6 +65,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/manage-sessions',
         name: 'manage-sessions',
         builder: (context, state) => const ManageSessionPage(),
+      ),
+      GoRoute(
         path: '/in-call',
         name: 'in-call',
         builder: (context, state) {

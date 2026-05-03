@@ -86,10 +86,12 @@ class MyApp extends ConsumerWidget {
         case CallActionType.accepted:
           if (bloc.state.session?.call.id == next.callId) {
             bloc.add(InCallRemoteAccepted(next.callId));
-          final currentPath =
-              router.routeInformationProvider.value.uri.path;
-          debugPrint('[MyApp] callActionProvider accepted: callId=${next.callId}, currentPath=$currentPath');
-          bloc.add(InCallRemoteAccepted(next.callId));
+          }
+
+          final currentPath = router.routeInformationProvider.value.uri.path;
+          debugPrint(
+            '[MyApp] callActionProvider accepted: callId=${next.callId}, currentPath=$currentPath',
+          );
           // Only navigate when the caller/callee is NOT already on the
           // in-call page. The caller is already there after starting the call,
           // so re-navigating would rebuild the page with empty conversationId.
