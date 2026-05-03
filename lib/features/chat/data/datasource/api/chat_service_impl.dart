@@ -23,14 +23,18 @@ class ChatServiceImpl implements ChatService {
   @override
   Future<ConversationResponse> fetchConversations(int page, int limit) async {
     try {
-      debugPrint('[ChatServiceImpl] Fetch conversations request: page=$page, limit=$limit');
+      debugPrint(
+        '[ChatServiceImpl] Fetch conversations request: page=$page, limit=$limit',
+      );
       final response = await _dio.get(
         '$_baseUrl/conversations',
         queryParameters: {'page': page, 'limit': limit},
       );
 
       if (response.statusCode != 200 || response.data == null) {
-        throw Exception('Failed to fetch conversations: ${response.statusCode}');
+        throw Exception(
+          'Failed to fetch conversations: ${response.statusCode}',
+        );
       }
 
       final responseBody = response.data;
@@ -73,10 +77,9 @@ class ChatServiceImpl implements ChatService {
   @override
   Future<void> joinConversation(String conversationId) async {
     try {
-      await _realtimeGateway.emitChatEvent(
-        'conversation:join',
-        {'conversationId': conversationId},
-      );
+      await _realtimeGateway.emitChatEvent('conversation:join', {
+        'conversationId': conversationId,
+      });
     } catch (e) {
       debugPrint('[ChatServiceImpl] Join conversation error: $e');
       throw Exception('Failed to join conversation: $e');
@@ -110,7 +113,7 @@ class ChatServiceImpl implements ChatService {
       if (responseBody is! Map<String, dynamic>) {
         throw Exception('Invalid response body format');
       }
-      
+
       return MessageListResponse.fromJson(responseBody);
     } catch (e) {
       debugPrint('[ChatServiceImpl] Fetch messages error: $e');
@@ -124,6 +127,7 @@ class ChatServiceImpl implements ChatService {
     required String content,
     String type = 'text',
     String? mediaId,
+    List<Map<String, dynamic>>? attachments,
     String? clientMessageId,
     String? replyToMessageId,
     List<String>? mentions,
@@ -132,11 +136,15 @@ class ChatServiceImpl implements ChatService {
     try {
       final normalizedConversationId = conversationId.trim();
       final normalizedClientMessageId =
-          (clientMessageId?.trim().isNotEmpty ?? false) ? clientMessageId!.trim() : Uuid().v4();
+          (clientMessageId?.trim().isNotEmpty ?? false)
+          ? clientMessageId!.trim()
+          : Uuid().v4();
 
       final body = <String, dynamic>{
         'type': type,
         if (mediaId != null) 'mediaId': mediaId,
+        if (attachments != null && attachments.isNotEmpty)
+          'attachments': attachments,
         'clientMessageId': normalizedClientMessageId,
         if (replyToMessageId != null) 'replyToMessageId': replyToMessageId,
         if (mentions != null && mentions.isNotEmpty) 'mentions': mentions,
@@ -144,7 +152,8 @@ class ChatServiceImpl implements ChatService {
         if (content.trim().isNotEmpty) 'content': content,
       };
 
-      final endpoint = '$_baseUrl/conversations/$normalizedConversationId/messages';
+      final endpoint =
+          '$_baseUrl/conversations/$normalizedConversationId/messages';
       debugPrint(
         '[ChatServiceImpl] Send message request: endpoint=$endpoint, body=$body',
       );
@@ -175,6 +184,8 @@ class ChatServiceImpl implements ChatService {
           'clientMessageId': normalizedClientMessageId,
           if (replyToMessageId != null) 'replyToMessageId': replyToMessageId,
           if (mentions != null && mentions.isNotEmpty) 'mentions': mentions,
+          if (attachments != null && attachments.isNotEmpty)
+            'attachments': attachments,
           if (legacyMetadata.isNotEmpty) 'metadata': legacyMetadata,
           'conversationId': normalizedConversationId,
           if (legacyContent.trim().isNotEmpty) 'content': legacyContent,
@@ -229,7 +240,9 @@ class ChatServiceImpl implements ChatService {
         'mimeType': mimeType,
         'fileSize': fileSize,
       };
-      debugPrint('[ChatServiceImpl] Pre-check media request: endpoint=$endpoint, body=$body');
+      debugPrint(
+        '[ChatServiceImpl] Pre-check media request: endpoint=$endpoint, body=$body',
+      );
 
       final response = await _dio.post(endpoint, data: body);
 
@@ -263,7 +276,9 @@ class ChatServiceImpl implements ChatService {
   }) async {
     try {
       final endpoint = '$_baseUrl/messages/$messageId';
-      debugPrint('[ChatServiceImpl] Edit message request: endpoint=$endpoint, content=$content');
+      debugPrint(
+        '[ChatServiceImpl] Edit message request: endpoint=$endpoint, content=$content',
+      );
 
       final response = await _dio.patch(endpoint, data: {'content': content});
 
@@ -303,7 +318,9 @@ class ChatServiceImpl implements ChatService {
   }) async {
     try {
       final endpoint = '$_baseUrl/messages/$messageId/revoke';
-      debugPrint('[ChatServiceImpl] Revoke message request: endpoint=$endpoint');
+      debugPrint(
+        '[ChatServiceImpl] Revoke message request: endpoint=$endpoint',
+      );
 
       final response = await _dio.post(
         endpoint,
@@ -333,7 +350,9 @@ class ChatServiceImpl implements ChatService {
   }) async {
     try {
       final endpoint = '$_baseUrl/messages/$messageId/for-me';
-      debugPrint('[ChatServiceImpl] Delete message for me request: endpoint=$endpoint');
+      debugPrint(
+        '[ChatServiceImpl] Delete message for me request: endpoint=$endpoint',
+      );
 
       final response = await _dio.delete(
         endpoint,
@@ -341,7 +360,9 @@ class ChatServiceImpl implements ChatService {
       );
 
       if (response.statusCode != 200) {
-        throw Exception('Failed to delete message for me: ${response.statusCode}');
+        throw Exception(
+          'Failed to delete message for me: ${response.statusCode}',
+        );
       }
     } on DioException catch (e) {
       debugPrint(
@@ -371,7 +392,9 @@ class ChatServiceImpl implements ChatService {
         'targetConversationIds': targetConversationIds,
         'includeCaption': includeCaption,
       };
-      debugPrint('[ChatServiceImpl] Forward message request: endpoint=$endpoint, body=$body');
+      debugPrint(
+        '[ChatServiceImpl] Forward message request: endpoint=$endpoint, body=$body',
+      );
 
       final response = await _dio.post(endpoint, data: body);
 
@@ -398,7 +421,9 @@ class ChatServiceImpl implements ChatService {
   }) async {
     try {
       final endpoint = '$_baseUrl/messages/$messageId/pin';
-      debugPrint('[ChatServiceImpl] Pin message request: endpoint=$endpoint, conversationId=$conversationId');
+      debugPrint(
+        '[ChatServiceImpl] Pin message request: endpoint=$endpoint, conversationId=$conversationId',
+      );
 
       final response = await _dio.post(
         endpoint,
@@ -428,7 +453,9 @@ class ChatServiceImpl implements ChatService {
   }) async {
     try {
       final endpoint = '$_baseUrl/messages/$messageId/pin';
-      debugPrint('[ChatServiceImpl] Unpin message request: endpoint=$endpoint, conversationId=$conversationId');
+      debugPrint(
+        '[ChatServiceImpl] Unpin message request: endpoint=$endpoint, conversationId=$conversationId',
+      );
 
       final response = await _dio.delete(
         endpoint,
@@ -452,15 +479,21 @@ class ChatServiceImpl implements ChatService {
   }
 
   @override
-  Future<PinMessageResponse> fetchPinMessages({required String conversationId}) async {
+  Future<PinMessageResponse> fetchPinMessages({
+    required String conversationId,
+  }) async {
     try {
       final endpoint = '$_baseUrl/conversations/$conversationId/pinned';
-      debugPrint('[ChatServiceImpl] Pin message list request: endpoint=$endpoint');
+      debugPrint(
+        '[ChatServiceImpl] Pin message list request: endpoint=$endpoint',
+      );
 
       final response = await _dio.get(endpoint);
 
       if (response.statusCode != 200) {
-        throw Exception('Failed to fetch pinned messages: ${response.statusCode}');
+        throw Exception(
+          'Failed to fetch pinned messages: ${response.statusCode}',
+        );
       }
 
       final responseBody = response.data;
@@ -492,12 +525,16 @@ class ChatServiceImpl implements ChatService {
         'emoji': emoji,
         'action': action,
       };
-      debugPrint('[ChatServiceImpl] Update reaction request: endpoint=$endpoint, body=$body');
+      debugPrint(
+        '[ChatServiceImpl] Update reaction request: endpoint=$endpoint, body=$body',
+      );
 
       final response = await _dio.post(endpoint, data: body);
 
       if (response.statusCode != 200 || response.data == null) {
-        throw Exception('Failed to update message reaction: ${response.statusCode}');
+        throw Exception(
+          'Failed to update message reaction: ${response.statusCode}',
+        );
       }
 
       final responseBody = response.data;
@@ -537,10 +574,10 @@ class ChatServiceImpl implements ChatService {
 
   @override
   Future<StickerItemResponse> getStickersInPackage(
-      String packageId, {
-        int limit = 50,
-        int offset = 0,
-      }) async {
+    String packageId, {
+    int limit = 50,
+    int offset = 0,
+  }) async {
     try {
       final response = await _dio.get(
         '$_baseUrl/stickers/packages/$packageId/stickers',
@@ -559,10 +596,9 @@ class ChatServiceImpl implements ChatService {
   @override
   Future<void> startTyping(String conversationId) async {
     try {
-      _realtimeGateway.emitChatEvent(
-        'typing:start',
-        {'conversationId': conversationId},
-      );
+      _realtimeGateway.emitChatEvent('typing:start', {
+        'conversationId': conversationId,
+      });
     } catch (e) {
       debugPrint('[ChatServiceImpl] Start typing error: $e');
       throw Exception('Failed to start typing: $e');
@@ -572,10 +608,9 @@ class ChatServiceImpl implements ChatService {
   @override
   Future<void> stopTyping(String conversationId) async {
     try {
-      _realtimeGateway.emitChatEvent(
-        'typing:stop',
-        {'conversationId': conversationId},
-      );
+      _realtimeGateway.emitChatEvent('typing:stop', {
+        'conversationId': conversationId,
+      });
     } catch (e) {
       debugPrint('[ChatServiceImpl] Stop typing error: $e');
       throw Exception('Failed to stop typing: $e');

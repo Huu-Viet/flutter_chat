@@ -48,9 +48,23 @@ class NotificationRouter {
       return false;
     }
 
-    return type == 'call' ||
-        type.startsWith('call_') ||
-        type.startsWith('call:') ||
-        type.contains('call');
+    const exactCallTypes = <String>{
+      'call',
+      'incoming_call',
+      'call_incoming',
+      'call_cancelled',
+      'call_canceled',
+      'call_declined',
+      'call_ended',
+      'call_missed',
+      'call_missed_busy',
+    };
+
+    if (exactCallTypes.contains(type)) {
+      return true;
+    }
+
+    return type.startsWith('call_') ||
+        type.startsWith('call:');
   }
 }

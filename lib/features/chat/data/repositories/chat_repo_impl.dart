@@ -47,38 +47,46 @@ class ChatRepoImpl implements ChatRepository {
     required ApiStickerItemMapper stickerItemMapper,
     required LocalStickerPackageMapper localStickerPackageMapper,
     required LocalStickerItemMapper localStickerItemMapper,
-  })  : _chatService = chatService,
-        _conversationDao = conversationDao,
-      _conversationUserDao = conversationUserDao,
-        _messageDao = messageDao,
-      _userDao = userDao,
-        _stickerPackageDao = stickerPackageDao,
-        _stickerItemDao = stickerItemDao,
-        _apiConversationMapper = apiConversationMapper,
-        _apiMessageMapper = apiMessageMapper,
-        _apiPinMessageMapper = apiPinMessageMapper,
-        _localPinMessageMapper = localPinMessageMapper,
-        _localConversationMapper = localConversationMapper,
-        _localMessageMapper = localMessageMapper,
-        _apiMessageReactionMapper = apiMessageReactionMapper,
-        _localMessageReactionMapper = localMessageReactionMapper,
-        _stickerPackageMapper = stickerPackageMapper,
-        _stickerItemMapper = stickerItemMapper,
-        _localStickerPackageMapper = localStickerPackageMapper,
-        _localStickerItemMapper = localStickerItemMapper;
+  }) : _chatService = chatService,
+       _conversationDao = conversationDao,
+       _conversationUserDao = conversationUserDao,
+       _messageDao = messageDao,
+       _userDao = userDao,
+       _stickerPackageDao = stickerPackageDao,
+       _stickerItemDao = stickerItemDao,
+       _apiConversationMapper = apiConversationMapper,
+       _apiMessageMapper = apiMessageMapper,
+       _apiPinMessageMapper = apiPinMessageMapper,
+       _localPinMessageMapper = localPinMessageMapper,
+       _localConversationMapper = localConversationMapper,
+       _localMessageMapper = localMessageMapper,
+       _apiMessageReactionMapper = apiMessageReactionMapper,
+       _localMessageReactionMapper = localMessageReactionMapper,
+       _stickerPackageMapper = stickerPackageMapper,
+       _stickerItemMapper = stickerItemMapper,
+       _localStickerPackageMapper = localStickerPackageMapper,
+       _localStickerItemMapper = localStickerItemMapper;
 
   @override
   Future<Either<Failure, bool>> fetchConversations(int page, int limit) async {
     try {
-      debugPrint('[ChatRepoImpl] fetchConversations start: page=$page, limit=$limit');
+      debugPrint(
+        '[ChatRepoImpl] fetchConversations start: page=$page, limit=$limit',
+      );
       final response = await _chatService.fetchConversations(page, limit);
-      final conversations = _apiConversationMapper.toDomainList(response.conversations);
-      debugPrint('[ChatRepoImpl] fetchConversations mapped: count=${conversations.length}');
+      final conversations = _apiConversationMapper.toDomainList(
+        response.conversations,
+      );
+      debugPrint(
+        '[ChatRepoImpl] fetchConversations mapped: count=${conversations.length}',
+      );
       final hasMore = conversations.length == limit && conversations.isNotEmpty;
 
       if (page == 1 && conversations.isEmpty) {
         await _conversationDao.clearConversations();
-        debugPrint('[ChatRepoImpl] fetchConversations cleared local conversations (page=1 empty result)');
+        debugPrint(
+          '[ChatRepoImpl] fetchConversations cleared local conversations (page=1 empty result)',
+        );
         return const Right(false);
       }
 
@@ -99,7 +107,9 @@ class ChatRepoImpl implements ChatRepository {
       final entities = _localConversationMapper.toEntityList(conversations);
       await _conversationDao.saveConversations(entities);
       await _syncLiteUsersAndConversationLinks(response.conversations);
-      debugPrint('[ChatRepoImpl] fetchConversations saved to local DB: count=${entities.length}');
+      debugPrint(
+        '[ChatRepoImpl] fetchConversations saved to local DB: count=${entities.length}',
+      );
       return Right(hasMore);
     } catch (e) {
       debugPrint('[ChatRepoImpl] fetchConversations error: $e');
@@ -108,7 +118,9 @@ class ChatRepoImpl implements ChatRepository {
   }
 
   @override
-  Future<Either<Failure, Conversation>> fetchConversation(String conversationId) async {
+  Future<Either<Failure, Conversation>> fetchConversation(
+    String conversationId,
+  ) async {
     try {
       final dto = await _chatService.fetchConversation(conversationId);
       final conversation = _apiConversationMapper.toDomain(dto);
@@ -125,11 +137,15 @@ class ChatRepoImpl implements ChatRepository {
   @override
   Future<Either<Failure, List<Conversation>>> getConversations() async {
     try {
-      return Right(_localConversationMapper.toDomainList(
-        await _conversationDao.getAllConversations(),
-      ));
+      return Right(
+        _localConversationMapper.toDomainList(
+          await _conversationDao.getAllConversations(),
+        ),
+      );
     } catch (e) {
-      return Left(CacheFailure('Failed to get conversations from local DB: $e'));
+      return Left(
+        CacheFailure('Failed to get conversations from local DB: $e'),
+      );
     }
   }
 
@@ -158,7 +174,9 @@ class ChatRepoImpl implements ChatRepository {
         limit: limit,
       );
       final messages = _apiMessageMapper.toDomainList(response.messages);
-      debugPrint('[ChatRepoImpl] check forwarded: ${messages.where((m) => m.forwardInfo != null).length} forwarded messages in fetched list');
+      debugPrint(
+        '[ChatRepoImpl] check forwarded: ${messages.where((m) => m.forwardInfo != null).length} forwarded messages in fetched list',
+      );
       final entities = _localMessageMapper.toEntityList(messages);
       await _messageDao.saveMessages(entities);
       return Right(messages);
@@ -168,9 +186,13 @@ class ChatRepoImpl implements ChatRepository {
   }
 
   @override
-  Future<Either<Failure, void>> fetchPinnedMessages(String conversationId) async {
+  Future<Either<Failure, void>> fetchPinnedMessages(
+    String conversationId,
+  ) async {
     try {
-      final response = await _chatService.fetchPinMessages(conversationId: conversationId);
+      final response = await _chatService.fetchPinMessages(
+        conversationId: conversationId,
+      );
       final pinMessages = _apiPinMessageMapper.toDomainList(response.data);
       final entities = _localPinMessageMapper.toEntityList(pinMessages);
       await _messageDao.updatePinMessage(entities);
@@ -190,18 +212,45 @@ class ChatRepoImpl implements ChatRepository {
     try {
       await _messageDao.saveMessage(_localMessageMapper.toEntity(message));
       final outboundDto = _apiMessageMapper.toDto(message);
+      final outboundAttachments = outboundDto?.attachments
+          .map((attachment) {
+            final mediaId = attachment.mediaId.trim();
+            if (mediaId.isEmpty) {
+              return null;
+            }
+
+            final normalizedType =
+                (attachment.type ?? attachment.kind ?? 'file').trim();
+
+            return <String, dynamic>{
+              'mediaId': mediaId,
+              'type': normalizedType.isEmpty ? 'file' : normalizedType,
+            };
+          })
+          .whereType<Map<String, dynamic>>()
+          .toList(growable: false);
+      final hasAttachments =
+          outboundAttachments != null && outboundAttachments.isNotEmpty;
 
       final normalizedType = message.type.trim().toLowerCase();
       final isImageMessage = normalizedType == 'image';
       final hasMediaId = message.mediaId?.trim().isNotEmpty ?? false;
-      final outboundContent = (isImageMessage && hasMediaId) ? '' : message.content;
-      final outboundType = (isImageMessage && hasMediaId) ? 'image' : normalizedType;
+      final outboundContent = (isImageMessage && hasMediaId)
+          ? ''
+          : message.content;
+      final outboundType = (isImageMessage && hasMediaId)
+          ? 'image'
+          : normalizedType;
+      final outboundMediaId = hasAttachments && outboundAttachments.length > 1
+          ? null
+          : message.mediaId;
 
       final response = await _chatService.sendMessage(
         conversationId: message.conversationId,
         content: outboundContent,
         type: outboundType,
-        mediaId: message.mediaId,
+        mediaId: outboundMediaId,
+        attachments: hasAttachments ? outboundAttachments : null,
         clientMessageId: message.serverId ?? const Uuid().v4(),
         replyToMessageId: replyToMessageId,
         mentions: mentions,
@@ -230,7 +279,8 @@ class ChatRepoImpl implements ChatRepository {
         content: content,
       );
 
-      final editedAt = DateTime.tryParse(response.editedAt ?? '') ?? DateTime.now();
+      final editedAt =
+          DateTime.tryParse(response.editedAt ?? '') ?? DateTime.now();
       await _messageDao.updateMessageContent(
         localId,
         response.content ?? content,
@@ -253,7 +303,7 @@ class ChatRepoImpl implements ChatRepository {
   Future<Either<Failure, void>> forwardMessage({
     required String messageId,
     required String srcConversationId,
-    required List<String> targetConversationIds
+    required List<String> targetConversationIds,
   }) async {
     try {
       await _chatService.forwardMessage(
@@ -275,7 +325,10 @@ class ChatRepoImpl implements ChatRepository {
     required String conversationId,
   }) async {
     try {
-      await _chatService.deleteMessageForMe(messageId: messageId, conversationId: conversationId);
+      await _chatService.deleteMessageForMe(
+        messageId: messageId,
+        conversationId: conversationId,
+      );
       await _messageDao.updateMessageDeleted(localId);
 
       final updated = await _messageDao.getMessageById(localId);
@@ -337,8 +390,12 @@ class ChatRepoImpl implements ChatRepository {
   }) async {
     List<MessageReaction> previousLocal = const <MessageReaction>[];
     try {
-      final previousLocalEntities = await _messageDao.getMessageReactions(messageId);
-      previousLocal = _localMessageReactionMapper.toDomainList(previousLocalEntities);
+      final previousLocalEntities = await _messageDao.getMessageReactions(
+        messageId,
+      );
+      previousLocal = _localMessageReactionMapper.toDomainList(
+        previousLocalEntities,
+      );
       final optimisticLocal = _applyOptimisticReaction(
         previousLocal,
         messageId: messageId,
@@ -398,13 +455,11 @@ class ChatRepoImpl implements ChatRepository {
   }
 
   List<MessageReaction> _applyOptimisticReaction(
-    List<MessageReaction> current,
-    {
-      required String messageId,
-      required String emoji,
-      required String action,
-    }
-  ) {
+    List<MessageReaction> current, {
+    required String messageId,
+    required String emoji,
+    required String action,
+  }) {
     final normalizedEmoji = emoji.trim();
     if (normalizedEmoji.isEmpty) {
       return current;
@@ -479,7 +534,9 @@ class ChatRepoImpl implements ChatRepository {
     }
   }
 
-  Future<void> _syncLiteUsersAndConversationLinks(List<ConversationDto> dtos) async {
+  Future<void> _syncLiteUsersAndConversationLinks(
+    List<ConversationDto> dtos,
+  ) async {
     final nowIso = DateTime.now().toIso8601String();
     final linkMap = <String, ConversationUserEntity>{};
 
@@ -511,7 +568,10 @@ class ChatRepoImpl implements ChatRepository {
     );
   }
 
-  Future<void> _upsertLiteUser(UserInRoomDto participant, {required String nowIso}) async {
+  Future<void> _upsertLiteUser(
+    UserInRoomDto participant, {
+    required String nowIso,
+  }) async {
     final userId = (participant.userId ?? '').trim();
     if (userId.isEmpty) {
       return;
@@ -583,13 +643,12 @@ class ChatRepoImpl implements ChatRepository {
   }
 
   @override
-  Stream<Either<Failure, List<Conversation>>> watchConversationsWithUsersLocal() async* {
+  Stream<Either<Failure, List<Conversation>>>
+  watchConversationsWithUsersLocal() async* {
     await for (final items in _conversationDao.watchConversationsWithUsers()) {
       try {
         final conversations = items
-            .map(
-              (item) => _toDomainConversation(item),
-            )
+            .map((item) => _toDomainConversation(item))
             .toList(growable: false);
 
         yield Right(conversations);
@@ -608,9 +667,11 @@ class ChatRepoImpl implements ChatRepository {
             userId: p.user.id,
             username: p.user.username,
             displayName:
-                '${p.user.firstName ?? ''} ${p.user.lastName ?? ''}'.trim().isNotEmpty
-                    ? '${p.user.firstName ?? ''} ${p.user.lastName ?? ''}'.trim()
-                    : p.user.username,
+                '${p.user.firstName ?? ''} ${p.user.lastName ?? ''}'
+                    .trim()
+                    .isNotEmpty
+                ? '${p.user.firstName ?? ''} ${p.user.lastName ?? ''}'.trim()
+                : p.user.username,
             avatarUrl: p.user.avatarUrl ?? '',
             role: p.role,
             isActive: p.user.isActive,
@@ -641,8 +702,12 @@ class ChatRepoImpl implements ChatRepository {
   }
 
   @override
-  Stream<Either<Failure, List<Message>>> watchMessagesLocal(String conversationId) async* {
-    await for (final entities in _messageDao.watchMessagesByConversationId(conversationId)) {
+  Stream<Either<Failure, List<Message>>> watchMessagesLocal(
+    String conversationId,
+  ) async* {
+    await for (final entities in _messageDao.watchMessagesByConversationId(
+      conversationId,
+    )) {
       try {
         yield Right(_localMessageMapper.toDomainList(entities));
       } catch (e) {
@@ -652,8 +717,11 @@ class ChatRepoImpl implements ChatRepository {
   }
 
   @override
-  Stream<Either<Failure, List<PinMessage>>> watchPinnedMessagesLocal(String conversationId) async* {
-    await for (final entities in _messageDao.watchPinnedMessagesByConversationId(conversationId)) {
+  Stream<Either<Failure, List<PinMessage>>> watchPinnedMessagesLocal(
+    String conversationId,
+  ) async* {
+    await for (final entities
+        in _messageDao.watchPinnedMessagesByConversationId(conversationId)) {
       try {
         yield Right(_localPinMessageMapper.toDomainList(entities));
       } catch (e) {
@@ -668,13 +736,17 @@ class ChatRepoImpl implements ChatRepository {
       // 1. Try to get from local database first
       final localPackages = await _stickerPackageDao.getAllPackages();
       if (localPackages.isNotEmpty) {
-        debugPrint('[ChatRepoImpl] fetchStickerPackages: retrieved from local db');
+        debugPrint(
+          '[ChatRepoImpl] fetchStickerPackages: retrieved from local db',
+        );
         return Right(_localStickerPackageMapper.toDomainList(localPackages));
       }
 
       // 2. Fallback to API
       final response = await _chatService.getStickerPackages();
-      final domainPackages = _stickerPackageMapper.toDomainList(response.packages);
+      final domainPackages = _stickerPackageMapper.toDomainList(
+        response.packages,
+      );
 
       // 3. Save to local database
       final entities = _localStickerPackageMapper.toEntityList(domainPackages);
@@ -689,21 +761,33 @@ class ChatRepoImpl implements ChatRepository {
   }
 
   @override
-  Future<Either<Failure, List<StickerItem>>> getStickersInPackage(String packageId, {int limit = 50, int offset = 0}) async {
+  Future<Either<Failure, List<StickerItem>>> getStickersInPackage(
+    String packageId, {
+    int limit = 50,
+    int offset = 0,
+  }) async {
     try {
       // 1. Try to get from local database first
       final localItems = await _stickerItemDao.getItemsByPackageId(packageId);
       if (localItems.isNotEmpty) {
-        debugPrint('[ChatRepoImpl] getStickersInPackage: retrieved from local db');
+        debugPrint(
+          '[ChatRepoImpl] getStickersInPackage: retrieved from local db',
+        );
         return Right(_localStickerItemMapper.toDomainList(localItems));
       }
 
       // 2. Fallback to API
-      final response = await _chatService.getStickersInPackage(packageId, limit: limit, offset: offset);
+      final response = await _chatService.getStickersInPackage(
+        packageId,
+        limit: limit,
+        offset: offset,
+      );
       final domainItems = _stickerItemMapper.toDomainList(response.stickers);
 
       // 3. Save to local database
-      final entities = domainItems.map((e) => _localStickerItemMapper.toEntityWithPackage(e, packageId)).toList();
+      final entities = domainItems
+          .map((e) => _localStickerItemMapper.toEntityWithPackage(e, packageId))
+          .toList();
       await _stickerItemDao.saveItems(entities);
 
       return Right(domainItems);
@@ -714,7 +798,10 @@ class ChatRepoImpl implements ChatRepository {
   }
 
   @override
-  Future<Either<Failure, void>> sendTypingIndicator(String conversationId, bool isTyping) async {
+  Future<Either<Failure, void>> sendTypingIndicator(
+    String conversationId,
+    bool isTyping,
+  ) async {
     try {
       if (isTyping) {
         await _chatService.startTyping(conversationId);
@@ -729,7 +816,9 @@ class ChatRepoImpl implements ChatRepository {
   }
 
   @override
-  Future<Either<Failure, void>> deleteLocalConversation(String conversationId) async {
+  Future<Either<Failure, void>> deleteLocalConversation(
+    String conversationId,
+  ) async {
     try {
       await _conversationDao.deleteConversation(conversationId);
       return const Right(null);

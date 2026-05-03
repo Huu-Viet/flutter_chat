@@ -58,7 +58,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   Conversation? _currentConversation;
 
   StreamSubscription<Either<Failure, List<Message>>>? _localSubscription;
-  StreamSubscription<Either<Failure, List<Conversation>>>? _conversationSubscription;
+  StreamSubscription<Either<Failure, List<Conversation>>>?
+  _conversationSubscription;
   StreamSubscription<Either<Failure, List<PinMessage>>>? _pinSubscription;
 
   List<Message> _currentMessages = const [];
@@ -73,8 +74,6 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final Set<String> _resolvingImageMediaIds = <String>{};
   final Set<String> _resolvingAudioMediaIds = <String>{};
   final Set<String> _resolvingVideoMediaIds = <String>{};
-
-
 
   ChatBloc({
     required this.fetchMessagesUseCase,
@@ -102,6 +101,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ChatInitialLoadEvent>(_onChatInitialLoad);
     on<SendTextEvent>(_onSendText);
     on<SendImageEvent>(_onSendImage);
+    on<SendMultipleImagesEvent>(_onSendMultipleImages);
     on<SendFileEvent>(_onSendFile);
     on<SendStickerEvent>(_onSendSticker);
     on<SendAudioEvent>(_onSendAudio);
@@ -122,7 +122,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       _currentPinnedMessages = event.pinnedMessages;
 
       final currentState = state;
-      debugPrint('[ChatBloc] Pinned messages updated: ${event.pinnedMessages.length} pinned messages');
+      debugPrint(
+        '[ChatBloc] Pinned messages updated: ${event.pinnedMessages.length} pinned messages',
+      );
       if (currentState is ChatLoaded) {
         emit(currentState.copyWith(pinnedMessages: event.pinnedMessages));
       }
@@ -133,7 +135,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       _requestMissingMediaUrls(event.messages);
       emit(_buildChatLoaded(_currentMessages));
     });
-    on<_LocalMessagesErrorEvent>((event, emit) => emit(ChatError(event.message)));
+    on<_LocalMessagesErrorEvent>(
+      (event, emit) => emit(ChatError(event.message)),
+    );
     on<_LocalConversationChangedEvent>((event, emit) {
       _currentConversation = event.conversation;
       emit(_buildChatLoaded(_currentMessages));
@@ -220,7 +224,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     return file.path;
   }
 
-  Future<String?> _downloadAudioToLocal(String mediaId, String remoteUrl) async {
+  Future<String?> _downloadAudioToLocal(
+    String mediaId,
+    String remoteUrl,
+  ) async {
     final uri = Uri.tryParse(remoteUrl.trim());
     if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
       return null;
@@ -288,6 +295,54 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   void _requestMissingMediaUrls(List<Message> messages) {
     for (final message in messages) {
       final normalizedType = message.type.trim().toLowerCase();
+      if (normalizedType == 'image' && message is ImageMessage) {
+        for (final media in message.medias) {
+          final mediaId = media.mediaId.trim();
+          if (mediaId.isEmpty) {
+            continue;
+          }
+
+          final hasUsableResolvedImage = _hasUsableResolvedImage(mediaId);
+          if (!hasUsableResolvedImage) {
+            _imageUrlsByMediaId.remove(mediaId);
+          }
+
+          if (hasUsableResolvedImage ||
+              _resolvingImageMediaIds.contains(mediaId)) {
+            continue;
+          }
+
+          add(FetchImageEvent(mediaId));
+        }
+        continue;
+      }
+
+      if (normalizedType == 'media' && message is MultiMediaMessage) {
+        for (final media in message.medias) {
+          if (media is! ImageMedia) {
+            continue;
+          }
+
+          final mediaId = media.mediaId.trim();
+          if (mediaId.isEmpty) {
+            continue;
+          }
+
+          final hasUsableResolvedImage = _hasUsableResolvedImage(mediaId);
+          if (!hasUsableResolvedImage) {
+            _imageUrlsByMediaId.remove(mediaId);
+          }
+
+          if (hasUsableResolvedImage ||
+              _resolvingImageMediaIds.contains(mediaId)) {
+            continue;
+          }
+
+          add(FetchImageEvent(mediaId));
+        }
+        continue;
+      }
+
       if (!_isImageLikeMessage(message) &&
           normalizedType != 'audio' &&
           normalizedType != 'video') {
@@ -315,7 +370,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
             _resolvingAudioMediaIds.contains(mediaId) ||
             _currentConversationId == null ||
             _currentConversationId!.trim().isEmpty) {
-          if (_currentConversationId == null || _currentConversationId!.trim().isEmpty) {
+          if (_currentConversationId == null ||
+              _currentConversationId!.trim().isEmpty) {
             debugPrint(
               '[VoiceHandle] getMediaPlayInfo skipped: missing conversationId mediaId=$mediaId',
             );
@@ -323,10 +379,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           continue;
         }
 
-        add(FetchAudioEvent(
-          mediaId: mediaId,
-          conversationId: _currentConversationId!,
-        ));
+        add(
+          FetchAudioEvent(
+            mediaId: mediaId,
+            conversationId: _currentConversationId!,
+          ),
+        );
         continue;
       }
 
@@ -338,10 +396,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           continue;
         }
 
-        add(FetchVideoEvent(
-          mediaId: mediaId,
-          conversationId: _currentConversationId!,
-        ));
+        add(
+          FetchVideoEvent(
+            mediaId: mediaId,
+            conversationId: _currentConversationId!,
+          ),
+        );
 
         if (message is VideoMessage) {
           final thumbMediaId = message.media.thumbMediaId?.trim();
@@ -368,7 +428,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     }
   }
 
-  FutureOr<void> _onChatInitialLoad(ChatInitialLoadEvent event, Emitter<ChatState> emit) async {
+  FutureOr<void> _onChatInitialLoad(
+    ChatInitialLoadEvent event,
+    Emitter<ChatState> emit,
+  ) async {
     _currentConversationId = event.conversationId;
 
     final userIdResult = await getCurrentUserIdUseCase();
@@ -387,11 +450,15 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     unawaited(fetchPinMessageUseCase(event.conversationId));
   }
 
-  FutureOr<void> _onSendText(SendTextEvent event, Emitter<ChatState> emit) async {
+  FutureOr<void> _onSendText(
+    SendTextEvent event,
+    Emitter<ChatState> emit,
+  ) async {
     final messageId = Uuid().v4();
     final localOffset = _nextLocalOffset();
     final normalizedReplyToId = event.replyToMessageId?.trim();
-    final hasReply = normalizedReplyToId != null && normalizedReplyToId.isNotEmpty;
+    final hasReply =
+        normalizedReplyToId != null && normalizedReplyToId.isNotEmpty;
     final message = TextMessage(
       id: messageId,
       conversationId: event.conversationId,
@@ -418,40 +485,42 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   void _startMessagesLocalWatcher(String conversationId) {
     _localSubscription?.cancel();
-    _localSubscription = watchMessagesLocalUseCase(conversationId).listen((result) {
-      result.fold(
-        (failure) => add(_LocalMessagesErrorEvent(failure.message)),
-        (messages) {
-          add(_LocalMessagesChangedEvent(messages));
-          for (final msg in messages.whereType<FileMessage>()) {
-            debugPrint(
-              '[ChatBloc] FILE message: '
-                  'id=${msg.id}, '
-                  'fileName=${msg.fileName}, '
-                  'size=${msg.fileSize}',
-            );
-          }
-        },
-      );
+    _localSubscription = watchMessagesLocalUseCase(conversationId).listen((
+      result,
+    ) {
+      result.fold((failure) => add(_LocalMessagesErrorEvent(failure.message)), (
+        messages,
+      ) {
+        add(_LocalMessagesChangedEvent(messages));
+        for (final msg in messages.whereType<FileMessage>()) {
+          debugPrint(
+            '[ChatBloc] FILE message: '
+            'id=${msg.id}, '
+            'fileName=${msg.fileName}, '
+            'size=${msg.fileSize}',
+          );
+        }
+      });
     });
   }
 
   void _startConversationLocalWatcher(String conversationId) {
     _conversationSubscription?.cancel();
-    _conversationSubscription = watchConversationsWithUsersUseCase().listen((result) {
+    _conversationSubscription = watchConversationsWithUsersUseCase().listen((
+      result,
+    ) {
       if (isClosed) {
         return;
       }
 
-      result.fold(
-            (failure) => null,
-            (conversations) {
-          final matchingConversations = conversations.where((c) => c.id == conversationId);
-          if (matchingConversations.isNotEmpty) {
-            add(_LocalConversationChangedEvent(matchingConversations.first));
-          }
-        },
-      );
+      result.fold((failure) => null, (conversations) {
+        final matchingConversations = conversations.where(
+          (c) => c.id == conversationId,
+        );
+        if (matchingConversations.isNotEmpty) {
+          add(_LocalConversationChangedEvent(matchingConversations.first));
+        }
+      });
     });
   }
 
@@ -462,17 +531,17 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         return;
       }
 
-      result.fold(
-        (failure) => null,
-        (pinMessages) {
-          if (conversationId != _currentConversationId) return;
-          add(_LocalPinnedMessagesChangedEvent(pinMessages));
-        },
-      );
+      result.fold((failure) => null, (pinMessages) {
+        if (conversationId != _currentConversationId) return;
+        add(_LocalPinnedMessagesChangedEvent(pinMessages));
+      });
     });
   }
 
-  Future<void> _onSendImage(SendImageEvent event, Emitter<ChatState> emit,) async {
+  Future<void> _onSendImage(
+    SendImageEvent event,
+    Emitter<ChatState> emit,
+  ) async {
     _uploadingImagePaths.add(event.imagePath);
     emit(_buildChatLoaded(_currentMessages));
 
@@ -480,22 +549,22 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       event.imagePath,
       'image',
       event.imageSize,
-      null
+      null,
     );
 
     final mediaId = result.fold(
-          (failure) {
-            add(_LocalMessagesErrorEvent(failure.message));
-            return null;
-          },
-          (mediaInfo) {
-            if (mediaInfo.mediaId == null || mediaInfo.mediaId!.isEmpty) {
-              add(_LocalMessagesErrorEvent('Upload image failed: missing mediaId'));
-              return null;
-            }
+      (failure) {
+        add(_LocalMessagesErrorEvent(failure.message));
+        return null;
+      },
+      (mediaInfo) {
+        if (mediaInfo.mediaId == null || mediaInfo.mediaId!.isEmpty) {
+          add(_LocalMessagesErrorEvent('Upload image failed: missing mediaId'));
+          return null;
+        }
 
-            return mediaInfo.mediaId;
-          },
+        return mediaInfo.mediaId;
+      },
     );
 
     if (mediaId == null) {
@@ -528,7 +597,98 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     emit(_buildChatLoaded(_currentMessages));
   }
 
-  FutureOr<void> _onSendFile(SendFileEvent event, Emitter<ChatState> emit) async {
+  Future<void> _onSendMultipleImages(
+    SendMultipleImagesEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    if (event.imagePaths.isEmpty) {
+      return;
+    }
+
+    if (event.imagePaths.length != event.imageSizes.length) {
+      add(
+        const _LocalMessagesErrorEvent(
+          'Send images failed: invalid upload payload',
+        ),
+      );
+      return;
+    }
+
+    _uploadingImagePaths.addAll(event.imagePaths);
+    emit(_buildChatLoaded(_currentMessages));
+
+    final uploadedMediaIds = <String>[];
+    var failedCount = 0;
+
+    for (var index = 0; index < event.imagePaths.length; index++) {
+      final imagePath = event.imagePaths[index];
+      final imageSize = event.imageSizes[index];
+      final uploadResult = await uploadMediaUseCase(
+        imagePath,
+        'image',
+        imageSize,
+        null,
+      );
+
+      uploadResult.fold(
+        (failure) {
+          failedCount++;
+          add(_LocalMessagesErrorEvent(failure.message));
+        },
+        (mediaInfo) {
+          final mediaId = mediaInfo.mediaId?.trim() ?? '';
+          if (mediaId.isEmpty) {
+            failedCount++;
+            add(
+              const _LocalMessagesErrorEvent(
+                'Upload image failed: missing mediaId',
+              ),
+            );
+            return;
+          }
+          uploadedMediaIds.add(mediaId);
+        },
+      );
+    }
+
+    if (uploadedMediaIds.isNotEmpty) {
+      final messageId = Uuid().v4();
+      final localOffset = _nextLocalOffset();
+      final message = MultiMediaMessage(
+        id: messageId,
+        conversationId: event.conversationId,
+        senderId: _currentUserId ?? '',
+        medias: uploadedMediaIds
+            .map((mediaId) => ImageMedia(id: mediaId))
+            .toList(growable: false),
+        caption: '',
+        offset: localOffset,
+        isDeleted: false,
+        serverId: messageId,
+        createdAt: DateTime.now().toUtc(),
+        editedAt: null,
+      );
+
+      final sendResult = await sendMessageUseCase(message: message);
+      sendResult.fold(
+        (failure) => add(_LocalMessagesErrorEvent(failure.message)),
+        (_) {},
+      );
+    }
+
+    _uploadingImagePaths.removeAll(event.imagePaths);
+
+    if (uploadedMediaIds.isEmpty && failedCount > 0) {
+      add(const _LocalMessagesErrorEvent('Failed to upload selected images'));
+    }
+
+    emit(_buildChatLoaded(_currentMessages));
+  }
+
+  FutureOr<void> _onSendFile(
+    SendFileEvent event,
+    Emitter<ChatState> emit,
+  ) async {
     _uploadingFilePaths.add(event.filePath);
     emit(_buildChatLoaded(_currentMessages));
 
@@ -540,11 +700,11 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     );
 
     final mediaId = result.fold(
-          (failure) {
+      (failure) {
         add(_LocalMessagesErrorEvent(failure.message));
         return null;
       },
-          (mediaInfo) {
+      (mediaInfo) {
         if (mediaInfo.mediaId == null || mediaInfo.mediaId!.isEmpty) {
           add(_LocalMessagesErrorEvent('Upload image failed: missing mediaId'));
           return null;
@@ -567,11 +727,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       conversationId: event.conversationId,
       senderId: _currentUserId ?? '',
       medias: <FileMedia>[
-        FileMedia(
-          id: mediaId,
-          size: event.fileSize,
-          mediaType: 'file',
-        ),
+        FileMedia(id: mediaId, size: event.fileSize, mediaType: 'file'),
       ],
       caption: event.fileName,
       offset: localOffset,
@@ -583,18 +739,25 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
     final sendResult = await sendMessageUseCase(message: message);
     sendResult.fold(
-          (failure) => add(_LocalMessagesErrorEvent(failure.message)),
-          (_) {},
+      (failure) => add(_LocalMessagesErrorEvent(failure.message)),
+      (_) {},
     );
 
     _uploadingFilePaths.remove(event.filePath);
     emit(_buildChatLoaded(_currentMessages));
   }
 
-  FutureOr<void> _onSendSticker(SendStickerEvent event, Emitter<ChatState> emit) async {
+  FutureOr<void> _onSendSticker(
+    SendStickerEvent event,
+    Emitter<ChatState> emit,
+  ) async {
     final stickerUrl = event.stickerUrl.trim();
     if (stickerUrl.isEmpty) {
-      add(const _LocalMessagesErrorEvent('Send sticker failed: missing sticker url'));
+      add(
+        const _LocalMessagesErrorEvent(
+          'Send sticker failed: missing sticker url',
+        ),
+      );
       return;
     }
 
@@ -621,10 +784,15 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     );
   }
 
-  FutureOr<void> _onSendAudio(SendAudioEvent event, Emitter<ChatState> emit) async {
+  FutureOr<void> _onSendAudio(
+    SendAudioEvent event,
+    Emitter<ChatState> emit,
+  ) async {
     final audioPath = event.audioPath.trim();
     if (audioPath.isEmpty) {
-      add(const _LocalMessagesErrorEvent('Send audio failed: missing audio path'));
+      add(
+        const _LocalMessagesErrorEvent('Send audio failed: missing audio path'),
+      );
       return;
     }
 
@@ -635,7 +803,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     }
 
     final fileSize = await file.length();
-    final uploadResult = await uploadMediaUseCase(audioPath, 'audio', fileSize, null);
+    final uploadResult = await uploadMediaUseCase(
+      audioPath,
+      'audio',
+      fileSize,
+      null,
+    );
     final mediaId = uploadResult.fold(
       (failure) {
         add(_LocalMessagesErrorEvent(failure.message));
@@ -643,7 +816,11 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       },
       (mediaInfo) {
         if (mediaInfo.mediaId == null || mediaInfo.mediaId!.isEmpty) {
-          add(const _LocalMessagesErrorEvent('Upload audio failed: missing mediaId'));
+          add(
+            const _LocalMessagesErrorEvent(
+              'Upload audio failed: missing mediaId',
+            ),
+          );
           return null;
         }
         return mediaInfo.mediaId;
@@ -658,7 +835,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     _audioUrlsByMediaId[mediaId] = audioPath;
     emit(_buildChatLoaded(_currentMessages));
 
-    final normalizedWaveform = WaveformUtils.normalize(event.waveform, maxBars: 64);
+    final normalizedWaveform = WaveformUtils.normalize(
+      event.waveform,
+      maxBars: 64,
+    );
     final localOffset = _nextLocalOffset();
     final messageId = Uuid().v4();
     final message = AudioMessage(
@@ -701,51 +881,63 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     );
   }
 
-  Future<void> _onGetFileDownloadUrl(GetFileDownloadUrlEvent event, Emitter<ChatState> emit) async {
+  Future<void> _onGetFileDownloadUrl(
+    GetFileDownloadUrlEvent event,
+    Emitter<ChatState> emit,
+  ) async {
     final dir = await getTemporaryDirectory();
     debugPrint('[ChatBloc] Get file download URL for mediaId=${event.mediaId}');
-    debugPrint('[ChatBloc] Get file download URL for filename=${event.fileName}');
+    debugPrint(
+      '[ChatBloc] Get file download URL for filename=${event.fileName}',
+    );
     final mediaId = event.mediaId.trim();
     if (mediaId.isEmpty) {
-      add(const _LocalMessagesErrorEvent('Get file download URL failed: missing mediaId'));
+      add(
+        const _LocalMessagesErrorEvent(
+          'Get file download URL failed: missing mediaId',
+        ),
+      );
       return;
     }
 
     final result = await getMediaUrlByMediaIdUseCase(event.mediaId);
     result.fold(
-            (failure) {add(_LocalMessagesErrorEvent(failure.message));},
-            (mediaUrl) async {
-              try {
-                final filePath = "${dir.path}/${event.fileName}";
-                final file = File(filePath);
+      (failure) {
+        add(_LocalMessagesErrorEvent(failure.message));
+      },
+      (mediaUrl) async {
+        try {
+          final filePath = "${dir.path}/${event.fileName}";
+          final file = File(filePath);
 
-                ///nếu đã có file → open luôn (cache)
-                if (await file.exists()) {
-                  await _openFile(filePath);
-                  return;
-                }
+          ///nếu đã có file → open luôn (cache)
+          if (await file.exists()) {
+            await _openFile(filePath);
+            return;
+          }
 
-              ///download
-              final dio = Dio();
+          ///download
+          final dio = Dio();
 
-              await dio.download(
-                mediaUrl,
-                filePath,
-                onReceiveProgress: (received, total) {
-                /// nếu muốn update progress thì emit state ở đây
-                },
-              );
-
-              _fileUrlsByMediaId[mediaId] = filePath;
-
-              ///open file
-              await _openFile(filePath);
-              } catch (e) {
-              add(_LocalMessagesErrorEvent("Download failed"));
-              }
+          await dio.download(
+            mediaUrl,
+            filePath,
+            onReceiveProgress: (received, total) {
+              /// nếu muốn update progress thì emit state ở đây
             },
+          );
+
+          _fileUrlsByMediaId[mediaId] = filePath;
+
+          ///open file
+          await _openFile(filePath);
+        } catch (e) {
+          add(_LocalMessagesErrorEvent("Download failed"));
+        }
+      },
     );
   }
+
   Future<void> _openFile(String path) async {
     final result = await OpenFilex.open(path);
 
@@ -754,7 +946,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     }
   }
 
-  Future<void> _forwardMessage(ForwardMessageEvent event, Emitter<ChatState> emit) async {
+  Future<void> _forwardMessage(
+    ForwardMessageEvent event,
+    Emitter<ChatState> emit,
+  ) async {
     final result = await forwardMessageUseCase(
       sourceMessageId: event.messageId,
       sourceConversationId: event.srcConversationId,
@@ -767,7 +962,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     );
   }
 
-  Future<void> _hideMessage(HiddenMessageEvent event, Emitter<ChatState> emit) async {
+  Future<void> _hideMessage(
+    HiddenMessageEvent event,
+    Emitter<ChatState> emit,
+  ) async {
     final result = await hiddenForMeUseCase(
       event.localId,
       event.messageId,
@@ -831,8 +1029,11 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       return;
     }
 
-    final cachedFileInfo = await chatImageCacheManager.getFileFromCache(mediaId);
-    if (cachedFileInfo?.file.path != null && cachedFileInfo!.file.path.trim().isNotEmpty) {
+    final cachedFileInfo = await chatImageCacheManager.getFileFromCache(
+      mediaId,
+    );
+    if (cachedFileInfo?.file.path != null &&
+        cachedFileInfo!.file.path.trim().isNotEmpty) {
       _imageUrlsByMediaId[mediaId] = cachedFileInfo.file.path;
       emit(_buildChatLoaded(_currentMessages));
       return;
@@ -842,14 +1043,13 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     emit(_buildChatLoaded(_currentMessages));
 
     final result = await getUrlByMediaIdUseCase(mediaId);
-    result.fold(
-      (failure) => add(_LocalMessagesErrorEvent(failure.message)),
-      (imageUrl) {
-        if (imageUrl.trim().isNotEmpty) {
-          _imageUrlsByMediaId[mediaId] = imageUrl;
-        }
-      },
-    );
+    result.fold((failure) => add(_LocalMessagesErrorEvent(failure.message)), (
+      imageUrl,
+    ) {
+      if (imageUrl.trim().isNotEmpty) {
+        _imageUrlsByMediaId[mediaId] = imageUrl;
+      }
+    });
 
     _resolvingImageMediaIds.remove(mediaId);
     emit(_buildChatLoaded(_currentMessages));
@@ -892,7 +1092,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     );
 
     if (resolvedAudioUrl.isNotEmpty) {
-      final downloadedPath = await _downloadAudioToLocal(mediaId, resolvedAudioUrl);
+      final downloadedPath = await _downloadAudioToLocal(
+        mediaId,
+        resolvedAudioUrl,
+      );
       if (downloadedPath != null && downloadedPath.trim().isNotEmpty) {
         _audioUrlsByMediaId[mediaId] = downloadedPath;
         await audioCacheDao.saveAudioPath(
@@ -916,8 +1119,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     String? conversationId,
   }) async {
     final normalizedConversationId = conversationId?.trim();
-    final hasConversationId = normalizedConversationId != null &&
-        normalizedConversationId.isNotEmpty;
+    final hasConversationId =
+        normalizedConversationId != null && normalizedConversationId.isNotEmpty;
 
     final candidates = <String?>[
       if (hasConversationId) normalizedConversationId,
@@ -944,10 +1147,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         conversationId: candidateConversationId,
       );
 
-      final urlFromMedia = mediaUrlResult.fold(
-        (_) => '',
-        (url) => url.trim(),
-      );
+      final urlFromMedia = mediaUrlResult.fold((_) => '', (url) => url.trim());
 
       if (urlFromMedia.isNotEmpty) {
         return urlFromMedia;
@@ -992,8 +1192,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     String? conversationId,
   }) async {
     final normalizedConversationId = conversationId?.trim();
-    final hasConversationId = normalizedConversationId != null &&
-        normalizedConversationId.isNotEmpty;
+    final hasConversationId =
+        normalizedConversationId != null && normalizedConversationId.isNotEmpty;
 
     final candidates = <String?>[
       if (hasConversationId) normalizedConversationId,
@@ -1020,10 +1220,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         conversationId: candidateConversationId,
       );
 
-      final urlFromMedia = mediaUrlResult.fold(
-        (_) => '',
-        (url) => url.trim(),
-      );
+      final urlFromMedia = mediaUrlResult.fold((_) => '', (url) => url.trim());
 
       if (urlFromMedia.isNotEmpty) {
         return urlFromMedia;
@@ -1111,13 +1308,13 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   }
 
   FutureOr<void> _onEmitTyping(EmitTypingEvent event, Emitter<ChatState> emit) {
-    emitTypingUseCase(
-      event.conversationId,
-      event.isTyping
-    );
+    emitTypingUseCase(event.conversationId, event.isTyping);
   }
 
-  FutureOr<void> _onTypingStatusChanged(TypingChangedEvent event, Emitter<ChatState> emit) {
+  FutureOr<void> _onTypingStatusChanged(
+    TypingChangedEvent event,
+    Emitter<ChatState> emit,
+  ) {
     final state = this.state;
 
     if (state is! ChatLoaded) return null;
@@ -1140,18 +1337,24 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       typingNames.remove(event.userId);
     }
 
-    emit(state.copyWith(
-      typingUserIds: typingUsers,
-      typingUsernames: typingNames,
-    ));
+    emit(
+      state.copyWith(typingUserIds: typingUsers, typingUsernames: typingNames),
+    );
   }
 
-  FutureOr<void> _loadMoreMessages(LoadMoreMessagesEvent event, Emitter<ChatState> emit) async {
+  FutureOr<void> _loadMoreMessages(
+    LoadMoreMessagesEvent event,
+    Emitter<ChatState> emit,
+  ) async {
     final current = state;
-    if (current is !ChatLoaded) return null;
-    if (_currentConversationId == null || _currentConversationId!.trim().isEmpty) return null;
+    if (current is! ChatLoaded) return null;
+    if (_currentConversationId == null ||
+        _currentConversationId!.trim().isEmpty)
+      return null;
 
-    final validMessages = current.messages.where((m) => m.offset != null).toList();
+    final validMessages = current.messages
+        .where((m) => m.offset != null)
+        .toList();
     if (validMessages.isEmpty) return null;
 
     final oldestOffset = validMessages
@@ -1165,8 +1368,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       limit: 30,
     );
     result.fold(
-          (failure) { emit(current.copyWith(isLoadingMore: false)); },
-          (newMessages) {
+      (failure) {
+        emit(current.copyWith(isLoadingMore: false));
+      },
+      (newMessages) {
         // merge + dedupe
         final merged = [...newMessages, ...current.messages];
 
@@ -1179,16 +1384,21 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         final sorted = map.values.toList()
           ..sort((a, b) => (a.offset ?? 0).compareTo(b.offset ?? 0));
 
-        emit(current.copyWith(
-          messages: sorted,
-          isLoadingMore: false,
-          hasMoreOld: newMessages.length == 30,
-        ));
+        emit(
+          current.copyWith(
+            messages: sorted,
+            isLoadingMore: false,
+            hasMoreOld: newMessages.length == 30,
+          ),
+        );
       },
     );
   }
 
-  Future<void> _onSendVideo(SendVideoEvent event, Emitter<ChatState> emit) async {
+  Future<void> _onSendVideo(
+    SendVideoEvent event,
+    Emitter<ChatState> emit,
+  ) async {
     _uploadingVideoPaths.add(event.file.path);
     emit(_buildChatLoaded(_currentMessages));
 
@@ -1203,13 +1413,17 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       );
 
       thumbId = thumbResult.fold(
-            (failure) {
-          debugPrint('[ChatBloc] Failed to upload video thumbnail: ${failure.message}');
+        (failure) {
+          debugPrint(
+            '[ChatBloc] Failed to upload video thumbnail: ${failure.message}',
+          );
           return null;
         },
-            (mediaInfo) {
+        (mediaInfo) {
           if (mediaInfo.mediaId == null || mediaInfo.mediaId!.isEmpty) {
-            debugPrint('[ChatBloc] Failed to upload video thumbnail: missing mediaId');
+            debugPrint(
+              '[ChatBloc] Failed to upload video thumbnail: missing mediaId',
+            );
             return null;
           }
           return mediaInfo.mediaId;
@@ -1217,26 +1431,25 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       );
     }
 
-    final result = await uploadMultipartUseCase(
-        event.file,
-        (progress) {
-          debugPrint('[ChatBloc] Video upload progress: $progress% for path=${event.file.path}');
-          //TODO: emit progress state if needed
-        }
-    );
+    final result = await uploadMultipartUseCase(event.file, (progress) {
+      debugPrint(
+        '[ChatBloc] Video upload progress: $progress% for path=${event.file.path}',
+      );
+      //TODO: emit progress state if needed
+    });
 
     final mediaId = result.fold(
-          (failure) {
-            add(_LocalMessagesErrorEvent(failure.message));
-            return null;
-          },
-          (mediaId) {
-            if (mediaId.isEmpty) {
-              add(_LocalMessagesErrorEvent('Upload video failed: missing mediaId'));
-              return null;
-            }
-            return mediaId;
-          },
+      (failure) {
+        add(_LocalMessagesErrorEvent(failure.message));
+        return null;
+      },
+      (mediaId) {
+        if (mediaId.isEmpty) {
+          add(_LocalMessagesErrorEvent('Upload video failed: missing mediaId'));
+          return null;
+        }
+        return mediaId;
+      },
     );
 
     if (mediaId == null) {
@@ -1270,8 +1483,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
     final sendResult = await sendMessageUseCase(message: message);
     sendResult.fold(
-          (failure) => add(_LocalMessagesErrorEvent(failure.message)),
-          (_) {},
+      (failure) => add(_LocalMessagesErrorEvent(failure.message)),
+      (_) {},
     );
 
     _uploadingVideoPaths.remove(event.file.path);
@@ -1308,7 +1521,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         '${DateTime.now().millisecondsSinceEpoch}.jpg',
       );
 
-      final command = '-i "${videoFile.path}" -ss 00:00:01 -vframes 1 "$outputPath"';
+      final command =
+          '-i "${videoFile.path}" -ss 00:00:01 -vframes 1 "$outputPath"';
 
       await FFmpegKit.execute(command);
 

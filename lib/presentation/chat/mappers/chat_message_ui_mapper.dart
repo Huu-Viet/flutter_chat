@@ -1,3 +1,4 @@
+import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/image_media.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
 import 'package:flutter_chat/presentation/chat/models/chat_message_reaction.dart';
@@ -94,18 +95,22 @@ class ChatMessageUIMapper {
     final existingImagePaths = mappedMessages
         .whereType<ImageChatMessage>()
         .where((message) => message.imagePath != null)
-        .map((message) => message.imagePath!)
+        .map((message) => message.imagePath!.trim())
+        .where((path) => path.isNotEmpty)
         .toSet();
 
-    for (final imagePath in uploadingImagePaths) {
-      if (existingImagePaths.contains(imagePath)) {
-        continue;
-      }
+    final pendingUploadingPaths = uploadingImagePaths
+        .map((path) => path.trim())
+        .where((path) => path.isNotEmpty && !existingImagePaths.contains(path))
+        .toList(growable: false);
 
+    if (pendingUploadingPaths.isNotEmpty) {
       mappedMessages.add(
         ImageChatMessage(
-          imagePath: imagePath,
+          imagePath: pendingUploadingPaths.first,
           mediaId: null,
+          imagePaths: pendingUploadingPaths,
+          mediaIds: const <String>[],
           isUploading: true,
           isSentByMe: true,
           timestamp: DateTime.now(),
@@ -166,25 +171,39 @@ class ChatMessageUIMapper {
     }
 
     if (domainMessage is ImageMessage) {
-      final mediaId = domainMessage.mediaId?.trim();
+      final mediaIds = domainMessage.medias
+          .map((media) => media.mediaId.trim())
+          .where((id) => id.isNotEmpty)
+          .toList(growable: false);
+      final mediaId = mediaIds.isNotEmpty ? mediaIds.first : null;
       final localPath = _helpers.isLikelyLocalImagePath(domainMessage.content)
           ? domainMessage.content
           : null;
-      final resolvedRemoteUrl = mediaId != null && mediaId.isNotEmpty
-          ? imageUrlsByMediaId[mediaId]
-          : null;
-      final imagePath = resolvedRemoteUrl ?? localPath;
+      final imagePaths = mediaIds
+          .map((id) => imageUrlsByMediaId[id]?.trim() ?? '')
+          .toList(growable: false);
+      if (imagePaths.isNotEmpty &&
+          imagePaths.first.isEmpty &&
+          localPath != null &&
+          localPath.trim().isNotEmpty) {
+        imagePaths[0] = localPath.trim();
+      }
+      final imagePath = imagePaths.firstWhere(
+        (path) => path.trim().isNotEmpty,
+        orElse: () => '',
+      );
+      final missingMediaIds = mediaIds
+          .where((id) => !imageUrlsByMediaId.containsKey(id))
+          .toList(growable: false);
 
       return ImageChatMessage(
-        imagePath: imagePath,
+        imagePath: imagePath.trim().isEmpty ? null : imagePath,
         mediaId: mediaId,
+        imagePaths: imagePaths,
+        mediaIds: mediaIds,
         isUploading:
             localPath != null && uploadingImagePaths.contains(localPath),
-        isResolvingImage:
-            imagePath == null &&
-            mediaId != null &&
-            mediaId.isNotEmpty &&
-            resolvingImageMediaIds.contains(mediaId),
+        isResolvingImage: missingMediaIds.any(resolvingImageMediaIds.contains),
         isSentByMe: isSentByMe,
         senderId: senderId,
         timestamp: timestamp,
@@ -198,6 +217,52 @@ class ChatMessageUIMapper {
         forwardInfo: domainMessage.forwardInfo,
         reactions: reactions,
       );
+    }
+
+    if (domainMessage is MultiMediaMessage) {
+      final imageMedias = domainMessage.medias.whereType<ImageMedia>().toList(
+        growable: false,
+      );
+      if (imageMedias.isNotEmpty) {
+        final mediaIds = imageMedias
+            .map((media) => media.mediaId.trim())
+            .where((id) => id.isNotEmpty)
+            .toList(growable: false);
+        final mediaId = mediaIds.isNotEmpty ? mediaIds.first : null;
+        final imagePaths = mediaIds
+            .map((id) => imageUrlsByMediaId[id]?.trim() ?? '')
+            .toList(growable: false);
+        final imagePath = imagePaths.firstWhere(
+          (path) => path.trim().isNotEmpty,
+          orElse: () => '',
+        );
+        final missingMediaIds = mediaIds
+            .where((id) => !imageUrlsByMediaId.containsKey(id))
+            .toList(growable: false);
+
+        return ImageChatMessage(
+          imagePath: imagePath.trim().isEmpty ? null : imagePath,
+          mediaId: mediaId,
+          imagePaths: imagePaths,
+          mediaIds: mediaIds,
+          isUploading: false,
+          isResolvingImage: missingMediaIds.any(
+            resolvingImageMediaIds.contains,
+          ),
+          isSentByMe: isSentByMe,
+          senderId: senderId,
+          timestamp: timestamp,
+          isDeleted: domainMessage.isDeleted,
+          localId: domainMessage.id,
+          serverId: domainMessage.serverId,
+          senderDisplayName: senderDisplayName,
+          senderAvatarUrl: senderAvatarUrl,
+          conversationAvatarUrl: conversationAvatarUrl,
+          isGroupConversation: isGroupConversation,
+          forwardInfo: domainMessage.forwardInfo,
+          reactions: reactions,
+        );
+      }
     }
 
     if (domainMessage is AudioMessage) {
@@ -463,7 +528,15 @@ class ChatMessageUIMapper {
       if (text.isNotEmpty) return text;
     }
 
-    if (message is ImageMessage) return '[Image]';
+    if (message is ImageMessage) {
+      return message.medias.length > 1 ? '[Images]' : '[Image]';
+    }
+    if (message is MultiMediaMessage) {
+      final imageCount = message.medias.whereType<ImageMedia>().length;
+      if (imageCount > 1) return '[Images]';
+      if (imageCount == 1) return '[Image]';
+      return '[Media]';
+    }
     if (message is VideoMessage) return '[Video]';
     if (message is AudioMessage) return '[Audio]';
     if (message is FileMessage) return '[File]';

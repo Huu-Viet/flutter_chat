@@ -28,6 +28,7 @@ abstract class ChatService {
     required String content,
     String type = 'text',
     String? mediaId,
+    List<Map<String, dynamic>>? attachments,
     String? clientMessageId,
     String? replyToMessageId,
     List<String>? mentions,
@@ -83,7 +84,11 @@ abstract class ChatService {
 
   Future<StickerPackageResponse> getStickerPackages();
 
-  Future<StickerItemResponse> getStickersInPackage(String packageId, {int limit = 50, int offset = 0});
+  Future<StickerItemResponse> getStickersInPackage(
+    String packageId, {
+    int limit = 50,
+    int offset = 0,
+  });
 
   Future<void> startTyping(String conversationId);
 

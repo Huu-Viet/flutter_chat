@@ -427,6 +427,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                                     index];
                             return MessageBubble(
                               message: message,
+                              conversationId: widget.conversationId,
                               showReactAction:
                                   message.isLastInGroup &&
                                   _canReactToMessage(message),
@@ -884,7 +885,12 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       final text = message.text.trim();
       return text.isEmpty ? 'message' : text;
     }
-    if (message is ImageChatMessage) return '[Image]';
+    if (message is ImageChatMessage) {
+      final imageCount = message.imagePaths.isNotEmpty
+          ? message.imagePaths.length
+          : (message.mediaIds.isNotEmpty ? message.mediaIds.length : 1);
+      return imageCount > 1 ? '[Images]' : '[Image]';
+    }
     if (message is VideoChatMessage) return '[Video]';
     if (message is AudioChatMessage) return '[Audio]';
     if (message is FileChatMessage) return '[File]';
@@ -1082,17 +1088,27 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     );
 
     if (images.isNotEmpty) {
-      setState(() {
-        for (var image in images) {
-          _messages.add(
-            ImageChatMessage(
-              imagePath: image.path,
-              isSentByMe: true,
-              timestamp: DateTime.now(),
+      final imagePaths = images
+          .map((image) => image.path)
+          .toList(growable: false);
+      final imageSizes = <int>[];
+      for (final image in images) {
+        imageSizes.add(await image.length());
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      ref
+          .read(chatBlocProvider)
+          .add(
+            SendMultipleImagesEvent(
+              conversationId: widget.conversationId,
+              imagePaths: imagePaths,
+              imageSizes: imageSizes,
             ),
           );
-        }
-      });
     }
   }
 

@@ -34,10 +34,7 @@ sealed class ChatMessage {
     this.reactions = const <ChatMessageReaction>[],
   });
 
-  ChatMessage copyWithGrouping({
-    bool? isFirstInGroup,
-    bool? isLastInGroup,
-  });
+  ChatMessage copyWithGrouping({bool? isFirstInGroup, bool? isLastInGroup});
 
   String get type;
 }
@@ -83,7 +80,10 @@ final class TextChatMessage extends ChatMessage {
   String get type => 'text';
 
   @override
-  TextChatMessage copyWithGrouping({bool? isFirstInGroup, bool? isLastInGroup}) {
+  TextChatMessage copyWithGrouping({
+    bool? isFirstInGroup,
+    bool? isLastInGroup,
+  }) {
     return TextChatMessage(
       text: text,
       replyToId: replyToId,
@@ -109,12 +109,16 @@ final class TextChatMessage extends ChatMessage {
 final class ImageChatMessage extends ChatMessage {
   final String? imagePath;
   final String? mediaId;
+  final List<String> imagePaths;
+  final List<String> mediaIds;
   final bool isUploading;
   final bool isResolvingImage;
 
   const ImageChatMessage({
     this.imagePath,
     this.mediaId,
+    this.imagePaths = const <String>[],
+    this.mediaIds = const <String>[],
     this.isUploading = false,
     this.isResolvingImage = false,
     required super.isSentByMe,
@@ -137,10 +141,15 @@ final class ImageChatMessage extends ChatMessage {
   String get type => 'image';
 
   @override
-  ImageChatMessage copyWithGrouping({bool? isFirstInGroup, bool? isLastInGroup}) {
+  ImageChatMessage copyWithGrouping({
+    bool? isFirstInGroup,
+    bool? isLastInGroup,
+  }) {
     return ImageChatMessage(
       imagePath: imagePath,
       mediaId: mediaId,
+      imagePaths: imagePaths,
+      mediaIds: mediaIds,
       isUploading: isUploading,
       isResolvingImage: isResolvingImage,
       isSentByMe: isSentByMe,
@@ -194,7 +203,10 @@ final class AudioChatMessage extends ChatMessage {
   String get type => 'audio';
 
   @override
-  AudioChatMessage copyWithGrouping({bool? isFirstInGroup, bool? isLastInGroup}) {
+  AudioChatMessage copyWithGrouping({
+    bool? isFirstInGroup,
+    bool? isLastInGroup,
+  }) {
     return AudioChatMessage(
       mediaId: mediaId,
       audioUrl: audioUrl,
@@ -258,7 +270,10 @@ final class VideoChatMessage extends ChatMessage {
   String get type => 'video';
 
   @override
-  VideoChatMessage copyWithGrouping({bool? isFirstInGroup, bool? isLastInGroup}) {
+  VideoChatMessage copyWithGrouping({
+    bool? isFirstInGroup,
+    bool? isLastInGroup,
+  }) {
     return VideoChatMessage(
       thumbnailPath: thumbnailPath,
       videoUrl: videoUrl,
@@ -313,7 +328,10 @@ final class StickerChatMessage extends ChatMessage {
   String get type => 'sticker';
 
   @override
-  StickerChatMessage copyWithGrouping({bool? isFirstInGroup, bool? isLastInGroup}) {
+  StickerChatMessage copyWithGrouping({
+    bool? isFirstInGroup,
+    bool? isLastInGroup,
+  }) {
     return StickerChatMessage(
       stickerId: stickerId,
       stickerPath: stickerPath,
@@ -368,7 +386,10 @@ final class FileChatMessage extends ChatMessage {
   String get type => 'file';
 
   @override
-  FileChatMessage copyWithGrouping({bool? isFirstInGroup, bool? isLastInGroup}) {
+  FileChatMessage copyWithGrouping({
+    bool? isFirstInGroup,
+    bool? isLastInGroup,
+  }) {
     return FileChatMessage(
       fileName: fileName,
       mediaId: mediaId,
@@ -421,7 +442,10 @@ final class ContactCardChatMessage extends ChatMessage {
   String get type => 'contact_card';
 
   @override
-  ContactCardChatMessage copyWithGrouping({bool? isFirstInGroup, bool? isLastInGroup}) {
+  ContactCardChatMessage copyWithGrouping({
+    bool? isFirstInGroup,
+    bool? isLastInGroup,
+  }) {
     return ContactCardChatMessage(
       cardType: cardType,
       contactUserId: contactUserId,
@@ -469,7 +493,10 @@ final class UnknownChatMessage extends ChatMessage {
   String get type => 'unknown';
 
   @override
-  UnknownChatMessage copyWithGrouping({bool? isFirstInGroup, bool? isLastInGroup}) {
+  UnknownChatMessage copyWithGrouping({
+    bool? isFirstInGroup,
+    bool? isLastInGroup,
+  }) {
     return UnknownChatMessage(
       content: content,
       isSentByMe: isSentByMe,
@@ -502,19 +529,22 @@ final class SystemChatMessage extends ChatMessage {
     super.serverId,
     super.senderId,
   }) : super(
-          isSentByMe: false,
-          isDeleted: false,
-          isGroupConversation: false,
-          isFirstInGroup: true,
-          isLastInGroup: true,
-          reactions: const <ChatMessageReaction>[],
-        );
+         isSentByMe: false,
+         isDeleted: false,
+         isGroupConversation: false,
+         isFirstInGroup: true,
+         isLastInGroup: true,
+         reactions: const <ChatMessageReaction>[],
+       );
 
   @override
   String get type => 'system';
 
   @override
-  SystemChatMessage copyWithGrouping({bool? isFirstInGroup, bool? isLastInGroup}) {
+  SystemChatMessage copyWithGrouping({
+    bool? isFirstInGroup,
+    bool? isLastInGroup,
+  }) {
     return SystemChatMessage(
       text: text,
       action: action,

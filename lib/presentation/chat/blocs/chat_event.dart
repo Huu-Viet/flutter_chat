@@ -29,7 +29,13 @@ final class SendTextEvent extends ChatEvent {
   });
 
   @override
-  List<Object?> get props => [conversationId, content, mediaId, replyToMessageId, mentions];
+  List<Object?> get props => [
+    conversationId,
+    content,
+    mediaId,
+    replyToMessageId,
+    mentions,
+  ];
 }
 
 final class SendImageEvent extends ChatEvent {
@@ -45,6 +51,21 @@ final class SendImageEvent extends ChatEvent {
 
   @override
   List<Object> get props => [conversationId, imagePath, imageSize];
+}
+
+final class SendMultipleImagesEvent extends ChatEvent {
+  final String conversationId;
+  final List<String> imagePaths;
+  final List<int> imageSizes;
+
+  const SendMultipleImagesEvent({
+    required this.conversationId,
+    required this.imagePaths,
+    required this.imageSizes,
+  });
+
+  @override
+  List<Object> get props => [conversationId, imagePaths, imageSizes];
 }
 
 final class SendFileEvent extends ChatEvent {
@@ -68,10 +89,7 @@ final class SendVideoEvent extends ChatEvent {
   final String conversationId;
   final File file;
 
-  const SendVideoEvent({
-    required this.conversationId,
-    required this.file,
-  });
+  const SendVideoEvent({required this.conversationId, required this.file});
 
   @override
   List<Object> get props => [conversationId, file];
@@ -135,10 +153,7 @@ final class FetchAudioEvent extends ChatEvent {
   final String mediaId;
   final String conversationId;
 
-  const FetchAudioEvent({
-    required this.mediaId,
-    required this.conversationId,
-  });
+  const FetchAudioEvent({required this.mediaId, required this.conversationId});
 
   @override
   List<Object> get props => [mediaId, conversationId];
@@ -148,10 +163,7 @@ final class FetchVideoEvent extends ChatEvent {
   final String mediaId;
   final String conversationId;
 
-  const FetchVideoEvent({
-    required this.mediaId,
-    required this.conversationId,
-  });
+  const FetchVideoEvent({required this.mediaId, required this.conversationId});
 
   @override
   List<Object> get props => [mediaId, conversationId];
@@ -231,7 +243,11 @@ final class ForwardMessageEvent extends ChatEvent {
   });
 
   @override
-  List<Object> get props => [messageId, srcConversationId, targetConversationIds];
+  List<Object> get props => [
+    messageId,
+    srcConversationId,
+    targetConversationIds,
+  ];
 }
 
 final class EmitTypingEvent extends ChatEvent {

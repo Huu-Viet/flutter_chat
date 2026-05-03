@@ -16,6 +16,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_chat/core/utils/date_utils.dart';
 import 'package:flutter_chat/core/utils/waveform_utils.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message/forward_info.dart';
+import 'package:flutter_chat/presentation/chat/page/image_viewer_page.dart';
 import 'package:flutter_chat/presentation/chat/chat_image_cache_manager.dart';
 import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_reactions_bar.dart';
@@ -29,6 +30,7 @@ class MessageBubble extends StatefulWidget {
   final VoidCallback? onOpenFile;
   final ValueChanged<String>? onReplyPreviewTap;
   final bool showReactAction;
+  final String? conversationId;
 
   const MessageBubble({
     super.key,
@@ -39,6 +41,7 @@ class MessageBubble extends StatefulWidget {
     this.showReactAction = false,
     this.onOpenFile,
     this.onReplyPreviewTap,
+    this.conversationId,
   });
 
   @override
@@ -120,7 +123,8 @@ class _MessageBubbleState extends State<MessageBubble> {
     }
 
     final hasVisualMedia = switch (message) {
-      ImageChatMessage(:final imagePath) => imagePath != null,
+      ImageChatMessage(:final imagePath, :final imagePaths) =>
+        imagePath != null || imagePaths.isNotEmpty,
       VideoChatMessage(:final thumbnailPath, :final videoUrl) =>
         thumbnailPath != null ||
             (videoUrl != null && videoUrl.trim().isNotEmpty),
@@ -266,6 +270,8 @@ class _MessageBubbleState extends State<MessageBubble> {
       ImageChatMessage(
         :final imagePath,
         :final mediaId,
+        :final imagePaths,
+        :final mediaIds,
         :final isUploading,
         :final isResolvingImage,
         :final forwardInfo,
@@ -274,6 +280,8 @@ class _MessageBubbleState extends State<MessageBubble> {
           context,
           imagePath,
           mediaId,
+          imagePaths,
+          mediaIds,
           isUploading,
           isResolvingImage,
           false,
@@ -286,6 +294,8 @@ class _MessageBubbleState extends State<MessageBubble> {
           context,
           stickerPath,
           null,
+          stickerPath == null ? const <String>[] : <String>[stickerPath],
+          const <String>[],
           false,
           false,
           _isSpriteSticker(stickerPath, stickerId),
@@ -350,14 +360,34 @@ class _MessageBubbleState extends State<MessageBubble> {
     BuildContext context,
     String? imagePath,
     String? mediaId,
+    List<String> imagePaths,
+    List<String> mediaIds,
     bool isUploading,
     bool isResolvingImage,
     bool isSpriteSticker,
     bool isSticker,
     ForwardInfo? forwardInfo,
   ) {
-    if (imagePath == null) {
-      if (!isResolvingImage) return const SizedBox.shrink();
+    final normalizedImagePaths = imagePaths
+        .map((path) => path.trim())
+        .toList(growable: false);
+    final normalizedMediaIds = mediaIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toList(growable: false);
+    final totalImageCount = normalizedMediaIds.isNotEmpty
+        ? normalizedMediaIds.length
+        : normalizedImagePaths.length;
+    final hasMultipleImages = !isSticker && totalImageCount > 1;
+
+    final hasAnyResolvedPath = normalizedImagePaths.any(
+      (path) => path.isNotEmpty,
+    );
+
+    if (imagePath == null && !hasAnyResolvedPath) {
+      if (!isResolvingImage && normalizedMediaIds.isEmpty) {
+        return const SizedBox.shrink();
+      }
       return const SizedBox(
         height: 160,
         width: 160,
@@ -371,40 +401,45 @@ class _MessageBubbleState extends State<MessageBubble> {
       );
     }
 
-    final uri = Uri.tryParse(imagePath);
+    final fallbackImagePath = imagePath?.trim().isNotEmpty == true
+        ? imagePath!.trim()
+        : normalizedImagePaths.firstWhere(
+            (path) => path.isNotEmpty,
+            orElse: () => '',
+          );
+    final uri = Uri.tryParse(fallbackImagePath ?? '');
     final isNetworkImage =
         uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
     final imageHeight = isSticker ? 120.0 : 200.0;
     final imageFit = isSticker ? BoxFit.contain : BoxFit.cover;
 
-    final imageWidget = ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: isSpriteSticker && isNetworkImage
-          ? AnimatedStickerSprite(
-              imageProvider: NetworkImage(imagePath),
-              width: imageHeight,
-              height: imageHeight,
-              fps: 12,
-              fit: BoxFit.contain,
-            )
-          : isNetworkImage
-          ? CachedNetworkImage(
-              imageUrl: imagePath,
-              cacheKey: mediaId,
-              height: imageHeight,
-              fit: imageFit,
-              errorWidget: (context, url, error) =>
-                  const Icon(Icons.broken_image),
-              cacheManager: chatImageCacheManager,
-            )
-          : Image.file(
-              File(imagePath),
-              height: imageHeight,
-              fit: imageFit,
-              errorBuilder: (context, error, stackTrace) =>
-                  const Icon(Icons.broken_image),
-            ),
-    );
+    final imageWidget = hasMultipleImages
+        ? _buildMultiImageGrid(
+            context,
+            imagePaths: normalizedImagePaths,
+            mediaIds: normalizedMediaIds,
+            isUploading: isUploading,
+          )
+        : (fallbackImagePath.isEmpty
+              ? _buildImagePlaceholderTile()
+              : _buildSingleImageTile(
+                  imagePath: fallbackImagePath,
+                  mediaId: mediaId,
+                  imageHeight: imageHeight,
+                  imageFit: imageFit,
+                  isSpriteSticker: isSpriteSticker,
+                  isNetworkImage: isNetworkImage,
+                  onTap: isSticker
+                      ? null
+                      : () => _openImageViewer(
+                          context,
+                          imagePaths: <String>[fallbackImagePath],
+                          mediaIds: mediaId == null || mediaId.trim().isEmpty
+                              ? const <String>[]
+                              : <String>[mediaId.trim()],
+                          initialIndex: 0,
+                        ),
+                ));
 
     Widget content;
 
@@ -441,6 +476,193 @@ class _MessageBubbleState extends State<MessageBubble> {
         const SizedBox(height: 4),
         content,
       ],
+    );
+  }
+
+  Widget _buildMultiImageGrid(
+    BuildContext context, {
+    required List<String> imagePaths,
+    required List<String> mediaIds,
+    required bool isUploading,
+  }) {
+    final totalCount = mediaIds.isNotEmpty
+        ? mediaIds.length
+        : imagePaths.length;
+    if (totalCount <= 0) {
+      return _buildImagePlaceholderTile();
+    }
+
+    final tileCount = totalCount > 4 ? 4 : totalCount;
+
+    return SizedBox(
+      width: 220,
+      height: tileCount <= 2 ? 108 : 220,
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: tileCount,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 4,
+          mainAxisSpacing: 4,
+          childAspectRatio: 1,
+        ),
+        itemBuilder: (context, index) {
+          final rawPath = index < imagePaths.length ? imagePaths[index] : '';
+          final path = rawPath.trim().isEmpty ? null : rawPath.trim();
+          final mediaId = index < mediaIds.length ? mediaIds[index] : null;
+          final hasOverflow = index == 3 && totalCount > 4;
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              path == null
+                  ? _buildImagePlaceholderTile()
+                  : _buildSingleImageTile(
+                      imagePath: path,
+                      mediaId: mediaId,
+                      imageHeight: 108,
+                      imageFit: BoxFit.cover,
+                      isSpriteSticker: false,
+                      isNetworkImage: _isNetworkPath(path),
+                      onTap: () => _openImageViewer(
+                        context,
+                        imagePaths: imagePaths,
+                        mediaIds: mediaIds,
+                        initialIndex: index,
+                      ),
+                    ),
+              if (hasOverflow)
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '+${totalCount - 4}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSingleImageTile({
+    required String imagePath,
+    required String? mediaId,
+    required double imageHeight,
+    required BoxFit imageFit,
+    required bool isSpriteSticker,
+    required bool isNetworkImage,
+    required VoidCallback? onTap,
+  }) {
+    final widget = ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: isSpriteSticker && isNetworkImage
+          ? AnimatedStickerSprite(
+              imageProvider: NetworkImage(imagePath),
+              width: imageHeight,
+              height: imageHeight,
+              fps: 12,
+              fit: BoxFit.contain,
+            )
+          : isNetworkImage
+          ? CachedNetworkImage(
+              imageUrl: imagePath,
+              cacheKey: mediaId,
+              height: imageHeight,
+              fit: imageFit,
+              errorWidget: (context, url, error) =>
+                  const Icon(Icons.broken_image),
+              cacheManager: chatImageCacheManager,
+            )
+          : Image.file(
+              File(imagePath),
+              height: imageHeight,
+              fit: imageFit,
+              errorBuilder: (context, error, stackTrace) =>
+                  const Icon(Icons.broken_image),
+            ),
+    );
+
+    if (onTap == null) {
+      return widget;
+    }
+
+    return GestureDetector(onTap: onTap, child: widget);
+  }
+
+  Widget _buildImagePlaceholderTile() {
+    return Container(
+      height: 108,
+      decoration: BoxDecoration(
+        color: Colors.black12,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Center(
+        child: Icon(Icons.image_outlined, color: Colors.black45),
+      ),
+    );
+  }
+
+  bool _isNetworkPath(String path) {
+    final uri = Uri.tryParse(path);
+    return uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+  }
+
+  void _openImageViewer(
+    BuildContext context, {
+    required List<String> imagePaths,
+    required List<String> mediaIds,
+    required int initialIndex,
+  }) {
+    final maxLength = imagePaths.length > mediaIds.length
+        ? imagePaths.length
+        : mediaIds.length;
+
+    final filteredImagePaths = <String>[];
+    final filteredMediaIds = <String>[];
+    var filteredInitialIndex = 0;
+
+    for (var index = 0; index < maxLength; index++) {
+      final path = index < imagePaths.length ? imagePaths[index].trim() : '';
+      final mediaId = index < mediaIds.length ? mediaIds[index].trim() : '';
+      if (path.isEmpty) {
+        continue;
+      }
+
+      if (index < initialIndex) {
+        filteredInitialIndex++;
+      }
+
+      filteredImagePaths.add(path);
+      filteredMediaIds.add(mediaId);
+    }
+
+    if (filteredImagePaths.isEmpty) {
+      return;
+    }
+
+    if (filteredInitialIndex >= filteredImagePaths.length) {
+      filteredInitialIndex = filteredImagePaths.length - 1;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ImageViewerPage(
+          previewImagePaths: filteredImagePaths,
+          mediaIds: filteredMediaIds,
+          initialIndex: filteredInitialIndex,
+          conversationId: widget.conversationId,
+        ),
+      ),
     );
   }
 
