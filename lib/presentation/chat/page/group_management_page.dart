@@ -9,6 +9,8 @@ import 'package:flutter_chat/features/auth/domain/entities/user.dart';
 import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/chat/domain/entities/conversation.dart';
 import 'package:flutter_chat/features/chat/domain/entities/conversation_participant.dart';
+import 'package:flutter_chat/features/group_manager/data/datasources/api/group_management_service.dart';
+import 'package:flutter_chat/features/group_manager/group_management_provider.dart';
 import 'package:flutter_chat/features/upload_media/upload_media_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -50,6 +52,8 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   bool _busyInvite = false;
   bool _busyRequests = false;
   bool _busyPolls = false;
+  bool _openingPollDialog = false;
+  bool _submittingPoll = false;
   bool _busyAppointments = false;
   bool _busyNotify = false;
   bool _busyDanger = false;
@@ -65,6 +69,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   List<Map<String, dynamic>> _polls = <Map<String, dynamic>>[];
   List<Map<String, dynamic>> _appointments = <Map<String, dynamic>>[];
   List<MyUser> _memberSearchResults = const <MyUser>[];
+
 
   @override
   void initState() {
@@ -82,10 +87,13 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     _memberSearchController = TextEditingController();
     _tabController = TabController(length: _visibleTabs.length, vsync: this);
 
-    _syncParticipantsFromServer();
-    _loadJoinRequests();
-    _loadPolls();
-    _loadAppointments();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _syncParticipantsFromServer();
+      _loadJoinRequests();
+      _loadPolls();
+      _loadAppointments();
+    });
   }
 
   @override
@@ -98,6 +106,8 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   }
 
   Dio get _dio => ref.read(authDioProvider);
+  GroupManagementService get _groupManagementService =>
+      ref.read(groupManagementServiceProvider);
   static String get _baseUrl => dotenv.get('NEST_API_BASE_URL');
 
   String _url(String path) {
@@ -263,6 +273,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     if (!_isAdminOrOwner) {
       return;
     }
+    if (!mounted) return;
 
     setState(() => _busyRequests = true);
     try {
@@ -297,31 +308,31 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   }
 
   Future<void> _loadPolls() async {
+    if (!mounted) return;
     setState(() => _busyPolls = true);
     try {
-      final response = await _dio.get(
-        _url('/conversations/${widget.conversation.id}/polls'),
+      final mapped = await _groupManagementService.listConversationPolls(
+        conversationId: widget.conversation.id,
+        includeClosed: true,
       );
-      final data = _unwrap(response.data);
-
-      List<dynamic> raw = <dynamic>[];
-      if (data is Map<String, dynamic> && data['polls'] is List) {
-        raw = data['polls'] as List<dynamic>;
-      } else if (data is List) {
-        raw = data;
-      }
-
-      final mapped = raw
-          .whereType<Map>()
-          .map((item) => item.map((key, value) => MapEntry('$key', value)))
-          .toList(growable: false);
 
       if (!mounted) return;
       setState(() {
         _polls = mapped;
       });
-    } catch (_) {
-      // Endpoint may not be enabled in some environments.
+    } catch (error, stackTrace) {
+      final parsed = _parseBackendError(error);
+      final statusCode = parsed?['statusCode'];
+      final backendMessage = (parsed?['message'] as String?)?.trim();
+
+      print('[GroupManagement][Polls] fetch failed: $error');
+      print('$stackTrace');
+
+      final statusText = statusCode != null ? ' ($statusCode)' : '';
+      final detail = backendMessage?.isNotEmpty == true
+          ? backendMessage
+          : error.toString();
+      _toast('Load polls failed$statusText: $detail');
     } finally {
       if (mounted) {
         setState(() => _busyPolls = false);
@@ -330,6 +341,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   }
 
   Future<void> _loadAppointments() async {
+    if (!mounted) return;
     setState(() => _busyAppointments = true);
     try {
       final response = await _dio.get(
@@ -776,30 +788,74 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   }
 
   Future<void> _createPoll() async {
-    final result = await _showCreatePollDialog(context);
+    if (_openingPollDialog || _submittingPoll) {
+      return;
+    }
+
+    if (mounted) {
+      setState(() => _openingPollDialog = true);
+    }
+
+    Map<String, dynamic>? result;
+    try {
+      result = await _showCreatePollDialog(context);
+    } finally {
+      if (mounted) {
+        setState(() => _openingPollDialog = false);
+      }
+    }
+
     if (result == null) return;
 
+    if (mounted) {
+      setState(() => _submittingPoll = true);
+    }
+
     try {
-      await _dio.post(
-        _url('/conversations/${widget.conversation.id}/polls'),
-        data: result,
+      await _groupManagementService.createPoll(
+        conversationId: widget.conversation.id,
+        payload: result,
       );
       _toast('Poll created');
       await _loadPolls();
     } catch (e) {
       _toast(_errorMessageFor(e, fallback: 'Failed to create poll.'));
+    } finally {
+      if (mounted) {
+        setState(() => _submittingPoll = false);
+      }
     }
   }
 
   Future<void> _closePoll(String pollId) async {
     try {
-      await _dio.post(
-        _url('/conversations/${widget.conversation.id}/polls/$pollId/close'),
+      await _groupManagementService.closePoll(
+        conversationId: widget.conversation.id,
+        pollId: pollId,
       );
       _toast('Poll closed');
       await _loadPolls();
     } catch (e) {
       _toast(_errorMessageFor(e, fallback: 'Failed to close poll.'));
+    }
+  }
+
+  Future<void> _votePoll(String pollId, List<String> optionIds) async {
+    try {
+      final updated = await _groupManagementService.votePoll(
+        conversationId: widget.conversation.id,
+        pollId: pollId,
+        optionIds: optionIds,
+      );
+      if (updated != null) {
+        if (!mounted) return;
+        setState(() {
+          final idx = _polls.indexWhere((p) => p['id'] == pollId);
+          if (idx >= 0) _polls[idx] = updated;
+        });
+      }
+    } catch (e) {
+      _toast(_errorMessageFor(e, fallback: 'Failed to vote.'));
     }
   }
 
@@ -1212,50 +1268,50 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
         _buildSectionCard(
           context,
           title: 'Polls',
-          subtitle: 'Create / list / close polls.',
+          subtitle:
+              '${_polls.length} poll${_polls.length == 1 ? '' : 's'} in this group',
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   FilledButton.icon(
-                    onPressed: _createPoll,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Create Poll'),
+                    onPressed: (_openingPollDialog || _submittingPoll)
+                        ? null
+                        : _createPoll,
+                    icon: const Icon(Icons.add, size: 18),
+                    label: _submittingPoll
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Create Poll'),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   OutlinedButton.icon(
                     onPressed: _busyPolls ? null : _loadPolls,
-                    icon: const Icon(Icons.refresh),
+                    icon: const Icon(Icons.refresh, size: 18),
                     label: const Text('Refresh'),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
-              if (_busyPolls) const LinearProgressIndicator(),
-              ..._polls.map((poll) {
-                final pollId = poll['id']?.toString() ?? '';
-                final question =
-                    poll['question']?.toString() ?? 'Untitled poll';
-                final isClosed = poll['isClosed'] == true;
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(question),
-                  subtitle: Text(isClosed ? 'Closed' : 'Open'),
-                  trailing: isClosed
-                      ? null
-                      : TextButton(
-                          onPressed: pollId.isEmpty
-                              ? null
-                              : () => _closePoll(pollId),
-                          child: const Text('Close'),
-                        ),
-                );
-              }),
-              if (_polls.isEmpty && !_busyPolls)
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('No polls yet.'),
+              if (_busyPolls) ...[
+                const SizedBox(height: 10),
+                const LinearProgressIndicator(),
+              ],
+              if (_polls.isEmpty && !_busyPolls) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'No polls yet.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
                 ),
+              ],
+              ..._polls.map((poll) => _buildPollCard(context, poll)),
             ],
           ),
         ),
@@ -1310,6 +1366,265 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPollCard(BuildContext context, Map<String, dynamic> poll) {
+    final pollId = poll['id']?.toString() ?? '';
+    final question = poll['question']?.toString() ?? 'Untitled poll';
+    final isClosed = poll['isClosed'] == true;
+    final multipleChoice = poll['multipleChoice'] == true;
+    final deadline = poll['deadline']?.toString();
+    final rawOptions = poll['options'];
+    final options = rawOptions is List
+        ? rawOptions
+              .whereType<Map>()
+              .map((o) => o.map((k, v) => MapEntry('$k', v)))
+              .toList()
+        : <Map<String, dynamic>>[];
+
+    final currentUserId = widget.currentUserId;
+    final totalVotes = options.fold<int>(0, (sum, opt) {
+      final voters = opt['voterIds'];
+      return sum + (voters is List ? voters.length : 0);
+    });
+
+    final myVotedIds = options
+        .where((opt) {
+          final voters = opt['voterIds'];
+          return voters is List && voters.contains(currentUserId);
+        })
+        .map((opt) => opt['id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet();
+
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    question,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (isClosed)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'Closed',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: colorScheme.onErrorContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'Open',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            if (multipleChoice)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'Multiple choices allowed',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+            if (deadline != null && deadline.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(
+                    Icons.schedule_outlined,
+                    size: 12,
+                    color: colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    () {
+                      try {
+                        final dt = DateTime.parse(deadline).toLocal();
+                        final d = dt.day.toString().padLeft(2, '0');
+                        final m = dt.month.toString().padLeft(2, '0');
+                        final h = dt.hour.toString().padLeft(2, '0');
+                        final min = dt.minute.toString().padLeft(2, '0');
+                        return 'Deadline: $d/$m/${dt.year} $h:$min';
+                      } catch (_) {
+                        return 'Deadline: $deadline';
+                      }
+                    }(),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 12),
+            ...options.map((opt) {
+              final optId = opt['id']?.toString() ?? '';
+              final optText = opt['text']?.toString() ?? '';
+              final voters = opt['voterIds'];
+              final voteCount = voters is List ? voters.length : 0;
+              final pct = totalVotes > 0 ? (voteCount / totalVotes) : 0.0;
+              final isMyVote = myVotedIds.contains(optId);
+
+              return GestureDetector(
+                onTap: isClosed || pollId.isEmpty || optId.isEmpty
+                    ? null
+                    : () {
+                        final newVotes = multipleChoice
+                            ? (isMyVote
+                                  ? myVotedIds.difference({optId}).toList()
+                                  : {...myVotedIds, optId}.toList())
+                            : [optId];
+                        _votePoll(pollId, newVotes);
+                      },
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isMyVote
+                          ? colorScheme.primary
+                          : colorScheme.outlineVariant,
+                      width: isMyVote ? 1.5 : 1,
+                    ),
+                  ),
+                  clipBehavior: Clip.hardEdge,
+                  child: Stack(
+                    children: [
+                      FractionallySizedBox(
+                        alignment: Alignment.centerLeft,
+                        widthFactor: pct.clamp(0.0, 1.0),
+                        child: Container(
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: isMyVote
+                                ? colorScheme.primary.withValues(alpha: 0.18)
+                                : colorScheme.surfaceContainerHighest,
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        height: 44,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Row(
+                            children: [
+                              if (isMyVote)
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 6),
+                                  child: Icon(
+                                    Icons.check_circle,
+                                    size: 16,
+                                    color: colorScheme.primary,
+                                  ),
+                                ),
+                              Expanded(
+                                child: Text(
+                                  optText,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: isMyVote
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                '$voteCount  ${(pct * 100).round()}%',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: colorScheme.onSurface.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            if (totalVotes > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 2, bottom: 6),
+                child: Text(
+                  '$totalVotes vote${totalVotes == 1 ? '' : 's'}',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+            if (!isClosed && _isAdminOrOwner && pollId.isNotEmpty)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => _closePoll(pollId),
+                  icon: const Icon(Icons.lock_outline, size: 14),
+                  label: const Text('Close poll'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: colorScheme.error,
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1525,54 +1840,12 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Save Settings'),
+                      : const Text('Update Settings'),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 14),
-        _buildSectionCard(
-          context,
-          title: 'Notification Mute',
-          subtitle: 'All members can configure their own mute duration.',
-          child: Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  key: ValueKey<String>(_muteDuration),
-                  initialValue: _muteDuration,
-                  decoration: const InputDecoration(labelText: 'Mute duration'),
-                  items: const [
-                    DropdownMenuItem(value: '1h', child: Text('1 hour')),
-                    DropdownMenuItem(value: '4h', child: Text('4 hours')),
-                    DropdownMenuItem(value: '8h', child: Text('8 hours')),
-                    DropdownMenuItem(value: '24h', child: Text('24 hours')),
-                    DropdownMenuItem(value: 'forever', child: Text('Forever')),
-                    DropdownMenuItem(value: 'off', child: Text('Off')),
-                  ],
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() => _muteDuration = value);
-                  },
-                ),
-              ),
-              const SizedBox(width: 10),
-              FilledButton(
-                onPressed: _busyNotify ? null : _applyMute,
-                child: _busyNotify
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Apply'),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-        _buildDangerZoneCard(context),
       ],
     );
   }
@@ -1787,65 +2060,289 @@ Future<Map<String, dynamic>?> _showCreatePollDialog(
   BuildContext context,
 ) async {
   final questionController = TextEditingController();
-  final optionsController = TextEditingController();
+  final optionControllers = <TextEditingController>[
+    TextEditingController(),
+    TextEditingController(),
+  ];
   bool multipleChoice = false;
+  DateTime? deadline;
 
-  return showDialog<Map<String, dynamic>>(
+  final result = await showDialog<Map<String, dynamic>>(
     context: context,
+    useRootNavigator: true,
     builder: (dialogContext) {
       return StatefulBuilder(
-        builder: (context, setState) {
+        builder: (ctx, setS) {
+          const maxOptions = 10;
+
+          void addOption() {
+            if (optionControllers.length < maxOptions) {
+              setS(() => optionControllers.add(TextEditingController()));
+            }
+          }
+
+          void removeOption(int index) {
+            if (optionControllers.length > 2) {
+              optionControllers[index].dispose();
+              setS(() => optionControllers.removeAt(index));
+            }
+          }
+
+          Future<void> pickDeadline() async {
+            final now = DateTime.now();
+            final pickedDate = await showDatePicker(
+              context: ctx,
+              initialDate: deadline ?? now.add(const Duration(days: 1)),
+              firstDate: now,
+              lastDate: now.add(const Duration(days: 365)),
+              useRootNavigator: true,
+            );
+            if (pickedDate == null) return;
+            if (!ctx.mounted) return;
+            final pickedTime = await showTimePicker(
+              context: ctx,
+              initialTime: TimeOfDay.fromDateTime(
+                deadline ?? now.add(const Duration(hours: 1)),
+              ),
+              useRootNavigator: true,
+            );
+            if (pickedTime == null) return;
+            setS(() {
+              deadline = DateTime(
+                pickedDate.year,
+                pickedDate.month,
+                pickedDate.day,
+                pickedTime.hour,
+                pickedTime.minute,
+              );
+            });
+          }
+
+          String formatDeadline(DateTime dt) {
+            final d = dt.day.toString().padLeft(2, '0');
+            final m = dt.month.toString().padLeft(2, '0');
+            final y = dt.year;
+            final h = dt.hour.toString().padLeft(2, '0');
+            final min = dt.minute.toString().padLeft(2, '0');
+            return '$d/$m/$y  $h:$min';
+          }
+
+          final colorScheme = Theme.of(ctx).colorScheme;
+          final labelStyle = TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.2,
+            color: colorScheme.onSurface.withValues(alpha: 0.55),
+          );
+          final fieldDecoration = InputDecoration(
+            filled: true,
+            fillColor: colorScheme.surfaceContainerHighest,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: colorScheme.primary, width: 1.5),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 13,
+            ),
+          );
+
           return AlertDialog(
-            title: const Text('Create Poll'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: questionController,
-                  decoration: const InputDecoration(labelText: 'Question'),
+            title: Text(
+              'Create Poll',
+              style: Theme.of(
+                ctx,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            content: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 520,
+                maxHeight: MediaQuery.sizeOf(ctx).height * 0.62,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('QUESTION', style: labelStyle),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: questionController,
+                      decoration: fieldDecoration.copyWith(
+                        hintText: 'Ask something...',
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text('OPTIONS', style: labelStyle),
+                    const SizedBox(height: 6),
+                    ...List.generate(optionControllers.length, (i) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: optionControllers[i],
+                                decoration: fieldDecoration.copyWith(
+                                  hintText: 'Option ${i + 1}',
+                                ),
+                              ),
+                            ),
+                            if (optionControllers.length > 2) ...[
+                              const SizedBox(width: 4),
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                icon: Icon(
+                                  Icons.remove_circle_outline,
+                                  color: colorScheme.error,
+                                  size: 20,
+                                ),
+                                onPressed: () => removeOption(i),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    }),
+                    if (optionControllers.length < maxOptions)
+                      GestureDetector(
+                        onTap: addOption,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.add,
+                                size: 16,
+                                color: colorScheme.primary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Add option (${optionControllers.length}/$maxOptions)',
+                                style: TextStyle(
+                                  color: colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      const SizedBox(height: 14),
+                    GestureDetector(
+                      onTap: () => setS(() => multipleChoice = !multipleChoice),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: Checkbox(
+                              value: multipleChoice,
+                              onChanged: (v) =>
+                                  setS(() => multipleChoice = v ?? false),
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('Multiple choices'),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text('DEADLINE (OPTIONAL)', style: labelStyle),
+                    const SizedBox(height: 6),
+                    InkWell(
+                      onTap: pickDeadline,
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 13,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                deadline != null
+                                    ? formatDeadline(deadline!)
+                                    : 'dd/mm/yyyy  --:--',
+                                style: TextStyle(
+                                  color: deadline != null
+                                      ? colorScheme.onSurface
+                                      : colorScheme.onSurface.withValues(
+                                          alpha: 0.4,
+                                        ),
+                                ),
+                              ),
+                            ),
+                            if (deadline != null)
+                              GestureDetector(
+                                onTap: () => setS(() => deadline = null),
+                                child: Icon(
+                                  Icons.close,
+                                  size: 18,
+                                  color: colorScheme.onSurface.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                ),
+                              )
+                            else
+                              Icon(
+                                Icons.calendar_month_outlined,
+                                size: 20,
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.5,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: optionsController,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Options (one per line)',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: multipleChoice,
-                  onChanged: (value) => setState(() => multipleChoice = value),
-                  title: const Text('Multiple choice'),
-                ),
-              ],
+              ),
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
+                onPressed: () => Navigator.of(dialogContext).pop(),
                 child: const Text('Cancel'),
               ),
               FilledButton(
                 onPressed: () {
                   final question = questionController.text.trim();
-                  final options = optionsController.text
-                      .split('\n')
-                      .map((line) => line.trim())
-                      .where((line) => line.isNotEmpty)
+                  final options = optionControllers
+                      .map((c) => c.text.trim())
+                      .where((t) => t.isNotEmpty)
                       .toList(growable: false);
-
                   if (question.isEmpty || options.length < 2) {
                     return;
                   }
-
-                  Navigator.pop(dialogContext, {
+                  Navigator.of(dialogContext).pop({
                     'question': question,
                     'options': options,
                     'multipleChoice': multipleChoice,
+                    if (deadline != null)
+                      'deadline': deadline!.toUtc().toIso8601String(),
                   });
                 },
-                child: const Text('Create'),
+                child: const Text('Create Poll'),
               ),
             ],
           );
@@ -1853,6 +2350,12 @@ Future<Map<String, dynamic>?> _showCreatePollDialog(
       );
     },
   );
+
+  for (final c in optionControllers) {
+    c.dispose();
+  }
+  questionController.dispose();
+  return result;
 }
 
 Future<Map<String, dynamic>?> _showCreateAppointmentDialog(

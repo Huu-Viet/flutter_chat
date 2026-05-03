@@ -32,7 +32,9 @@ class ChatListTile extends StatelessWidget {
 
     return ListTile(
       leading: CircleAvatar(
-        backgroundImage: avatarUrl != null ? CachedNetworkImageProvider(avatarUrl!) : null,
+        backgroundImage: avatarUrl != null
+            ? CachedNetworkImageProvider(avatarUrl!)
+            : null,
         child: avatarUrl == null ? Text(avatarText) : null,
       ),
       title: Text(
@@ -56,10 +58,7 @@ class ChatListTile extends StatelessWidget {
         children: [
           Text(
             AppDateUtils.formatDateTime(time),
-            style: TextStyle(
-              fontSize: 12,
-              color: unreadCount > 0 ? Colors.blue : Colors.grey,
-            ),
+            style: TextStyle(fontSize: 12, color: unreadCount > 0 ? Colors.blue : Colors.grey),
           ),
           if (unreadCount > 0) ...[
             const SizedBox(height: 4),
@@ -84,12 +83,10 @@ class ChatListTile extends StatelessWidget {
       onTap: () async {
         await homeBloc.joinConversationUseCase(id);
 
-        if(!context.mounted) return;
-        context.push('/chat/$id/$displayName',
-          extra: {
-            'conversationId': id,
-            'friendName': displayName,
-          }
+        if (!context.mounted) return;
+        context.push(
+          '/chat/$id/$displayName',
+          extra: {'conversationId': id, 'friendName': displayName},
         );
       },
     );

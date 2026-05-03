@@ -7,6 +7,7 @@ import 'package:flutter_chat/presentation/chat/blocs/chat_bloc.dart';
 
 class ChatAppEventSubscriber extends AppEventSubscriber {
   final FetchConversationUseCase _fetchConversationUseCase;
+  final FetchConversationDetailUseCase _fetchConversationDetailUseCase;
   final FetchMessagesUseCase fetchMessagesUseCase;
   final DeleteLocalConversationUseCase _deleteLocalConversationUseCase;
   final MarkMessageDeletedLocalUseCase _markMessageDeletedLocalUseCase;
@@ -16,18 +17,19 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
 
   ChatAppEventSubscriber({
     required FetchConversationUseCase fetchConversationUseCase,
+    required FetchConversationDetailUseCase fetchConversationDetailUseCase,
     required this.fetchMessagesUseCase,
     required DeleteLocalConversationUseCase deleteLocalConversationUseCase,
     required MarkMessageDeletedLocalUseCase markMessageDeletedLocalUseCase,
     required MarkMessageReactionsLocalUseCase markMessageReactionsLocalUseCase,
     required UpdateUserPresenceLocalUseCase updateUserPresenceLocalUseCase,
     this.onTyping,
-  })
-      : _fetchConversationUseCase = fetchConversationUseCase,
-        _deleteLocalConversationUseCase = deleteLocalConversationUseCase,
-        _markMessageDeletedLocalUseCase = markMessageDeletedLocalUseCase,
-        _markMessageReactionsLocalUseCase = markMessageReactionsLocalUseCase,
-        _updateUserPresenceLocalUseCase = updateUserPresenceLocalUseCase;
+  }) : _fetchConversationUseCase = fetchConversationUseCase,
+       _fetchConversationDetailUseCase = fetchConversationDetailUseCase,
+       _deleteLocalConversationUseCase = deleteLocalConversationUseCase,
+       _markMessageDeletedLocalUseCase = markMessageDeletedLocalUseCase,
+       _markMessageReactionsLocalUseCase = markMessageReactionsLocalUseCase,
+       _updateUserPresenceLocalUseCase = updateUserPresenceLocalUseCase;
 
   static const int _syncPage = 1;
   static const int _syncLimit = 20;
@@ -40,6 +42,18 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
   @override
   Future<void> onEvent(AppEvent event) async {
     switch (event.type) {
+      case 'conversation:new':
+      case 'conversation:created':
+      case 'conversation:added':
+      case 'group:created':
+      case 'group:poll_created':
+        debugPrint(
+          '🔔 [ChatAppEventSubscriber] ${event.type} reached subscriber, payload=${event.payload}',
+        );
+        await _syncConversationDetail(event.type, event.payload);
+        await _syncConversations(event.type, event.payload);
+        await _syncRecentMessages(event.type, event.payload);
+        return;
       case 'conversation:member-added':
       case 'conversation:member-removed':
       case 'conversation:removed':
@@ -48,11 +62,22 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
         return;
       case 'group:disbanded':
         await _deleteLocalConversation(event.type, event.payload);
+        await _syncConversations(event.type, event.payload);
+        return;
+      case 'group:poll_voted':
+      case 'group:poll_closed':
+        await _syncConversationDetail(event.type, event.payload);
+        await _syncRecentMessages(event.type, event.payload);
         return;
       case 'message:new':
       case 'message:saved':
       case 'message:notify':
+        await _syncConversations(event.type, event.payload);
         await _fetchLatestMessages(event.type, event.payload);
+        return;
+      case 'cursor:seen_updated':
+      case 'cursor:delivered_updated':
+        await _syncConversations(event.type, event.payload);
         return;
       case 'message:edited':
       case 'message:revoked':
@@ -102,45 +127,96 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
     Map<String, dynamic> payload, {
     required bool isActive,
   }) async {
-    debugPrint('[ChatAppEventSubscriber] sync user presence for $eventType: $payload');
+    debugPrint(
+      '[ChatAppEventSubscriber] sync user presence for $eventType: $payload',
+    );
 
     final userId = _resolveUserId(payload);
     if (userId == null || userId.isEmpty) {
-      debugPrint('[ChatAppEventSubscriber] skip $eventType presence sync: missing userId');
+      debugPrint(
+        '[ChatAppEventSubscriber] skip $eventType presence sync: missing userId',
+      );
       return;
     }
 
     final result = await _updateUserPresenceLocalUseCase(userId, isActive);
     result.fold(
       (failure) {
-        debugPrint('[ChatAppEventSubscriber] sync user presence failed: ${failure.message}');
+        debugPrint(
+          '[ChatAppEventSubscriber] sync user presence failed: ${failure.message}',
+        );
       },
       (_) {
-        debugPrint('[ChatAppEventSubscriber] sync user presence ok: userId=$userId isActive=$isActive');
+        debugPrint(
+          '[ChatAppEventSubscriber] sync user presence ok: userId=$userId isActive=$isActive',
+        );
       },
     );
   }
 
-  Future<void> _syncConversations(String eventType, Map<String, dynamic> payload) async {
-    debugPrint('[ChatAppEventSubscriber] sync conversations for $eventType: $payload');
+  Future<void> _syncConversations(
+    String eventType,
+    Map<String, dynamic> payload,
+  ) async {
+    debugPrint(
+      '[ChatAppEventSubscriber] sync conversations for $eventType: $payload',
+    );
 
     final result = await _fetchConversationUseCase(_syncPage, _syncLimit);
     result.fold(
       (failure) {
-        debugPrint('[ChatAppEventSubscriber] sync conversations failed: ${failure.message}');
+        debugPrint(
+          '[ChatAppEventSubscriber] sync conversations failed: ${failure.message}',
+        );
       },
       (hasMore) {
-        debugPrint('[ChatAppEventSubscriber] sync conversations ok: hasMore=$hasMore');
+        debugPrint(
+          '[ChatAppEventSubscriber] sync conversations ok: hasMore=$hasMore',
+        );
       },
     );
   }
 
-  Future<void> _fetchLatestMessages(String eventType, Map<String, dynamic> payload) async {
-    debugPrint('[ChatAppEventSubscriber] sync latest message for $eventType: $payload');
+  Future<void> _syncConversationDetail(
+    String eventType,
+    Map<String, dynamic> payload,
+  ) async {
+    final conversationId = _resolveConversationId(payload);
+    if (conversationId == null || conversationId.isEmpty) {
+      debugPrint(
+        '[ChatAppEventSubscriber] skip $eventType detail sync: missing conversationId',
+      );
+      return;
+    }
+
+    final result = await _fetchConversationDetailUseCase(conversationId);
+    result.fold(
+      (failure) {
+        debugPrint(
+          '[ChatAppEventSubscriber] sync conversation detail failed: ${failure.message}',
+        );
+      },
+      (_) {
+        debugPrint(
+          '[ChatAppEventSubscriber] sync conversation detail ok: conversationId=$conversationId',
+        );
+      },
+    );
+  }
+
+  Future<void> _fetchLatestMessages(
+    String eventType,
+    Map<String, dynamic> payload,
+  ) async {
+    debugPrint(
+      '[ChatAppEventSubscriber] sync latest message for $eventType: $payload',
+    );
 
     final conversationId = _resolveConversationId(payload);
     if (conversationId == null || conversationId.isEmpty) {
-      debugPrint('[ChatAppEventSubscriber] skip $eventType sync: missing conversationId');
+      debugPrint(
+        '[ChatAppEventSubscriber] skip $eventType sync: missing conversationId',
+      );
       return;
     }
 
@@ -152,16 +228,25 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
     );
     result.fold(
       (failure) {
-        debugPrint('[ChatAppEventSubscriber] fetch latest message failed: ${failure.message}');
+        debugPrint(
+          '[ChatAppEventSubscriber] fetch latest message failed: ${failure.message}',
+        );
       },
       (messages) {
-        debugPrint('[ChatAppEventSubscriber] fetch latest message ok: count=${messages.length}');
+        debugPrint(
+          '[ChatAppEventSubscriber] fetch latest message ok: count=${messages.length}',
+        );
       },
     );
   }
 
-  Future<void> _syncRecentMessages(String eventType, Map<String, dynamic> payload) async {
-    debugPrint('[ChatAppEventSubscriber] sync recent messages for $eventType: $payload');
+  Future<void> _syncRecentMessages(
+    String eventType,
+    Map<String, dynamic> payload,
+  ) async {
+    debugPrint(
+      '[ChatAppEventSubscriber] sync recent messages for $eventType: $payload',
+    );
 
     if (eventType == 'message:deleted' ||
         eventType == 'message:revoked' ||
@@ -187,7 +272,9 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
 
     final conversationId = _resolveConversationId(payload);
     if (conversationId == null || conversationId.isEmpty) {
-      debugPrint('[ChatAppEventSubscriber] skip $eventType sync: missing conversationId');
+      debugPrint(
+        '[ChatAppEventSubscriber] skip $eventType sync: missing conversationId',
+      );
       return;
     }
 
@@ -199,30 +286,45 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
     );
     result.fold(
       (failure) {
-        debugPrint('[ChatAppEventSubscriber] sync recent messages failed: ${failure.message}');
+        debugPrint(
+          '[ChatAppEventSubscriber] sync recent messages failed: ${failure.message}',
+        );
       },
       (messages) {
-        debugPrint('[ChatAppEventSubscriber] sync recent messages ok: count=${messages.length}');
+        debugPrint(
+          '[ChatAppEventSubscriber] sync recent messages ok: count=${messages.length}',
+        );
       },
     );
   }
 
-  Future<void> _deleteLocalConversation(String eventType, Map<String, dynamic> payload) async {
-    debugPrint('[ChatAppEventSubscriber] delete local conversation for $eventType: $payload');
+  Future<void> _deleteLocalConversation(
+    String eventType,
+    Map<String, dynamic> payload,
+  ) async {
+    debugPrint(
+      '[ChatAppEventSubscriber] delete local conversation for $eventType: $payload',
+    );
 
     final conversationId = _resolveConversationId(payload);
     if (conversationId == null || conversationId.isEmpty) {
-      debugPrint('[ChatAppEventSubscriber] skip $eventType: missing conversationId');
+      debugPrint(
+        '[ChatAppEventSubscriber] skip $eventType: missing conversationId',
+      );
       return;
     }
 
     final result = await _deleteLocalConversationUseCase(conversationId);
     result.fold(
       (failure) {
-        debugPrint('[ChatAppEventSubscriber] delete local conversation failed: ${failure.message}');
+        debugPrint(
+          '[ChatAppEventSubscriber] delete local conversation failed: ${failure.message}',
+        );
       },
       (_) {
-        debugPrint('[ChatAppEventSubscriber] delete local conversation ok: conversationId=$conversationId');
+        debugPrint(
+          '[ChatAppEventSubscriber] delete local conversation ok: conversationId=$conversationId',
+        );
       },
     );
   }
@@ -233,11 +335,42 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
       return direct;
     }
 
+    final groupId = payload['groupId']?.toString();
+    if (groupId != null && groupId.isNotEmpty) {
+      return groupId;
+    }
+
+    final id = payload['id']?.toString();
+    if (id != null && id.isNotEmpty) {
+      return id;
+    }
+
     final data = payload['data'];
     if (data is Map<String, dynamic>) {
       final nestedDirect = data['conversationId']?.toString();
       if (nestedDirect != null && nestedDirect.isNotEmpty) {
         return nestedDirect;
+      }
+
+      final nestedGroupId = data['groupId']?.toString();
+      if (nestedGroupId != null && nestedGroupId.isNotEmpty) {
+        return nestedGroupId;
+      }
+
+      final nestedId = data['id']?.toString();
+      if (nestedId != null && nestedId.isNotEmpty) {
+        return nestedId;
+      }
+
+      final conversation = data['conversation'];
+      if (conversation is Map<String, dynamic>) {
+        final nestedConversationId =
+            conversation['id']?.toString() ??
+            conversation['conversationId']?.toString() ??
+            conversation['groupId']?.toString();
+        if (nestedConversationId != null && nestedConversationId.isNotEmpty) {
+          return nestedConversationId;
+        }
       }
 
       final message = data['message'];
@@ -261,7 +394,8 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
   }
 
   String? _resolveMessageId(Map<String, dynamic> payload) {
-    final direct = payload['messageId']?.toString() ??
+    final direct =
+        payload['messageId']?.toString() ??
         payload['message_id']?.toString() ??
         payload['id']?.toString() ??
         payload['clientMessageId']?.toString() ??
@@ -272,7 +406,8 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
 
     final data = payload['data'];
     if (data is Map<String, dynamic>) {
-      final nestedDirect = data['messageId']?.toString() ??
+      final nestedDirect =
+          data['messageId']?.toString() ??
           data['message_id']?.toString() ??
           data['id']?.toString() ??
           data['clientMessageId']?.toString() ??
@@ -283,7 +418,8 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
 
       final message = data['message'];
       if (message is Map<String, dynamic>) {
-        final nestedMessageDirect = message['id']?.toString() ??
+        final nestedMessageDirect =
+            message['id']?.toString() ??
             message['messageId']?.toString() ??
             message['message_id']?.toString() ??
             message['clientMessageId']?.toString() ??
@@ -296,7 +432,8 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
 
     final message = payload['message'];
     if (message is Map<String, dynamic>) {
-      final nestedMessageDirect = message['id']?.toString() ??
+      final nestedMessageDirect =
+          message['id']?.toString() ??
           message['messageId']?.toString() ??
           message['message_id']?.toString() ??
           message['clientMessageId']?.toString() ??
@@ -310,7 +447,10 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
   }
 
   String? _resolveUserId(Map<String, dynamic> payload) {
-    final direct = payload['userId']?.toString() ?? payload['user_id']?.toString() ?? payload['id']?.toString();
+    final direct =
+        payload['userId']?.toString() ??
+        payload['user_id']?.toString() ??
+        payload['id']?.toString();
     if (direct != null && direct.isNotEmpty) {
       return direct;
     }
@@ -330,14 +470,18 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
 
     final data = payload['data'];
     if (data is Map<String, dynamic>) {
-      final nestedDirect = data['userId']?.toString() ?? data['user_id']?.toString() ?? data['id']?.toString();
+      final nestedDirect =
+          data['userId']?.toString() ??
+          data['user_id']?.toString() ??
+          data['id']?.toString();
       if (nestedDirect != null && nestedDirect.isNotEmpty) {
         return nestedDirect;
       }
 
       final nestedUser = data['user'];
       if (nestedUser is Map<String, dynamic>) {
-        final nestedUserId = nestedUser['id']?.toString() ?? nestedUser['userId']?.toString();
+        final nestedUserId =
+            nestedUser['id']?.toString() ?? nestedUser['userId']?.toString();
         if (nestedUserId != null && nestedUserId.isNotEmpty) {
           return nestedUserId;
         }
@@ -381,7 +525,9 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
 
     if (reactionsNode is Map<String, dynamic>) {
       return reactionsNode.entries
-          .map((entry) => MessageReactionDto.fromMapEntry(entry.key, entry.value))
+          .map(
+            (entry) => MessageReactionDto.fromMapEntry(entry.key, entry.value),
+          )
           .where((dto) => dto.emoji.isNotEmpty)
           .map(
             (dto) => MessageReaction(

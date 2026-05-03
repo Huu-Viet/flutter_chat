@@ -468,11 +468,96 @@ final class ContactCardChatMessage extends ChatMessage {
   }
 }
 
+final class PollChatOption {
+  final String id;
+  final String text;
+  final int voteCount;
+  final bool isSelectedByMe;
+
+  const PollChatOption({
+    required this.id,
+    required this.text,
+    required this.voteCount,
+    required this.isSelectedByMe,
+  });
+}
+
+final class PollChatMessage extends ChatMessage {
+  final String pollId;
+  final String question;
+  final List<PollChatOption> options;
+  final bool multipleChoice;
+  final DateTime? deadline;
+  final bool isClosed;
+
+  const PollChatMessage({
+    required this.pollId,
+    required this.question,
+    required this.options,
+    required this.multipleChoice,
+    required this.deadline,
+    required this.isClosed,
+    required super.isSentByMe,
+    super.senderId,
+    required super.timestamp,
+    super.isDeleted,
+    super.localId,
+    super.serverId,
+    super.senderDisplayName,
+    super.senderAvatarUrl,
+    super.conversationAvatarUrl,
+    super.isGroupConversation,
+    super.isFirstInGroup,
+    super.isLastInGroup,
+    super.forwardInfo,
+    super.reactions,
+  });
+
+  int get totalVotes =>
+      options.fold<int>(0, (sum, option) => sum + option.voteCount);
+
+  @override
+  String get type => 'poll';
+
+  @override
+  PollChatMessage copyWithGrouping({
+    bool? isFirstInGroup,
+    bool? isLastInGroup,
+  }) {
+    return PollChatMessage(
+      pollId: pollId,
+      question: question,
+      options: options,
+      multipleChoice: multipleChoice,
+      deadline: deadline,
+      isClosed: isClosed,
+      isSentByMe: isSentByMe,
+      senderId: senderId,
+      timestamp: timestamp,
+      isDeleted: isDeleted,
+      localId: localId,
+      serverId: serverId,
+      senderDisplayName: senderDisplayName,
+      senderAvatarUrl: senderAvatarUrl,
+      conversationAvatarUrl: conversationAvatarUrl,
+      isGroupConversation: isGroupConversation,
+      isFirstInGroup: isFirstInGroup ?? this.isFirstInGroup,
+      isLastInGroup: isLastInGroup ?? this.isLastInGroup,
+      forwardInfo: forwardInfo,
+      reactions: reactions,
+    );
+  }
+}
+
 final class UnknownChatMessage extends ChatMessage {
   final String? content;
+  final String rawType;
+  final Map<String, dynamic> rawMetadata;
 
   const UnknownChatMessage({
     this.content,
+    this.rawType = 'unknown',
+    this.rawMetadata = const <String, dynamic>{},
     required super.isSentByMe,
     super.senderId,
     required super.timestamp,
@@ -499,6 +584,8 @@ final class UnknownChatMessage extends ChatMessage {
   }) {
     return UnknownChatMessage(
       content: content,
+      rawType: rawType,
+      rawMetadata: rawMetadata,
       isSentByMe: isSentByMe,
       senderId: senderId,
       timestamp: timestamp,

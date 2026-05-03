@@ -1,11 +1,15 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_chat/app/app_providers.dart';
 import 'package:flutter_chat/core/platform_services/export.dart';
+import 'package:flutter_chat/core/network/realtime_gateway.dart';
 import 'package:flutter_chat/features/chat/export.dart';
+import 'package:flutter_chat/features/group_manager/group_management_provider.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
 import 'package:flutter_chat/presentation/call/blocs/in_call_bloc.dart';
 import 'package:flutter_chat/presentation/call/blocs/outgoing_call_bloc.dart';
@@ -55,11 +59,12 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   static const Duration _messageDeleteWindow = Duration(hours: 24);
 
   final TextEditingController _messageController = TextEditingController();
-  final List<ChatMessage> _messages = <ChatMessage>[];
   final MediaService _mediaService = MediaService();
   final ChatMessageUIMapper _uiMapper = ChatMessageUIMapper();
   final ScrollController _scrollController = ScrollController();
+  StreamSubscription<RealtimeGatewayEvent>? _realtimeSubscription;
   ChatMessage? _replyToMessage;
+  List<Map<String, dynamic>> _polls = <Map<String, dynamic>>[];
   final Set<String> _explicitMentionUserIds = <String>{};
   String? _activeMentionQuery;
 
@@ -67,6 +72,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   void initState() {
     super.initState();
     ref.read(chatBlocProvider).add(ChatInitialLoadEvent(widget.conversationId));
+    _subscribePollRealtimeEvents();
+    unawaited(_loadConversationPolls());
     _messageController.addListener(_onComposerTextChanged);
     _scrollController.addListener(() {
       _onScroll(ref.read(chatBlocProvider));
@@ -75,10 +82,82 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
   @override
   void dispose() {
+    _realtimeSubscription?.cancel();
     _messageController.removeListener(_onComposerTextChanged);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _subscribePollRealtimeEvents() {
+    final realtimeGateway = ref.read(realtimeGatewayServiceProvider);
+    _realtimeSubscription = realtimeGateway.events.listen((event) {
+      if (event.namespace != '/chat') {
+        return;
+      }
+
+      if (event.event != 'group:poll_created' &&
+          event.event != 'group:poll_voted' &&
+          event.event != 'group:poll_closed') {
+        return;
+      }
+
+      final payload = event.payload;
+      final conversationId = _extractConversationIdFromPayload(payload);
+      if (conversationId != widget.conversationId) {
+        return;
+      }
+
+      unawaited(_loadConversationPolls());
+    });
+  }
+
+  String? _extractConversationIdFromPayload(dynamic payload) {
+    if (payload is Map<String, dynamic>) {
+      final direct = payload['conversationId']?.toString().trim();
+      if (direct != null && direct.isNotEmpty) {
+        return direct;
+      }
+
+      final data = payload['data'];
+      if (data is Map<String, dynamic>) {
+        final nested = data['conversationId']?.toString().trim();
+        if (nested != null && nested.isNotEmpty) {
+          return nested;
+        }
+      }
+    }
+
+    if (payload is Map) {
+      final normalized = payload.map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+      final direct = normalized['conversationId']?.toString().trim();
+      if (direct != null && direct.isNotEmpty) {
+        return direct;
+      }
+    }
+
+    return null;
+  }
+
+  Future<void> _loadConversationPolls() async {
+    try {
+      final mapped = await ref
+          .read(groupManagementServiceProvider)
+          .listConversationPolls(
+            conversationId: widget.conversationId,
+            includeClosed: true,
+          );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _polls = mapped;
+      });
+    } catch (_) {
+      // Poll API is conversation-scoped and may be unavailable for non-group chats.
+    }
   }
 
   void _onComposerTextChanged() {
@@ -229,17 +308,19 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           ),
         ],
         child: BlocConsumer<ChatBloc, ChatState>(
-          buildWhen: (previous, current) => current is! ChatError,
           listener: (context, state) {
             if (state is ChatError) {
               final mappedMessage = _mapChatErrorMessage(state.message, l10n);
-              if (mappedMessage == null || mappedMessage.trim().isEmpty) {
-                return;
-              }
+              final fallbackMessage = state.message.trim().isNotEmpty
+                  ? state.message
+                  : 'Chat load failed';
+              final message = mappedMessage?.trim().isNotEmpty == true
+                  ? mappedMessage!
+                  : fallbackMessage;
 
               ScaffoldMessenger.of(
                 context,
-              ).showSnackBar(SnackBar(content: Text(mappedMessage)));
+              ).showSnackBar(SnackBar(content: Text(message)));
             }
           },
           builder: (context, state) {
@@ -316,7 +397,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
                           IconButton(
                             tooltip: 'Options',
-                            onPressed: () {
+                            onPressed: () async {
                               if (state is! ChatLoaded ||
                                   state.conversation == null) {
                                 return;
@@ -327,7 +408,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                                 return;
                               }
 
-                              Navigator.of(context).push(
+                              await Navigator.of(context).push(
                                 MaterialPageRoute<void>(
                                   builder: (_) => GroupManagementPage(
                                     conversation: conversation,
@@ -335,6 +416,14 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                                   ),
                                 ),
                               );
+
+                              if (!mounted) return;
+                              ref
+                                  .read(chatBlocProvider)
+                                  .add(
+                                    ChatInitialLoadEvent(widget.conversationId),
+                                  );
+                              unawaited(_loadConversationPolls());
                             },
                             icon: const Icon(Icons.list_outlined),
                           ),
@@ -353,125 +442,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       onUnpin: (pinMessage) {},
                     ),
 
-                  Expanded(
-                    child: Builder(
-                      builder: (context) {
-                        final List<ChatMessage> displayMessages =
-                            state is ChatLoaded
-                            ? (() {
-                                final participants =
-                                    state.conversation?.participants ??
-                                    const <ConversationParticipant>[];
-                                final senderDisplayNameByUserId =
-                                    <String, String>{
-                                      for (final participant in participants)
-                                        participant.userId.trim():
-                                            participant.displayName
-                                                .trim()
-                                                .isNotEmpty
-                                            ? participant.displayName
-                                            : participant.username,
-                                    };
-                                final senderAvatarUrlByUserId =
-                                    <String, String>{
-                                      for (final participant in participants)
-                                        participant.userId.trim():
-                                            participant.avatarUrl,
-                                    };
-                                final normalizedType =
-                                    state.conversation?.type.toLowerCase() ??
-                                    '';
-                                final isGroupConversation =
-                                    normalizedType == 'group';
-
-                                return _uiMapper.mapStateMessagesToUI(
-                                  state.messages,
-                                  state.uploadingImagePaths,
-                                  state.imageUrlsByMediaId,
-                                  state.audioUrlsByMediaId,
-                                  state.videoUrlsByMediaId,
-                                  state.resolvingImageMediaIds,
-                                  state.resolvingAudioMediaIds,
-                                  state.resolvingVideoMediaIds,
-                                  state.currentUserId,
-                                  senderDisplayNameByUserId,
-                                  senderAvatarUrlByUserId,
-                                  isGroupConversation,
-                                  state.conversation?.avatarUrl,
-                                  l10n.chat_deleted_message,
-                                );
-                              })()
-                            : _messages;
-
-                        return ListView.builder(
-                          controller: _scrollController,
-                          reverse: true,
-                          padding: const EdgeInsets.all(16),
-                          itemCount: displayMessages.length,
-                          cacheExtent: 2000,
-                          itemBuilder: (context, index) {
-                            // loading indicator for loading more messages
-                            if (state is ChatLoaded &&
-                                state.isLoadingMore &&
-                                index == displayMessages.length) {
-                              return const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 8),
-                                child: Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                              );
-                            }
-                            final message =
-                                displayMessages[displayMessages.length -
-                                    1 -
-                                    index];
-                            return MessageBubble(
-                              message: message,
-                              conversationId: widget.conversationId,
-                              showReactAction:
-                                  message.isLastInGroup &&
-                                  _canReactToMessage(message),
-                              onReactPressed:
-                                  message.isLastInGroup &&
-                                      _canReactToMessage(message)
-                                  ? () =>
-                                        _handleReactionSelection(message, '❤️')
-                                  : null,
-                              onLongPressStart: (details) =>
-                                  _showMessageActions(
-                                    context,
-                                    message,
-                                    l10n,
-                                    anchor: details.globalPosition,
-                                  ),
-                              onOpenFile: () {
-                                chatBloc.add(
-                                  GetFileDownloadUrlEvent(
-                                    mediaId: switch (message) {
-                                      FileChatMessage(:final mediaId) =>
-                                        mediaId!,
-                                      _ => '',
-                                    },
-                                    fileName: switch (message) {
-                                      FileChatMessage(:final fileName) =>
-                                        fileName!,
-                                      _ => '',
-                                    },
-                                  ),
-                                );
-                              },
-                              onReplyPreviewTap: (replyMessageId) {
-                                _scrollToRepliedMessage(
-                                  replyMessageId: replyMessageId,
-                                  displayMessages: displayMessages,
-                                );
-                              },
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ),
+                  Expanded(child: _buildMessagesPane(state, l10n, chatBloc)),
                   // is typing badge
                   if (state is ChatLoaded &&
                       state.typingUserIds.isNotEmpty &&
@@ -517,6 +488,286 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         ),
       ),
     );
+  }
+
+  Widget _buildMessagesPane(
+    ChatState state,
+    AppLocalizations l10n,
+    ChatBloc chatBloc,
+  ) {
+    if (state is ChatInitial || state is ChatLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (state is ChatError) {
+      final errorMessage = state.message.trim();
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, size: 28),
+              const SizedBox(height: 8),
+              Text(
+                errorMessage.isNotEmpty ? errorMessage : 'Failed to load chat',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: () {
+                  ref
+                      .read(chatBlocProvider)
+                      .add(ChatInitialLoadEvent(widget.conversationId));
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (state is! ChatLoaded) {
+      return const SizedBox.shrink();
+    }
+
+    final participants =
+        state.conversation?.participants ?? const <ConversationParticipant>[];
+    final senderDisplayNameByUserId = <String, String>{
+      for (final participant in participants)
+        participant.userId.trim(): participant.displayName.trim().isNotEmpty
+            ? participant.displayName
+            : participant.username,
+    };
+    final senderAvatarUrlByUserId = <String, String>{
+      for (final participant in participants)
+        participant.userId.trim(): participant.avatarUrl,
+    };
+    final normalizedType = state.conversation?.type.toLowerCase() ?? '';
+    final isGroupConversation = normalizedType == 'group';
+
+    final displayMessages = _uiMapper.mapStateMessagesToUI(
+      state.messages,
+      state.uploadingImagePaths,
+      state.imageUrlsByMediaId,
+      state.audioUrlsByMediaId,
+      state.videoUrlsByMediaId,
+      state.resolvingImageMediaIds,
+      state.resolvingAudioMediaIds,
+      state.resolvingVideoMediaIds,
+      state.currentUserId,
+      senderDisplayNameByUserId,
+      senderAvatarUrlByUserId,
+      isGroupConversation,
+      state.conversation?.avatarUrl,
+      l10n.chat_deleted_message,
+    );
+
+    final pollMessages = _mapPollsToMessages(
+      polls: _polls,
+      participants: participants,
+      currentUserId: state.currentUserId,
+      conversationAvatarUrl: state.conversation?.avatarUrl,
+      isGroupConversation: isGroupConversation,
+    );
+
+    final existingPollIds = displayMessages
+        .whereType<PollChatMessage>()
+        .map((message) => message.pollId.trim())
+        .where((pollId) => pollId.isNotEmpty)
+        .toSet();
+
+    final combinedMessages = <ChatMessage>[
+      ...displayMessages,
+      ...pollMessages.where(
+        (message) =>
+            message.pollId.trim().isNotEmpty &&
+            !existingPollIds.contains(message.pollId.trim()),
+      ),
+    ]..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+    if (combinedMessages.isEmpty) {
+      return const Center(child: Text('No messages yet'));
+    }
+
+    final itemCount = combinedMessages.length + (state.isLoadingMore ? 1 : 0);
+
+    return ListView.builder(
+      controller: _scrollController,
+      reverse: true,
+      padding: const EdgeInsets.all(16),
+      itemCount: itemCount,
+      cacheExtent: 2000,
+      itemBuilder: (context, index) {
+        if (state.isLoadingMore && index == combinedMessages.length) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final message = combinedMessages[combinedMessages.length - 1 - index];
+        return MessageBubble(
+          message: message,
+          conversationId: widget.conversationId,
+          showReactAction: message.isLastInGroup && _canReactToMessage(message),
+          onReactPressed: message.isLastInGroup && _canReactToMessage(message)
+              ? () => _handleReactionSelection(message, '❤️')
+              : null,
+          onLongPressStart: (details) => _showMessageActions(
+            context,
+            message,
+            l10n,
+            anchor: details.globalPosition,
+          ),
+          onOpenFile: () {
+            chatBloc.add(
+              GetFileDownloadUrlEvent(
+                mediaId: switch (message) {
+                  FileChatMessage(:final mediaId) => mediaId!,
+                  _ => '',
+                },
+                fileName: switch (message) {
+                  FileChatMessage(:final fileName) => fileName!,
+                  _ => '',
+                },
+              ),
+            );
+          },
+          onReplyPreviewTap: (replyMessageId) {
+            _scrollToRepliedMessage(
+              replyMessageId: replyMessageId,
+              displayMessages: combinedMessages,
+            );
+          },
+          onVotePoll: (pollId, optionIds) => _votePoll(pollId, optionIds),
+          onClosePoll: (pollId) => _closePoll(pollId),
+        );
+      },
+    );
+  }
+
+  List<PollChatMessage> _mapPollsToMessages({
+    required List<Map<String, dynamic>> polls,
+    required List<ConversationParticipant> participants,
+    required String? currentUserId,
+    required String? conversationAvatarUrl,
+    required bool isGroupConversation,
+  }) {
+    final normalizedCurrentUserId = currentUserId?.trim() ?? '';
+
+    String? senderDisplayNameById(String userId) {
+      for (final participant in participants) {
+        if (participant.userId.trim() != userId) {
+          continue;
+        }
+        final displayName = participant.displayName.trim();
+        if (displayName.isNotEmpty) {
+          return displayName;
+        }
+        return participant.username;
+      }
+      return null;
+    }
+
+    String? senderAvatarUrlById(String userId) {
+      for (final participant in participants) {
+        if (participant.userId.trim() == userId) {
+          return participant.avatarUrl;
+        }
+      }
+      return null;
+    }
+
+    DateTime parseDateTime(dynamic value) {
+      if (value == null) {
+        return DateTime.now().toUtc();
+      }
+      final parsed = DateTime.tryParse(value.toString());
+      return parsed ?? DateTime.now().toUtc();
+    }
+
+    DateTime? parseOptionalDateTime(dynamic value) {
+      if (value == null) {
+        return null;
+      }
+      return DateTime.tryParse(value.toString());
+    }
+
+    int parseVoteCount(Map<String, dynamic> option) {
+      final explicitCount = option['voteCount'] ?? option['vote_count'];
+      if (explicitCount is int) {
+        return explicitCount;
+      }
+      if (explicitCount is num) {
+        return explicitCount.toInt();
+      }
+      if (explicitCount is String) {
+        final parsed = int.tryParse(explicitCount);
+        if (parsed != null) {
+          return parsed;
+        }
+      }
+
+      final voters = option['voterIds'];
+      if (voters is List) {
+        return voters.length;
+      }
+      return 0;
+    }
+
+    return polls
+        .map((poll) {
+          final pollId = (poll['id'] ?? '').toString();
+          final creatorId = (poll['creatorId'] ?? '').toString().trim();
+          final optionNodes = poll['options'];
+          final options = optionNodes is List
+              ? optionNodes
+                    .whereType<Map>()
+                    .map((rawOption) {
+                      final option = rawOption.map(
+                        (key, value) => MapEntry(key.toString(), value),
+                      );
+                      final voterIds = (option['voterIds'] is List)
+                          ? (option['voterIds'] as List)
+                                .map((item) => item.toString().trim())
+                                .where((id) => id.isNotEmpty)
+                                .toSet()
+                          : <String>{};
+                      return PollChatOption(
+                        id: (option['id'] ?? '').toString(),
+                        text: (option['text'] ?? 'Option').toString(),
+                        voteCount: parseVoteCount(option),
+                        isSelectedByMe:
+                            normalizedCurrentUserId.isNotEmpty &&
+                            voterIds.contains(normalizedCurrentUserId),
+                      );
+                    })
+                    .toList(growable: false)
+              : const <PollChatOption>[];
+
+          return PollChatMessage(
+            pollId: pollId,
+            question: (poll['question'] ?? '').toString(),
+            options: options,
+            multipleChoice: poll['multipleChoice'] == true,
+            deadline: parseOptionalDateTime(poll['deadline']),
+            isClosed: poll['isClosed'] == true,
+            isSentByMe:
+                creatorId.isNotEmpty && creatorId == normalizedCurrentUserId,
+            senderId: creatorId,
+            timestamp: parseDateTime(poll['createdAt']),
+            localId: pollId,
+            serverId: pollId,
+            senderDisplayName: senderDisplayNameById(creatorId),
+            senderAvatarUrl: senderAvatarUrlById(creatorId),
+            conversationAvatarUrl: conversationAvatarUrl,
+            isGroupConversation: isGroupConversation,
+          );
+        })
+        .toList(growable: false);
   }
 
   Widget _buildComposerContextBar(ChatLoaded state) {
@@ -1330,6 +1581,43 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             content: newContent,
           ),
         );
+  }
+
+  Future<void> _votePoll(String pollId, List<String> optionIds) async {
+    try {
+      await ref
+          .read(groupManagementServiceProvider)
+          .votePoll(
+            conversationId: widget.conversationId,
+            pollId: pollId,
+            optionIds: optionIds,
+          );
+      unawaited(_loadConversationPolls());
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Vote failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _closePoll(String pollId) async {
+    try {
+      await ref
+          .read(groupManagementServiceProvider)
+          .closePoll(
+            conversationId: widget.conversationId,
+            pollId: pollId,
+          );
+      unawaited(_loadConversationPolls());
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Close poll failed: $e')),
+        );
+      }
+    }
   }
 
   void _onScroll(ChatBloc chatBloc) {

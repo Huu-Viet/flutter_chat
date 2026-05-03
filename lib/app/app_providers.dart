@@ -60,8 +60,13 @@ final chatAppEventSubscriberProvider = Provider<AppEventSubscriber>((ref) {
   final chatBloc = ref.read(chatBlocProvider);
   return ChatAppEventSubscriber(
     fetchConversationUseCase: ref.watch(fetchConversationUseCaseProvider),
+    fetchConversationDetailUseCase: ref.watch(
+      fetchConversationDetailUseCaseProvider,
+    ),
     fetchMessagesUseCase: ref.watch(fetchMessagesUseCaseProvider),
-    deleteLocalConversationUseCase: ref.watch(deleteLocalConversationUseCaseProvider),
+    deleteLocalConversationUseCase: ref.watch(
+      deleteLocalConversationUseCaseProvider,
+    ),
     markMessageDeletedLocalUseCase: ref.watch(
       markMessageDeletedLocalUseCaseProvider,
     ),
@@ -115,17 +120,14 @@ final callAppEventSubscriberProvider = Provider<AppEventSubscriber>((ref) {
     },
     callRepository: ref.watch(callRepositoryProvider),
     onCallAccepted: (callId) {
-      ref.read(callActionProvider.notifier).state =
-          CallAction.accepted(callId);
+      ref.read(callActionProvider.notifier).state = CallAction.accepted(callId);
     },
 
     onCallEnded: (callId) {
-      ref.read(callActionProvider.notifier).state =
-          CallAction.ended(callId);
+      ref.read(callActionProvider.notifier).state = CallAction.ended(callId);
     },
     onCallDeclined: (callId) {
-      ref.read(callActionProvider.notifier).state =
-          CallAction.declined(callId);
+      ref.read(callActionProvider.notifier).state = CallAction.declined(callId);
     },
   );
 });
@@ -203,5 +205,4 @@ final callBannerOverlayProvider = Provider((ref) {
   return CallBannerOverlay();
 });
 
-final callActionProvider =
-StateProvider<CallAction?>((ref) => null);
+final callActionProvider = StateProvider<CallAction?>((ref) => null);

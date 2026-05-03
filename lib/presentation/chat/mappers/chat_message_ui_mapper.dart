@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/image_media.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
@@ -82,6 +84,7 @@ class ChatMessageUIMapper {
         resolvingAudioMediaIds: resolvingAudioMediaIds,
         resolvingVideoMediaIds: resolvingVideoMediaIds,
         isSentByMe: isSentByMe,
+        currentUserId: normalizedCurrentUserId,
         senderId: normalizedSenderId,
         senderDisplayName: senderDisplayName,
         senderDisplayNameByUserId: senderDisplayNameByUserId,
@@ -134,6 +137,7 @@ class ChatMessageUIMapper {
     required Set<String> resolvingAudioMediaIds,
     required Set<String> resolvingVideoMediaIds,
     required bool isSentByMe,
+    required String currentUserId,
     required String senderId,
     required String? senderDisplayName,
     required Map<String, String> senderDisplayNameByUserId,
@@ -432,8 +436,29 @@ class ChatMessageUIMapper {
       );
     }
 
+    final pollMessage = _tryBuildPollMessage(
+      domainMessage: domainMessage,
+      isSentByMe: isSentByMe,
+      senderId: senderId,
+      senderDisplayName: senderDisplayName,
+      senderAvatarUrl: senderAvatarUrl,
+      conversationAvatarUrl: conversationAvatarUrl,
+      isGroupConversation: isGroupConversation,
+      currentUserId: currentUserId,
+      reactions: reactions,
+    );
+    if (pollMessage != null) {
+      return pollMessage;
+    }
+
     return UnknownChatMessage(
       content: domainMessage.content,
+      rawType: domainMessage is UnknownMessage
+          ? domainMessage.rawType
+          : 'unknown',
+      rawMetadata: domainMessage is UnknownMessage
+          ? domainMessage.rawMetadata
+          : const <String, dynamic>{},
       isSentByMe: isSentByMe,
       senderId: senderId,
       timestamp: timestamp,
@@ -542,9 +567,286 @@ class ChatMessageUIMapper {
     if (message is FileMessage) return '[File]';
     if (message is StickerMessage) return '[Sticker]';
     if (message is ContactCardMessage) return '[Contact card]';
+    if (_isPollLikeUnknownMessage(message)) return '[Poll]';
 
     final fallback = message.content.trim();
     return fallback.isNotEmpty ? fallback : '[Message]';
+  }
+
+  PollChatMessage? _tryBuildPollMessage({
+    required Message domainMessage,
+    required bool isSentByMe,
+    required String senderId,
+    required String? senderDisplayName,
+    required String? senderAvatarUrl,
+    required String? conversationAvatarUrl,
+    required bool isGroupConversation,
+    required String currentUserId,
+    required List<ChatMessageReaction> reactions,
+  }) {
+    final source = _extractPollSourceFromMessage(domainMessage);
+    if (source == null) {
+      return null;
+    }
+
+    final question =
+        _readString(source['question']) ?? domainMessage.content.trim();
+    final rawOptions =
+        source['options'] ?? source['pollOptions'] ?? source['choices'];
+    if (question.isEmpty || rawOptions is! List) {
+      return null;
+    }
+
+    final options = rawOptions
+        .whereType<Map>()
+        .map((rawOption) {
+          final option = rawOption.map(
+            (key, value) => MapEntry(key.toString(), value),
+          );
+          final voterIds = _readStringList(
+            option['voterIds'] ?? option['voters'] ?? option['voter_ids'],
+          );
+          final voteCount =
+              _readInt(
+                option['voteCount'] ??
+                    option['vote_count'] ??
+                    option['votes'] ??
+                    option['count'],
+              ) ??
+              voterIds.length;
+          final isSelectedByMe =
+              option['myVote'] == true ||
+              option['selected'] == true ||
+              option['isSelected'] == true ||
+              (currentUserId.isNotEmpty && voterIds.contains(currentUserId));
+
+          return PollChatOption(
+            id: _readString(option['id']) ?? '',
+            text:
+                _readString(option['text']) ??
+                _readString(option['label']) ??
+                'Option',
+            voteCount: voteCount,
+            isSelectedByMe: isSelectedByMe,
+          );
+        })
+        .where((option) => option.text.trim().isNotEmpty)
+        .toList(growable: false);
+
+    if (options.length < 2) {
+      return null;
+    }
+
+    final pollTimestamp =
+        _readDateTime(source['createdAt']) ??
+        _readDateTime(source['created_at']) ??
+        _readDateTime(source['timestamp']) ??
+        domainMessage.createdAt;
+
+    return PollChatMessage(
+      pollId:
+          _readString(source['id']) ??
+          _readString(source['pollId']) ??
+          domainMessage.id,
+      question: question,
+      options: options,
+      multipleChoice:
+          source['multipleChoice'] == true || source['multiple_choice'] == true,
+      deadline: _readDateTime(source['deadline']),
+      isClosed: source['isClosed'] == true || source['is_closed'] == true,
+      isSentByMe: isSentByMe,
+      senderId: senderId,
+      timestamp: pollTimestamp,
+      isDeleted: domainMessage.isDeleted,
+      localId: domainMessage.id,
+      serverId: domainMessage.serverId,
+      senderDisplayName: senderDisplayName,
+      senderAvatarUrl: senderAvatarUrl,
+      conversationAvatarUrl: conversationAvatarUrl,
+      isGroupConversation: isGroupConversation,
+      forwardInfo: domainMessage.forwardInfo,
+      reactions: reactions,
+    );
+  }
+
+  bool _isPollLikeUnknownMessage(Message message) {
+    return _extractPollSourceFromMessage(message) != null;
+  }
+
+  Map<String, dynamic>? _extractPollSourceFromMessage(Message message) {
+    if (message is UnknownMessage) {
+      final source = _extractPollSource(message.rawMetadata);
+      if (source != null) {
+        return source;
+      }
+
+      final rawType = message.rawType.trim().toLowerCase();
+      if (rawType == 'poll' || rawType == 'group:poll_created') {
+        final contentSource = _extractPollSourceFromContent(message.content);
+        if (contentSource != null) {
+          return contentSource;
+        }
+      }
+    }
+
+    if (message is SystemMessage) {
+      final source = _extractPollSource(message.metadata);
+      if (source != null) {
+        return source;
+      }
+
+      final contentSource = _extractPollSourceFromContent(message.content);
+      if (contentSource != null) {
+        return contentSource;
+      }
+
+      final action = message.action.trim().toUpperCase();
+      if (action.contains('POLL')) {
+        return _extractPollSource(<String, dynamic>{
+          ...message.metadata,
+          'type': 'poll',
+        });
+      }
+    }
+
+    if (message is TextMessage) {
+      return _extractPollSourceFromContent(message.content);
+    }
+
+    return null;
+  }
+
+  Map<String, dynamic>? _extractPollSourceFromContent(String? content) {
+    final text = content?.trim() ?? '';
+    if (text.isEmpty || !(text.startsWith('{') || text.startsWith('['))) {
+      return null;
+    }
+
+    try {
+      final decoded = jsonDecode(text);
+      if (decoded is Map) {
+        return _extractPollSource(
+          decoded.map((key, value) => MapEntry(key.toString(), value)),
+        );
+      }
+    } catch (_) {
+      return null;
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _extractPollSource(Map<String, dynamic> metadata) {
+    if (metadata.isEmpty) {
+      return null;
+    }
+
+    final topLevelPolls = metadata['polls'];
+    if (topLevelPolls is List && topLevelPolls.isNotEmpty) {
+      final first = topLevelPolls.first;
+      if (first is Map) {
+        return first.map((key, value) => MapEntry(key.toString(), value));
+      }
+    }
+
+    final nested = metadata['poll'];
+    if (nested is Map) {
+      return nested.map((key, value) => MapEntry(key.toString(), value));
+    }
+
+    final nestedData = metadata['data'];
+    if (nestedData is Map) {
+      final map = nestedData.map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+      if (map.containsKey('poll')) {
+        final innerPoll = map['poll'];
+        if (innerPoll is Map) {
+          return innerPoll.map((key, value) => MapEntry(key.toString(), value));
+        }
+      }
+
+      final innerPolls = map['polls'];
+      if (innerPolls is List && innerPolls.isNotEmpty) {
+        final first = innerPolls.first;
+        if (first is Map) {
+          return first.map((key, value) => MapEntry(key.toString(), value));
+        }
+      }
+
+      final hasPollShape =
+          map.containsKey('pollId') ||
+          map.containsKey('id') ||
+          (map.containsKey('question') &&
+              (map.containsKey('options') ||
+                  map.containsKey('pollOptions') ||
+                  map.containsKey('choices')));
+      if (hasPollShape) {
+        return map;
+      }
+    }
+
+    final payload = metadata['payload'];
+    if (payload is Map) {
+      final map = payload.map((key, value) => MapEntry(key.toString(), value));
+
+      if (map.containsKey('poll')) {
+        final innerPoll = map['poll'];
+        if (innerPoll is Map) {
+          return innerPoll.map((key, value) => MapEntry(key.toString(), value));
+        }
+      }
+
+      final innerPolls = map['polls'];
+      if (innerPolls is List && innerPolls.isNotEmpty) {
+        final first = innerPolls.first;
+        if (first is Map) {
+          return first.map((key, value) => MapEntry(key.toString(), value));
+        }
+      }
+
+      final hasPollShape =
+          map.containsKey('pollId') ||
+          map.containsKey('id') ||
+          map.containsKey('polls') ||
+          (map.containsKey('question') &&
+              (map.containsKey('options') ||
+                  map.containsKey('pollOptions') ||
+                  map.containsKey('choices')));
+      if (hasPollShape) {
+        return map;
+      }
+    }
+
+    final rawType = metadata['type']?.toString().trim().toLowerCase();
+    final kind = metadata['kind']?.toString().trim().toLowerCase();
+    final looksLikePoll =
+        rawType == 'poll' ||
+        kind == 'poll' ||
+        metadata.containsKey('pollId') ||
+        metadata.containsKey('polls') ||
+        (metadata.containsKey('question') &&
+            (metadata.containsKey('options') ||
+                metadata.containsKey('pollOptions') ||
+                metadata.containsKey('choices')));
+
+    if (!looksLikePoll) {
+      return null;
+    }
+
+    return metadata;
+  }
+
+  int? _readInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  DateTime? _readDateTime(dynamic value) {
+    final text = _readString(value);
+    if (text == null) return null;
+    return DateTime.tryParse(text);
   }
 
   String _buildSystemText(SystemMessage message) {

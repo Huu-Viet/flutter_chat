@@ -31,6 +31,10 @@ class RealtimeOrchestrator {
       debugPrint('[RealtimeOrchestrator] received session_revoked from gateway stream');
     }
 
+    if (event.event == 'conversation:new') {
+      debugPrint('🔔 [RealtimeOrchestrator] conversation:new received from gateway stream');
+    }
+
     if (event.event == 'typing:started' || event.event == 'typing:stopped') {
       debugPrint('[RealtimeOrchestrator] received ${event.event} from gateway stream: $event');
     }

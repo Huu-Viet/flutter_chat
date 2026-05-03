@@ -31,7 +31,14 @@ class ChatRealtimeHandler extends RealtimeHandler {
     'conversation:member-removed',
     'conversation:removed',
     'conversation:updated',
+    'conversation:new',
+    'conversation:created',
+    'conversation:added',
+    'group:created',
     'group:disbanded',
+    'group:poll_created',
+    'group:poll_voted',
+    'group:poll_closed',
     'cursor:seen_updated',
     'cursor:delivered_updated',
     'heartbeat:ack',
@@ -48,14 +55,23 @@ class ChatRealtimeHandler extends RealtimeHandler {
     }
 
     if (event.event == 'session_revoked') {
-      debugPrint('[ChatRealtimeHandler] session_revoked forwarded to AppEventBus: ${event.payload}');
+      debugPrint(
+        '[ChatRealtimeHandler] session_revoked forwarded to AppEventBus: ${event.payload}',
+      );
     }
 
     // Debug typing events
     if (event.event == 'typing:started' || event.event == 'typing:stopped') {
-      debugPrint('[ChatRealtimeHandler] 💬 TYPING EVENT received: ${event.event}');
+      debugPrint(
+        '[ChatRealtimeHandler] 💬 TYPING EVENT received: ${event.event}',
+      );
     }
 
+    if (event.event == 'conversation:new') {
+      debugPrint(
+        '🔔 [ChatRealtimeHandler] conversation:new reaching handler, publishing to bus',
+      );
+    }
     final payload = _toMap(event.payload);
     await _bus.publish(
       AppEvent(
@@ -80,7 +96,9 @@ class ChatRealtimeHandler extends RealtimeHandler {
       return const <String, dynamic>{};
     }
 
-    debugPrint('[ChatRealtimeHandler] Unexpected payload type: ${payload.runtimeType}');
+    debugPrint(
+      '[ChatRealtimeHandler] Unexpected payload type: ${payload.runtimeType}',
+    );
     return <String, dynamic>{'raw': payload};
   }
 }

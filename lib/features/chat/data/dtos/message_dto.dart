@@ -43,11 +43,68 @@ class MessageDto {
     final parsedMetadata = rawMetadata is Map<String, dynamic>
         ? rawMetadata
         : null;
+    final topLevelPoll = json['poll'];
+    final topLevelPolls = json['polls'];
+    final mergedMetadata = <String, dynamic>{
+      if (parsedMetadata != null) ...parsedMetadata,
+    };
+
+    if (topLevelPoll is Map) {
+      mergedMetadata['poll'] = topLevelPoll.map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+    }
+
+    if (topLevelPolls is List && topLevelPolls.isNotEmpty) {
+      mergedMetadata['polls'] = topLevelPolls;
+    }
+
+    for (final key in <String>[
+      'action',
+      'event',
+      'question',
+      'options',
+      'pollOptions',
+      'choices',
+      'multipleChoice',
+      'multiple_choice',
+      'isClosed',
+      'is_closed',
+      'deadline',
+      'pollId',
+      'createdAt',
+      'created_at',
+      'timestamp',
+    ]) {
+      final value = json[key];
+      if (value == null || mergedMetadata.containsKey(key)) {
+        continue;
+      }
+      mergedMetadata[key] = value;
+    }
+
+    final effectiveMetadata = mergedMetadata.isEmpty ? null : mergedMetadata;
+    final metadataPoll = effectiveMetadata?['poll'];
+    final metadataPolls = effectiveMetadata?['polls'];
+
+    String? pollCreatedAtFrom(dynamic poll) {
+      if (poll is! Map) return null;
+      final map = poll.map((key, value) => MapEntry(key.toString(), value));
+      return map['createdAt']?.toString() ??
+          map['created_at']?.toString() ??
+          map['timestamp']?.toString();
+    }
+
+    String? firstPollCreatedAtFrom(dynamic polls) {
+      if (polls is! List || polls.isEmpty) return null;
+      return pollCreatedAtFrom(polls.first);
+    }
 
     final topLevelMediaId = json['mediaId']?.toString();
-    final metadataMediaId = parsedMetadata == null
+    final metadataMediaId = effectiveMetadata == null
         ? null
-        : (parsedMetadata['mediaId'] ?? parsedMetadata['media_id'])?.toString();
+        : (effectiveMetadata['mediaId'] ?? effectiveMetadata['media_id'])
+              ?.toString();
     final rawForwardInfo = json['forwardedFrom'];
     final forwardInfo = (rawForwardInfo is Map)
         ? ForwardInfoDTO.fromJson(
@@ -56,18 +113,21 @@ class MessageDto {
         : null;
     final rawAttachments = json['attachments'];
     final attachments = (rawAttachments is List)
-      ? rawAttachments
-        .whereType<Map>()
-        .map((entry) => MessageAttachmentDto.fromJson(
-            entry.map((key, value) => MapEntry(key.toString(), value)),
-          ))
-        .where((entry) => entry.mediaId.isNotEmpty)
-        .toList(growable: false)
-      : const <MessageAttachmentDto>[];
+        ? rawAttachments
+              .whereType<Map>()
+              .map(
+                (entry) => MessageAttachmentDto.fromJson(
+                  entry.map((key, value) => MapEntry(key.toString(), value)),
+                ),
+              )
+              .where((entry) => entry.mediaId.isNotEmpty)
+              .toList(growable: false)
+        : const <MessageAttachmentDto>[];
 
-    final effectiveMediaId = (topLevelMediaId != null && topLevelMediaId.trim().isNotEmpty)
-      ? topLevelMediaId.trim()
-      : metadataMediaId;
+    final effectiveMediaId =
+        (topLevelMediaId != null && topLevelMediaId.trim().isNotEmpty)
+        ? topLevelMediaId.trim()
+        : metadataMediaId;
 
     return MessageDto(
       id: json['id'] as String?,
@@ -83,17 +143,31 @@ class MessageDto {
       attachments: attachments.isNotEmpty
           ? attachments
           : (effectiveMediaId != null && effectiveMediaId.isNotEmpty)
-              ? <MessageAttachmentDto>[
-                  MessageAttachmentDto(
-                    mediaId: effectiveMediaId,
-                    type: json['type']?.toString(),
-                  ),
-                ]
-              : const <MessageAttachmentDto>[],
-      metadata: parsedMetadata,
+          ? <MessageAttachmentDto>[
+              MessageAttachmentDto(
+                mediaId: effectiveMediaId,
+                type: json['type']?.toString(),
+              ),
+            ]
+          : const <MessageAttachmentDto>[],
+      metadata: effectiveMetadata,
       clientMessageId: json['clientMessageId'] as String?,
-      createdAt: json['createdAt']?.toString(),
-      editedAt: json['editedAt']?.toString(),
+      createdAt:
+          json['createdAt']?.toString() ??
+          json['created_at']?.toString() ??
+          json['timestamp']?.toString() ??
+          pollCreatedAtFrom(topLevelPoll) ??
+          firstPollCreatedAtFrom(topLevelPolls) ??
+          effectiveMetadata?['createdAt']?.toString() ??
+          effectiveMetadata?['created_at']?.toString() ??
+          effectiveMetadata?['timestamp']?.toString() ??
+          pollCreatedAtFrom(metadataPoll) ??
+          firstPollCreatedAtFrom(metadataPolls),
+      editedAt:
+          json['editedAt']?.toString() ??
+          json['edited_at']?.toString() ??
+          effectiveMetadata?['editedAt']?.toString() ??
+          effectiveMetadata?['edited_at']?.toString(),
       replyToId: (json['replyToId'] ?? json['reply_to_id'])?.toString(),
     );
   }
@@ -117,19 +191,21 @@ class MessageDto {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'conversationId': conversationId,
-        'senderId': senderId,
-        'content': content,
-        'type': type,
-        'offset': offset,
-        'isDeleted': isDeleted,
-        'isRevoked': isRevoked,
-        'mediaId': mediaId,
-        'attachments': attachments.map((entry) => entry.toJson()).toList(growable: false),
-        'metadata': metadata,
-        'clientMessageId': clientMessageId,
-        'createdAt': createdAt,
-        'editedAt': editedAt,
-      };
+    'id': id,
+    'conversationId': conversationId,
+    'senderId': senderId,
+    'content': content,
+    'type': type,
+    'offset': offset,
+    'isDeleted': isDeleted,
+    'isRevoked': isRevoked,
+    'mediaId': mediaId,
+    'attachments': attachments
+        .map((entry) => entry.toJson())
+        .toList(growable: false),
+    'metadata': metadata,
+    'clientMessageId': clientMessageId,
+    'createdAt': createdAt,
+    'editedAt': editedAt,
+  };
 }

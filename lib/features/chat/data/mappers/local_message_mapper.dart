@@ -11,7 +11,8 @@ import 'package:flutter_chat/features/chat/domain/entities/messages/message_medi
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/video_media.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 
-class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Message> {
+class LocalMessageMapper
+    extends LocalMapper<ChatMessageWithMediasEntity, Message> {
   @override
   Message toDomain(ChatMessageWithMediasEntity entity) {
     final message = entity.message;
@@ -37,8 +38,12 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           isDeleted: message.isDeleted,
           isRevoked: isRevoked,
           serverId: message.serverId,
-          createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
-          editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
+          createdAt:
+              DateTime.tryParse(message.createdAt) ??
+              DateTime.fromMillisecondsSinceEpoch(0),
+          editedAt: message.editedAt == null
+              ? null
+              : DateTime.tryParse(message.editedAt!),
           reactions: reactions,
         );
       case 'contact_page':
@@ -51,13 +56,25 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           isDeleted: message.isDeleted,
           isRevoked: isRevoked,
           serverId: message.serverId,
-          createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
-          editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
+          createdAt:
+              DateTime.tryParse(message.createdAt) ??
+              DateTime.fromMillisecondsSinceEpoch(0),
+          editedAt: message.editedAt == null
+              ? null
+              : DateTime.tryParse(message.editedAt!),
           reactions: reactions,
           forwardInfo: forwardInfo,
-          cardType: _extractContactCardType(metadata, entity.medias, normalizedType),
+          cardType: _extractContactCardType(
+            metadata,
+            entity.medias,
+            normalizedType,
+          ),
           contactUserId: _extractContactUserId(metadata, entity.medias),
-          clientMessageId: _extractContactClientMessageId(metadata, entity.medias, message),
+          clientMessageId: _extractContactClientMessageId(
+            metadata,
+            entity.medias,
+            message,
+          ),
         );
       case 'text':
         return TextMessage(
@@ -70,8 +87,12 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           isDeleted: message.isDeleted,
           isRevoked: isRevoked,
           serverId: message.serverId,
-          createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
-          editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
+          createdAt:
+              DateTime.tryParse(message.createdAt) ??
+              DateTime.fromMillisecondsSinceEpoch(0),
+          editedAt: message.editedAt == null
+              ? null
+              : DateTime.tryParse(message.editedAt!),
           reactions: reactions,
           forwardInfo: forwardInfo,
         );
@@ -87,8 +108,12 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           isDeleted: message.isDeleted,
           isRevoked: isRevoked,
           serverId: message.serverId,
-          createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
-          editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
+          createdAt:
+              DateTime.tryParse(message.createdAt) ??
+              DateTime.fromMillisecondsSinceEpoch(0),
+          editedAt: message.editedAt == null
+              ? null
+              : DateTime.tryParse(message.editedAt!),
           reactions: reactions,
           forwardInfo: forwardInfo,
         );
@@ -103,8 +128,12 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           isDeleted: message.isDeleted,
           isRevoked: isRevoked,
           serverId: message.serverId,
-          createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
-          editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
+          createdAt:
+              DateTime.tryParse(message.createdAt) ??
+              DateTime.fromMillisecondsSinceEpoch(0),
+          editedAt: message.editedAt == null
+              ? null
+              : DateTime.tryParse(message.editedAt!),
           reactions: reactions,
           forwardInfo: forwardInfo,
         );
@@ -119,8 +148,12 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           isDeleted: message.isDeleted,
           isRevoked: isRevoked,
           serverId: message.serverId,
-          createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
-          editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
+          createdAt:
+              DateTime.tryParse(message.createdAt) ??
+              DateTime.fromMillisecondsSinceEpoch(0),
+          editedAt: message.editedAt == null
+              ? null
+              : DateTime.tryParse(message.editedAt!),
           reactions: reactions,
           forwardInfo: forwardInfo,
         );
@@ -135,8 +168,12 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           isDeleted: message.isDeleted,
           isRevoked: isRevoked,
           serverId: message.serverId,
-          createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
-          editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
+          createdAt:
+              DateTime.tryParse(message.createdAt) ??
+              DateTime.fromMillisecondsSinceEpoch(0),
+          editedAt: message.editedAt == null
+              ? null
+              : DateTime.tryParse(message.editedAt!),
           reactions: reactions,
           forwardInfo: forwardInfo,
         );
@@ -151,8 +188,12 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           isDeleted: message.isDeleted,
           isRevoked: isRevoked,
           serverId: message.serverId,
-          createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
-          editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
+          createdAt:
+              DateTime.tryParse(message.createdAt) ??
+              DateTime.fromMillisecondsSinceEpoch(0),
+          editedAt: message.editedAt == null
+              ? null
+              : DateTime.tryParse(message.editedAt!),
           reactions: reactions,
           forwardInfo: forwardInfo,
         );
@@ -167,8 +208,12 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           isDeleted: message.isDeleted,
           isRevoked: isRevoked,
           serverId: message.serverId,
-          createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
-          editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
+          createdAt:
+              DateTime.tryParse(message.createdAt) ??
+              DateTime.fromMillisecondsSinceEpoch(0),
+          editedAt: message.editedAt == null
+              ? null
+              : DateTime.tryParse(message.editedAt!),
           reactions: reactions,
           forwardInfo: forwardInfo,
         );
@@ -180,12 +225,17 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
           rawType: normalizedType,
           rawContent: message.content,
           rawAttachments: medias,
+          rawMetadata: metadata ?? const <String, dynamic>{},
           offset: message.offset,
           isDeleted: message.isDeleted,
           isRevoked: isRevoked,
           serverId: message.serverId,
-          createdAt: DateTime.tryParse(message.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
-          editedAt: message.editedAt == null ? null : DateTime.tryParse(message.editedAt!),
+          createdAt:
+              DateTime.tryParse(message.createdAt) ??
+              DateTime.fromMillisecondsSinceEpoch(0),
+          editedAt: message.editedAt == null
+              ? null
+              : DateTime.tryParse(message.editedAt!),
           reactions: reactions,
         );
     }
@@ -286,10 +336,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
       );
     }
 
-    return ChatMessageWithMediasEntity(
-      message: message,
-      medias: medias,
-    );
+    return ChatMessageWithMediasEntity(message: message, medias: medias);
   }
 
   MessageMedia _mapMediaEntity(MessageMediaEntity media) {
@@ -388,13 +435,13 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
       fileName: first?.fileName,
       size: first?.size,
       durationMs: first is VideoMedia
-        ? first.durationMs
-        : first is GenericMedia
+          ? first.durationMs
+          : first is GenericMedia
           ? (first.durationMs ?? 0)
           : 0,
       bitrate: first is VideoMedia
-        ? first.bitrate
-        : first is GenericMedia
+          ? first.bitrate
+          : first is GenericMedia
           ? (first.bitrate ?? 0)
           : 0,
       codec: first is VideoMedia ? first.codec : null,
@@ -405,13 +452,13 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
       thumbReady: first is VideoMedia ? first.thumbReady : null,
       thumbMediaId: first is VideoMedia ? first.thumbMediaId : null,
       width: first is VideoMedia
-        ? first.width
-        : first is GenericMedia
+          ? first.width
+          : first is GenericMedia
           ? first.width
           : null,
       height: first is VideoMedia
-        ? first.height
-        : first is GenericMedia
+          ? first.height
+          : first is GenericMedia
           ? first.height
           : null,
     );
@@ -425,7 +472,10 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
     return medias.whereType<FileMedia>().toList(growable: false);
   }
 
-  List<MessageReaction> _extractReactions(Map<String, dynamic>? metadata, String fallbackMessageId) {
+  List<MessageReaction> _extractReactions(
+    Map<String, dynamic>? metadata,
+    String fallbackMessageId,
+  ) {
     if (metadata == null) {
       return const <MessageReaction>[];
     }
@@ -437,25 +487,34 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
 
     return raw
         .whereType<Map>()
-        .map((entry) => entry.map((key, value) => MapEntry(key.toString(), value)))
+        .map(
+          (entry) => entry.map((key, value) => MapEntry(key.toString(), value)),
+        )
         .map(
           (entry) => MessageReaction(
             messageId: (entry['messageId'] ?? fallbackMessageId).toString(),
             emoji: (entry['emoji'] ?? '').toString(),
             count: _toInt(entry['count']) ?? 0,
-            reactors: (entry['reactors'] as List?)
+            reactors:
+                (entry['reactors'] as List?)
                     ?.map((reactor) => reactor.toString())
                     .toList(growable: false) ??
                 const <String>[],
             myReaction: entry['myReaction'] == true,
           ),
         )
-        .where((reaction) => reaction.emoji.trim().isNotEmpty && reaction.count > 0)
+        .where(
+          (reaction) => reaction.emoji.trim().isNotEmpty && reaction.count > 0,
+        )
         .toList(growable: false);
   }
 
   String? _buildMetadata(Message message) {
     final metadata = <String, dynamic>{};
+
+    if (message is UnknownMessage) {
+      metadata.addAll(message.rawMetadata);
+    }
 
     if (message is SystemMessage) {
       metadata.addAll(message.metadata);
@@ -492,13 +551,18 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
     return jsonEncode(metadata);
   }
 
-  String _extractStickerUrl(Map<String, dynamic>? metadata, List<MessageMedia> medias) {
+  String _extractStickerUrl(
+    Map<String, dynamic>? metadata,
+    List<MessageMedia> medias,
+  ) {
     final candidate = metadata?['url']?.toString().trim();
     if (candidate != null && candidate.isNotEmpty) {
       return candidate;
     }
 
-    if (medias.isNotEmpty && medias.first.url != null && medias.first.url!.trim().isNotEmpty) {
+    if (medias.isNotEmpty &&
+        medias.first.url != null &&
+        medias.first.url!.trim().isNotEmpty) {
       return medias.first.url!.trim();
     }
 
@@ -524,9 +588,7 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
         return decoded;
       }
       if (decoded is Map) {
-        return decoded.map(
-          (key, value) => MapEntry(key.toString(), value),
-        );
+        return decoded.map((key, value) => MapEntry(key.toString(), value));
       }
     } catch (_) {
       return null;
@@ -550,7 +612,8 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
     List<MessageMediaEntity> medias,
     String fallbackType,
   ) {
-    final fromMetadata = metadata?['cardType']?.toString().trim() ??
+    final fromMetadata =
+        metadata?['cardType']?.toString().trim() ??
         metadata?['card_type']?.toString().trim();
     if (fromMetadata != null && fromMetadata.isNotEmpty) {
       return fromMetadata;
@@ -568,7 +631,8 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
     Map<String, dynamic>? metadata,
     List<MessageMediaEntity> medias,
   ) {
-    final fromMetadata = metadata?['contactUserId']?.toString().trim() ??
+    final fromMetadata =
+        metadata?['contactUserId']?.toString().trim() ??
         metadata?['contact_user_id']?.toString().trim() ??
         metadata?['userId']?.toString().trim() ??
         metadata?['user_id']?.toString().trim();
@@ -589,7 +653,8 @@ class LocalMessageMapper extends LocalMapper<ChatMessageWithMediasEntity, Messag
     List<MessageMediaEntity> medias,
     ChatMessageEntity message,
   ) {
-    final fromMetadata = metadata?['clientMessageId']?.toString().trim() ??
+    final fromMetadata =
+        metadata?['clientMessageId']?.toString().trim() ??
         metadata?['client_message_id']?.toString().trim();
     if (fromMetadata != null && fromMetadata.isNotEmpty) {
       return fromMetadata;

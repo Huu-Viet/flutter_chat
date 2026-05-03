@@ -10,21 +10,34 @@ final chatBlocProvider = Provider<ChatBloc>((ref) {
 
   final subscriber = ChatAppEventSubscriber(
     fetchConversationUseCase: ref.watch(fetchConversationUseCaseProvider),
+    fetchConversationDetailUseCase: ref.watch(
+      fetchConversationDetailUseCaseProvider,
+    ),
     fetchMessagesUseCase: ref.watch(fetchMessagesUseCaseProvider),
-    markMessageDeletedLocalUseCase: ref.watch(markMessageDeletedLocalUseCaseProvider),
-    markMessageReactionsLocalUseCase: ref.watch(markMessageReactionsLocalUseCaseProvider),
-    updateUserPresenceLocalUseCase: ref.watch(updateUserPresenceLocalUseCaseProvider),
+    markMessageDeletedLocalUseCase: ref.watch(
+      markMessageDeletedLocalUseCaseProvider,
+    ),
+    markMessageReactionsLocalUseCase: ref.watch(
+      markMessageReactionsLocalUseCaseProvider,
+    ),
+    updateUserPresenceLocalUseCase: ref.watch(
+      updateUserPresenceLocalUseCaseProvider,
+    ),
 
     // nhận event đầy đủ
     onTyping: (event) {
       bloc.add(event);
-    }, deleteLocalConversationUseCase: ref.watch(deleteLocalConversationUseCaseProvider),
+    },
+    deleteLocalConversationUseCase: ref.watch(
+      deleteLocalConversationUseCaseProvider,
+    ),
   );
-
 
   bloc = ChatBloc(
     fetchMessagesUseCase: ref.read(fetchMessagesUseCaseProvider),
-    fetchConversationDetailUseCase: ref.read(fetchConversationDetailUseCaseProvider),
+    fetchConversationDetailUseCase: ref.read(
+      fetchConversationDetailUseCaseProvider,
+    ),
     getConversationUseCase: ref.read(getConversationUseCaseProvider),
     watchMessagesLocalUseCase: ref.read(watchMessagesLocalUseCaseProvider),
     sendMessageUseCase: ref.read(sendMessageUseCaseProvider),
@@ -32,13 +45,17 @@ final chatBlocProvider = Provider<ChatBloc>((ref) {
     forwardMessageUseCase: ref.read(forwardMessageUseCaseProvider),
     hiddenForMeUseCase: ref.read(hiddenForMeUseCaseProvider),
     revokeMessageUseCase: ref.read(revokeMessageUseCaseProvider),
-    updateMessageReactionUseCase: ref.read(updateMessageReactionUseCaseProvider),
+    updateMessageReactionUseCase: ref.read(
+      updateMessageReactionUseCaseProvider,
+    ),
     getCurrentUserIdUseCase: ref.read(getCurrentUserIdUseCaseProvider),
     uploadMediaUseCase: ref.read(uploadMediaUseCaseProvider),
     getUrlByMediaIdUseCase: ref.read(getImageUrlByMediaIdUseCaseProvider),
     getMediaPlayInfoUseCase: ref.read(getMediaPlayInfoUseCaseProvider),
     getMediaUrlByMediaIdUseCase: ref.read(getMediaUrlByMediaIdUseCaseProvider),
-    watchConversationsWithUsersUseCase: ref.read(watchConversationsWithUsersUseCaseProvider),
+    watchConversationsWithUsersUseCase: ref.read(
+      watchConversationsWithUsersUseCaseProvider,
+    ),
     watchPinMessageUseCase: ref.read(watchPinMessageUseCaseProvider),
     fetchPinMessageUseCase: ref.read(fetchPinMessageUseCaseProvider),
     emitTypingUseCase: ref.read(emitTypingUseCaseProvider),

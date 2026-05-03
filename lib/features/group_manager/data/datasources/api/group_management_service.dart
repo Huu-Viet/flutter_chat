@@ -24,6 +24,27 @@ abstract class GroupManagementService {
     required String token,
     String? requestMessage,
   });
+
+  Future<List<Map<String, dynamic>>> listConversationPolls({
+    required String conversationId,
+    bool includeClosed,
+  });
+
+  Future<void> createPoll({
+    required String conversationId,
+    required Map<String, dynamic> payload,
+  });
+
+  Future<void> closePoll({
+    required String conversationId,
+    required String pollId,
+  });
+
+  Future<Map<String, dynamic>?> votePoll({
+    required String conversationId,
+    required String pollId,
+    required List<String> optionIds,
+  });
 }
 
 class GroupManagementServiceImpl implements GroupManagementService {
@@ -33,6 +54,17 @@ class GroupManagementServiceImpl implements GroupManagementService {
   final RealtimeGateway _realtimeGateway;
 
   GroupManagementServiceImpl(this._dio, this._realtimeGateway);
+
+  dynamic _unwrap(dynamic payload) {
+    if (payload is Map<String, dynamic> && payload.containsKey('data')) {
+      return payload['data'];
+    }
+    return payload;
+  }
+
+  Map<String, dynamic> _normalizeMap(Map input) {
+    return input.map((key, value) => MapEntry('$key', value));
+  }
 
   @override
   Future<void> updateSetting(
@@ -153,6 +185,140 @@ class GroupManagementServiceImpl implements GroupManagementService {
         '[GroupManagementService] Failed to join group via invite: $e',
       );
       throw Exception('$e');
+    }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> listConversationPolls({
+    required String conversationId,
+    bool includeClosed = true,
+  }) async {
+    final cid = conversationId.trim();
+    final url = '$_baseUrl/conversations/$cid/polls';
+    final query = <String, dynamic>{'includeClosed': includeClosed};
+
+    try {
+      debugPrint('[GroupManagementService][Polls] GET $url query=$query');
+      print('[GroupManagementService][Polls] GET $url query=$query');
+      final response = await _dio.get(url, queryParameters: query);
+      debugPrint(
+        '[GroupManagementService][Polls] status=${response.statusCode} body=${response.data}',
+      );
+      print(
+        '[GroupManagementService][Polls] status=${response.statusCode} body=${response.data}',
+      );
+      final data = _unwrap(response.data);
+      debugPrint(
+        '[GroupManagementService][Polls] unwrappedType=${data.runtimeType} unwrapped=$data',
+      );
+
+      List<dynamic> raw = <dynamic>[];
+      if (data is Map<String, dynamic> && data['polls'] is List) {
+        raw = data['polls'] as List<dynamic>;
+      } else if (data is List) {
+        raw = data;
+      }
+
+      final mapped = raw
+          .whereType<Map>()
+          .map(_normalizeMap)
+          .toList(growable: false);
+      debugPrint(
+        '[GroupManagementService][Polls] mappedCount=${mapped.length}',
+      );
+      print('[GroupManagementService][Polls] mappedCount=${mapped.length}');
+      return mapped;
+    } on DioException catch (e, st) {
+      debugPrint(
+        '[GroupManagementService][Polls] DioException status=${e.response?.statusCode} url=${e.requestOptions.uri} data=${e.response?.data}',
+      );
+      print(
+        '[GroupManagementService][Polls] DioException status=${e.response?.statusCode} url=${e.requestOptions.uri} data=${e.response?.data}',
+      );
+      debugPrint('$st');
+      rethrow;
+    } catch (e, st) {
+      debugPrint('[GroupManagementService][Polls] failed: $e');
+      print('[GroupManagementService][Polls] failed: $e');
+      debugPrint('$st');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> createPoll({
+    required String conversationId,
+    required Map<String, dynamic> payload,
+  }) async {
+    final cid = conversationId.trim();
+    final url = '$_baseUrl/conversations/$cid/polls';
+    try {
+      debugPrint('[GroupManagementService][Polls] POST $url payload=$payload');
+      await _dio.post(url, data: payload);
+    } on DioException catch (e, st) {
+      debugPrint(
+        '[GroupManagementService][Polls] createPoll failed status=${e.response?.statusCode} data=${e.response?.data}',
+      );
+      debugPrint('$st');
+      rethrow;
+    } catch (e, st) {
+      debugPrint('[GroupManagementService][Polls] createPoll failed: $e');
+      debugPrint('$st');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> closePoll({
+    required String conversationId,
+    required String pollId,
+  }) async {
+    final cid = conversationId.trim();
+    final pid = pollId.trim();
+    final url = '$_baseUrl/conversations/$cid/polls/$pid/close';
+    try {
+      await _dio.post(url);
+    } on DioException catch (e, st) {
+      debugPrint(
+        '[GroupManagementService][Polls] closePoll failed status=${e.response?.statusCode} data=${e.response?.data}',
+      );
+      debugPrint('$st');
+      rethrow;
+    } catch (e, st) {
+      debugPrint('[GroupManagementService][Polls] closePoll failed: $e');
+      debugPrint('$st');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>?> votePoll({
+    required String conversationId,
+    required String pollId,
+    required List<String> optionIds,
+  }) async {
+    final cid = conversationId.trim();
+    final pid = pollId.trim();
+    final url = '$_baseUrl/conversations/$cid/polls/$pid/votes';
+    final body = <String, dynamic>{'optionIds': optionIds};
+
+    try {
+      final response = await _dio.post(url, data: body);
+      final data = _unwrap(response.data);
+      if (data is Map<String, dynamic> && data['poll'] is Map) {
+        return _normalizeMap(data['poll'] as Map);
+      }
+      return null;
+    } on DioException catch (e, st) {
+      debugPrint(
+        '[GroupManagementService][Polls] votePoll failed status=${e.response?.statusCode} data=${e.response?.data}',
+      );
+      debugPrint('$st');
+      rethrow;
+    } catch (e, st) {
+      debugPrint('[GroupManagementService][Polls] votePoll failed: $e');
+      debugPrint('$st');
+      rethrow;
     }
   }
 }

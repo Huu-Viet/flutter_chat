@@ -4,6 +4,7 @@ class UnknownMessage extends Message {
   final String rawType;
   final String rawContent;
   final List<MessageMedia> rawAttachments;
+  final Map<String, dynamic> rawMetadata;
 
   const UnknownMessage({
     required super.id,
@@ -12,6 +13,7 @@ class UnknownMessage extends Message {
     required this.rawType,
     required this.rawContent,
     this.rawAttachments = const <MessageMedia>[],
+    this.rawMetadata = const <String, dynamic>{},
     required super.offset,
     required super.isDeleted,
     super.isRevoked,

@@ -12,7 +12,8 @@ import 'package:flutter_chat/features/chat/export.dart';
 
 class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
   DateTime _parseDate(String? value) {
-    return DateTime.tryParse(value ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+    return DateTime.tryParse(value ?? '') ??
+        DateTime.fromMillisecondsSinceEpoch(0);
   }
 
   @override
@@ -185,6 +186,7 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
           rawType: normalizedType,
           rawContent: dto.content ?? '',
           rawAttachments: medias,
+          rawMetadata: metadata ?? const <String, dynamic>{},
           offset: dto.offset,
           isDeleted: dto.isDeleted ?? false,
           isRevoked: isRevoked,
@@ -256,7 +258,7 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
     final fileName = messageMetadata?['filename']?.toString();
     final fileSize = MessageDto.asInt(messageMetadata?['fileSize']);
     final thumbMediaId = messageMetadata?['thumbMediaId']?.toString();
-    
+
     return dtos
         .map(
           (entry) => _mapAttachmentDto(
@@ -278,10 +280,12 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
     int? fileSize,
     String? thumbMediaId,
   }) {
-    final mediaType = (dto.kind ?? dto.type ?? fallbackType).trim().toLowerCase();
+    final mediaType = (dto.kind ?? dto.type ?? fallbackType)
+        .trim()
+        .toLowerCase();
     final effectiveFileName = dto.fileName ?? fileName;
     final effectiveSize = dto.size ?? fileSize;
-    
+
     switch (mediaType) {
       case 'audio':
         return AudioMedia(
@@ -348,7 +352,11 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
     }
   }
 
-  AudioMedia _toAudioMedia(List<MessageMedia> medias, String? mediaId, Map<String, dynamic>? metadata) {
+  AudioMedia _toAudioMedia(
+    List<MessageMedia> medias,
+    String? mediaId,
+    Map<String, dynamic>? metadata,
+  ) {
     final waveform = _extractWaveform(metadata);
     // final durationMs = _extractDurationMs(metadata);
     if (medias.isNotEmpty && medias.first is AudioMedia) {
@@ -370,7 +378,11 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
     );
   }
 
-  VideoMedia _toVideoMedia(List<MessageMedia> medias, String? mediaId, Map<String, dynamic>? metadata) {
+  VideoMedia _toVideoMedia(
+    List<MessageMedia> medias,
+    String? mediaId,
+    Map<String, dynamic>? metadata,
+  ) {
     final waveform = _extractWaveform(metadata);
     final metadataThumbMediaId = metadata?['thumbMediaId']?.toString();
     if (medias.isNotEmpty && medias.first is VideoMedia) {
@@ -412,9 +424,11 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
       bitrate: first is VideoMedia
           ? first.bitrate
           : first is GenericMedia
-              ? (first.bitrate ?? 0)
-              : 0,
-      thumbMediaId: first is VideoMedia ? first.thumbMediaId : metadataThumbMediaId,
+          ? (first.bitrate ?? 0)
+          : 0,
+      thumbMediaId: first is VideoMedia
+          ? first.thumbMediaId
+          : metadataThumbMediaId,
       width: first is GenericMedia ? first.width : null,
       height: first is GenericMedia ? first.height : null,
       waveform: waveform,
@@ -454,15 +468,14 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
     final fileSize = MessageDto.asInt(metadata?['fileSize']);
 
     return <FileMedia>[
-      FileMedia(
-        id: fallbackId,
-        fileName: fileName,
-        size: fileSize,
-      ),
+      FileMedia(id: fallbackId, fileName: fileName, size: fileSize),
     ];
   }
 
-  List<MessageReaction> _extractReactions(Map<String, dynamic>? metadata, String fallbackMessageId) {
+  List<MessageReaction> _extractReactions(
+    Map<String, dynamic>? metadata,
+    String fallbackMessageId,
+  ) {
     if (metadata == null) {
       return const <MessageReaction>[];
     }
@@ -474,25 +487,34 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
 
     return raw
         .whereType<Map>()
-        .map((entry) => entry.map((key, value) => MapEntry(key.toString(), value)))
+        .map(
+          (entry) => entry.map((key, value) => MapEntry(key.toString(), value)),
+        )
         .map(
           (entry) => MessageReaction(
             messageId: (entry['messageId'] ?? fallbackMessageId).toString(),
             emoji: (entry['emoji'] ?? '').toString(),
             count: _toInt(entry['count']) ?? 0,
-            reactors: (entry['reactors'] as List?)
+            reactors:
+                (entry['reactors'] as List?)
                     ?.map((reactor) => reactor.toString())
                     .toList(growable: false) ??
                 const <String>[],
             myReaction: entry['myReaction'] == true,
           ),
         )
-        .where((reaction) => reaction.emoji.trim().isNotEmpty && reaction.count > 0)
+        .where(
+          (reaction) => reaction.emoji.trim().isNotEmpty && reaction.count > 0,
+        )
         .toList(growable: false);
   }
 
   Map<String, dynamic>? _buildMetadata(Message message) {
     final metadata = <String, dynamic>{};
+
+    if (message is UnknownMessage) {
+      metadata.addAll(message.rawMetadata);
+    }
 
     if (message is SystemMessage) {
       metadata.addAll(message.metadata);
@@ -550,13 +572,18 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
     return metadata;
   }
 
-  String _extractStickerUrl(Map<String, dynamic>? metadata, List<MessageMedia> medias) {
+  String _extractStickerUrl(
+    Map<String, dynamic>? metadata,
+    List<MessageMedia> medias,
+  ) {
     final candidate = metadata?['url']?.toString().trim();
     if (candidate != null && candidate.isNotEmpty) {
       return candidate;
     }
 
-    if (medias.isNotEmpty && medias.first.url != null && medias.first.url!.trim().isNotEmpty) {
+    if (medias.isNotEmpty &&
+        medias.first.url != null &&
+        medias.first.url!.trim().isNotEmpty) {
       return medias.first.url!.trim();
     }
 
@@ -571,8 +598,12 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
     return id;
   }
 
-  String _extractContactCardType(Map<String, dynamic>? metadata, String fallbackType) {
-    final value = metadata?['cardType']?.toString().trim() ??
+  String _extractContactCardType(
+    Map<String, dynamic>? metadata,
+    String fallbackType,
+  ) {
+    final value =
+        metadata?['cardType']?.toString().trim() ??
         metadata?['card_type']?.toString().trim();
     if (value != null && value.isNotEmpty) {
       return value;
@@ -581,15 +612,20 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
   }
 
   String _extractContactUserId(Map<String, dynamic>? metadata) {
-    final value = metadata?['contactUserId']?.toString().trim() ??
+    final value =
+        metadata?['contactUserId']?.toString().trim() ??
         metadata?['contact_user_id']?.toString().trim() ??
         metadata?['userId']?.toString().trim() ??
         metadata?['user_id']?.toString().trim();
     return value ?? '';
   }
 
-  String _extractContactClientMessageId(MessageDto dto, Map<String, dynamic>? metadata) {
-    final value = metadata?['clientMessageId']?.toString().trim() ??
+  String _extractContactClientMessageId(
+    MessageDto dto,
+    Map<String, dynamic>? metadata,
+  ) {
+    final value =
+        metadata?['clientMessageId']?.toString().trim() ??
         metadata?['client_message_id']?.toString().trim() ??
         dto.clientMessageId?.trim();
     return value ?? '';

@@ -31,6 +31,10 @@ class MessageBubble extends StatefulWidget {
   final ValueChanged<String>? onReplyPreviewTap;
   final bool showReactAction;
   final String? conversationId;
+  /// Called when the user votes on a poll. Receives the pollId and selected optionIds.
+  final void Function(String pollId, List<String> optionIds)? onVotePoll;
+  /// Called when the user closes a poll. Receives the pollId.
+  final void Function(String pollId)? onClosePoll;
 
   const MessageBubble({
     super.key,
@@ -42,6 +46,8 @@ class MessageBubble extends StatefulWidget {
     this.onOpenFile,
     this.onReplyPreviewTap,
     this.conversationId,
+    this.onVotePoll,
+    this.onClosePoll,
   });
 
   @override
@@ -96,6 +102,11 @@ class _MessageBubbleState extends State<MessageBubble> {
   @override
   Widget build(BuildContext context) {
     final message = widget.message;
+
+    if (message is PollChatMessage) {
+      return _buildPollCentered(context, message);
+    }
+
     if (message is SystemChatMessage) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
@@ -347,6 +358,8 @@ class _MessageBubbleState extends State<MessageBubble> {
 
       ContactCardChatMessage() => _ContactCardBubble(message: message),
 
+      PollChatMessage() => _buildPollContent(context, message),
+
       SystemChatMessage() => const SizedBox.shrink(),
 
       TextChatMessage(:final text, :final forwardInfo, :final replyPreview) =>
@@ -354,6 +367,252 @@ class _MessageBubbleState extends State<MessageBubble> {
       UnknownChatMessage(:final content, :final forwardInfo) =>
         _buildTextContent(content ?? '', forwardInfo),
     };
+  }
+
+  Widget _buildPollCentered(BuildContext context, PollChatMessage message) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.85,
+          ),
+          child: _buildPollContent(context, message),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPollContent(BuildContext context, PollChatMessage message) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final totalVotes = message.totalVotes;
+    final deadline = message.deadline?.toLocal();
+
+    String? deadlineText() {
+      if (deadline == null) return null;
+      final day = deadline.day.toString().padLeft(2, '0');
+      final month = deadline.month.toString().padLeft(2, '0');
+      final hour = deadline.hour.toString().padLeft(2, '0');
+      final minute = deadline.minute.toString().padLeft(2, '0');
+      return '$day/$month/${deadline.year} $hour:$minute';
+    }
+
+    final header = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: message.isSentByMe
+            ? colorScheme.primary
+            : colorScheme.surfaceContainerHighest,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.poll_outlined,
+            size: 16,
+            color: message.isSentByMe
+                ? colorScheme.onPrimary
+                : colorScheme.primary,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'Poll',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: message.isSentByMe
+                    ? colorScheme.onPrimary
+                    : colorScheme.onSurface,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: message.isClosed
+                  ? colorScheme.errorContainer
+                  : colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              message.isClosed ? 'Closed' : 'Open',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: message.isClosed
+                    ? colorScheme.onErrorContainer
+                    : colorScheme.onPrimaryContainer,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final body = Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            message.question,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...message.options.map((option) {
+            final percent = totalVotes > 0
+                ? option.voteCount / totalVotes
+                : 0.0;
+            final canVote = !message.isClosed && widget.onVotePoll != null;
+            return GestureDetector(
+              onTap: canVote
+                  ? () => widget.onVotePoll!(message.pollId, [option.id])
+                  : null,
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: option.isSelectedByMe
+                        ? colorScheme.primary
+                        : colorScheme.outlineVariant,
+                    width: option.isSelectedByMe ? 1.3 : 1,
+                  ),
+                ),
+                clipBehavior: Clip.hardEdge,
+                child: Stack(
+                  children: [
+                    FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: percent.clamp(0.0, 1.0),
+                      child: Container(
+                        height: 42,
+                        color: option.isSelectedByMe
+                            ? colorScheme.primary.withValues(alpha: 0.16)
+                            : colorScheme.surfaceContainerHighest.withValues(
+                                alpha: 0.7,
+                              ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: 42,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Row(
+                          children: [
+                            if (option.isSelectedByMe)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: Icon(
+                                  Icons.check_circle,
+                                  size: 16,
+                                  color: colorScheme.primary,
+                                ),
+                              ),
+                            Expanded(
+                              child: Text(
+                                option.text,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(
+                                      fontWeight: option.isSelectedByMe
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                    ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${option.voteCount}',
+                              style: Theme.of(context).textTheme.labelMedium
+                                  ?.copyWith(
+                                    color: colorScheme.onSurface.withValues(
+                                      alpha: 0.6,
+                                    ),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+          const SizedBox(height: 2),
+          Wrap(
+            spacing: 10,
+            runSpacing: 4,
+            children: [
+              Text(
+                '$totalVotes vote${totalVotes == 1 ? '' : 's'}',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              Text(
+                message.multipleChoice ? 'Multiple choice' : 'Single choice',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              if (deadlineText() != null)
+                Text(
+                  'Ends ${deadlineText()}',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+            ],
+          ),
+          if (!message.isClosed && widget.onClosePoll != null && message.isSentByMe) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => widget.onClosePoll!(message.pollId),
+                icon: const Icon(Icons.lock_outline, size: 16),
+                label: const Text('Close poll'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: colorScheme.error,
+                  side: BorderSide(color: colorScheme.error.withValues(alpha: 0.5)),
+                  visualDensity: VisualDensity.compact,
+                  textStyle: const TextStyle(fontSize: 13),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    if (message.forwardInfo == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [header, body],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildForwardInfo(context, message.forwardInfo!),
+        const SizedBox(height: 4),
+        header,
+        body,
+      ],
+    );
   }
 
   Widget _buildImageContent(

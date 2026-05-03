@@ -54,9 +54,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       appBar: AppBar(
         title: Text(
           l10n.app_name,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
@@ -70,7 +68,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               _showCreateGroupDialog(context);
             },
             icon: const Icon(Icons.people),
-          )
+          ),
         ],
       ),
       body: const HomePageContent(),
@@ -149,8 +147,11 @@ class _HomePageContentState extends ConsumerState<HomePageContent> {
         networkStatusAsync.when(
           data: (networkStatus) {
             final shouldShowCard =
-                !networkStatus.isConnected || networkStatus.connectionType == NetworkConnectionType.mobile;
-            return shouldShowCard ? _NetworkStatusCard() : const SizedBox.shrink();
+                !networkStatus.isConnected ||
+                networkStatus.connectionType == NetworkConnectionType.mobile;
+            return shouldShowCard
+                ? _NetworkStatusCard()
+                : const SizedBox.shrink();
           },
           loading: () => const SizedBox.shrink(),
           error: (_, __) => const SizedBox.shrink(),
@@ -212,18 +213,22 @@ class _HomePageContentState extends ConsumerState<HomePageContent> {
                 }
 
                 return ListView.builder(
-                    controller: _scrollController,
-                    itemCount: state.conversations.length + (state.isLoadingMore ? 1 : 0),
+                  controller: _scrollController,
+                  itemCount:
+                      state.conversations.length +
+                      (state.isLoadingMore ? 1 : 0),
                   itemBuilder: (context, index) {
-                      if (index >= state.conversations.length) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          child: Center(child: CircularProgressIndicator()),
-                        );
-                      }
+                    if (index >= state.conversations.length) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
 
                     final c = state.conversations[index];
-                      debugPrint('[HomePage] Rendering conversation: ${c.avatarUrl}');
+                    debugPrint(
+                      '[HomePage] Rendering conversation: ${c.avatarUrl}',
+                    );
                     return ChatListTile(
                       conversationId: c.id,
                       name: c.name,
@@ -302,7 +307,7 @@ class _NetworkStatusCard extends ConsumerWidget {
     if (!status.isConnected) {
       return l10n.error_no_internet;
     }
-    
+
     switch (status.connectionType) {
       case NetworkConnectionType.wifi:
         return l10n.success_internet_connected;
