@@ -64,6 +64,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/in-call',
         name: 'in-call',
         builder: (context, state) {
+          // Navigation uses query params (?conversationId=&roomName=) since
+          // /in-call has no path segments.
           final conversationId =
               state.uri.queryParameters['conversationId'] ?? '';
           final roomName = state.uri.queryParameters['roomName'] ?? '';

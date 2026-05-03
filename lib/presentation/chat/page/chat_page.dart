@@ -16,6 +16,7 @@ import 'package:flutter_chat/presentation/chat/mappers/chat_message_ui_mapper.da
 import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
 import 'package:flutter_chat/presentation/chat/widgets/file_send_confirmation_dialog.dart';
 import 'package:flutter_chat/presentation/chat/widgets/forward_message_dialog.dart';
+import 'package:flutter_chat/presentation/chat/page/group_management_page.dart';
 import 'package:flutter_chat/presentation/chat/widgets/image_send_confirmation_dialog.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_action_dialog.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_bubble.dart';
@@ -58,11 +59,15 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   final MediaService _mediaService = MediaService();
   final ChatMessageUIMapper _uiMapper = ChatMessageUIMapper();
   final ScrollController _scrollController = ScrollController();
+  ChatMessage? _replyToMessage;
+  final Set<String> _explicitMentionUserIds = <String>{};
+  String? _activeMentionQuery;
 
   @override
   void initState() {
     super.initState();
     ref.read(chatBlocProvider).add(ChatInitialLoadEvent(widget.conversationId));
+    _messageController.addListener(_onComposerTextChanged);
     _scrollController.addListener(() {
       _onScroll(ref.read(chatBlocProvider));
     });
@@ -70,9 +75,25 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
   @override
   void dispose() {
+    _messageController.removeListener(_onComposerTextChanged);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onComposerTextChanged() {
+    final nextQuery = _extractActiveMentionQuery();
+    if (nextQuery == _activeMentionQuery) {
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _activeMentionQuery = nextQuery;
+    });
   }
 
   bool _canEditMessage(ChatMessage message) {
@@ -97,6 +118,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   bool _canReactToMessage(ChatMessage message) {
+    if (message is SystemChatMessage) {
+      return false;
+    }
+
     if (message.isDeleted) {
       return false;
     }
@@ -217,7 +242,19 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               ).showSnackBar(SnackBar(content: Text(mappedMessage)));
             }
           },
-          builder: (context, state) => Scaffold(
+          builder: (context, state) {
+            final isGroupConversation =
+                state is ChatLoaded &&
+                state.conversation != null &&
+                state.conversation?.type.trim().toLowerCase() == 'group';
+            final appBarTitle = isGroupConversation
+                ? (() {
+                    final name = state.conversation?.name.trim() ?? '';
+                    return name.isNotEmpty ? name : widget.friendName;
+                  })()
+                : widget.friendName;
+
+            return Scaffold(
             appBar: AppBar(
               iconTheme: IconThemeData(
                 color: Theme.of(context).colorScheme.onSurface,
@@ -229,7 +266,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.friendName,
+                      appBarTitle,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         color: Theme.of(context).colorScheme.onSurface,
                         fontWeight: FontWeight.bold,
@@ -279,8 +316,25 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
                         IconButton(
                           tooltip: 'Options',
-                          onPressed: () {},
-                          icon: const Icon(Icons.list_outlined),
+                          onPressed: () {
+                            if (state is! ChatLoaded || state.conversation == null) {
+                              return;
+                            }
+                            final conversation = state.conversation!;
+                            if (conversation.type.trim().toLowerCase() != 'group') {
+                              return;
+                            }
+
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => GroupManagementPage(
+                                  conversation: conversation,
+                                  currentUserId: state.currentUserId ?? '',
+                                ),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.list_outlined)
                         ),
                       ],
                     );
@@ -350,6 +404,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                         reverse: true,
                         padding: const EdgeInsets.all(16),
                         itemCount: displayMessages.length,
+                        cacheExtent: 2000,
                         itemBuilder: (context, index) {
                           // loading indicator for loading more messages
                           if (state is ChatLoaded &&
@@ -395,6 +450,12 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                                 ),
                               );
                             },
+                            onReplyPreviewTap: (replyMessageId) {
+                              _scrollToRepliedMessage(
+                                replyMessageId: replyMessageId,
+                                displayMessages: displayMessages,
+                              );
+                            },
                           );
                         },
                       );
@@ -402,7 +463,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   ),
                 ),
                 // is typing badge
-                if (state is ChatLoaded && state.typingUserIds.isNotEmpty) ...[
+                if (state is ChatLoaded &&
+                  state.typingUserIds.isNotEmpty &&
+                  _messageController.text.trim().isEmpty) ...[
                   Container(
                     alignment: Alignment.centerLeft,
                     padding: const EdgeInsets.symmetric(
@@ -418,9 +481,11 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                     ),
                   ),
                 ],
+                if (state is ChatLoaded)
+                  _buildComposerContextBar(state),
                 MessageInput(
                   controller: _messageController,
-                  onSendMessage: _sendMessage,
+                  onSendMessage: () => _sendMessage(state),
                   onPickImage: _pickImage,
                   onPickVideo: _pickVideo,
                   onPickMultipleImages: _pickMultipleImages,
@@ -438,8 +503,73 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                 ),
               ],
             ),
-          ),
+          );
+          },
         ),
+      ),
+    );
+  }
+
+  Widget _buildComposerContextBar(ChatLoaded state) {
+    final hasReply = _replyToMessage != null;
+    final participants = state.conversation?.participants ?? const <ConversationParticipant>[];
+    final mentionSuggestions = _buildMentionSuggestions(
+      participants: participants,
+      currentUserId: state.currentUserId,
+    );
+
+    if (!hasReply && mentionSuggestions.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+      color: Theme.of(context).colorScheme.surfaceBright,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (hasReply)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Reply to: ${_previewForMessage(_replyToMessage!)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => setState(() => _replyToMessage = null),
+                    icon: const Icon(Icons.close, size: 18),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
+            ),
+          if (mentionSuggestions.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: mentionSuggestions,
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -512,9 +642,14 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     return const [];
   }
 
-  void _sendMessage() {
+  void _sendMessage(ChatState state) {
     final content = _messageController.text.trim();
     if (content.isEmpty) return;
+
+    final replyToMessageId = _replyToMessage == null
+        ? null
+        : _resolveMessageIdForAction(_replyToMessage!);
+    final mentions = state is ChatLoaded ? _resolveMentionIds(state, content) : const <String>[];
 
     ref
         .read(chatBlocProvider)
@@ -522,9 +657,253 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           SendTextEvent(
             conversationId: widget.conversationId,
             content: content,
+            replyToMessageId: replyToMessageId,
+            mentions: mentions,
           ),
         );
     _messageController.clear();
+    setState(() {
+      _replyToMessage = null;
+      _explicitMentionUserIds.clear();
+      _activeMentionQuery = null;
+    });
+  }
+
+  void _insertMentionToken(String token) {
+    final current = _messageController.text;
+    final next = current.isEmpty ? token : '$current$token';
+    _messageController.value = TextEditingValue(
+      text: next,
+      selection: TextSelection.collapsed(offset: next.length),
+    );
+  }
+
+  String? _extractActiveMentionQuery() {
+    final value = _messageController.value;
+    final text = value.text;
+    final cursor = value.selection.baseOffset;
+    if (cursor < 0 || cursor > text.length) {
+      return null;
+    }
+
+    final prefix = text.substring(0, cursor);
+    final match = RegExp(r'(^|\s)@([^\s@]*)$').firstMatch(prefix);
+    if (match == null) {
+      return null;
+    }
+
+    final query = (match.group(2) ?? '').trim();
+    return query;
+  }
+
+  List<Widget> _buildMentionSuggestions({
+    required List<ConversationParticipant> participants,
+    required String? currentUserId,
+  }) {
+    final query = _activeMentionQuery;
+    if (query == null) {
+      return const <Widget>[];
+    }
+
+    final q = query.toLowerCase();
+    final widgets = <Widget>[];
+
+    // Show @all option when query is empty or partially matches 'all'
+    if ('all'.startsWith(q)) {
+      widgets.add(
+        ListTile(
+          dense: true,
+          leading: const Icon(Icons.groups, size: 18),
+          title: const Text('@all', maxLines: 1),
+          subtitle: const Text('Mention everyone', maxLines: 1),
+          onTap: () => _applyAllMention(),
+        ),
+      );
+    }
+
+    final memberSuggestions = participants
+        .where((participant) => participant.userId.trim() != (currentUserId?.trim() ?? ''))
+        .where((participant) {
+          final username = participant.username.trim().toLowerCase();
+          final displayName = participant.displayName.trim().toLowerCase();
+          if (q.isEmpty) return true;
+          return username.contains(q) || displayName.contains(q);
+        })
+        .take(5)
+        .toList(growable: false);
+
+    for (final participant in memberSuggestions) {
+      final displayName = participant.displayName.trim().isNotEmpty
+          ? participant.displayName.trim()
+          : participant.username.trim();
+      widgets.add(
+        ListTile(
+          dense: true,
+          leading: const Icon(Icons.alternate_email, size: 18),
+          title: Text(displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text('@${participant.username}', maxLines: 1, overflow: TextOverflow.ellipsis),
+          onTap: () => _applyMentionSuggestion(participant),
+        ),
+      );
+    }
+
+    return widgets;
+  }
+
+  void _applyAllMention() {
+    final value = _messageController.value;
+    final text = value.text;
+    final cursor = value.selection.baseOffset;
+    final safeCursor = (cursor < 0 || cursor > text.length) ? text.length : cursor;
+
+    final prefix = text.substring(0, safeCursor);
+    final suffix = text.substring(safeCursor);
+    final match = RegExp(r'(^|\s)@([^\s@]*)$').firstMatch(prefix);
+
+    final String rebuiltPrefix;
+    if (match != null) {
+      final separator = match.group(1) ?? '';
+      final start = match.start + separator.length;
+      rebuiltPrefix = '${prefix.substring(0, start)}@all ';
+    } else {
+      rebuiltPrefix = '$prefix@all ';
+    }
+
+    final rebuiltText = '$rebuiltPrefix$suffix';
+    _messageController.value = TextEditingValue(
+      text: rebuiltText,
+      selection: TextSelection.collapsed(offset: rebuiltPrefix.length),
+    );
+
+    setState(() => _activeMentionQuery = null);
+  }
+
+  void _applyMentionSuggestion(ConversationParticipant participant) {
+    final value = _messageController.value;
+    final text = value.text;
+    final cursor = value.selection.baseOffset;
+    final safeCursor = (cursor < 0 || cursor > text.length) ? text.length : cursor;
+
+    final prefix = text.substring(0, safeCursor);
+    final suffix = text.substring(safeCursor);
+    final match = RegExp(r'(^|\s)@([^\s@]*)$').firstMatch(prefix);
+    if (match == null) {
+      _insertMentionToken('@${participant.username} ');
+      setState(() {
+        _explicitMentionUserIds.add(participant.userId.trim());
+        _activeMentionQuery = null;
+      });
+      return;
+    }
+
+    final separator = match.group(1) ?? '';
+    final start = match.start + separator.length;
+    final rebuiltPrefix = '${prefix.substring(0, start)}@${participant.username} ';
+    final rebuiltText = '$rebuiltPrefix$suffix';
+
+    _messageController.value = TextEditingValue(
+      text: rebuiltText,
+      selection: TextSelection.collapsed(offset: rebuiltPrefix.length),
+    );
+
+    setState(() {
+      _explicitMentionUserIds.add(participant.userId.trim());
+      _activeMentionQuery = null;
+    });
+  }
+
+  List<String> _resolveMentionIds(ChatLoaded state, String content) {
+    final participants = state.conversation?.participants ?? const <ConversationParticipant>[];
+    if (participants.isEmpty) return const <String>[];
+
+    final currentUserId = state.currentUserId?.trim();
+    final ids = <String>{..._explicitMentionUserIds};
+    final normalizedContent = content.toLowerCase();
+
+    for (final participant in participants) {
+      final userId = participant.userId.trim();
+      if (userId.isEmpty || userId == currentUserId) {
+        continue;
+      }
+
+      final username = participant.username.trim().toLowerCase();
+      if (username.isNotEmpty && normalizedContent.contains('@$username')) {
+        ids.add(userId);
+      }
+    }
+
+    final hasAllTag = RegExp(r'(^|\s)@all(\s|$)', caseSensitive: false).hasMatch(content);
+    if (hasAllTag) {
+      for (final participant in participants) {
+        final userId = participant.userId.trim();
+        if (userId.isEmpty || userId == currentUserId) {
+          continue;
+        }
+        if (participant.isActive) {
+          ids.add(userId);
+        }
+      }
+    }
+
+    return ids.toList(growable: false);
+  }
+
+  String _previewForMessage(ChatMessage message) {
+    if (message is TextChatMessage) {
+      final text = message.text.trim();
+      return text.isEmpty ? 'message' : text;
+    }
+    if (message is ImageChatMessage) return '[Image]';
+    if (message is VideoChatMessage) return '[Video]';
+    if (message is AudioChatMessage) return '[Audio]';
+    if (message is FileChatMessage) return '[File]';
+    if (message is StickerChatMessage) return '[Sticker]';
+    if (message is ContactCardChatMessage) return '[Contact card]';
+    return '[Message]';
+  }
+
+  void _scrollToRepliedMessage({
+    required String replyMessageId,
+    required List<ChatMessage> displayMessages,
+  }) {
+    final normalizedReplyId = replyMessageId.trim();
+    if (normalizedReplyId.isEmpty) {
+      return;
+    }
+
+    final target = displayMessages.where((message) {
+      final serverId = message.serverId?.trim();
+      final localId = message.localId?.trim();
+      return serverId == normalizedReplyId || localId == normalizedReplyId;
+    }).toList(growable: false);
+
+    if (target.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Original message is not in current viewport')), 
+      );
+      return;
+    }
+
+    final targetIndex = displayMessages.indexOf(target.first);
+    if (targetIndex < 0) {
+      return;
+    }
+
+    if (!_scrollController.hasClients) {
+      return;
+    }
+
+    final max = _scrollController.position.maxScrollExtent;
+    final ratio = displayMessages.length <= 1
+        ? 0.0
+        : targetIndex / (displayMessages.length - 1);
+    final targetOffset = max * (1 - ratio);
+
+    _scrollController.animateTo(
+      targetOffset.clamp(0.0, max),
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   void _sendSticker(StickerItem sticker) {
@@ -688,15 +1067,20 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     AppLocalizations l10n, {
     Offset? anchor,
   }) async {
+    if (message is SystemChatMessage) {
+      return;
+    }
+
     final canEdit = _canEditMessage(message);
     final canDelete = _canDeleteMessage(message);
     final canReact = _canReactToMessage(message);
+    final canReply = !message.isDeleted;
     final hasText =
         !message.isDeleted &&
         message is TextChatMessage &&
         message.text.trim().isNotEmpty;
 
-    if (!hasText && !canEdit && !canDelete && !canReact) return;
+    if (!hasText && !canEdit && !canDelete && !canReact && !canReply) return;
 
     final mediaSize = MediaQuery.of(context).size;
     final dialogWidth = _messageActionDialogWidth
@@ -732,6 +1116,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             width: dialogWidth,
             child: MessageActionDialog(
               canCopy: hasText,
+              canReply: canReply,
               canEdit: canEdit,
               canForward: true,
               canRevoke: true,
@@ -766,6 +1151,11 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             );
           }
         }
+      case MessageAction.reply:
+        setState(() {
+          _replyToMessage = message;
+        });
+
       case MessageAction.edit:
         if (context.mounted) _showEditDialog(context, message, l10n);
 
@@ -885,7 +1275,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         .add(
           EditMessageEvent(
             localId: localId,
-            messageId: localId,
+            messageId: _resolveMessageIdForAction(message) ?? localId,
             content: newContent,
           ),
         );

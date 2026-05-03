@@ -146,10 +146,14 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     Emitter<InCallState> emit,
   ) async {
     final callId = event.callId.trim();
-    if (callId.isEmpty) return;
-    final session = state.session;
-    if (session?.call.id != callId) return;
-    if (session?.token.isNotEmpty == true) {
+    debugPrint('[InCallBloc] _onRemoteAccepted: callId=$callId');
+    if (callId.isEmpty) {
+      debugPrint('[InCallBloc] _onRemoteAccepted: callId is empty, skipping');
+      return;
+    }
+    if (state.session?.call.id == callId &&
+        state.session?.token.isNotEmpty == true) {
+      debugPrint('[InCallBloc] _onRemoteAccepted: session already has token, skipping (guard)');
       return;
     }
 
@@ -164,8 +168,10 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     );
 
     await _callRepository.joinSocketCall(callId);
+    debugPrint('[InCallBloc] _onRemoteAccepted: joinSocketCall done, resolving call info...');
     final call = await _resolveCallInfo(callId);
     if (call == null) {
+      debugPrint('[InCallBloc] _onRemoteAccepted: call record unavailable for callId=$callId');
       emit(
         state.copyWith(
           isAcceptingCall: false,
@@ -175,9 +181,11 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
       return;
     }
 
+    debugPrint('[InCallBloc] _onRemoteAccepted: fetching LiveKit token for callId=$callId');
     final tokenResult = await _callRepository.getCallToken(callId);
     await tokenResult.fold(
       (failure) async {
+        debugPrint('[InCallBloc] _onRemoteAccepted: getCallToken failed: ${failure.message}');
         emit(
           state.copyWith(
             isAcceptingCall: false,
@@ -186,6 +194,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
         );
       },
       (token) async {
+        debugPrint('[InCallBloc] _onRemoteAccepted: got token, roomName=${token.roomName}, liveKitUrl=${token.liveKitUrl}, tokenEmpty=${token.token.isEmpty}');
         final session = CallSession(
           call: call,
           token: token.token,
@@ -437,6 +446,9 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
         isMicEnabled: mediaState.micEnabled,
         isCameraEnabled: mediaState.cameraEnabled,
         bumpMediaRevision: true,
+        // Only bump videoRevision when actual tracks/participants changed,
+        // not for mic-level or general room refreshes.
+        bumpVideoRevision: event.videoChanged,
       ),
     );
   }
@@ -533,24 +545,31 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
 
     _roomRefreshListener = refreshRoom;
     room.addListener(refreshRoom);
+    void refreshVideoRoom() => add(const _InCallRoomChanged(videoChanged: true));
+    void refreshMediaRoom() => add(const _InCallRoomChanged(videoChanged: false));
+
     listener
-      ..on<ParticipantConnectedEvent>((_) => refreshRoom())
+      ..on<ParticipantConnectedEvent>((_) => refreshVideoRoom())
       ..on<ParticipantDisconnectedEvent>((event) {
         _removeParticipantListener(event.participant);
-        refreshRoom();
+        refreshVideoRoom();
         add(const _InCallRemoteParticipantLeft());
       })
-      ..on<ActiveSpeakersChangedEvent>((_) => refreshRoom())
-      ..on<TrackPublishedEvent>((_) => refreshRoom())
-      ..on<TrackUnpublishedEvent>((_) => refreshRoom())
-      ..on<LocalTrackPublishedEvent>((_) => refreshRoom())
-      ..on<LocalTrackUnpublishedEvent>((_) => refreshRoom())
-      ..on<TrackSubscribedEvent>((_) => refreshRoom())
-      ..on<TrackUnsubscribedEvent>((_) => refreshRoom())
-      ..on<TrackMutedEvent>((_) => refreshRoom())
-      ..on<TrackUnmutedEvent>((_) => refreshRoom())
-      ..on<ParticipantEvent>((_) => refreshRoom())
-      ..on<RoomDisconnectedEvent>((_) => refreshRoom())
+      // ActiveSpeakersChangedEvent fires very frequently; it does NOT affect
+      // which video tracks are rendered, so we do NOT bump videoRevision here.
+      // The speaking indicator is handled locally inside _VideoTile.
+      ..on<ActiveSpeakersChangedEvent>((_) => null)
+      ..on<TrackPublishedEvent>((_) => refreshVideoRoom())
+      ..on<TrackUnpublishedEvent>((_) => refreshVideoRoom())
+      ..on<LocalTrackPublishedEvent>((_) => refreshMediaRoom())
+      ..on<LocalTrackUnpublishedEvent>((_) => refreshMediaRoom())
+      ..on<TrackSubscribedEvent>((_) => refreshVideoRoom())
+      ..on<TrackUnsubscribedEvent>((_) => refreshVideoRoom())
+      ..on<TrackMutedEvent>((_) => refreshVideoRoom())
+      ..on<TrackUnmutedEvent>((_) => refreshVideoRoom())
+      // ParticipantEvent is too broad and fires for EVERY participant change
+      // including speaking, which causes constant rebuilds. Removed.
+      ..on<RoomDisconnectedEvent>((_) => refreshMediaRoom())
       ..on<AudioPlaybackStatusChanged>((_) async {
         if (!room.canPlaybackAudio) {
           await room.startAudio();

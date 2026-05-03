@@ -18,7 +18,7 @@ final chatBlocProvider = Provider<ChatBloc>((ref) {
     // nhận event đầy đủ
     onTyping: (event) {
       bloc.add(event);
-    },
+    }, deleteLocalConversationUseCase: ref.watch(deleteLocalConversationUseCaseProvider),
   );
 
 

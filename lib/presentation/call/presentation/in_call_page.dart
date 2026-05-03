@@ -70,12 +70,25 @@ class InCallPage extends ConsumerWidget {
                 body: Stack(
                   children: [
                     Positioned.fill(
-                      child: _LiveKitCallStage(
-                        room: state.room,
-                        session: activeSession,
-                        isConnecting:
-                            state.isConnectingRoom || state.isAcceptingCall,
-                        errorMessage: state.mediaErrorMessage,
+                      // Use a nested BlocBuilder with buildWhen so the video
+                      // stage only rebuilds when tracks/participants actually
+                      // change (videoRevision bump). This prevents
+                      // VideoTrackRenderer from being recreated on every
+                      // ActiveSpeakersChanged event, which is the main cause
+                      // of the partner video flickering.
+                      child: BlocBuilder<InCallBloc, InCallState>(
+                        buildWhen: (previous, current) =>
+                            previous.room != current.room ||
+                            previous.isConnectingRoom != current.isConnectingRoom ||
+                            previous.isAcceptingCall != current.isAcceptingCall ||
+                            previous.mediaErrorMessage != current.mediaErrorMessage ||
+                            previous.videoRevision != current.videoRevision,
+                        builder: (context, videoState) => _LiveKitCallStage(
+                          room: videoState.room,
+                          session: activeSession,
+                          isConnecting: videoState.isConnectingRoom || videoState.isAcceptingCall,
+                          errorMessage: videoState.mediaErrorMessage,
+                        ),
                       ),
                     ),
                     SafeArea(

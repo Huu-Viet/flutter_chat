@@ -3,14 +3,21 @@ import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_chat/core/utils/animated_sticker_sprite.dart';
+import 'package:flutter_chat/features/auth/domain/entities/user.dart';
+import 'package:flutter_chat/features/auth/user_providers.dart';
+import 'package:flutter_chat/features/friendship/friendship_providers.dart';
+import 'package:flutter_chat/features/friendship/domain/entities/friendship_status.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_chat/core/utils/date_utils.dart';
 import 'package:flutter_chat/core/utils/waveform_utils.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message/forward_info.dart';
 import 'package:flutter_chat/presentation/chat/chat_image_cache_manager.dart';
 import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
-import 'package:flutter_chat/presentation/chat/models/forward_info_ui.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_reactions_bar.dart';
 import 'package:video_player/video_player.dart';
 
@@ -20,6 +27,7 @@ class MessageBubble extends StatefulWidget {
   final ValueChanged<LongPressStartDetails>? onLongPressStart;
   final VoidCallback? onReactPressed;
   final VoidCallback? onOpenFile;
+  final ValueChanged<String>? onReplyPreviewTap;
   final bool showReactAction;
 
   const MessageBubble({
@@ -30,6 +38,7 @@ class MessageBubble extends StatefulWidget {
     this.onReactPressed,
     this.showReactAction = false,
     this.onOpenFile,
+    this.onReplyPreviewTap,
   });
 
   @override
@@ -84,12 +93,37 @@ class _MessageBubbleState extends State<MessageBubble> {
   @override
   Widget build(BuildContext context) {
     final message = widget.message;
+    if (message is SystemChatMessage) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Center(
+          child: Container(
+            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              message.text,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+          ),
+        ),
+      );
+    }
+
     final hasVisualMedia = switch (message) {
       ImageChatMessage(:final imagePath) => imagePath != null,
       VideoChatMessage(:final thumbnailPath, :final videoUrl) =>
         thumbnailPath != null ||
         (videoUrl != null && videoUrl.trim().isNotEmpty),
       StickerChatMessage(:final stickerPath) => stickerPath != null,
+      ContactCardChatMessage() => true,
       _ => false,
     };
 
@@ -272,10 +306,17 @@ class _MessageBubbleState extends State<MessageBubble> {
       FileChatMessage(:final isDownloading, :final forwardInfo) =>
           _buildFileContent(forwardInfo, message, isDownloading: isDownloading, onOpen: onOpenFile ?? () {}),
 
-      TextChatMessage(:final text, :final forwardInfo) => _buildTextContent(text, forwardInfo),
+      ContactCardChatMessage() => _ContactCardBubble(message: message),
+
+      SystemChatMessage() => const SizedBox.shrink(),
+
+        TextChatMessage(:final text, :final forwardInfo, :final replyPreview) =>
+          _buildTextContent(text, forwardInfo, replyPreview: replyPreview),
       UnknownChatMessage(:final content, :final forwardInfo) => _buildTextContent(content ?? '', forwardInfo),
     };
   }
+
+
 
   Widget _buildImageContent(
     BuildContext context,
@@ -764,24 +805,42 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
-  Widget _buildTextContent(String text, ForwardInfo? forwardInfo) {
+  Widget _buildTextContent(String text, ForwardInfo? forwardInfo, {ReplyPreview? replyPreview}) {
     final message = widget.message;
+    final baseTextStyle = TextStyle(
+      color: message.isDeleted
+          ? (message.isSentByMe ? Colors.white70 : Colors.black45)
+          : message.isSentByMe
+          ? Colors.white
+          : Colors.black,
+      fontStyle: message.isDeleted ? FontStyle.italic : FontStyle.normal,
+    );
+    final mentionTextStyle = baseTextStyle.copyWith(
+      color: message.isSentByMe ? Colors.yellow[200] : Colors.blue[700],
+      fontWeight: FontWeight.w700,
+      fontStyle: baseTextStyle.fontStyle,
+    );
 
     Widget content;
     content = Column(
       crossAxisAlignment: message.isSentByMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
-        Text(
-          text,
-          style: TextStyle(
-            color: message.isDeleted
-                ? (message.isSentByMe ? Colors.white70 : Colors.black45)
-                : message.isSentByMe
-                ? Colors.white
-                : Colors.black,
-            fontStyle: message.isDeleted ? FontStyle.italic : FontStyle.normal,
-          ),
-        ),
+        if (replyPreview != null) ...[
+          _buildReplyPreview(replyPreview),
+          const SizedBox(height: 6),
+        ],
+        message.isDeleted
+            ? Text(text, style: baseTextStyle)
+            : RichText(
+                text: TextSpan(
+                  style: baseTextStyle,
+                  children: _buildRichTextSpans(
+                    text,
+                    baseStyle: baseTextStyle,
+                    mentionStyle: mentionTextStyle,
+                  ),
+                ),
+              ),
         if (message.isLastInGroup) ...[
           const SizedBox(height: 4),
           Text(
@@ -805,6 +864,156 @@ class _MessageBubbleState extends State<MessageBubble> {
         content,
       ],
     );
+  }
+
+  Widget _buildReplyPreview(ReplyPreview preview) {
+    final isMine = widget.message.isSentByMe;
+    return GestureDetector(
+      onTap: widget.onReplyPreviewTap == null || preview.messageId.trim().isEmpty
+          ? null
+          : () => widget.onReplyPreviewTap!(preview.messageId),
+      child: Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: isMine ? Colors.white24 : Colors.black12,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            preview.senderDisplay,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isMine ? Colors.white70 : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            preview.snippet,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12,
+              color: isMine ? Colors.white60 : Colors.black54,
+            ),
+          ),
+        ],
+      ),
+      ),
+    );
+  }
+
+  List<InlineSpan> _buildRichTextSpans(
+    String text, {
+    required TextStyle baseStyle,
+    required TextStyle mentionStyle,
+  }) {
+    final spans = <InlineSpan>[];
+    // Regex for detecting mentions and URLs
+    final mentionRegex = RegExp(r'(@all|@[A-Za-z0-9._-]+)');
+    final urlRegex = RegExp(
+      r'https?://[^\s]+|www\.[^\s]+|(?:^|\s)([a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.)+[a-zA-Z]{2,}(?:\s|$)',
+      multiLine: true,
+    );
+    
+    var lastIndex = 0;
+    final List<({int start, int end, String text, String type})> tokens = [];
+    
+    // Collect all mentions and URLs with their positions
+    for (final match in mentionRegex.allMatches(text)) {
+      tokens.add((start: match.start, end: match.end, text: match.group(0)!, type: 'mention'));
+    }
+    for (final match in urlRegex.allMatches(text)) {
+      tokens.add((start: match.start, end: match.end, text: match.group(0)!.trim(), type: 'url'));
+    }
+    
+    // Sort tokens by start position
+    tokens.sort((a, b) => a.start.compareTo(b.start));
+    
+    // Filter overlapping tokens (keep mentions over URLs if they overlap)
+    final List<({int start, int end, String text, String type})> filtered = [];
+    for (final token in tokens) {
+      bool overlaps = false;
+      for (final existing in filtered) {
+        if ((token.start >= existing.start && token.start < existing.end) ||
+            (token.end > existing.start && token.end <= existing.end) ||
+            (token.start <= existing.start && token.end >= existing.end)) {
+          overlaps = true;
+          break;
+        }
+      }
+      if (!overlaps) {
+        filtered.add(token);
+      }
+    }
+    filtered.sort((a, b) => a.start.compareTo(b.start));
+    
+    // Build spans from tokens
+    lastIndex = 0;
+    for (final token in filtered) {
+      if (token.start > lastIndex) {
+        spans.add(TextSpan(text: text.substring(lastIndex, token.start), style: baseStyle));
+      }
+      
+      if (token.type == 'mention') {
+        spans.add(TextSpan(text: token.text, style: mentionStyle));
+      } else if (token.type == 'url') {
+        const linkColor = Colors.blue;
+        final linkStyle = baseStyle.copyWith(
+          color: linkColor,
+          decoration: TextDecoration.underline,
+          decorationColor: linkColor,
+        );
+        final urlText = token.text;
+        spans.add(
+          TextSpan(
+            text: urlText,
+            style: linkStyle,
+            recognizer: TapGestureRecognizer()..onTap = () => _launchUrl(urlText),
+          ),
+        );
+      }
+      lastIndex = token.end;
+    }
+    
+    if (lastIndex < text.length) {
+      spans.add(TextSpan(text: text.substring(lastIndex), style: baseStyle));
+    }
+    
+    if (spans.isEmpty) {
+      spans.add(TextSpan(text: text, style: baseStyle));
+    }
+    
+    return spans;
+  }
+
+  Future<void> _launchUrl(String urlText) async {
+    var urlStr = urlText.trim();
+    if (!urlStr.startsWith('http://') && !urlStr.startsWith('https://')) {
+      urlStr = 'https://$urlStr';
+    }
+    
+    final uri = Uri.tryParse(urlStr);
+    if (uri == null) {
+      debugPrint('[MessageBubble] Invalid URL: $urlText');
+      return;
+    }
+    
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('[MessageBubble] Error launching URL: $e');
+      try {
+        await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+      } catch (e2) {
+        debugPrint('[MessageBubble] Fallback browser also failed: $e2');
+      }
+    }
   }
 
   Widget _buildForwardInfo(BuildContext context, ForwardInfo info) {
@@ -964,5 +1173,308 @@ class _MessageBubbleState extends State<MessageBubble> {
     final minutes = totalSeconds ~/ 60;
     final seconds = totalSeconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+}
+
+class _ContactCardBubble extends ConsumerWidget {
+  final ContactCardChatMessage message;
+
+  const _ContactCardBubble({required this.message});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userAsync = ref.watch(userByIdProvider(message.contactUserId));
+    final statusAsync = ref.watch(friendshipStatusProvider(message.contactUserId));
+
+    // Don't show action buttons if this is our own card
+    final isSelf = message.isSentByMe &&
+        (statusAsync.valueOrNull?.userId == message.contactUserId);
+
+    Widget content = Container(
+      constraints: const BoxConstraints(maxWidth: 280),
+      decoration: BoxDecoration(
+        color: message.isSentByMe
+            ? Theme.of(context).colorScheme.primary
+            : Colors.grey[400],
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.blueGrey.withValues(alpha: 0.15)),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          userAsync.when(
+            loading: () => _buildCardRow(context, null, isLoading: true),
+            error: (_, __) => _buildCardRow(context, null),
+            data: (user) => _buildCardRow(context, user),
+          ),
+          if (!isSelf) ...[
+            const SizedBox(height: 10),
+            _buildActionRow(context, ref, statusAsync),
+          ],
+        ],
+      ),
+    );
+
+    final forwardInfo = message.forwardInfo;
+    if (forwardInfo == null) return content;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildForwardInfoBanner(context, forwardInfo),
+        const SizedBox(height: 4),
+        content,
+      ],
+    );
+  }
+
+  Widget _buildActionRow(
+    BuildContext context,
+    WidgetRef ref,
+    AsyncValue<FriendshipStatus?> statusAsync,
+  ) {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () => _onMessageTap(context),
+            icon: const Icon(Icons.chat_bubble_outline, size: 16),
+            label: const Text('Message'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              side: BorderSide(
+                color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.6),
+              ),
+              textStyle: const TextStyle(fontSize: 13),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: statusAsync.when(
+            loading: () => OutlinedButton(
+              onPressed: null,
+              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 4)),
+              child: const SizedBox(
+                height: 16,
+                width: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (status) => _buildFriendshipButton(context, ref, status),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFriendshipButton(
+    BuildContext context,
+    WidgetRef ref,
+    FriendshipStatus? status,
+  ) {
+    final targetId = message.contactUserId;
+
+    if (status == null || status.isNone) {
+      return OutlinedButton.icon(
+        onPressed: () => _sendRequest(context, ref, targetId),
+        icon: const Icon(Icons.person_add_outlined, size: 16),
+        label: const Text('Add friend'),
+        style: _friendBtnStyle(context),
+      );
+    }
+
+    if (status.isPendingOut) {
+      return OutlinedButton.icon(
+        onPressed: () => _cancelRequest(context, ref, targetId),
+        icon: const Icon(Icons.cancel_outlined, size: 16),
+        label: const Text('Pending...'),
+        style: _friendBtnStyle(context),
+      );
+    }
+
+    if (status.isPendingIn) {
+      return OutlinedButton.icon(
+        onPressed: () => _acceptRequest(context, ref, targetId),
+        icon: const Icon(Icons.check_circle_outline, size: 16),
+        label: const Text('Accept'),
+        style: _friendBtnStyle(context),
+      );
+    }
+
+    if (status.isFriend) {
+      return OutlinedButton.icon(
+        onPressed: null,
+        icon: const Icon(Icons.people_outline, size: 16),
+        label: const Text('Friends'),
+        style: _friendBtnStyle(context),
+      );
+    }
+
+    if (status.isBlocked) {
+      return OutlinedButton.icon(
+        onPressed: () => _unblock(context, ref, targetId),
+        icon: const Icon(Icons.block_outlined, size: 16),
+        label: const Text('Unblock'),
+        style: _friendBtnStyle(context),
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  ButtonStyle _friendBtnStyle(BuildContext context) => OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.6),
+        ),
+        textStyle: const TextStyle(fontSize: 13),
+      );
+
+  void _onMessageTap(BuildContext context) {
+    // Navigate to home — user can find or start a conversation from there.
+    context.go('/');
+  }
+
+  Future<void> _sendRequest(BuildContext context, WidgetRef ref, String targetId) async {
+    await ref.read(sendFriendRequestUseCaseProvider)(targetId);
+    ref.invalidate(friendshipStatusProvider(targetId));
+  }
+
+  Future<void> _cancelRequest(BuildContext context, WidgetRef ref, String targetId) async {
+    await ref.read(rejectFriendRequestUseCaseProvider)(targetId);
+    ref.invalidate(friendshipStatusProvider(targetId));
+  }
+
+  Future<void> _acceptRequest(BuildContext context, WidgetRef ref, String targetId) async {
+    await ref.read(acceptFriendRequestUseCaseProvider)(targetId);
+    ref.invalidate(friendshipStatusProvider(targetId));
+  }
+
+  Future<void> _unblock(BuildContext context, WidgetRef ref, String targetId) async {
+    await ref.read(unblockUserUseCaseProvider)(targetId);
+    ref.invalidate(friendshipStatusProvider(targetId));
+  }
+
+  Widget _buildCardRow(BuildContext context, MyUser? user, {bool isLoading = false}) {
+    final displayName = _displayName(user);
+    final subText = user?.email ?? user?.phone ?? message.contactUserId;
+    final avatarUrl = user?.avatarUrl;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        _buildAvatar(avatarUrl, isLoading: isLoading),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                isLoading ? '...' : displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+              if (!isLoading) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAvatar(String? avatarUrl, {bool isLoading = false}) {
+    if (isLoading) {
+      return Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: Colors.blueGrey.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: const Padding(
+          padding: EdgeInsets.all(12),
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: CachedNetworkImage(
+          imageUrl: avatarUrl,
+          width: 48,
+          height: 48,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => _defaultAvatarIcon(),
+          errorWidget: (_, __, ___) => _defaultAvatarIcon(),
+        ),
+      );
+    }
+
+    return _defaultAvatarIcon();
+  }
+
+  Widget _defaultAvatarIcon() {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: Colors.blueGrey.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: const Icon(Icons.person_outline, size: 24, color: Colors.blueGrey),
+    );
+  }
+
+  String _displayName(MyUser? user) {
+    if (user == null) return message.contactUserId;
+    final first = user.firstName?.trim() ?? '';
+    final last = user.lastName?.trim() ?? '';
+    final full = '$first $last'.trim();
+    if (full.isNotEmpty) return full;
+    if (user.username.trim().isNotEmpty) return user.username.trim();
+    return user.email;
+  }
+
+  Widget _buildForwardInfoBanner(BuildContext context, forwardInfo) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.forward, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          const SizedBox(width: 4),
+          Text(
+            'Forwarded',
+            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
   }
 }

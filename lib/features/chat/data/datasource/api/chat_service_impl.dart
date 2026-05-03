@@ -126,6 +126,7 @@ class ChatServiceImpl implements ChatService {
     String? mediaId,
     String? clientMessageId,
     String? replyToMessageId,
+    List<String>? mentions,
     Map<String, dynamic>? metadata,
   }) async {
     try {
@@ -138,6 +139,7 @@ class ChatServiceImpl implements ChatService {
         if (mediaId != null) 'mediaId': mediaId,
         'clientMessageId': normalizedClientMessageId,
         if (replyToMessageId != null) 'replyToMessageId': replyToMessageId,
+        if (mentions != null && mentions.isNotEmpty) 'mentions': mentions,
         if (metadata != null) 'metadata': metadata,
         if (content.trim().isNotEmpty) 'content': content,
       };
@@ -172,6 +174,7 @@ class ChatServiceImpl implements ChatService {
           'type': type,
           'clientMessageId': normalizedClientMessageId,
           if (replyToMessageId != null) 'replyToMessageId': replyToMessageId,
+          if (mentions != null && mentions.isNotEmpty) 'mentions': mentions,
           if (legacyMetadata.isNotEmpty) 'metadata': legacyMetadata,
           'conversationId': normalizedConversationId,
           if (legacyContent.trim().isNotEmpty) 'content': legacyContent,

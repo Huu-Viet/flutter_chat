@@ -30,6 +30,7 @@ abstract class ChatService {
     String? mediaId,
     String? clientMessageId,
     String? replyToMessageId,
+    List<String>? mentions,
     Map<String, dynamic>? metadata,
   });
 

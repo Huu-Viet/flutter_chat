@@ -1,10 +1,6 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
-import 'package:flutter_chat/features/chat/domain/entities/messages/message/message.dart';
-import 'package:flutter_chat/features/chat/domain/entities/messages/message/pin_message.dart';
 import 'package:flutter_chat/features/chat/export.dart';
-import 'package:flutter_chat/features/chat/domain/entities/sticker_package.dart';
-import 'package:flutter_chat/features/chat/domain/entities/sticker_item.dart';
 
 abstract class ChatRepository {
   Future<Either<Failure, bool>> fetchConversations(int page, int limit);
@@ -27,6 +23,7 @@ abstract class ChatRepository {
   Future<Either<Failure, Message>> sendMessage({
     required Message message,
     String? replyToMessageId,
+    List<String>? mentions,
   });
 
   Future<Either<Failure, Message>> editMessage({
@@ -84,4 +81,6 @@ abstract class ChatRepository {
   Future<Either<Failure, List<StickerItem>>> getStickersInPackage(String packageId, {int limit = 50, int offset = 0});
 
   Future<Either<Failure, void>> sendTypingIndicator(String conversationId, bool isTyping);
+
+  Future<Either<Failure, void>> deleteLocalConversation(String conversationId);
 }

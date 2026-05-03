@@ -30,12 +30,47 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
     );
 
     switch (normalizedType) {
+      case 'system':
+        return SystemMessage(
+          id: dto.id ?? '',
+          conversationId: dto.conversationId ?? '',
+          senderId: dto.senderId ?? 'SYSTEM',
+          text: dto.content ?? '',
+          action: (metadata?['action'] ?? '').toString(),
+          metadata: metadata ?? const <String, dynamic>{},
+          offset: dto.offset,
+          isDeleted: dto.isDeleted ?? false,
+          isRevoked: isRevoked,
+          serverId: dto.clientMessageId,
+          createdAt: createdAt,
+          editedAt: editedAt,
+          reactions: reactions,
+        );
+      case 'contact_page':
+      case 'contact_card':
+        return ContactCardMessage(
+          id: dto.id ?? '',
+          conversationId: dto.conversationId ?? '',
+          senderId: dto.senderId ?? '',
+          offset: dto.offset,
+          isDeleted: dto.isDeleted ?? false,
+          isRevoked: isRevoked,
+          serverId: dto.clientMessageId,
+          createdAt: createdAt,
+          editedAt: editedAt,
+          forwardInfo: _mapForwardInfo(dto.forwardInfo),
+          reactions: reactions,
+          cardType: _extractContactCardType(metadata, normalizedType),
+          contactUserId: _extractContactUserId(metadata),
+          clientMessageId: _extractContactClientMessageId(dto, metadata),
+        );
       case 'text':
         return TextMessage(
           id: dto.id ?? '',
           conversationId: dto.conversationId ?? '',
           senderId: dto.senderId ?? '',
           text: dto.content ?? '',
+          replyToId: dto.replyToId,
           offset: dto.offset,
           isDeleted: dto.isDeleted ?? false,
           isRevoked: isRevoked,
@@ -337,7 +372,6 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
 
   VideoMedia _toVideoMedia(List<MessageMedia> medias, String? mediaId, Map<String, dynamic>? metadata) {
     final waveform = _extractWaveform(metadata);
-    final durationMs = _extractDurationMs(metadata);
     final metadataThumbMediaId = metadata?['thumbMediaId']?.toString();
     if (medias.isNotEmpty && medias.first is VideoMedia) {
       final existing = medias.first as VideoMedia;
@@ -460,11 +494,24 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
   Map<String, dynamic>? _buildMetadata(Message message) {
     final metadata = <String, dynamic>{};
 
+    if (message is SystemMessage) {
+      metadata.addAll(message.metadata);
+      if (message.action.trim().isNotEmpty) {
+        metadata['action'] = message.action.trim();
+      }
+    }
+
     if (message is StickerMessage) {
       metadata['url'] = message.stickerUrl;
       if (message.stickerId != null && message.stickerId!.trim().isNotEmpty) {
         metadata['stickerId'] = message.stickerId!.trim();
       }
+    }
+
+    if (message is ContactCardMessage) {
+      metadata['cardType'] = message.cardType;
+      metadata['contactUserId'] = message.contactUserId;
+      metadata['clientMessageId'] = message.clientMessageId;
     }
 
     if (message is VideoMessage) {
@@ -522,6 +569,30 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
       return null;
     }
     return id;
+  }
+
+  String _extractContactCardType(Map<String, dynamic>? metadata, String fallbackType) {
+    final value = metadata?['cardType']?.toString().trim() ??
+        metadata?['card_type']?.toString().trim();
+    if (value != null && value.isNotEmpty) {
+      return value;
+    }
+    return fallbackType;
+  }
+
+  String _extractContactUserId(Map<String, dynamic>? metadata) {
+    final value = metadata?['contactUserId']?.toString().trim() ??
+        metadata?['contact_user_id']?.toString().trim() ??
+        metadata?['userId']?.toString().trim() ??
+        metadata?['user_id']?.toString().trim();
+    return value ?? '';
+  }
+
+  String _extractContactClientMessageId(MessageDto dto, Map<String, dynamic>? metadata) {
+    final value = metadata?['clientMessageId']?.toString().trim() ??
+        metadata?['client_message_id']?.toString().trim() ??
+        dto.clientMessageId?.trim();
+    return value ?? '';
   }
 
   int? _toInt(dynamic value) {
@@ -585,40 +656,6 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
     if (media is ImageMedia) return media.height;
     if (media is VideoMedia) return media.height;
     if (media is GenericMedia) return media.height;
-    return null;
-  }
-
-  int? _extractDurationMs(Map<String, dynamic>? metadata) {
-    if (metadata == null) {
-      return null;
-    }
-
-    final durationRaw = metadata['durationMs'] ?? metadata['duration'] ?? metadata['duration_ms'];
-    if (durationRaw is int) {
-      return durationRaw;
-    }
-    if (durationRaw is String) {
-      return int.tryParse(durationRaw);
-    }
-    if (durationRaw is num) {
-      return durationRaw.toInt();
-    }
-
-    // Try nested under media payload
-    final mediaNode = metadata['media'];
-    if (mediaNode is Map<String, dynamic>) {
-      final nested = mediaNode['durationMs'] ?? mediaNode['duration'];
-      if (nested is int) {
-        return nested;
-      }
-      if (nested is String) {
-        return int.tryParse(nested);
-      }
-      if (nested is num) {
-        return nested.toInt();
-      }
-    }
-
     return null;
   }
 

@@ -3,6 +3,7 @@ part of 'message.dart';
 class TextMessage extends Message {
   const TextMessage({
     required this.text,
+    this.replyToId,
     required super.id,
     required super.conversationId,
     required super.senderId,
@@ -17,6 +18,7 @@ class TextMessage extends Message {
   });
 
   final String text;
+  final String? replyToId;
 
   @override
   String get type => 'text';

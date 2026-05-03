@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:flutter_chat/core/database/app_database.dart';
 import 'package:flutter_chat/features/chat/data/entities/message_reaction_entity.dart';
-import 'package:flutter_chat/features/chat/data/entities/pin_message_entity.dart';
 
 class ChatMessageWithMediasEntity {
   final ChatMessageEntity message;
@@ -74,7 +73,14 @@ class DriftMessageDaoImpl implements MessageDao {
 
         // For media messages (image, file, video, audio), always update metadata/medias even if content is empty
         // Skip full update only for text messages where content didn't change
-        if (existingContent.isNotEmpty && incomingContent.isEmpty && type != 'image' && type != 'file' && type != 'video' && type != 'audio') {
+        if (existingContent.isNotEmpty &&
+            incomingContent.isEmpty &&
+            type != 'image' &&
+            type != 'file' &&
+            type != 'video' &&
+            type != 'audio' &&
+            type != 'contact_page' &&
+            type != 'contact_card') {
           return;
         }
 

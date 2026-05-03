@@ -63,3 +63,13 @@ final blockUserUseCaseProvider = Provider<BlockUserUseCase>((ref) {
 final unblockUserUseCaseProvider = Provider<UnblockUserUseCase>((ref) {
   return UnblockUserUseCase(ref.watch(friendshipRepositoryProvider));
 });
+
+/// Fetches friendship status between the current user and [targetUserId].
+/// Returns null on error or if [targetUserId] is empty.
+final friendshipStatusProvider =
+    FutureProvider.family<FriendshipStatus?, String>((ref, targetUserId) async {
+  if (targetUserId.trim().isEmpty) return null;
+  final useCase = ref.watch(getFriendshipStatusUseCaseProvider);
+  final result = await useCase(targetUserId.trim());
+  return result.fold((_) => null, (status) => status);
+});

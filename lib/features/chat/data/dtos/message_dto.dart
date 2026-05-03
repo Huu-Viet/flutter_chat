@@ -17,6 +17,7 @@ class MessageDto {
   final String? clientMessageId;
   final String? createdAt;
   final String? editedAt;
+  final String? replyToId;
 
   const MessageDto({
     this.id,
@@ -34,6 +35,7 @@ class MessageDto {
     this.clientMessageId,
     this.createdAt,
     this.editedAt,
+    this.replyToId,
   });
 
   factory MessageDto.fromJson(Map<String, dynamic> json) {
@@ -92,6 +94,7 @@ class MessageDto {
       clientMessageId: json['clientMessageId'] as String?,
       createdAt: json['createdAt']?.toString(),
       editedAt: json['editedAt']?.toString(),
+      replyToId: (json['replyToId'] ?? json['reply_to_id'])?.toString(),
     );
   }
 
