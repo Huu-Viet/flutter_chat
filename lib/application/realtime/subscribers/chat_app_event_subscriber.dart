@@ -35,6 +35,9 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
   static const int _syncLimit = 20;
   static const int _latestMessageSyncLimit = 1;
   static const int _messageMutationSyncLimit = 30;
+  static const Duration _cursorSyncMinInterval = Duration(seconds: 10);
+  final Map<String, DateTime> _lastCursorConversationSyncAt =
+      <String, DateTime>{};
 
   @override
   bool supports(AppEvent event) => event.namespace == '/chat';
@@ -58,7 +61,10 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
       case 'conversation:member-removed':
       case 'conversation:removed':
       case 'conversation:updated':
+      case 'group:settings_updated':
+      case 'group.settings_updated':
         await _syncConversations(event.type, event.payload);
+        await _syncConversationDetail(event.type, event.payload);
         return;
       case 'group:disbanded':
         await _deleteLocalConversation(event.type, event.payload);
@@ -77,7 +83,7 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
         return;
       case 'cursor:seen_updated':
       case 'cursor:delivered_updated':
-        await _syncConversations(event.type, event.payload);
+        await _syncConversationsForCursor(event.type, event.payload);
         return;
       case 'message:edited':
       case 'message:revoked':
@@ -175,6 +181,26 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
         );
       },
     );
+  }
+
+  Future<void> _syncConversationsForCursor(
+    String eventType,
+    Map<String, dynamic> payload,
+  ) async {
+    final conversationId = _resolveConversationId(payload);
+    if (conversationId == null || conversationId.isEmpty) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final lastSyncAt = _lastCursorConversationSyncAt[conversationId];
+    if (lastSyncAt != null &&
+        now.difference(lastSyncAt) < _cursorSyncMinInterval) {
+      return;
+    }
+
+    _lastCursorConversationSyncAt[conversationId] = now;
+    await _syncConversations(eventType, payload);
   }
 
   Future<void> _syncConversationDetail(

@@ -37,7 +37,8 @@ class ApiConversationMapper implements RemoteMapper<ConversationDto, Conversatio
       createBy: dto.createBy ?? '',
       isPublic: dto.isPublic ?? false,
       joinApprovalRequired: dto.joinApprovalRequired ?? false,
-      allowMemberMessage: dto.allowMemberMessage ?? false,
+      // Safety default: if backend omits this field, do NOT lock member sending.
+      allowMemberMessage: dto.allowMemberMessage ?? true,
       linkVersion: dto.linkVersion ?? 0,
       createdAt: _parseUpdatedAt(dto.createdAt),
       updatedAt: _parseUpdatedAt(dto.updatedAt),

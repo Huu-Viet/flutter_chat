@@ -55,6 +55,12 @@ class GroupManagementServiceImpl implements GroupManagementService {
 
   GroupManagementServiceImpl(this._dio, this._realtimeGateway);
 
+  Options get _requestOptions => Options(
+    connectTimeout: const Duration(seconds: 25),
+    sendTimeout: const Duration(seconds: 25),
+    receiveTimeout: const Duration(seconds: 25),
+  );
+
   dynamic _unwrap(dynamic payload) {
     if (payload is Map<String, dynamic> && payload.containsKey('data')) {
       return payload['data'];
@@ -81,7 +87,7 @@ class GroupManagementServiceImpl implements GroupManagementService {
     };
 
     try {
-      await _dio.patch(url, data: body);
+      await _dio.patch(url, data: body, options: _requestOptions);
     } catch (e) {
       debugPrint(
         '[GroupManagementService] Failed to update group settings: $e',
@@ -130,7 +136,7 @@ class GroupManagementServiceImpl implements GroupManagementService {
     debugPrint('[GroupManagementService] createGroup request body: $body');
 
     try {
-      final response = await _dio.post(url, data: body);
+      final response = await _dio.post(url, data: body, options: _requestOptions);
       debugPrint(
         '[GroupManagementService] createGroup response status: ${response.statusCode}',
       );
@@ -156,7 +162,7 @@ class GroupManagementServiceImpl implements GroupManagementService {
     };
 
     try {
-      final response = await _dio.post(url, data: body);
+      final response = await _dio.post(url, data: body, options: _requestOptions);
       final responseBody = response.data;
       if (responseBody is! Map<String, dynamic>) {
         throw Exception('Invalid join invite response');
@@ -200,7 +206,11 @@ class GroupManagementServiceImpl implements GroupManagementService {
     try {
       debugPrint('[GroupManagementService][Polls] GET $url query=$query');
       print('[GroupManagementService][Polls] GET $url query=$query');
-      final response = await _dio.get(url, queryParameters: query);
+      final response = await _dio.get(
+        url,
+        queryParameters: query,
+        options: _requestOptions,
+      );
       debugPrint(
         '[GroupManagementService][Polls] status=${response.statusCode} body=${response.data}',
       );
@@ -254,7 +264,7 @@ class GroupManagementServiceImpl implements GroupManagementService {
     final url = '$_baseUrl/conversations/$cid/polls';
     try {
       debugPrint('[GroupManagementService][Polls] POST $url payload=$payload');
-      await _dio.post(url, data: payload);
+      await _dio.post(url, data: payload, options: _requestOptions);
     } on DioException catch (e, st) {
       debugPrint(
         '[GroupManagementService][Polls] createPoll failed status=${e.response?.statusCode} data=${e.response?.data}',
@@ -277,7 +287,7 @@ class GroupManagementServiceImpl implements GroupManagementService {
     final pid = pollId.trim();
     final url = '$_baseUrl/conversations/$cid/polls/$pid/close';
     try {
-      await _dio.post(url);
+      await _dio.post(url, options: _requestOptions);
     } on DioException catch (e, st) {
       debugPrint(
         '[GroupManagementService][Polls] closePoll failed status=${e.response?.statusCode} data=${e.response?.data}',
@@ -303,7 +313,7 @@ class GroupManagementServiceImpl implements GroupManagementService {
     final body = <String, dynamic>{'optionIds': optionIds};
 
     try {
-      final response = await _dio.post(url, data: body);
+      final response = await _dio.post(url, data: body, options: _requestOptions);
       final data = _unwrap(response.data);
       if (data is Map<String, dynamic> && data['poll'] is Map) {
         return _normalizeMap(data['poll'] as Map);

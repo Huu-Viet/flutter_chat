@@ -74,9 +74,25 @@ class ChatRepoImpl implements ChatRepository {
         '[ChatRepoImpl] fetchConversations start: page=$page, limit=$limit',
       );
       final response = await _chatService.fetchConversations(page, limit);
-      final conversations = _apiConversationMapper.toDomainList(
-        response.conversations,
-      );
+      final existingItems = await _conversationDao.getAllConversations();
+      final existingAllowMemberMessageById = <String, bool>{
+        for (final item in existingItems)
+          item.id.trim(): item.allowMemberMessage,
+      };
+
+      final conversations = response.conversations.map((dto) {
+        final mapped = _apiConversationMapper.toDomain(dto);
+        final id = (dto.id ?? '').trim();
+        if (id.isNotEmpty &&
+            dto.allowMemberMessage == null &&
+            existingAllowMemberMessageById.containsKey(id)) {
+          return _withAllowMemberMessage(
+            mapped,
+            existingAllowMemberMessageById[id]!,
+          );
+        }
+        return mapped;
+      }).toList(growable: false);
       debugPrint(
         '[ChatRepoImpl] fetchConversations mapped: count=${conversations.length}',
       );
@@ -123,7 +139,23 @@ class ChatRepoImpl implements ChatRepository {
   ) async {
     try {
       final dto = await _chatService.fetchConversation(conversationId);
-      final conversation = _apiConversationMapper.toDomain(dto);
+      var conversation = _apiConversationMapper.toDomain(dto);
+      if (dto.allowMemberMessage == null) {
+        final existingItems = await _conversationDao.getAllConversations();
+        ChatConversationEntity? existing;
+        for (final item in existingItems) {
+          if (item.id.trim() == conversationId.trim()) {
+            existing = item;
+            break;
+          }
+        }
+        if (existing != null) {
+          conversation = _withAllowMemberMessage(
+            conversation,
+            existing.allowMemberMessage,
+          );
+        }
+      }
       await _conversationDao.saveConversation(
         _localConversationMapper.toEntity(conversation),
       );
@@ -698,6 +730,32 @@ class ChatRepoImpl implements ChatRepository {
       updatedAt: base.updatedAt,
       avatarUrl: base.avatarUrl,
       participants: participants,
+    );
+  }
+
+  Conversation _withAllowMemberMessage(
+    Conversation source,
+    bool allowMemberMessage,
+  ) {
+    return Conversation(
+      id: source.id,
+      orgId: source.orgId,
+      type: source.type,
+      name: source.name,
+      description: source.description,
+      avatarMediaId: source.avatarMediaId,
+      memberCount: source.memberCount,
+      maxOffset: source.maxOffset,
+      myOffset: source.myOffset,
+      createBy: source.createBy,
+      isPublic: source.isPublic,
+      joinApprovalRequired: source.joinApprovalRequired,
+      allowMemberMessage: allowMemberMessage,
+      linkVersion: source.linkVersion,
+      createdAt: source.createdAt,
+      updatedAt: source.updatedAt,
+      avatarUrl: source.avatarUrl,
+      participants: source.participants,
     );
   }
 

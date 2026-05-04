@@ -96,97 +96,99 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
+    return SafeArea(
+      child: Scaffold(
         backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: PageView.builder(
-        controller: _pageController,
-        itemCount: widget.previewImagePaths.length,
-        onPageChanged: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-          _fetchOriginalForIndex(index);
-        },
-        itemBuilder: (context, index) {
-          final previewPath = widget.previewImagePaths[index];
-          final displayPath = _originalUrlsByIndex[index] ?? previewPath;
-          final isLoadingOriginal = _loadingIndexes.contains(index);
-
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: InteractiveViewer(
-                  minScale: 0.8,
-                  maxScale: 4.0,
-                  child: Center(
-                    child: _isNetworkPath(displayPath)
-                        ? CachedNetworkImage(
-                            imageUrl: displayPath,
-                            fit: BoxFit.contain,
-                            errorWidget: (context, url, error) => const Icon(
-                              Icons.broken_image,
-                              color: Colors.white70,
-                              size: 48,
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        body: PageView.builder(
+          controller: _pageController,
+          itemCount: widget.previewImagePaths.length,
+          onPageChanged: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+            _fetchOriginalForIndex(index);
+          },
+          itemBuilder: (context, index) {
+            final previewPath = widget.previewImagePaths[index];
+            final displayPath = _originalUrlsByIndex[index] ?? previewPath;
+            final isLoadingOriginal = _loadingIndexes.contains(index);
+      
+            return Stack(
+              children: [
+                Positioned.fill(
+                  child: InteractiveViewer(
+                    minScale: 0.8,
+                    maxScale: 4.0,
+                    child: Center(
+                      child: _isNetworkPath(displayPath)
+                          ? CachedNetworkImage(
+                              imageUrl: displayPath,
+                              fit: BoxFit.contain,
+                              errorWidget: (context, url, error) => const Icon(
+                                Icons.broken_image,
+                                color: Colors.white70,
+                                size: 48,
+                              ),
+                            )
+                          : Image.file(
+                              File(displayPath),
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(
+                                    Icons.broken_image,
+                                    color: Colors.white70,
+                                    size: 48,
+                                  ),
                             ),
-                          )
-                        : Image.file(
-                            File(displayPath),
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) =>
-                                const Icon(
-                                  Icons.broken_image,
-                                  color: Colors.white70,
-                                  size: 48,
-                                ),
-                          ),
-                  ),
-                ),
-              ),
-              if (isLoadingOriginal)
-                const Positioned(
-                  top: 12,
-                  right: 12,
-                  child: SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
                     ),
                   ),
                 ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 16,
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.45),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      '${index + 1}/${widget.previewImagePaths.length}',
-                      style: const TextStyle(
+                if (isLoadingOriginal)
+                  const Positioned(
+                    top: 12,
+                    right: 12,
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
                         color: Colors.white,
-                        fontWeight: FontWeight.w600,
+                        strokeWidth: 2,
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 16,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.45),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '${index + 1}/${widget.previewImagePaths.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }

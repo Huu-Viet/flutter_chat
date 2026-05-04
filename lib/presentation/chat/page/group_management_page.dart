@@ -55,6 +55,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   bool _openingPollDialog = false;
   bool _submittingPoll = false;
   bool _busyAppointments = false;
+  bool _appointmentsEndpointUnsupported = false;
   bool _busyNotify = false;
   bool _busyDanger = false;
   bool _busyMemberSearch = false;
@@ -117,6 +118,12 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     final normalizedPath = path.startsWith('/') ? path : '/$path';
     return '$base$normalizedPath';
   }
+
+  Options get _requestOptions => Options(
+    connectTimeout: const Duration(seconds: 25),
+    sendTimeout: const Duration(seconds: 25),
+    receiveTimeout: const Duration(seconds: 25),
+  );
 
   String get _myRole {
     final normalizedCurrentUserId = widget.currentUserId.trim();
@@ -269,6 +276,32 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     return text.isEmpty ? null : text;
   }
 
+  void _logDebugError(
+    String scope,
+    Object error,
+    StackTrace stackTrace,
+  ) {
+    if (error is DioException) {
+      final status = error.response?.statusCode;
+      final method = error.requestOptions.method;
+      final path = error.requestOptions.path;
+      final responseData = error.response?.data;
+      final parsed = _parseBackendError(error);
+
+      debugPrint(
+        '[GroupManagementPage][$scope] DioException '
+        'status=$status method=$method path=$path '
+        'code=${parsed?['errorCode']} message=${parsed?['message']} '
+        'response=$responseData',
+      );
+      debugPrint('[GroupManagementPage][$scope] stackTrace=$stackTrace');
+      return;
+    }
+
+    debugPrint('[GroupManagementPage][$scope] error=$error');
+    debugPrint('[GroupManagementPage][$scope] stackTrace=$stackTrace');
+  }
+
   Future<void> _loadJoinRequests() async {
     if (!_isAdminOrOwner) {
       return;
@@ -298,8 +331,9 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
       setState(() {
         _joinRequests = mapped;
       });
-    } catch (_) {
-      // Ignore here to avoid noisy startup toasts.
+    } catch (error, stackTrace) {
+      _logDebugError('loadJoinRequests', error, stackTrace);
+      // Ignore toast here to avoid noisy startup UX.
     } finally {
       if (mounted) {
         setState(() => _busyRequests = false);
@@ -321,12 +355,10 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
         _polls = mapped;
       });
     } catch (error, stackTrace) {
+      _logDebugError('loadPolls', error, stackTrace);
       final parsed = _parseBackendError(error);
       final statusCode = parsed?['statusCode'];
       final backendMessage = (parsed?['message'] as String?)?.trim();
-
-      print('[GroupManagement][Polls] fetch failed: $error');
-      print('$stackTrace');
 
       final statusText = statusCode != null ? ' ($statusCode)' : '';
       final detail = backendMessage?.isNotEmpty == true
@@ -341,6 +373,10 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   }
 
   Future<void> _loadAppointments() async {
+    if (_appointmentsEndpointUnsupported) {
+      return;
+    }
+
     if (!mounted) return;
     setState(() => _busyAppointments = true);
     try {
@@ -365,7 +401,26 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
       setState(() {
         _appointments = mapped;
       });
-    } catch (_) {
+    } catch (error, stackTrace) {
+      final parsed = _parseBackendError(error);
+      final isEndpointUnsupported =
+          parsed?['statusCode'] == 404 &&
+          ((parsed?['errorCode'] as String?)?.toUpperCase() ==
+                  'RESOURCE_NOT_FOUND' ||
+              (parsed?['message'] as String?)
+                      ?.toLowerCase()
+                      .contains('cannot get /conversations/') ==
+                  true);
+
+      if (isEndpointUnsupported) {
+        _appointmentsEndpointUnsupported = true;
+        debugPrint(
+          '[GroupManagementPage][loadAppointments] Skipped: appointments endpoint is not available in this environment.',
+        );
+        return;
+      }
+
+      _logDebugError('loadAppointments', error, stackTrace);
       // Endpoint may not be enabled in some environments.
     } finally {
       if (mounted) {
@@ -503,19 +558,80 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   Future<void> _updateGroupSettings() async {
     if (!_isAdminOrOwner) return;
 
+    final fullPayload = <String, dynamic>{
+      'allowMemberMessage': _allowMemberMessage,
+      'isPublic': _isPublic,
+      'joinApprovalRequired': _joinApprovalRequired,
+    };
+
+    final legacyPayload = <String, dynamic>{
+      'allowMemberMessage': _allowMemberMessage,
+    };
+
     setState(() => _busySettings = true);
     try {
-      await _dio.patch(
+      final response = await _dio.patch(
         _url('/conversations/${widget.conversation.id}/settings'),
-        data: {
-          'allowMemberMessage': _allowMemberMessage,
-          'isPublic': _isPublic,
-          'joinApprovalRequired': _joinApprovalRequired,
-        },
+        data: fullPayload,
+        options: _requestOptions,
       );
+
+      _applyConversationSnapshot(response.data);
+
+      // Ensure local screen state remains authoritative after successful update.
+      await _syncParticipantsFromServer();
       _toast('Group settings updated');
-    } catch (e) {
-      _toast(_errorMessageFor(e, fallback: 'Failed to update group settings.'));
+    } on DioException catch (error, stackTrace) {
+      _logDebugError('updateGroupSettings', error, stackTrace);
+
+      final parsed = _parseBackendError(error);
+      final message = (parsed?['message'] as String?)?.toLowerCase() ?? '';
+      final shouldRetryLegacyPayload =
+          parsed?['statusCode'] == 500 &&
+          (message.contains('property "ispublic" was not found') ||
+              message.contains('property "joinapprovalrequired" was not found') ||
+              message.contains('property "allowmembermessage" was not found'));
+
+      if (!shouldRetryLegacyPayload) {
+        _toast(
+          _errorMessageFor(
+            error,
+            fallback: 'Failed to update group settings.',
+          ),
+        );
+        return;
+      }
+
+      try {
+        final fallbackResponse = await _dio.patch(
+          _url('/conversations/${widget.conversation.id}/settings'),
+          data: legacyPayload,
+          options: _requestOptions,
+        );
+
+        _applyConversationSnapshot(fallbackResponse.data);
+        await _syncParticipantsFromServer();
+        _toast(
+          'Group settings updated (limited mode: visibility settings are not supported by this server).',
+        );
+      } on DioException catch (fallbackError, fallbackStackTrace) {
+        _logDebugError(
+          'updateGroupSettings.fallback',
+          fallbackError,
+          fallbackStackTrace,
+        );
+        _toast(
+          _errorMessageFor(
+            fallbackError,
+            fallback: 'Failed to update group settings.',
+          ),
+        );
+      }
+    } catch (error, stackTrace) {
+      _logDebugError('updateGroupSettings', error, stackTrace);
+      _toast(
+        _errorMessageFor(error, fallback: 'Failed to update group settings.'),
+      );
     } finally {
       if (mounted) {
         setState(() => _busySettings = false);
@@ -664,19 +780,54 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
       final response = await _dio.get(
         _url('/conversations/${widget.conversation.id}'),
         queryParameters: {'avatarVariant': 'thumb'},
+        options: _requestOptions,
       );
 
-      final participants = _extractParticipants(response.data);
-      if (participants.isEmpty || !mounted) {
+      if (!mounted) {
         return;
       }
 
-      setState(() {
-        _participants = participants;
-      });
-    } catch (_) {
+      _applyConversationSnapshot(response.data);
+    } catch (error, stackTrace) {
+      _logDebugError('syncParticipantsFromServer', error, stackTrace);
       // Keep current in-memory participants if refresh fails.
     }
+  }
+
+  void _applyConversationSnapshot(dynamic payload) {
+    dynamic current = payload;
+    if (current is Map && current['data'] is Map) {
+      current = current['data'];
+    }
+    if (current is! Map) {
+      return;
+    }
+
+    final normalized = current.map((key, value) => MapEntry('$key', value));
+    final participants = _extractParticipants(normalized);
+
+    final allowMemberMessage = normalized['allowMemberMessage'];
+    final isPublic = normalized['isPublic'];
+    final joinApprovalRequired = normalized['joinApprovalRequired'];
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      if (participants.isNotEmpty) {
+        _participants = participants;
+      }
+      if (allowMemberMessage is bool) {
+        _allowMemberMessage = allowMemberMessage;
+      }
+      if (isPublic is bool) {
+        _isPublic = isPublic;
+      }
+      if (joinApprovalRequired is bool) {
+        _joinApprovalRequired = joinApprovalRequired;
+      }
+    });
   }
 
   List<ConversationParticipant> _extractParticipants(dynamic payload) {
@@ -942,16 +1093,178 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     );
   }
 
+  List<ConversationParticipant> _ownerTransferCandidates() {
+    final currentUserId = widget.currentUserId.trim();
+    final candidates = _participants
+        .where((participant) {
+          final userId = participant.userId.trim();
+          return userId.isNotEmpty && userId != currentUserId;
+        })
+        .toList(growable: false);
+
+    int rolePriority(String role) {
+      switch (role.trim().toLowerCase()) {
+        case 'admin':
+          return 0;
+        case 'member':
+          return 1;
+        case 'owner':
+          return 2;
+        default:
+          return 3;
+      }
+    }
+
+    String displayName(ConversationParticipant participant) {
+      final name = participant.displayName.trim();
+      if (name.isNotEmpty) {
+        return name;
+      }
+      return participant.username.trim();
+    }
+
+    candidates.sort((a, b) {
+      final roleCompare = rolePriority(a.role).compareTo(rolePriority(b.role));
+      if (roleCompare != 0) {
+        return roleCompare;
+      }
+      return displayName(a).toLowerCase().compareTo(displayName(b).toLowerCase());
+    });
+
+    return candidates;
+  }
+
+  Future<Map<String, dynamic>?> _askOwnerLeaveSelection() {
+    final candidates = _ownerTransferCandidates();
+    if (candidates.isEmpty) {
+      _toast('No eligible member found to transfer ownership.');
+      return Future.value(null);
+    }
+
+    return showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) {
+        String? selectedUserId = candidates.first.userId.trim();
+
+        String displayName(ConversationParticipant participant) {
+          final name = participant.displayName.trim();
+          if (name.isNotEmpty) {
+            return name;
+          }
+          final username = participant.username.trim();
+          return username.isNotEmpty ? username : participant.userId;
+        }
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Leave Group'),
+              content: SizedBox(
+                width: 420,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Select a member to become the new owner before you leave.',
+                    ),
+                    const SizedBox(height: 12),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 280),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: candidates.length,
+                        itemBuilder: (context, index) {
+                          final participant = candidates[index];
+                          final userId = participant.userId.trim();
+                          final role = participant.role.trim().toLowerCase();
+                          return RadioListTile<String>(
+                            dense: true,
+                            value: userId,
+                            groupValue: selectedUserId,
+                            onChanged: (value) {
+                              setDialogState(() => selectedUserId = value);
+                            },
+                            title: Text(displayName(participant)),
+                            subtitle: Text(role.toUpperCase()),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: selectedUserId == null
+                      ? null
+                      : () {
+                          Navigator.pop(dialogContext, {
+                            'transferOwnershipTo': selectedUserId,
+                            'silent': true,
+                          });
+                        },
+                  icon: const Icon(Icons.notifications_off_outlined, size: 18),
+                  label: const Text('Leave silently'),
+                ),
+                FilledButton.icon(
+                  onPressed: selectedUserId == null
+                      ? null
+                      : () {
+                          Navigator.pop(dialogContext, {
+                            'transferOwnershipTo': selectedUserId,
+                            'silent': false,
+                          });
+                        },
+                  icon: const Icon(Icons.exit_to_app_outlined, size: 18),
+                  label: const Text('Leave & notify'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _leaveGroup() async {
-    final silent = await _askLeaveSilent();
-    if (silent == null) return; // cancelled
+    final isOwner = _myRole == 'owner';
+    final payload = <String, dynamic>{};
+
+    if (isOwner) {
+      final ownerDecision = await _askOwnerLeaveSelection();
+      if (ownerDecision == null) {
+        return;
+      }
+
+      final transferOwnershipTo =
+          ownerDecision['transferOwnershipTo']?.toString().trim() ?? '';
+      if (transferOwnershipTo.isEmpty) {
+        _toast('Please select a new owner before leaving.');
+        return;
+      }
+
+      payload['transferOwnershipTo'] = transferOwnershipTo;
+      payload['silent'] = ownerDecision['silent'] == true;
+    } else {
+      final silent = await _askLeaveSilent();
+      if (silent == null) {
+        return;
+      }
+      payload['silent'] = silent;
+    }
 
     if (!mounted) return;
     setState(() => _busyDanger = true);
     try {
       await _dio.post(
         _url('/conversations/${widget.conversation.id}/leave'),
-        data: {'silent': silent},
+        data: payload,
+        options: _requestOptions,
       );
       if (!mounted) return;
       Navigator.of(context).popUntil((route) => route.isFirst);
@@ -1080,17 +1393,20 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
             const SizedBox(height: 8),
             const Divider(height: 1),
             const SizedBox(height: 8),
-            // ── Leave (non-owners) or Disband (owner) ───────────────────
-            if (!isOwner)
-              _DangerActionTile(
-                icon: Icons.exit_to_app_outlined,
-                label: 'Leave Group',
-                description:
-                    'You can choose to leave silently or with a notification.',
-                busy: _busyDanger,
-                onTap: _leaveGroup,
-              )
-            else
+            // ── Leave group (owner must choose successor) ────────────────
+            _DangerActionTile(
+              icon: Icons.exit_to_app_outlined,
+              label: 'Leave Group',
+              description: isOwner
+                  ? 'Before leaving, you must assign a new owner (admins are listed first).'
+                  : 'You can choose to leave silently or with a notification.',
+              busy: _busyDanger,
+              onTap: _leaveGroup,
+            ),
+            if (isOwner) ...[
+              const SizedBox(height: 8),
+              const Divider(height: 1),
+              const SizedBox(height: 8),
               _DangerActionTile(
                 icon: Icons.delete_forever_outlined,
                 label: 'Disband Group',
@@ -1099,6 +1415,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
                 busy: _busyDanger,
                 onTap: _disbandGroup,
               ),
+            ],
           ],
         ),
       ),
@@ -1846,6 +2163,8 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
             ],
           ),
         ),
+        const SizedBox(height: 14),
+        _buildDangerZoneCard(context),
       ],
     );
   }
