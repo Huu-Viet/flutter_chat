@@ -52,14 +52,21 @@ class NotificationService {
     }
   }
 
-  Future<void> showCallKitIncoming(String callId, String? deepLink, String callerName) async {
+  Future<void> showCallKitIncoming(
+    String callId,
+    String? deepLink,
+    String callerName, {
+    String? callerAvatar,
+  }) async {
     final String notificationKey = '$callId${DateTime.now().millisecondsSinceEpoch}';
 
     final CallKitParams callKitParams = CallKitParams(
       id: callId,
       nameCaller: callerName,
       appName: AppConstants.appName,
-      avatar: Image.asset('assets/test.png').toString(),
+        avatar: (callerAvatar != null && callerAvatar.trim().isNotEmpty)
+          ? callerAvatar.trim()
+          : null,
       handle: callId,
       type: 0,
       duration: 30000,

@@ -27,6 +27,7 @@ class MessageBubble extends StatefulWidget {
   final VoidCallback? onLongPress;
   final ValueChanged<LongPressStartDetails>? onLongPressStart;
   final VoidCallback? onReactPressed;
+  final ValueChanged<String>? onReactionTap;
   final VoidCallback? onOpenFile;
   final ValueChanged<String>? onReplyPreviewTap;
   final bool showReactAction;
@@ -44,6 +45,7 @@ class MessageBubble extends StatefulWidget {
     this.onLongPress,
     this.onLongPressStart,
     this.onReactPressed,
+    this.onReactionTap,
     this.showReactAction = false,
     this.onOpenFile,
     this.onReplyPreviewTap,
@@ -271,6 +273,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                 MessageReactionsBar(
                   reactions: message.reactions,
                   isSentByMe: message.isSentByMe,
+                  onReactionTap: widget.onReactionTap,
                 ),
               ],
             ),

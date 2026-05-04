@@ -205,18 +205,31 @@ class _MyAppState extends ConsumerState<MyApp> {
         return;
       }
 
-      final result = await ref.read(getUserByIdUseCaseProvider)(next.callerId);
-      final callerName = result.fold((_) => 'Incoming call', (user) {
-        final fullName = user.fullName.trim();
-        return fullName.isNotEmpty ? fullName : user.username;
-      });
+      // Use caller info embedded in the socket payload first (new enriched payload).
+      // Fall back to a user API lookup only when the name is missing.
+      String callerName = next.callerName.trim();
+      String callerAvatar = next.callerAvatar.trim();
+      if (callerName.isEmpty) {
+        final result = await ref.read(getUserByIdUseCaseProvider)(next.callerId);
+        callerName = result.fold((_) => 'Incoming call', (user) {
+          final fullName = user.fullName.trim();
+          return fullName.isNotEmpty ? fullName : user.username;
+        });
+        if (callerAvatar.isEmpty) {
+          callerAvatar = result.fold((_) => '', (user) => user.avatarUrl?.trim() ?? '');
+        }
+      }
 
       if (!mounted) {
         return;
       }
 
       _shownCallKitIds.add(callId);
-      await ref.read(notiServiceProvider).showCallKitIncoming(callId, null, callerName);
+      await ref.read(notiServiceProvider).showCallKitIncoming(
+        callId, null,
+        callerName.isNotEmpty ? callerName : 'Incoming call',
+        callerAvatar: callerAvatar.isNotEmpty ? callerAvatar : null,
+      );
     });
 
     ref.listen<CallAction?>(callActionProvider, (prev, next) {

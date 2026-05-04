@@ -4,11 +4,13 @@ import 'package:flutter_chat/presentation/chat/models/chat_message_reaction.dart
 class MessageReactionsBar extends StatelessWidget {
   final List<ChatMessageReaction> reactions;
   final bool isSentByMe;
+  final ValueChanged<String>? onReactionTap;
 
   const MessageReactionsBar({
     super.key,
     required this.reactions,
     required this.isSentByMe,
+    this.onReactionTap,
   });
 
   @override
@@ -28,40 +30,56 @@ class MessageReactionsBar extends StatelessWidget {
         spacing: 4,
         runSpacing: 4,
         children: reactions
-            .where((reaction) => reaction.emoji.trim().isNotEmpty && reaction.count > 0)
-            .map(
-              (reaction) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: reaction.myReaction
-                      ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.14)
-                      : Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: reaction.myReaction
-                        ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.55)
-                        : Theme.of(context).colorScheme.outlineVariant,
+            .where(
+              (reaction) =>
+                  reaction.emoji.trim().isNotEmpty && reaction.count > 0,
+            )
+            .map<Widget>(
+              (reaction) => GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onReactionTap == null
+                    ? null
+                    : () => onReactionTap!(reaction.emoji),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
                   ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      reaction.emoji,
-                      style: const TextStyle(fontSize: 13),
+                  decoration: BoxDecoration(
+                    color: reaction.myReaction
+                        ? Theme.of(
+                            context,
+                          ).colorScheme.primary.withValues(alpha: 0.14)
+                        : Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: reaction.myReaction
+                          ? Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.55)
+                          : Theme.of(context).colorScheme.outlineVariant,
                     ),
-                    if (reaction.count > 1) ...[
-                      const SizedBox(width: 4),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       Text(
-                        '${reaction.count}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
+                        reaction.emoji,
+                        style: const TextStyle(fontSize: 13),
                       ),
+                      if (reaction.count > 1) ...[
+                        const SizedBox(width: 4),
+                        Text(
+                          '${reaction.count}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             )

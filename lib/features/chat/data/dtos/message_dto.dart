@@ -59,6 +59,17 @@ class MessageDto {
       mergedMetadata['polls'] = topLevelPolls;
     }
 
+    final topLevelReactions = json['reactions'];
+    if (topLevelReactions != null && !mergedMetadata.containsKey('reactions')) {
+      if (topLevelReactions is List) {
+        mergedMetadata['reactions'] = topLevelReactions;
+      } else if (topLevelReactions is Map) {
+        mergedMetadata['reactions'] = topLevelReactions.map(
+          (key, value) => MapEntry(key.toString(), value),
+        );
+      }
+    }
+
     for (final key in <String>[
       'action',
       'event',

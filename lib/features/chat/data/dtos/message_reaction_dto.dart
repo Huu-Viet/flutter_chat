@@ -13,12 +13,12 @@ class MessageReactionDto {
 
   factory MessageReactionDto.fromJson(Map<String, dynamic> json) {
     final emoji = (json['emoji'] as String?)?.trim() ?? '';
-    final count = _asInt(json['count']) ?? 0;
     final reactors = (json['reactors'] as List<dynamic>?)
             ?.map((e) => e.toString())
             .where((e) => e.isNotEmpty)
             .toList(growable: false) ??
         const <String>[];
+    final count = _asInt(json['count']) ?? reactors.length;
 
     return MessageReactionDto(
       emoji: emoji,
@@ -29,13 +29,29 @@ class MessageReactionDto {
   }
 
   factory MessageReactionDto.fromMapEntry(String emoji, dynamic rawValue) {
-    if (rawValue is Map<String, dynamic>) {
+    if (rawValue is Map) {
+      final rawMap = rawValue.map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
       return MessageReactionDto.fromJson({
-        ...rawValue,
-        'emoji': (rawValue['emoji'] as String?)?.trim().isNotEmpty == true
-            ? rawValue['emoji']
+        ...rawMap,
+        'emoji': (rawMap['emoji'] as String?)?.trim().isNotEmpty == true
+            ? rawMap['emoji']
             : emoji,
       });
+    }
+
+    if (rawValue is List) {
+      final reactors = rawValue
+          .map((e) => e.toString())
+          .where((e) => e.isNotEmpty)
+          .toList(growable: false);
+      return MessageReactionDto(
+        emoji: emoji,
+        count: reactors.length,
+        reactors: reactors,
+        myReaction: false,
+      );
     }
 
     return MessageReactionDto(

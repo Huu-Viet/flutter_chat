@@ -1,6 +1,7 @@
 import 'package:flutter_chat/core/constants/app_constants.dart';
 import 'package:flutter_chat/core/platform_services/export.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:convert';
 
 class NotificationRouter {
   static const String _tag = 'NotificationRouter';
@@ -9,6 +10,14 @@ class NotificationRouter {
   NotificationRouter(this._notificationService);
 
   Future<void> route(Map<String, dynamic> data) async {
+    // Handle incoming call push — show callkit with caller info
+    if (_isIncomingCallPush(data)) {
+      debugPrint('$_tag: incoming call push, showing callkit data=$data');
+      await _handleIncomingCallPush(data);
+      return;
+    }
+
+    // Other call-state pushes (cancelled, declined, ended, missed) — no UI needed
     if (_isCallPush(data)) {
       debugPrint('$_tag: skip local notification for call push data=$data');
       return;
@@ -34,6 +43,58 @@ class NotificationRouter {
 
     debugPrint('$_tag: routing generic notification data=$data');
     await _notificationService.createGenericNotification(data);
+  }
+
+  bool _isIncomingCallPush(Map<String, dynamic> data) {
+    final type = (data['type'] ?? data['notification_type'] ?? '')
+        .toString()
+        .trim()
+        .toLowerCase();
+    return type == 'call_incoming' || type == 'incoming_call';
+  }
+
+  Future<void> _handleIncomingCallPush(Map<String, dynamic> data) async {
+    final callId = (data['callId'] ?? data['call_id'] ?? '').toString().trim();
+    if (callId.isEmpty) {
+      debugPrint('$_tag: _handleIncomingCallPush: missing callId, skip');
+      return;
+    }
+
+    String callerName = '';
+    String callerAvatar = '';
+
+    // FCM data values are strings; `caller` may be a JSON-encoded string or nested map
+    final rawCaller = data['caller'];
+    Map<String, dynamic>? callerMap;
+    if (rawCaller is Map) {
+      callerMap = Map<String, dynamic>.from(rawCaller);
+    } else if (rawCaller is String && rawCaller.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawCaller);
+        if (decoded is Map) callerMap = Map<String, dynamic>.from(decoded);
+      } catch (_) {}
+    }
+
+    if (callerMap != null) {
+      callerName = (callerMap['name'] ?? callerMap['displayName'] ?? '').toString().trim();
+      callerAvatar = (callerMap['avatar'] ?? callerMap['avatarUrl'] ?? '').toString().trim();
+    }
+
+    if (callerName.isEmpty) {
+      callerName = (data['callerName'] ?? data['caller_name'] ?? 'Incoming call').toString().trim();
+    }
+    if (callerAvatar.isEmpty) {
+      callerAvatar = (data['callerAvatar'] ?? data['caller_avatar'] ?? '').toString().trim();
+    }
+
+    final deepLink = data[AppConstants.clickAction]?.toString();
+    debugPrint('$_tag: _handleIncomingCallPush callId=$callId callerName=$callerName');
+    await _notificationService.showCallKitIncoming(
+      callId,
+      deepLink,
+      callerName.isNotEmpty ? callerName : 'Incoming call',
+      callerAvatar: callerAvatar.isNotEmpty ? callerAvatar : null,
+    );
   }
 
   bool _isFriendRequest(Map<String, dynamic> data) {

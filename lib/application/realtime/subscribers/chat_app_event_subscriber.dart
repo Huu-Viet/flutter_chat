@@ -346,36 +346,39 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
     }
 
     final data = payload['data'];
-    if (data is Map<String, dynamic>) {
+    if (data is Map) {
+      final dataMap = _toStringKeyedMap(data);
       final nestedDirect = data['conversationId']?.toString();
       if (nestedDirect != null && nestedDirect.isNotEmpty) {
         return nestedDirect;
       }
 
-      final nestedGroupId = data['groupId']?.toString();
+      final nestedGroupId = dataMap['groupId']?.toString();
       if (nestedGroupId != null && nestedGroupId.isNotEmpty) {
         return nestedGroupId;
       }
 
-      final nestedId = data['id']?.toString();
+      final nestedId = dataMap['id']?.toString();
       if (nestedId != null && nestedId.isNotEmpty) {
         return nestedId;
       }
 
-      final conversation = data['conversation'];
-      if (conversation is Map<String, dynamic>) {
+      final conversation = dataMap['conversation'];
+      if (conversation is Map) {
+        final conversationMap = _toStringKeyedMap(conversation);
         final nestedConversationId =
-            conversation['id']?.toString() ??
-            conversation['conversationId']?.toString() ??
-            conversation['groupId']?.toString();
+            conversationMap['id']?.toString() ??
+            conversationMap['conversationId']?.toString() ??
+            conversationMap['groupId']?.toString();
         if (nestedConversationId != null && nestedConversationId.isNotEmpty) {
           return nestedConversationId;
         }
       }
 
-      final message = data['message'];
-      if (message is Map<String, dynamic>) {
-        final nestedMessageDirect = message['conversationId']?.toString();
+      final message = dataMap['message'];
+      if (message is Map) {
+        final messageMap = _toStringKeyedMap(message);
+        final nestedMessageDirect = messageMap['conversationId']?.toString();
         if (nestedMessageDirect != null && nestedMessageDirect.isNotEmpty) {
           return nestedMessageDirect;
         }
@@ -383,8 +386,9 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
     }
 
     final message = payload['message'];
-    if (message is Map<String, dynamic>) {
-      final nestedMessageDirect = message['conversationId']?.toString();
+    if (message is Map) {
+      final messageMap = _toStringKeyedMap(message);
+      final nestedMessageDirect = messageMap['conversationId']?.toString();
       if (nestedMessageDirect != null && nestedMessageDirect.isNotEmpty) {
         return nestedMessageDirect;
       }
@@ -405,25 +409,27 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
     }
 
     final data = payload['data'];
-    if (data is Map<String, dynamic>) {
+    if (data is Map) {
+      final dataMap = _toStringKeyedMap(data);
       final nestedDirect =
-          data['messageId']?.toString() ??
-          data['message_id']?.toString() ??
-          data['id']?.toString() ??
-          data['clientMessageId']?.toString() ??
-          data['client_message_id']?.toString();
+          dataMap['messageId']?.toString() ??
+          dataMap['message_id']?.toString() ??
+          dataMap['id']?.toString() ??
+          dataMap['clientMessageId']?.toString() ??
+          dataMap['client_message_id']?.toString();
       if (nestedDirect != null && nestedDirect.isNotEmpty) {
         return nestedDirect;
       }
 
-      final message = data['message'];
-      if (message is Map<String, dynamic>) {
+      final message = dataMap['message'];
+      if (message is Map) {
+        final messageMap = _toStringKeyedMap(message);
         final nestedMessageDirect =
-            message['id']?.toString() ??
-            message['messageId']?.toString() ??
-            message['message_id']?.toString() ??
-            message['clientMessageId']?.toString() ??
-            message['client_message_id']?.toString();
+            messageMap['id']?.toString() ??
+            messageMap['messageId']?.toString() ??
+            messageMap['message_id']?.toString() ??
+            messageMap['clientMessageId']?.toString() ??
+            messageMap['client_message_id']?.toString();
         if (nestedMessageDirect != null && nestedMessageDirect.isNotEmpty) {
           return nestedMessageDirect;
         }
@@ -431,13 +437,14 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
     }
 
     final message = payload['message'];
-    if (message is Map<String, dynamic>) {
+    if (message is Map) {
+      final messageMap = _toStringKeyedMap(message);
       final nestedMessageDirect =
-          message['id']?.toString() ??
-          message['messageId']?.toString() ??
-          message['message_id']?.toString() ??
-          message['clientMessageId']?.toString() ??
-          message['client_message_id']?.toString();
+          messageMap['id']?.toString() ??
+          messageMap['messageId']?.toString() ??
+          messageMap['message_id']?.toString() ??
+          messageMap['clientMessageId']?.toString() ??
+          messageMap['client_message_id']?.toString();
       if (nestedMessageDirect != null && nestedMessageDirect.isNotEmpty) {
         return nestedMessageDirect;
       }
@@ -469,19 +476,21 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
     }
 
     final data = payload['data'];
-    if (data is Map<String, dynamic>) {
+    if (data is Map) {
+      final dataMap = _toStringKeyedMap(data);
       final nestedDirect =
-          data['userId']?.toString() ??
-          data['user_id']?.toString() ??
-          data['id']?.toString();
+          dataMap['userId']?.toString() ??
+          dataMap['user_id']?.toString() ??
+          dataMap['id']?.toString();
       if (nestedDirect != null && nestedDirect.isNotEmpty) {
         return nestedDirect;
       }
 
-      final nestedUser = data['user'];
-      if (nestedUser is Map<String, dynamic>) {
+      final nestedUser = dataMap['user'];
+      if (nestedUser is Map) {
+        final userMap = _toStringKeyedMap(nestedUser);
         final nestedUserId =
-            nestedUser['id']?.toString() ?? nestedUser['userId']?.toString();
+            userMap['id']?.toString() ?? userMap['userId']?.toString();
         if (nestedUserId != null && nestedUserId.isNotEmpty) {
           return nestedUserId;
         }
@@ -497,9 +506,23 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
   }) {
     dynamic reactionsNode = payload['reactions'];
 
+    if (reactionsNode == null) {
+      final messageNode = payload['message'];
+      if (messageNode is Map) {
+        reactionsNode = _toStringKeyedMap(messageNode)['reactions'];
+      }
+    }
+
     final data = payload['data'];
-    if (reactionsNode == null && data is Map<String, dynamic>) {
-      reactionsNode = data['reactions'];
+    if (reactionsNode == null && data is Map) {
+      final dataMap = _toStringKeyedMap(data);
+      reactionsNode = dataMap['reactions'];
+      if (reactionsNode == null) {
+        final nestedMessage = dataMap['message'];
+        if (nestedMessage is Map) {
+          reactionsNode = _toStringKeyedMap(nestedMessage)['reactions'];
+        }
+      }
     }
 
     if (reactionsNode == null) {
@@ -508,7 +531,8 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
 
     if (reactionsNode is List<dynamic>) {
       return reactionsNode
-          .whereType<Map<String, dynamic>>()
+          .whereType<Map>()
+          .map(_toStringKeyedMap)
           .map(MessageReactionDto.fromJson)
           .where((dto) => dto.emoji.isNotEmpty)
           .map(
@@ -523,8 +547,9 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
           .toList(growable: false);
     }
 
-    if (reactionsNode is Map<String, dynamic>) {
-      return reactionsNode.entries
+    if (reactionsNode is Map) {
+      final reactionsMap = _toStringKeyedMap(reactionsNode);
+      return reactionsMap.entries
           .map(
             (entry) => MessageReactionDto.fromMapEntry(entry.key, entry.value),
           )
@@ -542,5 +567,9 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
     }
 
     return const <MessageReaction>[];
+  }
+
+  Map<String, dynamic> _toStringKeyedMap(Map source) {
+    return source.map((key, value) => MapEntry(key.toString(), value));
   }
 }

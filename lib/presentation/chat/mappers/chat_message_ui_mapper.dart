@@ -61,11 +61,25 @@ class ChatMessageUIMapper {
 
       final reactions = message.reactions
           .map(
-            (item) => ChatMessageReaction(
-              emoji: item.emoji,
-              count: item.count,
-              myReaction: item.myReaction,
-            ),
+            (item) {
+              final normalizedReactors = item.reactors
+                  .map(_normalizeId)
+                  .where((id) => id.isNotEmpty)
+                  .toSet();
+            final isMine =
+              item.myReaction ||
+              (normalizedCurrentUserId.isNotEmpty &&
+                normalizedReactors.contains(normalizedCurrentUserId));
+              final normalizedCount = item.count > 0
+                  ? item.count
+                  : normalizedReactors.length;
+
+              return ChatMessageReaction(
+                emoji: item.emoji,
+                count: normalizedCount,
+                myReaction: isMine,
+              );
+            },
           )
           .where(
             (reaction) =>

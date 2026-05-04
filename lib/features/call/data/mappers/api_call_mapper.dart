@@ -9,6 +9,8 @@ class ApiCallMapper extends RemoteMapper<CallDto, CallInfo> {
       id: dto.id ?? '',
       conversationId: dto.conversationId ?? '',
       callerId: dto.callerId ?? '',
+      callerName: dto.callerName ?? '',
+      callerAvatar: dto.callerAvatar ?? '',
       status: dto.status ?? '',
       createdAt: dto.createdAt ?? DateTime.now(),
       startedAt: dto.startedAt ?? DateTime.now(),

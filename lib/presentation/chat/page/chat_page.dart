@@ -616,6 +616,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           onReactPressed: message.isLastInGroup && _canReactToMessage(message)
               ? () => _handleReactionSelection(message, '❤️')
               : null,
+          onReactionTap: _canReactToMessage(message)
+              ? (emoji) => _handleReactionTapToRemove(message, emoji)
+              : null,
           onLongPressStart: (details) => _showMessageActions(
             context,
             message,
@@ -1516,6 +1519,21 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   void _handleReactionSelection(ChatMessage message, String emoji) {
+    final normalizedEmoji = emoji.trim();
+    if (normalizedEmoji.isEmpty) {
+      return;
+    }
+
+    final hasSameMyReaction = message.reactions.any(
+      (reaction) =>
+          reaction.myReaction && reaction.emoji.trim() == normalizedEmoji,
+    );
+
+    // Same emoji that user already reacted with -> no-op to avoid duplicate server requests.
+    if (hasSameMyReaction) {
+      return;
+    }
+
     final messageId = _resolveMessageIdForAction(message);
     if (messageId == null || messageId.isEmpty) {
       return;
@@ -1527,7 +1545,41 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           UpdateMessageReactionEvent(
             messageId: messageId,
             conversationId: widget.conversationId,
-            emoji: emoji,
+            emoji: normalizedEmoji,
+            action: 'add',
+          ),
+        );
+  }
+
+  void _handleReactionTapToRemove(ChatMessage message, String emoji) {
+    final normalizedEmoji = emoji.trim();
+    if (normalizedEmoji.isEmpty) {
+      return;
+    }
+
+    final hasMyReaction = message.reactions.any(
+      (reaction) =>
+          reaction.myReaction && reaction.emoji.trim() == normalizedEmoji,
+    );
+
+    // Only remove reactions that belong to current user.
+    if (!hasMyReaction) {
+      return;
+    }
+
+    final messageId = _resolveMessageIdForAction(message);
+    if (messageId == null || messageId.isEmpty) {
+      return;
+    }
+
+    ref
+        .read(chatBlocProvider)
+        .add(
+          UpdateMessageReactionEvent(
+            messageId: messageId,
+            conversationId: widget.conversationId,
+            emoji: normalizedEmoji,
+            action: 'remove',
           ),
         );
   }

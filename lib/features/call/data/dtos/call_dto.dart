@@ -4,6 +4,8 @@ class CallDto {
   final String? id;
   final String? conversationId;
   final String? callerId;
+  final String? callerName;
+  final String? callerAvatar;
   final String? status;
   final DateTime? createdAt;
   final DateTime? startedAt;
@@ -14,6 +16,8 @@ class CallDto {
     this.id,
     this.conversationId,
     this.callerId,
+    this.callerName,
+    this.callerAvatar,
     this.status,
     this.createdAt,
     this.startedAt,
@@ -31,7 +35,25 @@ class CallDto {
     return CallDto(
       id: (json['id'] ?? json['callId']) as String?,
       conversationId: json['conversationId'] as String?,
-      callerId: json['callerId'] as String?,
+      callerId: (() {
+        final caller = json['caller'];
+        if (caller is Map) return caller['id']?.toString();
+        return json['callerId'] as String?;
+      })(),
+      callerName: (() {
+        final caller = json['caller'];
+        if (caller is Map) {
+          return (caller['name'] ?? caller['displayName'])?.toString();
+        }
+        return (json['callerName'] ?? json['caller_name'])?.toString();
+      })(),
+      callerAvatar: (() {
+        final caller = json['caller'];
+        if (caller is Map) {
+          return (caller['avatar'] ?? caller['avatarUrl'])?.toString();
+        }
+        return (json['callerAvatar'] ?? json['caller_avatar'])?.toString();
+      })(),
       status: json['status'] as String? ?? 'RINGING',
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'])

@@ -508,15 +508,35 @@ class LocalMessageMapper
     }
 
     final raw = metadata['reactions'];
-    if (raw is! List) {
+
+    final Iterable<Map<String, dynamic>> reactionNodes;
+    if (raw is List) {
+      reactionNodes = raw
+          .whereType<Map>()
+          .map((entry) => entry.map((key, value) => MapEntry(key.toString(), value)));
+    } else if (raw is Map) {
+      reactionNodes = raw.entries
+          .map(
+            (entry) => <String, dynamic>{
+              'emoji': entry.key.toString(),
+              ...(entry.value is Map
+                  ? (entry.value as Map).map((k, v) => MapEntry(k.toString(), v))
+                  : entry.value is List
+                  ? <String, dynamic>{
+                      'reactors': (entry.value as List)
+                          .map((e) => e.toString())
+                          .where((e) => e.isNotEmpty)
+                          .toList(growable: false),
+                      'count': (entry.value as List).length,
+                    }
+                  : <String, dynamic>{'count': _toInt(entry.value) ?? 0}),
+            },
+          );
+    } else {
       return const <MessageReaction>[];
     }
 
-    return raw
-        .whereType<Map>()
-        .map(
-          (entry) => entry.map((key, value) => MapEntry(key.toString(), value)),
-        )
+    return reactionNodes
         .map(
           (entry) => MessageReaction(
             messageId: (entry['messageId'] ?? fallbackMessageId).toString(),
