@@ -11,6 +11,7 @@ abstract class UserRemoteDataSource {
   Future<List<SessionDto>> getActiveSessions();
   Future<void> revokeOtherSessions();
   Future<void> revokeSession(String sessionId);
+  Future<UserDto?> updateSettings({String? theme});
   Future<UserDto?> updateProfile({
     String? username,
     String? firstName,

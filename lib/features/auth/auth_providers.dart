@@ -23,30 +23,30 @@ final authPrefsDtsProvider = Provider<AuthPrefDataSource>((ref) {
 
 //Auth dio interceptor
 final authDioProvider = Provider<Dio>((ref) {
-  final dio = Dio(BaseOptions(
-      connectTimeout: Duration(seconds: 10),
-  ));
+  final dio = Dio(BaseOptions(connectTimeout: Duration(seconds: 10)));
 
   final tokenDts = ref.watch(authPrefsDtsProvider);
   final authRemoteService = ref.watch(authRemoteServiceProvider);
 
   dio.interceptors.add(
     AuthInterceptor(
-        authPrefDataSource: tokenDts,
-        authRemoteService: authRemoteService,
-        dio: dio,
-        onUnauthorized: () async {
-          final hadAccessToken = (await tokenDts.getAccessToken())?.trim().isNotEmpty == true;
-          final hadRefreshToken = (await tokenDts.getRefreshToken())?.trim().isNotEmpty == true;
+      authPrefDataSource: tokenDts,
+      authRemoteService: authRemoteService,
+      dio: dio,
+      onUnauthorized: () async {
+        final hadAccessToken =
+            (await tokenDts.getAccessToken())?.trim().isNotEmpty == true;
+        final hadRefreshToken =
+            (await tokenDts.getRefreshToken())?.trim().isNotEmpty == true;
 
-          await tokenDts.clearToken();
-          await tokenDts.clearCache();
+        await tokenDts.clearToken();
+        await tokenDts.clearCache();
 
-          if (hadAccessToken || hadRefreshToken) {
-            ref.read(forceLogoutTickProvider.notifier).state++;
-          }
-        },
-    )
+        if (hadAccessToken || hadRefreshToken) {
+          ref.read(forceLogoutTickProvider.notifier).state++;
+        }
+      },
+    ),
   );
 
   return dio;
@@ -65,12 +65,13 @@ final sessionMapperProvider = Provider<SessionMapper>((ref) {
   return SessionMapper();
 });
 
-final authNotificationTokenRegistrarProvider = Provider<NotificationTokenRegistrar>((ref) {
-  return NotificationTokenRegistrarImpl.fromEnv(
-    ref.watch(authDioProvider),
-    const SharedPrefsNotificationDeviceIdService(),
-  );
-});
+final authNotificationTokenRegistrarProvider =
+    Provider<NotificationTokenRegistrar>((ref) {
+      return NotificationTokenRegistrarImpl.fromEnv(
+        ref.watch(authDioProvider),
+        const SharedPrefsNotificationDeviceIdService(),
+      );
+    });
 
 // Repository
 final authRepositoryProvider = Provider<AuthRemoteRepoImpl>((ref) {
@@ -83,7 +84,9 @@ final authRepositoryProvider = Provider<AuthRemoteRepoImpl>((ref) {
     apiMapper: ref.watch(apiUserMapperProvider),
     localMapper: ref.watch(localUserMapperProvider),
     sessionMapper: ref.watch(sessionMapperProvider),
-    notificationTokenRegistrar: ref.watch(authNotificationTokenRegistrarProvider),
+    notificationTokenRegistrar: ref.watch(
+      authNotificationTokenRegistrarProvider,
+    ),
   );
 });
 
@@ -96,17 +99,23 @@ final authLocalRepoProvider = Provider<AuthLocalRepo>((ref) {
 });
 
 // UseCase
-final getCurrentUserUseCaseProvider = Provider<GetFullCurrentUserUseCase>((ref) {
+final getCurrentUserUseCaseProvider = Provider<GetFullCurrentUserUseCase>((
+  ref,
+) {
   return GetFullCurrentUserUseCase(ref.watch(authRemoteRepoProvider));
 });
 
-final getActiveSessionsUseCaseProvider = Provider<GetActiveSessionsUseCase>((ref) {
+final getActiveSessionsUseCaseProvider = Provider<GetActiveSessionsUseCase>((
+  ref,
+) {
   return GetActiveSessionsUseCase(ref.watch(authRemoteRepoProvider));
 });
 
-final revokeOtherSessionsUseCaseProvider = Provider<RevokeOtherSessionsUseCase>((ref) {
-  return RevokeOtherSessionsUseCase(ref.watch(authRemoteRepoProvider));
-});
+final revokeOtherSessionsUseCaseProvider = Provider<RevokeOtherSessionsUseCase>(
+  (ref) {
+    return RevokeOtherSessionsUseCase(ref.watch(authRemoteRepoProvider));
+  },
+);
 
 final revokeSessionUseCaseProvider = Provider<RevokeSessionUseCase>((ref) {
   return RevokeSessionUseCase(ref.watch(authRemoteRepoProvider));
@@ -116,11 +125,14 @@ final getUserByIdUseCaseProvider = Provider<GetUserByIdUseCase>((ref) {
   return GetUserByIdUseCase(ref.watch(authRemoteRepoProvider));
 });
 
-final searchUsersByUsernameUseCaseProvider = Provider<SearchUsersByUsernameUseCase>((ref) {
-  return SearchUsersByUsernameUseCase(ref.watch(authRemoteRepoProvider));
-});
+final searchUsersByUsernameUseCaseProvider =
+    Provider<SearchUsersByUsernameUseCase>((ref) {
+      return SearchUsersByUsernameUseCase(ref.watch(authRemoteRepoProvider));
+    });
 
-final loginWithGrantedAccountUseCaseProvider = Provider<LogInWithEmailUseCase>((ref) {
+final loginWithGrantedAccountUseCaseProvider = Provider<LogInWithEmailUseCase>((
+  ref,
+) {
   return LogInWithEmailUseCase(ref.watch(authRemoteRepoProvider));
 });
 
@@ -128,11 +140,15 @@ final sendDeviceTokenUseCaseProvider = Provider<SendDeviceTokenUseCase>((ref) {
   return SendDeviceTokenUseCase(ref.watch(authRemoteRepoProvider));
 });
 
-final checkAccessTokenUseCaseProvider = Provider<CheckAccessTokenUseCase>((ref) {
+final checkAccessTokenUseCaseProvider = Provider<CheckAccessTokenUseCase>((
+  ref,
+) {
   return CheckAccessTokenUseCase(ref.watch(authLocalRepoProvider));
 });
 
-final checkRefreshTokenUseCaseProvider = Provider<CheckRefreshTokenUseCase>((ref) {
+final checkRefreshTokenUseCaseProvider = Provider<CheckRefreshTokenUseCase>((
+  ref,
+) {
   return CheckRefreshTokenUseCase(ref.watch(authLocalRepoProvider));
 });
 
@@ -140,17 +156,27 @@ final getRefreshTokenUseCaseProvider = Provider<GetRefreshTokenUseCase>((ref) {
   return GetRefreshTokenUseCase(ref.watch(authLocalRepoProvider));
 });
 
-final getCurrentUserIdUseCaseProvider = Provider<GetCurrentUserIdUseCase>((ref) {
+final getCurrentUserIdUseCaseProvider = Provider<GetCurrentUserIdUseCase>((
+  ref,
+) {
   return GetCurrentUserIdUseCase(ref.watch(authLocalRepoProvider));
 });
 
-final syncCurrentUserFromRemoteUseCaseProvider = Provider<SyncCurrentUserFromRemoteUseCase>((ref) {
-  return SyncCurrentUserFromRemoteUseCase(ref.watch(authRemoteRepoProvider));
+final syncCurrentUserFromRemoteUseCaseProvider =
+    Provider<SyncCurrentUserFromRemoteUseCase>((ref) {
+      return SyncCurrentUserFromRemoteUseCase(
+        ref.watch(authRemoteRepoProvider),
+      );
+    });
+
+final updateThemeUseCaseProvider = Provider<UpdateThemeUseCase>((ref) {
+  return UpdateThemeUseCase(ref.watch(authRemoteRepoProvider));
 });
 
-final updateUserPresenceLocalUseCaseProvider = Provider<UpdateUserPresenceLocalUseCase>((ref) {
-  return UpdateUserPresenceLocalUseCase(ref.watch(authLocalRepoProvider));
-});
+final updateUserPresenceLocalUseCaseProvider =
+    Provider<UpdateUserPresenceLocalUseCase>((ref) {
+      return UpdateUserPresenceLocalUseCase(ref.watch(authLocalRepoProvider));
+    });
 
 final refreshTokenUseCaseProvider = Provider<RefreshTokenUseCase>((ref) {
   return RefreshTokenUseCase(ref.watch(authRemoteRepoProvider));
@@ -164,11 +190,15 @@ final registerInitUseCaseProvider = Provider<RegisterInitUseCase>((ref) {
   return RegisterInitUseCase(ref.watch(authRemoteRepoProvider));
 });
 
-final registerCompleteUseCaseProvider = Provider<RegisterCompleteUseCase>((ref) {
+final registerCompleteUseCaseProvider = Provider<RegisterCompleteUseCase>((
+  ref,
+) {
   return RegisterCompleteUseCase(ref.watch(authRemoteRepoProvider));
 });
 
-final registerVerifyOtpUseCaseProvider = Provider<RegisterVerifyOtpUseCase>((ref) {
+final registerVerifyOtpUseCaseProvider = Provider<RegisterVerifyOtpUseCase>((
+  ref,
+) {
   return RegisterVerifyOtpUseCase(ref.watch(authRemoteRepoProvider));
 });
 
@@ -184,7 +214,9 @@ final logoutUseCaseProvider = Provider<SignOutUseCase>((ref) {
   return SignOutUseCase(ref.watch(authRemoteRepoProvider));
 });
 
-final clearLocalAppDataUseCaseProvider = Provider<ClearLocalAppDataUseCase>((ref) {
+final clearLocalAppDataUseCaseProvider = Provider<ClearLocalAppDataUseCase>((
+  ref,
+) {
   return ClearLocalAppDataUseCase(
     ref.watch(chatRepoProvider),
     ref.watch(friendshipRepositoryProvider),
@@ -193,22 +225,19 @@ final clearLocalAppDataUseCaseProvider = Provider<ClearLocalAppDataUseCase>((ref
 
 // Theme streaming from local database
 final watchThemeStringProvider = StreamProvider<String>((ref) async* {
-  final currentUserIdResult = await ref.watch(getCurrentUserIdUseCaseProvider).call();
-  final userId = currentUserIdResult.fold(
-    (_) => null,
-    (id) => id,
-  );
+  final currentUserIdResult = await ref
+      .watch(getCurrentUserIdUseCaseProvider)
+      .call();
+  final userId = currentUserIdResult.fold((_) => null, (id) => id);
 
   if (userId == null) {
     yield 'system';
     return;
   }
 
-  await for (final themeResult in ref.watch(authLocalRepoProvider).watchTheme(userId)) {
-    final themeString = themeResult.fold(
-      (_) => 'system',
-      (theme) => theme,
-    );
+  await for (final themeResult
+      in ref.watch(authLocalRepoProvider).watchTheme(userId)) {
+    final themeString = themeResult.fold((_) => 'system', (theme) => theme);
     yield themeString;
   }
 });

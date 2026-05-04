@@ -9,6 +9,7 @@ import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/presentation/profile/pages/profile_page.dart';
 import 'package:flutter_chat/presentation/profile/pages/manage_session_page.dart';
 import 'package:flutter_chat/presentation/profile/pages/set_profile_page.dart';
+import 'package:flutter_chat/presentation/profile/pages/theme_settings_page.dart';
 import 'package:flutter_chat/presentation/splash/pages/splash_page.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -66,6 +67,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/manage-sessions',
         name: 'manage-sessions',
         builder: (context, state) => const ManageSessionPage(),
+      ),
+      GoRoute(
+        path: '/theme-settings',
+        name: 'theme-settings',
+        builder: (context, state) => const ThemeSettingsPage(),
       ),
       GoRoute(
         path: '/in-call',
