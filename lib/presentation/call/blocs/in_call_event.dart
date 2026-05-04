@@ -36,6 +36,16 @@ final class InCallIncomingDeclined extends InCallEvent {
   List<Object?> get props => [callId];
 }
 
+final class InCallRejoinRequested extends InCallEvent {
+  final CallInfo call;
+  final String roomName;
+
+  const InCallRejoinRequested(this.call, {this.roomName = ''});
+
+  @override
+  List<Object?> get props => [call, roomName];
+}
+
 final class InCallRemoteAccepted extends InCallEvent {
   final String callId;
 

@@ -203,7 +203,10 @@ class CallRemoteDSImpl implements CallRemoteDataSource {
         queryParameters: body,
       );
       if (response.statusCode != 200) throw Exception('${response.statusCode}');
-      final data = (response).data as List<dynamic>;
+      final responseData = response.data;
+      final data = responseData is Map
+          ? (responseData['data'] as List<dynamic>? ?? const <dynamic>[])
+          : (responseData as List<dynamic>);
       return data
           .map((e) => CallDto.fromJson(e as Map<String, dynamic>))
           .toList();

@@ -87,6 +87,24 @@ class CallRepoImpl extends CallRepository {
   }
 
   @override
+  Future<Either<Failure, List<CallInfo>>> fetchCallRecords(
+    String conversationId,
+    int page,
+    int limit,
+  ) async {
+    try {
+      final response = await _callRemoteDataSource.fetchCallRecords(
+        conversationId,
+        page,
+        limit,
+      );
+      return Right(response.map(_apiCallMapper.toDomain).toList());
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, CallToken>> getCallToken(String callId) async {
     try {
       final response = await _callRemoteDataSource.getCallToken(callId);

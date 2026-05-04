@@ -210,13 +210,18 @@ class _MyAppState extends ConsumerState<MyApp> {
       String callerName = next.callerName.trim();
       String callerAvatar = next.callerAvatar.trim();
       if (callerName.isEmpty) {
-        final result = await ref.read(getUserByIdUseCaseProvider)(next.callerId);
+        final result = await ref.read(getUserByIdUseCaseProvider)(
+          next.callerId,
+        );
         callerName = result.fold((_) => 'Incoming call', (user) {
           final fullName = user.fullName.trim();
           return fullName.isNotEmpty ? fullName : user.username;
         });
         if (callerAvatar.isEmpty) {
-          callerAvatar = result.fold((_) => '', (user) => user.avatarUrl?.trim() ?? '');
+          callerAvatar = result.fold(
+            (_) => '',
+            (user) => user.avatarUrl?.trim() ?? '',
+          );
         }
       }
 
@@ -225,11 +230,14 @@ class _MyAppState extends ConsumerState<MyApp> {
       }
 
       _shownCallKitIds.add(callId);
-      await ref.read(notiServiceProvider).showCallKitIncoming(
-        callId, null,
-        callerName.isNotEmpty ? callerName : 'Incoming call',
-        callerAvatar: callerAvatar.isNotEmpty ? callerAvatar : null,
-      );
+      await ref
+          .read(notiServiceProvider)
+          .showCallKitIncoming(
+            callId,
+            null,
+            callerName.isNotEmpty ? callerName : 'Incoming call',
+            callerAvatar: callerAvatar.isNotEmpty ? callerAvatar : null,
+          );
     });
 
     ref.listen<CallAction?>(callActionProvider, (prev, next) {
@@ -239,7 +247,13 @@ class _MyAppState extends ConsumerState<MyApp> {
 
       switch (next.type) {
         case CallActionType.accepted:
-          if (bloc.state.session?.call.id == next.callId) {
+          final session = bloc.state.session;
+          if (session?.call.id != next.callId) {
+            ref.read(callActionProvider.notifier).state = null;
+            return;
+          }
+
+          if (session != null) {
             bloc.add(InCallRemoteAccepted(next.callId));
           }
 

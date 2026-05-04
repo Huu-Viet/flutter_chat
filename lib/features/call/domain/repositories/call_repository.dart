@@ -14,6 +14,11 @@ abstract class CallRepository {
   Future<Either<Failure, CallInfo>> declineCall(String callId);
   Future<Either<Failure, CallInfo>> endCall(String callId);
   Future<Either<Failure, CallInfo>> fetchSingleCallRecord(String callId);
+  Future<Either<Failure, List<CallInfo>>> fetchCallRecords(
+    String conversationId,
+    int page,
+    int limit,
+  );
   Future<Either<Failure, CallToken>> getCallToken(String callId);
   Future<Either<Failure, void>> joinSocketCall(String callId);
   Future<Either<Failure, void>> leaveSocketCall(String callId);

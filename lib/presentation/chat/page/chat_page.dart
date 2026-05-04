@@ -8,6 +8,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_chat/app/app_providers.dart';
 import 'package:flutter_chat/core/platform_services/export.dart';
 import 'package:flutter_chat/core/network/realtime_gateway.dart';
+import 'package:flutter_chat/features/call/call_providers.dart';
+import 'package:flutter_chat/features/call/export.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/features/friendship/friendship_providers.dart';
 import 'package:flutter_chat/features/group_manager/group_management_provider.dart';
@@ -107,7 +109,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         if (conversationId != widget.conversationId) {
           return;
         }
-        final allowMemberMessage = _extractAllowMemberMessageFromPayload(payload);
+        final allowMemberMessage = _extractAllowMemberMessageFromPayload(
+          payload,
+        );
         if (mounted) {
           if (allowMemberMessage != null) {
             setState(() {
@@ -148,8 +152,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
 
     if (current['data'] is Map) {
-      current = (current['data'] as Map)
-          .map((key, value) => MapEntry(key.toString(), value));
+      current = (current['data'] as Map).map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
     }
 
     if (current is! Map<String, dynamic>) {
@@ -202,8 +207,12 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
       final data = normalized['data'];
       if (data is Map) {
-        final nested = data.map((key, value) => MapEntry(key.toString(), value));
-        final nestedConversationId = nested['conversationId']?.toString().trim();
+        final nested = data.map(
+          (key, value) => MapEntry(key.toString(), value),
+        );
+        final nestedConversationId = nested['conversationId']
+            ?.toString()
+            .trim();
         if (nestedConversationId != null && nestedConversationId.isNotEmpty) {
           return nestedConversationId;
         }
@@ -378,7 +387,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
   bool _isGroupMemberPostingRestricted(ChatLoaded state) {
     final conversation = state.conversation;
-    if (conversation == null || conversation.type.trim().toLowerCase() != 'group') {
+    if (conversation == null ||
+        conversation.type.trim().toLowerCase() != 'group') {
       return false;
     }
 
@@ -416,7 +426,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         return;
       }
 
-      ref.read(chatBlocProvider).add(ChatInitialLoadEvent(widget.conversationId));
+      ref
+          .read(chatBlocProvider)
+          .add(ChatInitialLoadEvent(widget.conversationId));
       unawaited(_loadConversationPolls());
       return;
     }
@@ -431,7 +443,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       return;
     }
 
-    final title = targetParticipant != null &&
+    final title =
+        targetParticipant != null &&
             targetParticipant.displayName.trim().isNotEmpty
         ? targetParticipant.displayName
         : (targetParticipant?.username.trim().isNotEmpty == true
@@ -481,7 +494,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           Expanded(
             child: Text(
               'You cannot send message because this direct chat is currently blocked.',
-              style: theme.textTheme.bodyMedium
+              style: theme.textTheme.bodyMedium,
             ),
           ),
         ],
@@ -593,18 +606,20 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   state is ChatLoaded &&
                   state.conversation != null &&
                   state.conversation?.type.trim().toLowerCase() == 'group';
-              final directTargetUserId =
-                state is ChatLoaded ? _resolveDirectTargetUserId(state) : null;
+              final directTargetUserId = state is ChatLoaded
+                  ? _resolveDirectTargetUserId(state)
+                  : null;
               final directFriendshipStatus = directTargetUserId != null
-                ? ref.watch(friendshipStatusProvider(directTargetUserId))
-                : null;
+                  ? ref.watch(friendshipStatusProvider(directTargetUserId))
+                  : null;
               final isDirectChatBlocked =
-                state is ChatLoaded &&
-                state.conversation?.type.trim().toLowerCase() == 'direct' &&
-                directFriendshipStatus?.valueOrNull?.isBlocked == true;
+                  state is ChatLoaded &&
+                  state.conversation?.type.trim().toLowerCase() == 'direct' &&
+                  directFriendshipStatus?.valueOrNull?.isBlocked == true;
               final isGroupPostingRestricted =
                   state is ChatLoaded && _isGroupMemberPostingRestricted(state);
-              final hideComposer = isDirectChatBlocked || isGroupPostingRestricted;
+              final hideComposer =
+                  isDirectChatBlocked || isGroupPostingRestricted;
               final appBarTitle = isGroupConversation
                   ? (() {
                       final name = state.conversation?.name.trim() ?? '';
@@ -625,10 +640,11 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       children: [
                         Text(
                           appBarTitle,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface,
+                                fontWeight: FontWeight.bold,
+                              ),
                           textAlign: TextAlign.left,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -660,7 +676,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                               tooltip: 'Call',
                               onPressed: callState.isStarting
                                   ? null
-                                  : () => _startOutgoingCall(context, state),
+                                  : () => _handleCallButtonPressed(
+                                      context,
+                                      state,
+                                    ),
                               icon: callState.isStarting
                                   ? const SizedBox(
                                       width: 20,
@@ -711,10 +730,13 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                         ),
                         child: Text(
                           l10n.typing_indicator,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontStyle: FontStyle.italic,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                fontStyle: FontStyle.italic,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
                         ),
                       ),
                     ],
@@ -1135,6 +1157,55 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     );
   }
 
+  Future<void> _handleCallButtonPressed(
+    BuildContext context,
+    ChatState state,
+  ) async {
+    if (state is! ChatLoaded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Conversation is still loading.')),
+      );
+      return;
+    }
+
+    final isGroupConversation =
+        state.conversation?.type.trim().toLowerCase() == 'group';
+    if (!isGroupConversation) {
+      _startOutgoingCall(context, state);
+      return;
+    }
+
+    final activeCall = await _findActiveGroupCall(widget.conversationId);
+    if (!context.mounted) return;
+
+    if (activeCall == null) {
+      _startOutgoingCall(context, state);
+      return;
+    }
+
+    ref
+        .read(inCallBlocProvider)
+        .add(InCallRejoinRequested(activeCall, roomName: widget.friendName));
+    context.push(
+      '/in-call?conversationId=${widget.conversationId}&roomName=${widget.friendName}',
+    );
+  }
+
+  Future<CallInfo?> _findActiveGroupCall(String conversationId) async {
+    final result = await ref
+        .read(callRepositoryProvider)
+        .fetchCallRecords(conversationId, 1, 20);
+    return result.fold((_) => null, (calls) {
+      for (final call in calls) {
+        final status = call.status.trim().toUpperCase();
+        if (status == 'ACTIVE') {
+          return call;
+        }
+      }
+      return null;
+    });
+  }
+
   List<String> _resolveOutgoingCallCalleeIds(
     ChatLoaded state,
     String callerId,
@@ -1173,7 +1244,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     if (state is ChatLoaded && _isGroupMemberPostingRestricted(state)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Only admins can send messages in this group right now.'),
+          content: Text(
+            'Only admins can send messages in this group right now.',
+          ),
         ),
       );
       return;
