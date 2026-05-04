@@ -31,8 +31,10 @@ class MessageBubble extends StatefulWidget {
   final ValueChanged<String>? onReplyPreviewTap;
   final bool showReactAction;
   final String? conversationId;
+
   /// Called when the user votes on a poll. Receives the pollId and selected optionIds.
   final void Function(String pollId, List<String> optionIds)? onVotePoll;
+
   /// Called when the user closes a poll. Receives the pollId.
   final void Function(String pollId)? onClosePoll;
 
@@ -105,6 +107,10 @@ class _MessageBubbleState extends State<MessageBubble> {
 
     if (message is PollChatMessage) {
       return _buildPollCentered(context, message);
+    }
+
+    if (message is CallHistoryChatMessage) {
+      return _buildCallHistoryBubble(context, message);
     }
 
     if (message is SystemChatMessage) {
@@ -362,6 +368,9 @@ class _MessageBubbleState extends State<MessageBubble> {
 
       SystemChatMessage() => const SizedBox.shrink(),
 
+      // CallHistoryChatMessage is intercepted in build() before reaching here
+      CallHistoryChatMessage() => const SizedBox.shrink(),
+
       TextChatMessage(:final text, :final forwardInfo, :final replyPreview) =>
         _buildTextContent(text, forwardInfo, replyPreview: replyPreview),
       UnknownChatMessage(:final content, :final forwardInfo) =>
@@ -576,7 +585,9 @@ class _MessageBubbleState extends State<MessageBubble> {
                 ),
             ],
           ),
-          if (!message.isClosed && widget.onClosePoll != null && message.isSentByMe) ...[
+          if (!message.isClosed &&
+              widget.onClosePoll != null &&
+              message.isSentByMe) ...[
             const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
@@ -586,7 +597,9 @@ class _MessageBubbleState extends State<MessageBubble> {
                 label: const Text('Close poll'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: colorScheme.error,
-                  side: BorderSide(color: colorScheme.error.withValues(alpha: 0.5)),
+                  side: BorderSide(
+                    color: colorScheme.error.withValues(alpha: 0.5),
+                  ),
                   visualDensity: VisualDensity.compact,
                   textStyle: const TextStyle(fontSize: 13),
                 ),
@@ -1386,6 +1399,141 @@ class _MessageBubbleState extends State<MessageBubble> {
         const SizedBox(height: 4),
         content,
       ],
+    );
+  }
+
+  Widget _buildCallHistoryBubble(
+    BuildContext context,
+    CallHistoryChatMessage message,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final action = message.action.trim().toUpperCase();
+    final isMissed = action == 'CALL_MISSED' || action == 'CALL_MISSED_BUSY';
+    final isRejected = action == 'CALL_REJECTED';
+    final isBad = isMissed || isRejected;
+
+    final Color iconColor;
+    final Color iconBgColor;
+    final IconData iconData;
+
+    if (isBad) {
+      if (message.isSentByMe) {
+        iconColor = const Color(0xFFFF9800); // orange – caller, no answer
+        iconBgColor = const Color(0x28FF9800);
+      } else {
+        iconColor = const Color(0xFFE53935); // red – receiver missed
+        iconBgColor = const Color(0x22E53935);
+      }
+      iconData = Icons.phone_missed_outlined;
+    } else {
+      iconColor = const Color(0xFF43A047); // green – call ended normally
+      iconBgColor = const Color(0x2243A047);
+      iconData = Icons.phone_in_talk_outlined;
+    }
+
+    final senderName = message.senderDisplayName?.trim();
+    final showSenderName =
+        !message.isSentByMe && senderName != null && senderName.isNotEmpty;
+
+    final senderAvatarUrl = message.senderAvatarUrl?.trim();
+    final effectiveAvatarUrl =
+        (senderAvatarUrl != null && senderAvatarUrl.isNotEmpty)
+        ? senderAvatarUrl
+        : null;
+
+    final card = Container(
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.65,
+        minWidth: 180,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: iconBgColor,
+            ),
+            child: Icon(iconData, color: iconColor, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  message.text,
+                  style: TextStyle(
+                    color: iconColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+                if (showSenderName) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    senderName!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 2),
+                Text(
+                  AppDateUtils.formatTime(message.timestamp),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: colorScheme.onSurface.withValues(alpha: 0.45),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Align(
+        alignment: message.isSentByMe
+            ? Alignment.centerRight
+            : Alignment.centerLeft,
+        child: GestureDetector(
+          onLongPressStart: widget.onLongPressStart,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (!message.isSentByMe)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: message.isLastInGroup
+                      ? CircleAvatar(
+                          radius: 16,
+                          backgroundImage: effectiveAvatarUrl != null
+                              ? CachedNetworkImageProvider(effectiveAvatarUrl)
+                              : null,
+                          child: effectiveAvatarUrl == null
+                              ? const Icon(Icons.person, size: 18)
+                              : null,
+                        )
+                      : const SizedBox(width: 32),
+                ),
+              card,
+            ],
+          ),
+        ),
+      ),
     );
   }
 

@@ -197,7 +197,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   bool _canReactToMessage(ChatMessage message) {
-    if (message is SystemChatMessage) {
+    if (message is SystemChatMessage || message is CallHistoryChatMessage) {
       return false;
     }
 
@@ -1369,7 +1369,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     AppLocalizations l10n, {
     Offset? anchor,
   }) async {
-    if (message is SystemChatMessage) {
+    if (message is SystemChatMessage || message is CallHistoryChatMessage) {
       return;
     }
 
@@ -1595,9 +1595,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       unawaited(_loadConversationPolls());
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Vote failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Vote failed: $e')));
       }
     }
   }
@@ -1606,16 +1606,13 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     try {
       await ref
           .read(groupManagementServiceProvider)
-          .closePoll(
-            conversationId: widget.conversationId,
-            pollId: pollId,
-          );
+          .closePoll(conversationId: widget.conversationId, pollId: pollId);
       unawaited(_loadConversationPolls());
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Close poll failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Close poll failed: $e')));
       }
     }
   }

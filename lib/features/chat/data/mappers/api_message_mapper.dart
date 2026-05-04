@@ -66,6 +66,29 @@ class ApiMessageMapper implements RemoteMapper<MessageDto, Message> {
           clientMessageId: _extractContactClientMessageId(dto, metadata),
         );
       case 'text':
+        // Direct-chat call history arrives with type='text' but metadata.systemType='system_call'
+        final textSystemType =
+            (metadata?['systemType'] ?? metadata?['system_type'] ?? '')
+                .toString()
+                .trim()
+                .toLowerCase();
+        if (textSystemType == 'system_call') {
+          return SystemMessage(
+            id: dto.id ?? '',
+            conversationId: dto.conversationId ?? '',
+            senderId: dto.senderId ?? '',
+            text: dto.content ?? '',
+            action: (metadata?['action'] ?? '').toString(),
+            metadata: metadata ?? const <String, dynamic>{},
+            offset: dto.offset,
+            isDeleted: dto.isDeleted ?? false,
+            isRevoked: isRevoked,
+            serverId: dto.clientMessageId,
+            createdAt: createdAt,
+            editedAt: editedAt,
+            reactions: reactions,
+          );
+        }
         return TextMessage(
           id: dto.id ?? '',
           conversationId: dto.conversationId ?? '',

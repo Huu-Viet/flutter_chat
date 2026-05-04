@@ -642,3 +642,49 @@ final class SystemChatMessage extends ChatMessage {
     );
   }
 }
+
+final class CallHistoryChatMessage extends ChatMessage {
+  final String text;
+  final String action;
+
+  const CallHistoryChatMessage({
+    required this.text,
+    required this.action,
+    required super.isSentByMe,
+    super.senderId,
+    required super.timestamp,
+    super.localId,
+    super.serverId,
+    super.senderDisplayName,
+    super.senderAvatarUrl,
+    super.conversationAvatarUrl,
+    super.isGroupConversation,
+    super.isFirstInGroup,
+    super.isLastInGroup,
+  }) : super(isDeleted: false, reactions: const <ChatMessageReaction>[]);
+
+  @override
+  String get type => 'call_history';
+
+  @override
+  CallHistoryChatMessage copyWithGrouping({
+    bool? isFirstInGroup,
+    bool? isLastInGroup,
+  }) {
+    return CallHistoryChatMessage(
+      text: text,
+      action: action,
+      isSentByMe: isSentByMe,
+      senderId: senderId,
+      timestamp: timestamp,
+      localId: localId,
+      serverId: serverId,
+      senderDisplayName: senderDisplayName,
+      senderAvatarUrl: senderAvatarUrl,
+      conversationAvatarUrl: conversationAvatarUrl,
+      isGroupConversation: isGroupConversation,
+      isFirstInGroup: isFirstInGroup ?? this.isFirstInGroup,
+      isLastInGroup: isLastInGroup ?? this.isLastInGroup,
+    );
+  }
+}

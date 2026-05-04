@@ -426,6 +426,24 @@ class ChatMessageUIMapper {
     }
 
     if (domainMessage is SystemMessage) {
+      final callAction = _resolveCallAction(domainMessage);
+      if (!isGroupConversation &&
+          _isDirectCallHistory(domainMessage, callAction)) {
+        return CallHistoryChatMessage(
+          text: _buildDirectCallHistoryText(domainMessage, callAction),
+          action: callAction,
+          isSentByMe: isSentByMe,
+          senderId: senderId,
+          timestamp: timestamp,
+          localId: domainMessage.id,
+          serverId: domainMessage.serverId,
+          senderDisplayName: senderDisplayName,
+          senderAvatarUrl: senderAvatarUrl,
+          conversationAvatarUrl: conversationAvatarUrl,
+          isGroupConversation: false,
+        );
+      }
+
       return SystemChatMessage(
         text: _buildSystemText(domainMessage),
         action: domainMessage.action,
@@ -920,6 +938,61 @@ class ChatMessageUIMapper {
       default:
         final fallback = message.content.trim();
         return fallback.isNotEmpty ? fallback : 'System activity';
+    }
+  }
+
+  String _resolveCallAction(SystemMessage message) {
+    final directAction = message.action.trim().toUpperCase();
+    if (directAction.isNotEmpty) {
+      return directAction;
+    }
+    final metadataAction =
+        _readString(message.metadata['action'])?.trim().toUpperCase() ?? '';
+    return metadataAction;
+  }
+
+  bool _isDirectCallHistory(SystemMessage message, String action) {
+    final systemType =
+        _readString(message.metadata['systemType'])?.trim().toLowerCase() ?? '';
+    if (systemType == 'system_call') {
+      return true;
+    }
+
+    if (action.startsWith('CALL_')) {
+      return true;
+    }
+
+    final reason =
+        _readString(message.metadata['reason'])?.trim().toLowerCase() ?? '';
+    if (reason.isNotEmpty &&
+        (reason == 'callee_busy' ||
+            reason == 'ringing_timeout' ||
+            reason == 'caller_cancelled' ||
+            reason == 'declined' ||
+            reason == 'user_ended')) {
+      return true;
+    }
+
+    return false;
+  }
+
+  String _buildDirectCallHistoryText(SystemMessage message, String action) {
+    final content = message.content.trim();
+    if (content.isNotEmpty) {
+      return content;
+    }
+
+    switch (action) {
+      case 'CALL_MISSED_BUSY':
+        return 'Cuoc goi nho (Duong day ban)';
+      case 'CALL_MISSED':
+        return 'Cuoc goi nho';
+      case 'CALL_REJECTED':
+        return 'Cuoc goi bi tu choi';
+      case 'CALL_ENDED':
+        return 'Cuoc goi da ket thuc';
+      default:
+        return 'Lich su cuoc goi';
     }
   }
 

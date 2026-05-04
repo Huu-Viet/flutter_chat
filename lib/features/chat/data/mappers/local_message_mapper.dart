@@ -77,6 +77,33 @@ class LocalMessageMapper
           ),
         );
       case 'text':
+        // Direct-chat call history arrives with type='text' but metadata.systemType='system_call'
+        final textSystemType =
+            (metadata?['systemType'] ?? metadata?['system_type'] ?? '')
+                .toString()
+                .trim()
+                .toLowerCase();
+        if (textSystemType == 'system_call') {
+          return SystemMessage(
+            id: message.id,
+            conversationId: message.conversationId,
+            senderId: message.senderId,
+            text: message.content,
+            action: (metadata?['action'] ?? '').toString(),
+            metadata: metadata ?? const <String, dynamic>{},
+            offset: message.offset,
+            isDeleted: message.isDeleted,
+            isRevoked: isRevoked,
+            serverId: message.serverId,
+            createdAt:
+                DateTime.tryParse(message.createdAt) ??
+                DateTime.fromMillisecondsSinceEpoch(0),
+            editedAt: message.editedAt == null
+                ? null
+                : DateTime.tryParse(message.editedAt!),
+            reactions: reactions,
+          );
+        }
         return TextMessage(
           id: message.id,
           conversationId: message.conversationId,
