@@ -63,6 +63,8 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
       case 'conversation:updated':
       case 'group:settings_updated':
       case 'group.settings_updated':
+      case 'group:member_role_changed':
+      case 'group:member_kicked':
         await _syncConversations(event.type, event.payload);
         await _syncConversationDetail(event.type, event.payload);
         return;

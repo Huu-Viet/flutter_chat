@@ -929,9 +929,14 @@ class ChatMessageUIMapper {
         }
         return '$actorName kicked a member';
       case 'ROLE_CHANGED':
-        final role = _readString(metadata['newRole']) ?? 'MEMBER';
+        final role = (_readString(metadata['newRole']) ?? 'MEMBER').toUpperCase();
         final target = targetNames.isNotEmpty ? targetNames.first : 'a member';
-        return '$actorName made $target $role';
+        final roleLabel = role == 'ADMIN'
+            ? 'an admin'
+            : role == 'MEMBER'
+            ? 'a member'
+            : role.toLowerCase();
+        return '$actorName made $target $roleLabel';
       case 'GROUP_INFO_UPDATED':
         final changes = metadata['changes'];
         if (changes is Map) {
@@ -949,10 +954,79 @@ class ChatMessageUIMapper {
           }
         }
         return '$actorName updated the group info';
+      case 'OWNERSHIP_TRANSFERRED':
+        final target = targetNames.isNotEmpty ? targetNames.first : 'a member';
+        return '$actorName transferred group ownership to $target';
+      case 'GROUP_SETTINGS_UPDATED':
+        final settingsLine = _buildGroupSettingsUpdatedText(
+          actorName: actorName,
+          metadata: metadata,
+        );
+        return settingsLine ?? '$actorName updated group settings';
+      case 'POLL_CLOSED':
+        return '$actorName closed a poll';
+      case 'POLL_VOTED':
+        final optionTexts = _readStringList(metadata['optionTexts']);
+        if (optionTexts.isNotEmpty) {
+          return "$actorName voted for '${optionTexts.join(', ')}' on a poll";
+        }
+        return '$actorName voted on a poll';
       default:
         final fallback = message.content.trim();
         return fallback.isNotEmpty ? fallback : 'System activity';
     }
+  }
+
+  String? _buildGroupSettingsUpdatedText({
+    required String actorName,
+    required Map<String, dynamic> metadata,
+  }) {
+    final changesRaw = metadata['changes'];
+    if (changesRaw is! Map) {
+      return null;
+    }
+
+    final changes = changesRaw.map((key, value) => MapEntry('$key', value));
+    final lines = <String>[];
+
+    if (changes.containsKey('allowMemberMessage')) {
+      final allowMemberMessage = changes['allowMemberMessage'];
+      if (allowMemberMessage is bool) {
+        lines.add(
+          allowMemberMessage
+            ? '$actorName allowed members to send messages'
+            : '$actorName restricted messaging to admins only',
+        );
+      }
+    }
+
+    if (changes.containsKey('isPublic')) {
+      final isPublic = changes['isPublic'];
+      if (isPublic is bool) {
+        lines.add(
+          isPublic
+            ? '$actorName made the group public'
+            : '$actorName made the group private',
+        );
+      }
+    }
+
+    if (changes.containsKey('joinApprovalRequired')) {
+      final joinApprovalRequired = changes['joinApprovalRequired'];
+      if (joinApprovalRequired is bool) {
+        lines.add(
+          joinApprovalRequired
+            ? '$actorName enabled join approval'
+            : '$actorName disabled join approval',
+        );
+      }
+    }
+
+    if (lines.isEmpty) {
+      return null;
+    }
+
+    return lines.join('; ');
   }
 
   String _resolveCallAction(SystemMessage message) {
