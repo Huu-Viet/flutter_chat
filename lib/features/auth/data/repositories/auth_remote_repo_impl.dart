@@ -242,6 +242,30 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
     }
   }
 
+  @override
+  Future<Either<Failure, void>> updateNotifications(
+    UserNotifications notifications,
+  ) async {
+    try {
+      final updatedDto = await userRemoteDataSource.updateSettings(
+        notificationsMobileEnabled: notifications.mobileEnabled,
+        notificationsDesktopEnabled: notifications.desktopEnabled,
+        notificationsNotifyFor: _notifyForToRaw(notifications.notifyFor),
+      );
+
+      if (updatedDto == null) {
+        return Left(ServerFailure('Failed to update notification settings'));
+      }
+
+      final updatedUser = apiMapper.toDomain(updatedDto);
+      await _upsertUserToLocal(updatedUser);
+
+      return Right(null);
+    } catch (e) {
+      return Left(ServerFailure('Failed to update notification settings: $e'));
+    }
+  }
+
   String _themeToRaw(UserThemeMode value) {
     switch (value) {
       case UserThemeMode.light:
@@ -251,6 +275,18 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
       case UserThemeMode.system:
       case UserThemeMode.unknown:
         return 'SYSTEM';
+    }
+  }
+
+  String _notifyForToRaw(NotifyFor value) {
+    switch (value) {
+      case NotifyFor.all:
+        return 'ALL';
+      case NotifyFor.mentionsOnly:
+        return 'MENTIONS_ONLY';
+      case NotifyFor.nothing:
+      case NotifyFor.unknown:
+        return 'NOTHING';
     }
   }
 

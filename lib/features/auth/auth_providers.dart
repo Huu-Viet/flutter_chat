@@ -173,6 +173,12 @@ final updateThemeUseCaseProvider = Provider<UpdateThemeUseCase>((ref) {
   return UpdateThemeUseCase(ref.watch(authRemoteRepoProvider));
 });
 
+final updateNotificationsUseCaseProvider = Provider<UpdateNotificationsUseCase>(
+  (ref) {
+    return UpdateNotificationsUseCase(ref.watch(authRemoteRepoProvider));
+  },
+);
+
 final updateUserPresenceLocalUseCaseProvider =
     Provider<UpdateUserPresenceLocalUseCase>((ref) {
       return UpdateUserPresenceLocalUseCase(ref.watch(authLocalRepoProvider));
@@ -247,5 +253,27 @@ final themeProvider = StreamProvider<ThemeMode>((ref) async* {
   final themeStringStream = ref.watch(watchThemeStringProvider.stream);
   await for (final themeString in themeStringStream) {
     yield ThemeMapper.toThemeMode(themeString);
+  }
+});
+
+final watchNotificationsProvider = StreamProvider<UserNotifications>((
+  ref,
+) async* {
+  final currentUserIdResult = await ref
+      .watch(getCurrentUserIdUseCaseProvider)
+      .call();
+  final userId = currentUserIdResult.fold((_) => null, (id) => id);
+
+  if (userId == null) {
+    yield const UserNotifications();
+    return;
+  }
+
+  await for (final userResult
+      in ref.watch(authLocalRepoProvider).getUserData(userId)) {
+    yield userResult.fold(
+      (_) => const UserNotifications(),
+      (user) => user.settings.notifications,
+    );
   }
 });

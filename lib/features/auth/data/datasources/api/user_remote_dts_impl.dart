@@ -261,9 +261,26 @@ class UserRemoteDtsImpl extends UserRemoteDataSource {
   }
 
   @override
-  Future<UserDto?> updateSettings({String? theme}) async {
-    final requestBody = <String, dynamic>{'theme': theme}
-      ..removeWhere((key, value) => value == null);
+  Future<UserDto?> updateSettings({
+    String? theme,
+    bool? notificationsMobileEnabled,
+    bool? notificationsDesktopEnabled,
+    String? notificationsNotifyFor,
+  }) async {
+    final notifications =
+        notificationsMobileEnabled == null &&
+            notificationsDesktopEnabled == null &&
+            notificationsNotifyFor == null
+        ? null
+        : (<String, dynamic>{
+            'mobileEnabled': notificationsMobileEnabled,
+            'desktopEnabled': notificationsDesktopEnabled,
+            'notifyFor': notificationsNotifyFor,
+          }..removeWhere((key, value) => value == null));
+    final requestBody = <String, dynamic>{
+      'theme': theme,
+      'notifications': notifications,
+    }..removeWhere((key, value) => value == null);
 
     if (requestBody.isEmpty) {
       return null;

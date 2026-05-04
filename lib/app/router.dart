@@ -8,6 +8,7 @@ import 'package:flutter_chat/presentation/main_scaffold.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/presentation/profile/pages/profile_page.dart';
 import 'package:flutter_chat/presentation/profile/pages/manage_session_page.dart';
+import 'package:flutter_chat/presentation/profile/pages/notification_settings_page.dart';
 import 'package:flutter_chat/presentation/profile/pages/set_profile_page.dart';
 import 'package:flutter_chat/presentation/profile/pages/theme_settings_page.dart';
 import 'package:flutter_chat/presentation/splash/pages/splash_page.dart';
@@ -72,6 +73,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/theme-settings',
         name: 'theme-settings',
         builder: (context, state) => const ThemeSettingsPage(),
+      ),
+      GoRoute(
+        path: '/notification-settings',
+        name: 'notification-settings',
+        builder: (context, state) => const NotificationSettingsPage(),
       ),
       GoRoute(
         path: '/in-call',

@@ -201,11 +201,7 @@ class _ProfileLoadedView extends StatelessWidget {
                   icon: Icons.notifications,
                   title: 'Notifications',
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Notifications settings coming soon!'),
-                      ),
-                    );
+                    context.push('/notification-settings');
                   },
                 ),
                 const Divider(height: 1),
