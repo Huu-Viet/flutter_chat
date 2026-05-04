@@ -9,6 +9,7 @@ import 'package:flutter_chat/app/app_providers.dart';
 import 'package:flutter_chat/core/platform_services/export.dart';
 import 'package:flutter_chat/core/network/realtime_gateway.dart';
 import 'package:flutter_chat/features/chat/export.dart';
+import 'package:flutter_chat/features/friendship/friendship_providers.dart';
 import 'package:flutter_chat/features/group_manager/group_management_provider.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
 import 'package:flutter_chat/presentation/call/blocs/in_call_bloc.dart';
@@ -18,6 +19,7 @@ import 'package:flutter_chat/presentation/chat/blocs/chat_bloc.dart';
 import 'package:flutter_chat/presentation/chat/chat_providers.dart';
 import 'package:flutter_chat/presentation/chat/mappers/chat_message_ui_mapper.dart';
 import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
+import 'package:flutter_chat/presentation/chat/page/direct_chat_info_page.dart';
 import 'package:flutter_chat/presentation/chat/widgets/file_send_confirmation_dialog.dart';
 import 'package:flutter_chat/presentation/chat/widgets/forward_message_dialog.dart';
 import 'package:flutter_chat/presentation/chat/page/group_management_page.dart';
@@ -254,237 +256,355 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     return null;
   }
 
+  String? _resolveDirectTargetUserId(ChatLoaded state) {
+    final currentUserId = state.currentUserId?.trim() ?? '';
+    final participants =
+        state.conversation?.participants ?? const <ConversationParticipant>[];
+    for (final participant in participants) {
+      final userId = participant.userId.trim();
+      if (userId.isNotEmpty && userId != currentUserId) {
+        return userId;
+      }
+    }
+    return null;
+  }
+
+  ConversationParticipant? _resolveDirectTargetParticipant(ChatLoaded state) {
+    final targetUserId = _resolveDirectTargetUserId(state);
+    if (targetUserId == null) {
+      return null;
+    }
+
+    final participants =
+        state.conversation?.participants ?? const <ConversationParticipant>[];
+    for (final participant in participants) {
+      if (participant.userId.trim() == targetUserId) {
+        return participant;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _openConversationOptions(ChatLoaded state) async {
+    final conversation = state.conversation;
+    if (conversation == null) {
+      return;
+    }
+
+    final normalizedType = conversation.type.trim().toLowerCase();
+    if (normalizedType == 'group') {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => GroupManagementPage(
+            conversation: conversation,
+            currentUserId: state.currentUserId ?? '',
+          ),
+        ),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ref.read(chatBlocProvider).add(ChatInitialLoadEvent(widget.conversationId));
+      unawaited(_loadConversationPolls());
+      return;
+    }
+
+    if (normalizedType != 'direct') {
+      return;
+    }
+
+    final targetParticipant = _resolveDirectTargetParticipant(state);
+    final targetUserId = targetParticipant?.userId.trim() ?? '';
+    if (targetUserId.isEmpty) {
+      return;
+    }
+
+    final title = targetParticipant != null &&
+            targetParticipant.displayName.trim().isNotEmpty
+        ? targetParticipant.displayName
+        : (targetParticipant?.username.trim().isNotEmpty == true
+              ? targetParticipant!.username
+              : widget.friendName);
+
+    final deletedConversation = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => DirectChatInfoPage(
+          conversation: conversation,
+          targetUserId: targetUserId,
+          title: title,
+          avatarUrl: targetParticipant?.avatarUrl,
+        ),
+      ),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (deletedConversation == true) {
+      context.pop();
+      return;
+    }
+
+    ref.read(chatBlocProvider).add(ChatInitialLoadEvent(widget.conversationId));
+  }
+
+  Widget _buildBlockedComposerPanel() {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: theme.colorScheme.error.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.block_outlined, color: theme.colorScheme.error),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'You cannot send message because this direct chat is currently blocked.',
+              style: theme.textTheme.bodyMedium
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final chatBloc = ref.read(chatBlocProvider);
     final outgoingCallBloc = ref.watch(outgoingCallBlocProvider);
 
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider<ChatBloc>.value(value: chatBloc),
-        BlocProvider<OutgoingCallBloc>.value(value: outgoingCallBloc),
-      ],
-      child: MultiBlocListener(
-        listeners: [
-          BlocListener<OutgoingCallBloc, OutgoingCallState>(
-            listenWhen: (previous, current) =>
-                previous.status != current.status,
-            listener: (context, state) {
-              final messenger = ScaffoldMessenger.of(context);
+    return SafeArea(
+      top: false,
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider<ChatBloc>.value(value: chatBloc),
+          BlocProvider<OutgoingCallBloc>.value(value: outgoingCallBloc),
+        ],
+        child: MultiBlocListener(
+          listeners: [
+            BlocListener<OutgoingCallBloc, OutgoingCallState>(
+              listenWhen: (previous, current) =>
+                  previous.status != current.status,
+              listener: (context, state) {
+                final messenger = ScaffoldMessenger.of(context);
 
-              //failure
-              if (state.status == OutgoingCallStatus.failure) {
-                final message = state.errorMessage;
+                //failure
+                if (state.status == OutgoingCallStatus.failure) {
+                  final message = state.errorMessage;
 
-                if (message != null && message.trim().isNotEmpty) {
-                  messenger.showSnackBar(SnackBar(content: Text(message)));
+                  if (message != null && message.trim().isNotEmpty) {
+                    messenger.showSnackBar(SnackBar(content: Text(message)));
+                  }
+                  context.read<OutgoingCallBloc>().add(
+                    const OutgoingCallStatusConsumed(),
+                  );
                 }
-                context.read<OutgoingCallBloc>().add(
-                  const OutgoingCallStatusConsumed(),
-                );
-              }
 
-              /// SUCCESS (EMIT SIGNAL,)
-              if (state.status == OutgoingCallStatus.success &&
-                  state.call != null) {
-                ref
-                    .read(inCallBlocProvider)
-                    .add(
-                      InCallOutgoingStarted(
-                        state.call!,
-                        isGroupCall: state.isGroupCall,
-                      ),
-                    );
-                context.push(
-                  '/in-call?conversationId=${widget.conversationId}&roomName=${widget.friendName}',
-                );
+                /// SUCCESS (EMIT SIGNAL,)
+                if (state.status == OutgoingCallStatus.success &&
+                    state.call != null) {
+                  ref
+                      .read(inCallBlocProvider)
+                      .add(
+                        InCallOutgoingStarted(
+                          state.call!,
+                          isGroupCall: state.isGroupCall,
+                        ),
+                      );
+                  context.push(
+                    '/in-call?conversationId=${widget.conversationId}&roomName=${widget.friendName}',
+                  );
 
-                context.read<OutgoingCallBloc>().add(
-                  const OutgoingCallStatusConsumed(),
-                );
+                  context.read<OutgoingCallBloc>().add(
+                    const OutgoingCallStatusConsumed(),
+                  );
+                }
+              },
+            ),
+          ],
+          child: BlocConsumer<ChatBloc, ChatState>(
+            listener: (context, state) {
+              if (state is ChatError) {
+                final mappedMessage = _mapChatErrorMessage(state.message, l10n);
+                final fallbackMessage = state.message.trim().isNotEmpty
+                    ? state.message
+                    : 'Chat load failed';
+                final message = mappedMessage?.trim().isNotEmpty == true
+                    ? mappedMessage!
+                    : fallbackMessage;
+
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(message)));
               }
             },
-          ),
-        ],
-        child: BlocConsumer<ChatBloc, ChatState>(
-          listener: (context, state) {
-            if (state is ChatError) {
-              final mappedMessage = _mapChatErrorMessage(state.message, l10n);
-              final fallbackMessage = state.message.trim().isNotEmpty
-                  ? state.message
-                  : 'Chat load failed';
-              final message = mappedMessage?.trim().isNotEmpty == true
-                  ? mappedMessage!
-                  : fallbackMessage;
-
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text(message)));
-            }
-          },
-          builder: (context, state) {
-            final isGroupConversation =
+            builder: (context, state) {
+              final isGroupConversation =
+                  state is ChatLoaded &&
+                  state.conversation != null &&
+                  state.conversation?.type.trim().toLowerCase() == 'group';
+              final directTargetUserId =
+                state is ChatLoaded ? _resolveDirectTargetUserId(state) : null;
+              final directFriendshipStatus = directTargetUserId != null
+                ? ref.watch(friendshipStatusProvider(directTargetUserId))
+                : null;
+              final isDirectChatBlocked =
                 state is ChatLoaded &&
-                state.conversation != null &&
-                state.conversation?.type.trim().toLowerCase() == 'group';
-            final appBarTitle = isGroupConversation
-                ? (() {
-                    final name = state.conversation?.name.trim() ?? '';
-                    return name.isNotEmpty ? name : widget.friendName;
-                  })()
-                : widget.friendName;
+                state.conversation?.type.trim().toLowerCase() == 'direct' &&
+                directFriendshipStatus?.valueOrNull?.isBlocked == true;
+              final appBarTitle = isGroupConversation
+                  ? (() {
+                      final name = state.conversation?.name.trim() ?? '';
+                      return name.isNotEmpty ? name : widget.friendName;
+                    })()
+                  : widget.friendName;
 
-            return Scaffold(
-              appBar: AppBar(
-                iconTheme: IconThemeData(
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-                title: Container(
-                  alignment: Alignment.centerLeft,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        appBarTitle,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.left,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      state is ChatLoaded &&
-                              state.conversation != null &&
-                              state.conversation?.type == 'group'
-                          ? Text(
-                              '${state.conversation?.memberCount ?? 0} members',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
-                                  ),
-                              textAlign: TextAlign.left,
-                              overflow: TextOverflow.ellipsis,
-                            )
-                          : const SizedBox.shrink(),
-                    ],
+              return Scaffold(
+                appBar: AppBar(
+                  iconTheme: IconThemeData(
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
-                ),
-                backgroundColor: Theme.of(context).colorScheme.surfaceBright,
-                actions: [
-                  BlocBuilder<OutgoingCallBloc, OutgoingCallState>(
-                    builder: (context, callState) {
-                      return Row(
-                        children: [
-                          IconButton(
-                            tooltip: 'Call',
-                            onPressed: callState.isStarting
-                                ? null
-                                : () => _startOutgoingCall(context, state),
-                            icon: callState.isStarting
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
+                  title: Container(
+                    alignment: Alignment.centerLeft,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          appBarTitle,
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.left,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        state is ChatLoaded &&
+                                state.conversation != null &&
+                                state.conversation?.type == 'group'
+                            ? Text(
+                                '${state.conversation?.memberCount ?? 0} members',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                     ),
-                                  )
-                                : const Icon(Icons.call_outlined),
-                          ),
-
-                          IconButton(
-                            tooltip: 'Options',
-                            onPressed: () async {
-                              if (state is! ChatLoaded ||
-                                  state.conversation == null) {
-                                return;
-                              }
-                              final conversation = state.conversation!;
-                              if (conversation.type.trim().toLowerCase() !=
-                                  'group') {
-                                return;
-                              }
-
-                              await Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => GroupManagementPage(
-                                    conversation: conversation,
-                                    currentUserId: state.currentUserId ?? '',
-                                  ),
-                                ),
-                              );
-
-                              if (!mounted) return;
-                              ref
-                                  .read(chatBlocProvider)
-                                  .add(
-                                    ChatInitialLoadEvent(widget.conversationId),
-                                  );
-                              unawaited(_loadConversationPolls());
-                            },
-                            icon: const Icon(Icons.list_outlined),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ],
-              ),
-              body: Column(
-                children: [
-                  if (state is ChatLoaded && state.pinnedMessages.isNotEmpty)
-                    PinMessagePanel(
-                      pinnedMessages: state.pinnedMessages,
-                      onTapItem: (pinMessages) {},
-                      onUnpin: (pinMessage) {},
+                                textAlign: TextAlign.left,
+                                overflow: TextOverflow.ellipsis,
+                              )
+                            : const SizedBox.shrink(),
+                      ],
                     ),
+                  ),
+                  backgroundColor: Theme.of(context).colorScheme.surfaceBright,
+                  actions: [
+                    BlocBuilder<OutgoingCallBloc, OutgoingCallState>(
+                      builder: (context, callState) {
+                        return Row(
+                          children: [
+                            IconButton(
+                              tooltip: 'Call',
+                              onPressed: callState.isStarting
+                                  ? null
+                                  : () => _startOutgoingCall(context, state),
+                              icon: callState.isStarting
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.call_outlined),
+                            ),
 
-                  Expanded(child: _buildMessagesPane(state, l10n, chatBloc)),
-                  // is typing badge
-                  if (state is ChatLoaded &&
-                      state.typingUserIds.isNotEmpty &&
-                      _messageController.text.trim().isEmpty) ...[
-                    Container(
-                      alignment: Alignment.centerLeft,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: Text(
-                        l10n.typing_indicator,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontStyle: FontStyle.italic,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+                            IconButton(
+                              tooltip: 'Options',
+                              onPressed: () async {
+                                if (state is! ChatLoaded ||
+                                    state.conversation == null) {
+                                  return;
+                                }
+                                await _openConversationOptions(state);
+                              },
+                              icon: const Icon(Icons.list_outlined),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ],
-                  if (state is ChatLoaded) _buildComposerContextBar(state),
-                  MessageInput(
-                    controller: _messageController,
-                    onSendMessage: () => _sendMessage(state),
-                    onPickImage: _pickImage,
-                    onPickVideo: _pickVideo,
-                    onPickMultipleImages: _pickMultipleImages,
-                    onPickFile: _pickFile,
-                    onEmojiSelected: (emoji) {
-                      _messageController.text += emoji;
-                    },
-                    onStickerSelected: _sendSticker,
-                    onTypingStatusChanged: (isTyping) {
-                      chatBloc.add(
-                        EmitTypingEvent(widget.conversationId, isTyping),
-                      );
-                    },
-                    onSendRecord: _sendAudio,
-                  ),
-                ],
-              ),
-            );
-          },
+                ),
+                body: Column(
+                  children: [
+                    if (state is ChatLoaded && state.pinnedMessages.isNotEmpty)
+                      PinMessagePanel(
+                        pinnedMessages: state.pinnedMessages,
+                        onTapItem: (pinMessages) {},
+                        onUnpin: (pinMessage) {},
+                      ),
+
+                    Expanded(child: _buildMessagesPane(state, l10n, chatBloc)),
+                    // is typing badge
+                    if (state is ChatLoaded &&
+                        state.typingUserIds.isNotEmpty &&
+                        _messageController.text.trim().isEmpty) ...[
+                      Container(
+                        alignment: Alignment.centerLeft,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        child: Text(
+                          l10n.typing_indicator,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontStyle: FontStyle.italic,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (state is ChatLoaded && !isDirectChatBlocked)
+                      _buildComposerContextBar(state),
+                    if (isDirectChatBlocked)
+                      _buildBlockedComposerPanel()
+                    else
+                      MessageInput(
+                        controller: _messageController,
+                        onSendMessage: () => _sendMessage(state),
+                        onPickImage: _pickImage,
+                        onPickVideo: _pickVideo,
+                        onPickMultipleImages: _pickMultipleImages,
+                        onPickFile: _pickFile,
+                        onEmojiSelected: (emoji) {
+                          _messageController.text += emoji;
+                        },
+                        onStickerSelected: _sendSticker,
+                        onTypingStatusChanged: (isTyping) {
+                          chatBloc.add(
+                            EmitTypingEvent(widget.conversationId, isTyping),
+                          );
+                        },
+                        onSendRecord: _sendAudio,
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
