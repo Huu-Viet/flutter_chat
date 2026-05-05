@@ -484,8 +484,9 @@ class _MessageBubbleState extends State<MessageBubble> {
                 ? option.voteCount / totalVotes
                 : 0.0;
             final canVote = !message.isClosed && widget.onVotePoll != null;
+            final canTapOption = canVote && !option.isSelectedByMe;
             return GestureDetector(
-              onTap: canVote
+              onTap: canTapOption
                   ? () => widget.onVotePoll!(message.pollId, [option.id])
                   : null,
               child: Container(

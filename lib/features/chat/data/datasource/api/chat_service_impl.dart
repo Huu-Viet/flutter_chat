@@ -616,4 +616,35 @@ class ChatServiceImpl implements ChatService {
       throw Exception('Failed to stop typing: $e');
     }
   }
+
+  @override
+  Future<ConversationDto> createDirectConversation(String targetUserId) async {
+    try {
+      final response = await _dio.post(
+        '$_baseUrl/conversations',
+        data: {
+          'type': 'direct',
+          'memberIds': [targetUserId],
+        },
+      );
+
+      if (response.statusCode == null ||
+          (response.statusCode! < 200 || response.statusCode! >= 300) ||
+          response.data == null) {
+        throw Exception(
+          'Failed to create direct conversation: ${response.statusCode}',
+        );
+      }
+
+      final responseBody = response.data;
+      if (responseBody is! Map<String, dynamic>) {
+        throw Exception('Invalid response body format');
+      }
+
+      return ConversationDto.fromJson(responseBody);
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] Create direct conversation error: $e');
+      throw Exception('Failed to create direct conversation: $e');
+    }
+  }
 }

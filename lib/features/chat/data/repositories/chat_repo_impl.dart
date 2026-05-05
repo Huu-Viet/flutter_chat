@@ -885,4 +885,18 @@ class ChatRepoImpl implements ChatRepository {
       return Left(CacheFailure('Failed to delete local conversation: $e'));
     }
   }
+
+  @override
+  Future<Either<Failure, Conversation>> createDirectConversation(
+    String targetUserId,
+  ) async {
+    try {
+      final dto = await _chatService.createDirectConversation(targetUserId);
+      final conversation = _apiConversationMapper.toDomain(dto);
+      return Right(conversation);
+    } catch (e) {
+      debugPrint('[ChatRepoImpl] createDirectConversation error: $e');
+      return Left(ServerFailure('Failed to create direct conversation: $e'));
+    }
+  }
 }

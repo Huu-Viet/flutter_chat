@@ -8,8 +8,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_chat/app/app_providers.dart';
 import 'package:flutter_chat/core/platform_services/export.dart';
 import 'package:flutter_chat/core/network/realtime_gateway.dart';
-import 'package:flutter_chat/features/call/call_providers.dart';
-import 'package:flutter_chat/features/call/export.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/features/friendship/friendship_providers.dart';
 import 'package:flutter_chat/features/group_manager/group_management_provider.dart';
@@ -109,9 +107,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         if (conversationId != widget.conversationId) {
           return;
         }
-        final allowMemberMessage = _extractAllowMemberMessageFromPayload(
-          payload,
-        );
+        final allowMemberMessage = _extractAllowMemberMessageFromPayload(payload);
         if (mounted) {
           if (allowMemberMessage != null) {
             setState(() {
@@ -152,9 +148,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
 
     if (current['data'] is Map) {
-      current = (current['data'] as Map).map(
-        (key, value) => MapEntry(key.toString(), value),
-      );
+      current = (current['data'] as Map)
+          .map((key, value) => MapEntry(key.toString(), value));
     }
 
     if (current is! Map<String, dynamic>) {
@@ -207,12 +202,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
       final data = normalized['data'];
       if (data is Map) {
-        final nested = data.map(
-          (key, value) => MapEntry(key.toString(), value),
-        );
-        final nestedConversationId = nested['conversationId']
-            ?.toString()
-            .trim();
+        final nested = data.map((key, value) => MapEntry(key.toString(), value));
+        final nestedConversationId = nested['conversationId']?.toString().trim();
         if (nestedConversationId != null && nestedConversationId.isNotEmpty) {
           return nestedConversationId;
         }
@@ -228,17 +219,36 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           .read(groupManagementServiceProvider)
           .listConversationPolls(
             conversationId: widget.conversationId,
-            includeClosed: true,
+            includeClosed: false,
           );
       if (!mounted) {
         return;
       }
       setState(() {
-        _polls = mapped;
+        _polls = _sortPollsByDateDescending(mapped);
       });
     } catch (_) {
       // Poll API is conversation-scoped and may be unavailable for non-group chats.
     }
+  }
+
+  List<Map<String, dynamic>> _sortPollsByDateDescending(
+    List<Map<String, dynamic>> polls,
+  ) {
+    final sorted = List<Map<String, dynamic>>.from(polls);
+    sorted.sort((a, b) => _pollDateTimeOf(b).compareTo(_pollDateTimeOf(a)));
+    return sorted;
+  }
+
+  DateTime _pollDateTimeOf(Map<String, dynamic> poll) {
+    DateTime? tryParse(dynamic value) {
+      if (value == null) return null;
+      return DateTime.tryParse(value.toString());
+    }
+
+    return tryParse(poll['updatedAt']) ??
+        tryParse(poll['createdAt']) ??
+        DateTime.fromMillisecondsSinceEpoch(0);
   }
 
   void _onComposerTextChanged() {
@@ -387,8 +397,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
   bool _isGroupMemberPostingRestricted(ChatLoaded state) {
     final conversation = state.conversation;
-    if (conversation == null ||
-        conversation.type.trim().toLowerCase() != 'group') {
+    if (conversation == null || conversation.type.trim().toLowerCase() != 'group') {
       return false;
     }
 
@@ -403,6 +412,11 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
     final myRole = _resolveCurrentUserRole(state);
     return myRole == 'member';
+  }
+
+  bool _isAdminOrOwnerRole(String role) {
+    final normalized = role.trim().toLowerCase();
+    return normalized == 'owner' || normalized == 'admin';
   }
 
   Future<void> _openConversationOptions(ChatLoaded state) async {
@@ -426,9 +440,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         return;
       }
 
-      ref
-          .read(chatBlocProvider)
-          .add(ChatInitialLoadEvent(widget.conversationId));
+      ref.read(chatBlocProvider).add(ChatInitialLoadEvent(widget.conversationId));
       unawaited(_loadConversationPolls());
       return;
     }
@@ -443,8 +455,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       return;
     }
 
-    final title =
-        targetParticipant != null &&
+    final title = targetParticipant != null &&
             targetParticipant.displayName.trim().isNotEmpty
         ? targetParticipant.displayName
         : (targetParticipant?.username.trim().isNotEmpty == true
@@ -474,6 +485,55 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     ref.read(chatBlocProvider).add(ChatInitialLoadEvent(widget.conversationId));
   }
 
+  Widget _buildStrangerPanel(BuildContext context, String targetUserId) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.person_outline,
+            color: theme.colorScheme.onSecondaryContainer,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          const Expanded(child: Text('You are not friends with this person.')),
+          const SizedBox(width: 8),
+          FilledButton.tonal(
+            onPressed: () async {
+              final result = await ref.read(sendFriendRequestUseCaseProvider).call(targetUserId);
+              if (!mounted) return;
+              result.fold(
+                (failure) => ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Failed to send request: ${failure.message}')),
+                ),
+                (_) {
+                  ref.invalidate(friendshipStatusProvider(targetUserId));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Friend request sent!')),
+                  );
+                },
+              );
+            },
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text('Add Friend'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBlockedComposerPanel() {
     final theme = Theme.of(context);
     return Container(
@@ -494,7 +554,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           Expanded(
             child: Text(
               'You cannot send message because this direct chat is currently blocked.',
-              style: theme.textTheme.bodyMedium,
+              style: theme.textTheme.bodyMedium
             ),
           ),
         ],
@@ -606,20 +666,18 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   state is ChatLoaded &&
                   state.conversation != null &&
                   state.conversation?.type.trim().toLowerCase() == 'group';
-              final directTargetUserId = state is ChatLoaded
-                  ? _resolveDirectTargetUserId(state)
-                  : null;
+              final directTargetUserId =
+                state is ChatLoaded ? _resolveDirectTargetUserId(state) : null;
               final directFriendshipStatus = directTargetUserId != null
-                  ? ref.watch(friendshipStatusProvider(directTargetUserId))
-                  : null;
+                ? ref.watch(friendshipStatusProvider(directTargetUserId))
+                : null;
               final isDirectChatBlocked =
-                  state is ChatLoaded &&
-                  state.conversation?.type.trim().toLowerCase() == 'direct' &&
-                  directFriendshipStatus?.valueOrNull?.isBlocked == true;
+                state is ChatLoaded &&
+                state.conversation?.type.trim().toLowerCase() == 'direct' &&
+                directFriendshipStatus?.valueOrNull?.isBlocked == true;
               final isGroupPostingRestricted =
                   state is ChatLoaded && _isGroupMemberPostingRestricted(state);
-              final hideComposer =
-                  isDirectChatBlocked || isGroupPostingRestricted;
+              final hideComposer = isDirectChatBlocked || isGroupPostingRestricted;
               final appBarTitle = isGroupConversation
                   ? (() {
                       final name = state.conversation?.name.trim() ?? '';
@@ -640,11 +698,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       children: [
                         Text(
                           appBarTitle,
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurface,
-                                fontWeight: FontWeight.bold,
-                              ),
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            fontWeight: FontWeight.bold,
+                          ),
                           textAlign: TextAlign.left,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -676,10 +733,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                               tooltip: 'Call',
                               onPressed: callState.isStarting
                                   ? null
-                                  : () => _handleCallButtonPressed(
-                                      context,
-                                      state,
-                                    ),
+                                  : () => _startOutgoingCall(context, state),
                               icon: callState.isStarting
                                   ? const SizedBox(
                                       width: 20,
@@ -717,6 +771,14 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                         onUnpin: (pinMessage) {},
                       ),
 
+                    if (state is ChatLoaded &&
+                      state.conversation?.type.trim().toLowerCase() == 'direct' &&
+                      directTargetUserId != null &&
+                      directFriendshipStatus?.valueOrNull?.isNone == true)
+                      _buildStrangerPanel(context, directTargetUserId),
+
+                    if (state is ChatLoaded) _buildOpenPollPanel(state),
+
                     Expanded(child: _buildMessagesPane(state, l10n, chatBloc)),
                     // is typing badge
                     if (state is ChatLoaded &&
@@ -730,13 +792,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                         ),
                         child: Text(
                           l10n.typing_indicator,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                fontStyle: FontStyle.italic,
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurfaceVariant,
-                              ),
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontStyle: FontStyle.italic,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ),
                     ],
@@ -832,6 +891,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     };
     final normalizedType = state.conversation?.type.toLowerCase() ?? '';
     final isGroupConversation = normalizedType == 'group';
+    final canManagePoll = _isAdminOrOwnerRole(_resolveCurrentUserRole(state));
 
     final displayMessages = _uiMapper.mapStateMessagesToUI(
       state.messages,
@@ -858,20 +918,19 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       isGroupConversation: isGroupConversation,
     );
 
-    final existingPollIds = displayMessages
-        .whereType<PollChatMessage>()
-        .map((message) => message.pollId.trim())
-        .where((pollId) => pollId.isNotEmpty)
-        .toSet();
+    final latestOpenPollMessage = pollMessages.isNotEmpty
+        ? pollMessages.first
+        : null;
 
-    final combinedMessages = <ChatMessage>[
-      ...displayMessages,
-      ...pollMessages.where(
-        (message) =>
-            message.pollId.trim().isNotEmpty &&
-            !existingPollIds.contains(message.pollId.trim()),
-      ),
-    ]..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    final combinedMessages = displayMessages
+        .where((message) => message is! PollChatMessage)
+        .toList(growable: true)
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+    // Business rule: poll still appears as a message but is always surfaced as the newest item.
+    if (latestOpenPollMessage != null) {
+      combinedMessages.add(latestOpenPollMessage);
+    }
 
     if (combinedMessages.isEmpty) {
       return const Center(child: Text('No messages yet'));
@@ -931,9 +990,62 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             );
           },
           onVotePoll: (pollId, optionIds) => _votePoll(pollId, optionIds),
-          onClosePoll: (pollId) => _closePoll(pollId),
+          onClosePoll: canManagePoll ? (pollId) => _closePoll(pollId) : null,
         );
       },
+    );
+  }
+
+  Widget _buildOpenPollPanel(ChatLoaded state) {
+    final openPolls = _sortPollsByDateDescending(
+      _polls.where((poll) => poll['isClosed'] != true).toList(growable: false),
+    );
+    if (openPolls.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final latestPoll = openPolls.first;
+    final pollId = (latestPoll['id'] ?? '').toString().trim();
+    final question = (latestPoll['question'] ?? '').toString().trim();
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.poll_outlined, size: 18, color: colorScheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Active poll',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (question.isNotEmpty)
+            Text(
+              question,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -1157,55 +1269,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     );
   }
 
-  Future<void> _handleCallButtonPressed(
-    BuildContext context,
-    ChatState state,
-  ) async {
-    if (state is! ChatLoaded) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Conversation is still loading.')),
-      );
-      return;
-    }
-
-    final isGroupConversation =
-        state.conversation?.type.trim().toLowerCase() == 'group';
-    if (!isGroupConversation) {
-      _startOutgoingCall(context, state);
-      return;
-    }
-
-    final activeCall = await _findActiveGroupCall(widget.conversationId);
-    if (!context.mounted) return;
-
-    if (activeCall == null) {
-      _startOutgoingCall(context, state);
-      return;
-    }
-
-    ref
-        .read(inCallBlocProvider)
-        .add(InCallRejoinRequested(activeCall, roomName: widget.friendName));
-    context.push(
-      '/in-call?conversationId=${widget.conversationId}&roomName=${widget.friendName}',
-    );
-  }
-
-  Future<CallInfo?> _findActiveGroupCall(String conversationId) async {
-    final result = await ref
-        .read(callRepositoryProvider)
-        .fetchCallRecords(conversationId, 1, 20);
-    return result.fold((_) => null, (calls) {
-      for (final call in calls) {
-        final status = call.status.trim().toUpperCase();
-        if (status == 'ACTIVE') {
-          return call;
-        }
-      }
-      return null;
-    });
-  }
-
   List<String> _resolveOutgoingCallCalleeIds(
     ChatLoaded state,
     String callerId,
@@ -1244,9 +1307,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     if (state is ChatLoaded && _isGroupMemberPostingRestricted(state)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Only admins can send messages in this group right now.',
-          ),
+          content: Text('Only admins can send messages in this group right now.'),
         ),
       );
       return;
@@ -2000,6 +2061,19 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   Future<void> _closePoll(String pollId) async {
+    final currentState = ref.read(chatBlocProvider).state;
+    if (currentState is ChatLoaded) {
+      final role = _resolveCurrentUserRole(currentState);
+      if (!_isAdminOrOwnerRole(role)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Only owner/admin can close polls.')),
+          );
+        }
+        return;
+      }
+    }
+
     try {
       await ref
           .read(groupManagementServiceProvider)

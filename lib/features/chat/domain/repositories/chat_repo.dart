@@ -83,4 +83,6 @@ abstract class ChatRepository {
   Future<Either<Failure, void>> sendTypingIndicator(String conversationId, bool isTyping);
 
   Future<Either<Failure, void>> deleteLocalConversation(String conversationId);
+
+  Future<Either<Failure, Conversation>> createDirectConversation(String targetUserId);
 }

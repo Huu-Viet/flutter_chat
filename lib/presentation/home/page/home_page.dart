@@ -3,13 +3,12 @@ import 'package:flutter_chat/app/app_permission.dart';
 import 'package:flutter_chat/core/platform_services/export.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
-import 'package:flutter_chat/presentation/home/blocs/add_friend_blocs/add_friend_bloc.dart';
 import 'package:flutter_chat/presentation/home/blocs/home_bloc.dart';
 import 'package:flutter_chat/presentation/home/home_provider.dart';
-import 'package:flutter_chat/presentation/home/widgets/add_friend_dialog.dart';
 import 'package:flutter_chat/presentation/home/widgets/create_group_dialog.dart';
 import 'package:flutter_chat/presentation/home/widgets/friend_status_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../widgets/chat_list_tile.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -31,13 +30,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> _showAddFriendDialog(BuildContext context) async {
-    final addFriendBloc = ref.read(addFriendBlocProvider);
-    addFriendBloc.add(const AddFriendResetRequested());
-
-    await showDialog<void>(
-      context: context,
-      builder: (_) => AddFriendDialog(addFriendBloc: addFriendBloc),
-    );
+    context.push('/add-friend');
   }
 
   Future<void> _showCreateGroupDialog(BuildContext context) async {

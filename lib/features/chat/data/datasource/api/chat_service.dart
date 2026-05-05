@@ -93,4 +93,6 @@ abstract class ChatService {
   Future<void> startTyping(String conversationId);
 
   Future<void> stopTyping(String conversationId);
+
+  Future<ConversationDto> createDirectConversation(String targetUserId);
 }

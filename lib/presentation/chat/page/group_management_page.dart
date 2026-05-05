@@ -347,12 +347,23 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     try {
       final mapped = await _groupManagementService.listConversationPolls(
         conversationId: widget.conversation.id,
-        includeClosed: true,
+        includeClosed: false,
       );
 
       if (!mounted) return;
       setState(() {
-        _polls = mapped;
+        _polls = List<Map<String, dynamic>>.from(mapped)
+          ..sort((a, b) {
+            DateTime parse(Map<String, dynamic> item) {
+              final updated = DateTime.tryParse((item['updatedAt'] ?? '').toString());
+              if (updated != null) return updated;
+              final created = DateTime.tryParse((item['createdAt'] ?? '').toString());
+              if (created != null) return created;
+              return DateTime.fromMillisecondsSinceEpoch(0);
+            }
+
+            return parse(b).compareTo(parse(a));
+          });
       });
     } catch (error, stackTrace) {
       _logDebugError('loadPolls', error, stackTrace);
@@ -940,6 +951,11 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
 
   Future<void> _createPoll() async {
     if (_openingPollDialog || _submittingPoll) {
+      return;
+    }
+
+    if (!_isAdminOrOwner) {
+      _toast('Only owner/admin can create polls.');
       return;
     }
 
@@ -1593,7 +1609,9 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
               Row(
                 children: [
                   FilledButton.icon(
-                    onPressed: (_openingPollDialog || _submittingPoll)
+                    onPressed: (!_isAdminOrOwner ||
+                            _openingPollDialog ||
+                            _submittingPoll)
                         ? null
                         : _createPoll,
                     icon: const Icon(Icons.add, size: 18),
@@ -2128,14 +2146,15 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
                     ? (value) => setState(() => _allowMemberMessage = value)
                     : null,
               ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Public group'),
-                value: _isPublic,
-                onChanged: _isAdminOrOwner
-                    ? (value) => setState(() => _isPublic = value)
-                    : null,
-              ),
+              // isPublic toggle hidden per design decision (logic preserved)
+              // SwitchListTile(
+              //   contentPadding: EdgeInsets.zero,
+              //   title: const Text('Public group'),
+              //   value: _isPublic,
+              //   onChanged: _isAdminOrOwner
+              //       ? (value) => setState(() => _isPublic = value)
+              //       : null,
+              // ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Join approval required'),

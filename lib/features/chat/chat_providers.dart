@@ -3,6 +3,7 @@ import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/auth/user_providers.dart';
 import 'package:flutter_chat/features/chat/data/datasource/api/chat_service_impl.dart';
 import 'package:flutter_chat/features/chat/data/repositories/chat_repo_impl.dart';
+import 'package:flutter_chat/features/chat/domain/usecases/create_direct_conversation_usecase.dart';
 import 'package:flutter_chat/features/chat/domain/usecases/get_conversation_usecase.dart';
 import 'package:flutter_chat/features/chat/domain/usecases/get_sticker_packages_usecase.dart';
 import 'package:flutter_chat/features/chat/domain/usecases/get_stickers_in_package_usecase.dart';
@@ -202,4 +203,8 @@ final fetchPinMessageUseCaseProvider = Provider<FetchPinMessageUseCase>((ref) {
 
 final deleteLocalConversationUseCaseProvider = Provider<DeleteLocalConversationUseCase>((ref) {
   return DeleteLocalConversationUseCase(ref.read(chatRepoProvider));
+});
+
+final createDirectConversationUseCaseProvider = Provider<CreateDirectConversationUseCase>((ref) {
+  return CreateDirectConversationUseCase(ref.read(chatRepoProvider));
 });
