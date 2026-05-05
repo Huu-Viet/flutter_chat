@@ -30,13 +30,17 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
     required this.notificationTokenRegistrar,
   });
 
-
   @override
   Future<Either<Failure, void>> refreshToken(String refreshToken) async {
     try {
-      AuthTokenResponse authRes = await authRemoteDataSource.refreshToken(refreshToken);
+      AuthTokenResponse authRes = await authRemoteDataSource.refreshToken(
+        refreshToken,
+      );
       try {
-        await authLocalDataSource.saveToken(authRes.accessToken, authRes.refreshToken);
+        await authLocalDataSource.saveToken(
+          authRes.accessToken,
+          authRes.refreshToken,
+        );
         return Right(null);
       } catch (e) {
         return Future.value(Left(CacheFailure('Failed to save token: $e')));
@@ -48,10 +52,10 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
 
   @override
   Future<Either<Failure, void>> registerInit(
-      String email,
-      String firstName,
-      String lastName,
-      ) async {
+    String email,
+    String firstName,
+    String lastName,
+  ) async {
     try {
       await authRemoteDataSource.registerInit(email, firstName, lastName);
       return Right(null);
@@ -61,9 +65,15 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
   }
 
   @override
-  Future<Either<Failure, String>> verifyRegisterOtp(String email, String otp) async {
+  Future<Either<Failure, String>> verifyRegisterOtp(
+    String email,
+    String otp,
+  ) async {
     try {
-      final registrationToken = await authRemoteDataSource.verifyRegisterOtp(email, otp);
+      final registrationToken = await authRemoteDataSource.verifyRegisterOtp(
+        email,
+        otp,
+      );
       return Right(registrationToken);
     } catch (e) {
       return Left(ServerFailure(e.toString()));
@@ -72,7 +82,10 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
 
   @override
   Future<Either<Failure, void>> registerWithEmail(
-      String registryToken, String password, String platform, String? deviceName
+    String registryToken,
+    String password,
+    String platform,
+    String? deviceName,
   ) async {
     try {
       await authRemoteDataSource.registerComplete(
@@ -88,17 +101,27 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
   }
 
   @override
-  Future<Either<Failure, void>> loginWithEmail(String email, String password) async {
+  Future<Either<Failure, void>> loginWithEmail(
+    String email,
+    String password,
+  ) async {
     try {
-      AuthTokenResponse authRes = await authRemoteDataSource
-          .signInWithEmail(email, password);
+      AuthTokenResponse authRes = await authRemoteDataSource.signInWithEmail(
+        email,
+        password,
+      );
 
       try {
-        await authLocalDataSource.saveToken(authRes.accessToken, authRes.refreshToken);
+        await authLocalDataSource.saveToken(
+          authRes.accessToken,
+          authRes.refreshToken,
+        );
 
         // Best-effort bootstrap for offline-first profile stream.
         try {
-          final userDto = await userRemoteDataSource.getFullCurrentUser(authRes.accessToken);
+          final userDto = await userRemoteDataSource.getFullCurrentUser(
+            authRes.accessToken,
+          );
           if (userDto != null) {
             final myUser = apiMapper.toDomain(userDto);
             await writeUserDataToLocal(myUser);
@@ -114,7 +137,9 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
       }
     } catch (e) {
       if (e.toString().contains('401')) {
-        return Future.value(Left(ServerFailure('Invalid username or password')));
+        return Future.value(
+          Left(ServerFailure('Invalid username or password')),
+        );
       }
       return Future.value(Left(ServerFailure('Unexpected error occurred: $e')));
     }
@@ -124,10 +149,12 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
   Future<Either<Failure, MyUser>> getFullCurrentUser() async {
     try {
       final accessToken = await authLocalDataSource.getAccessToken();
-      if(accessToken == null) {
+      if (accessToken == null) {
         return Left(ServerFailure('No access token found'));
       }
-      final userDto = await userRemoteDataSource.getFullCurrentUser(accessToken);
+      final userDto = await userRemoteDataSource.getFullCurrentUser(
+        accessToken,
+      );
       if (userDto != null) {
         final myUser = apiMapper.toDomain(userDto);
         await writeUserDataToLocal(myUser);
@@ -150,10 +177,13 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
       );
       final domainSessions = sessionMapper
           .toDomainList(sessions)
-          .map((session) => session.copyWith(
-                isCurrent: currentSessionId != null &&
-                    session.id.trim() == currentSessionId,
-              ))
+          .map(
+            (session) => session.copyWith(
+              isCurrent:
+                  currentSessionId != null &&
+                  session.id.trim() == currentSessionId,
+            ),
+          )
           .toList(growable: false);
       return Right(domainSessions);
     } catch (e) {
@@ -189,10 +219,75 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
   @override
   Future<Either<Failure, void>> syncCurrentUserFromRemote() async {
     final result = await getFullCurrentUser();
-    return result.fold(
-      (failure) => Left(failure),
-      (_) => Right(null),
-    );
+    return result.fold((failure) => Left(failure), (_) => Right(null));
+  }
+
+  @override
+  Future<Either<Failure, void>> updateTheme(UserThemeMode theme) async {
+    try {
+      final updatedDto = await userRemoteDataSource.updateSettings(
+        theme: _themeToRaw(theme),
+      );
+
+      if (updatedDto == null) {
+        return Left(ServerFailure('Failed to update user theme'));
+      }
+
+      final updatedUser = apiMapper.toDomain(updatedDto);
+      await _upsertUserToLocal(updatedUser);
+
+      return Right(null);
+    } catch (e) {
+      return Left(ServerFailure('Failed to update user theme: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> updateNotifications(
+    UserNotifications notifications,
+  ) async {
+    try {
+      final updatedDto = await userRemoteDataSource.updateSettings(
+        notificationsMobileEnabled: notifications.mobileEnabled,
+        notificationsDesktopEnabled: notifications.desktopEnabled,
+        notificationsNotifyFor: _notifyForToRaw(notifications.notifyFor),
+      );
+
+      if (updatedDto == null) {
+        return Left(ServerFailure('Failed to update notification settings'));
+      }
+
+      final updatedUser = apiMapper.toDomain(updatedDto);
+      await _upsertUserToLocal(updatedUser);
+
+      return Right(null);
+    } catch (e) {
+      return Left(ServerFailure('Failed to update notification settings: $e'));
+    }
+  }
+
+  String _themeToRaw(UserThemeMode value) {
+    switch (value) {
+      case UserThemeMode.light:
+        return 'LIGHT';
+      case UserThemeMode.dark:
+        return 'DARK';
+      case UserThemeMode.system:
+      case UserThemeMode.unknown:
+        return 'SYSTEM';
+    }
+  }
+
+  String _notifyForToRaw(NotifyFor value) {
+    switch (value) {
+      case NotifyFor.all:
+        return 'ALL';
+      case NotifyFor.mentionsOnly:
+        return 'MENTIONS_ONLY';
+      case NotifyFor.nothing:
+      case NotifyFor.unknown:
+        return 'NOTHING';
+    }
   }
 
   @override
@@ -205,7 +300,8 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
         phone: myUser.phone,
         cccdNumber: myUser.cccdNumber,
         avatarMediaId: myUser.avatarMediaId,
-        avatarVariant: myUser.avatarMediaId != null && myUser.avatarMediaId!.isNotEmpty
+        avatarVariant:
+            myUser.avatarMediaId != null && myUser.avatarMediaId!.isNotEmpty
             ? 'thumb'
             : null,
       );
@@ -261,7 +357,10 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
   }
 
   @override
-  Future<Either<Failure, void>> updateUserPresence(String userId, bool isActive) async {
+  Future<Either<Failure, void>> updateUserPresence(
+    String userId,
+    bool isActive,
+  ) async {
     try {
       final normalizedUserId = userId.trim();
       if (normalizedUserId.isEmpty) {
@@ -270,7 +369,9 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
 
       final cachedUser = await userDao.getUserById(normalizedUserId);
       if (cachedUser == null) {
-        return Left(CacheFailure('User $normalizedUserId not found in local storage'));
+        return Left(
+          CacheFailure('User $normalizedUserId not found in local storage'),
+        );
       }
 
       final updatedRows = await userDao.updateUser(
@@ -281,7 +382,9 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
       );
 
       if (updatedRows == 0) {
-        return Left(CacheFailure('Failed to update presence for user $normalizedUserId'));
+        return Left(
+          CacheFailure('Failed to update presence for user $normalizedUserId'),
+        );
       }
 
       return const Right(null);
@@ -355,7 +458,9 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
       await authRemoteDataSource.forgotPassword(email);
       return Right(null);
     } catch (e) {
-      return Future.value(Left(ServerFailure('Failed to send password reset email: $e')));
+      return Future.value(
+        Left(ServerFailure('Failed to send password reset email: $e')),
+      );
     }
   }
 
@@ -370,7 +475,10 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
   }
 
   @override
-  Future<Either<Failure, void>> resetPassword(String resetToken, String newPassword) async {
+  Future<Either<Failure, void>> resetPassword(
+    String resetToken,
+    String newPassword,
+  ) async {
     try {
       await authRemoteDataSource.resetPassword(resetToken, newPassword);
       return Right(null);
@@ -429,7 +537,9 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
       try {
         await notificationTokenRegistrar.unregisterDevice();
       } catch (e) {
-        debugPrint('[AuthRemoteRepoImpl] unregister device token failed on signOut: $e');
+        debugPrint(
+          '[AuthRemoteRepoImpl] unregister device token failed on signOut: $e',
+        );
       }
 
       await authLocalDataSource.clearToken();
@@ -437,7 +547,9 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
       await conversationDao.clearConversations();
       return Right(null);
     } catch (e) {
-      return Future.value(Left(CacheFailure('Failed to clear local cache: $e')));
+      return Future.value(
+        Left(CacheFailure('Failed to clear local cache: $e')),
+      );
     }
   }
 

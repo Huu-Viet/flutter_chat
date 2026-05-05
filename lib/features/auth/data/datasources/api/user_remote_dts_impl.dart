@@ -261,6 +261,68 @@ class UserRemoteDtsImpl extends UserRemoteDataSource {
   }
 
   @override
+  Future<UserDto?> updateSettings({
+    String? theme,
+    bool? notificationsMobileEnabled,
+    bool? notificationsDesktopEnabled,
+    String? notificationsNotifyFor,
+  }) async {
+    final notifications =
+        notificationsMobileEnabled == null &&
+            notificationsDesktopEnabled == null &&
+            notificationsNotifyFor == null
+        ? null
+        : (<String, dynamic>{
+            'mobileEnabled': notificationsMobileEnabled,
+            'desktopEnabled': notificationsDesktopEnabled,
+            'notifyFor': notificationsNotifyFor,
+          }..removeWhere((key, value) => value == null));
+    final requestBody = <String, dynamic>{
+      'theme': theme,
+      'notifications': notifications,
+    }..removeWhere((key, value) => value == null);
+
+    if (requestBody.isEmpty) {
+      return null;
+    }
+
+    try {
+      final response = await dio.patch(
+        '$_baseUrl/users/me/settings',
+        data: requestBody,
+        options: Options(headers: {'Content-Type': 'application/json'}),
+      );
+
+      if ((response.statusCode != 200 && response.statusCode != 201) ||
+          response.data == null) {
+        throw Exception(response.statusCode);
+      }
+
+      final responseBody = response.data;
+      if (responseBody is! Map<String, dynamic>) {
+        throw Exception('Invalid response body format');
+      }
+
+      final data = responseBody['data'];
+      if (data == null) {
+        return null;
+      }
+
+      if (data is! Map<String, dynamic>) {
+        throw Exception('Invalid user payload format');
+      }
+
+      debugPrint('[UserRemoteDtsImpl] Updated user settings: $data');
+      return UserDto.fromJson(data);
+    } on DioException catch (e) {
+      debugPrint('Error updating user settings: ${e.message}');
+      throw Exception(
+        '[UserRemoteDtsImpl] Update settings error: ${e.message}',
+      );
+    }
+  }
+
+  @override
   Future<UserDto?> updateProfile({
     String? username,
     String? firstName,

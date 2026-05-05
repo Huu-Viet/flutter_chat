@@ -10,7 +10,12 @@ final splashBlocProvider = Provider<SplashBloc>((ref) {
     checkRefreshTokenUseCase: ref.read(checkRefreshTokenUseCaseProvider),
     getRefreshTokenUseCase: ref.read(getRefreshTokenUseCaseProvider),
     refreshTokenUseCase: ref.read(refreshTokenUseCaseProvider),
-    connectRealtimeGatewayUseCase: ref.read(connectRealtimeGatewayUseCaseProvider),
+    syncCurrentUserFromRemoteUseCase: ref.read(
+      syncCurrentUserFromRemoteUseCaseProvider,
+    ),
+    connectRealtimeGatewayUseCase: ref.read(
+      connectRealtimeGatewayUseCaseProvider,
+    ),
     syncDeviceTokenUseCase: ref.read(syncDeviceTokenUseCaseProvider),
   );
 });

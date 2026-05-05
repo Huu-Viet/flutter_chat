@@ -64,9 +64,9 @@ class _ProfilePageContentState extends ConsumerState<ProfilePageContent> {
         if (state is ProfileSignOutComplete) {
           context.go('/login?refresh=${DateTime.now().millisecondsSinceEpoch}');
         } else if (state is ProfileError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(state.message)));
         }
       },
       child: Scaffold(
@@ -160,10 +160,13 @@ class _ProfileLoadedView extends StatelessWidget {
           Center(
             child: CircleAvatar(
               radius: 60,
-              backgroundImage: myUser.avatarUrl != null && myUser.avatarUrl!.trim().isNotEmpty
+              backgroundImage:
+                  myUser.avatarUrl != null &&
+                      myUser.avatarUrl!.trim().isNotEmpty
                   ? CachedNetworkImageProvider(myUser.avatarUrl!)
                   : null,
-              child: (myUser.avatarUrl == null || myUser.avatarUrl!.trim().isEmpty)
+              child:
+                  (myUser.avatarUrl == null || myUser.avatarUrl!.trim().isEmpty)
                   ? const Icon(Icons.person, size: 60)
                   : null,
             ),
@@ -171,16 +174,16 @@ class _ProfileLoadedView extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             displayName,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
             myUser.email,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Colors.grey.shade600,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: Colors.grey.shade600),
           ),
           const SizedBox(height: 32),
           Card(
@@ -198,9 +201,15 @@ class _ProfileLoadedView extends StatelessWidget {
                   icon: Icons.notifications,
                   title: 'Notifications',
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Notifications settings coming soon!')),
-                    );
+                    context.push('/notification-settings');
+                  },
+                ),
+                const Divider(height: 1),
+                ProfileOption(
+                  icon: Icons.lightbulb,
+                  title: 'Theme',
+                  onTap: () {
+                    context.push('/theme-settings');
                   },
                 ),
                 const Divider(height: 1),
@@ -217,7 +226,9 @@ class _ProfileLoadedView extends StatelessWidget {
                   title: 'Help & Support',
                   onTap: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Help & Support coming soon!')),
+                      const SnackBar(
+                        content: Text('Help & Support coming soon!'),
+                      ),
                     );
                   },
                 ),
@@ -232,7 +243,9 @@ class _ProfileLoadedView extends StatelessWidget {
                       applicationVersion: '1.0.0',
                       applicationIcon: const Icon(Icons.chat),
                       children: const [
-                        Text('A modern chat application built with Flutter, BLoC, and Clean Architecture.'),
+                        Text(
+                          'A modern chat application built with Flutter, BLoC, and Clean Architecture.',
+                        ),
                       ],
                     );
                   },
