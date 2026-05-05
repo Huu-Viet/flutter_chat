@@ -34,6 +34,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     on<InCallOutgoingStarted>(_onOutgoingStarted);
     on<InCallIncomingAccepted>(_onIncomingAccepted);
     on<InCallIncomingDeclined>(_onIncomingDeclined);
+    on<InCallRejoinRequested>(_onRejoinRequested);
     on<InCallRemoteAccepted>(_onRemoteAccepted);
     on<InCallRemoteDeclined>(_onRemoteDeclined);
     on<InCallRemoteEnded>(_onRemoteEnded);
@@ -153,7 +154,9 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     }
     if (state.session?.call.id == callId &&
         state.session?.token.isNotEmpty == true) {
-      debugPrint('[InCallBloc] _onRemoteAccepted: session already has token, skipping (guard)');
+      debugPrint(
+        '[InCallBloc] _onRemoteAccepted: session already has token, skipping (guard)',
+      );
       return;
     }
 
@@ -168,10 +171,14 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     );
 
     await _callRepository.joinSocketCall(callId);
-    debugPrint('[InCallBloc] _onRemoteAccepted: joinSocketCall done, resolving call info...');
+    debugPrint(
+      '[InCallBloc] _onRemoteAccepted: joinSocketCall done, resolving call info...',
+    );
     final call = await _resolveCallInfo(callId);
     if (call == null) {
-      debugPrint('[InCallBloc] _onRemoteAccepted: call record unavailable for callId=$callId');
+      debugPrint(
+        '[InCallBloc] _onRemoteAccepted: call record unavailable for callId=$callId',
+      );
       emit(
         state.copyWith(
           isAcceptingCall: false,
@@ -181,11 +188,15 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
       return;
     }
 
-    debugPrint('[InCallBloc] _onRemoteAccepted: fetching LiveKit token for callId=$callId');
+    debugPrint(
+      '[InCallBloc] _onRemoteAccepted: fetching LiveKit token for callId=$callId',
+    );
     final tokenResult = await _callRepository.getCallToken(callId);
     await tokenResult.fold(
       (failure) async {
-        debugPrint('[InCallBloc] _onRemoteAccepted: getCallToken failed: ${failure.message}');
+        debugPrint(
+          '[InCallBloc] _onRemoteAccepted: getCallToken failed: ${failure.message}',
+        );
         emit(
           state.copyWith(
             isAcceptingCall: false,
@@ -194,7 +205,9 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
         );
       },
       (token) async {
-        debugPrint('[InCallBloc] _onRemoteAccepted: got token, roomName=${token.roomName}, liveKitUrl=${token.liveKitUrl}, tokenEmpty=${token.token.isEmpty}');
+        debugPrint(
+          '[InCallBloc] _onRemoteAccepted: got token, roomName=${token.roomName}, liveKitUrl=${token.liveKitUrl}, tokenEmpty=${token.token.isEmpty}',
+        );
         final session = CallSession(
           call: call,
           token: token.token,
@@ -202,6 +215,59 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
           liveKitUrl: token.liveKitUrl,
           isIncoming: false,
           isGroupCall: _isGroupCall(call),
+        );
+        emit(
+          state.copyWith(
+            session: session,
+            isAcceptingCall: false,
+            isEndingCall: false,
+            clearError: true,
+            clearMediaError: true,
+          ),
+        );
+        await _connectLiveKitRoom(session, emit);
+      },
+    );
+  }
+
+  Future<void> _onRejoinRequested(
+    InCallRejoinRequested event,
+    Emitter<InCallState> emit,
+  ) async {
+    final callId = event.call.id.trim();
+    if (callId.isEmpty || state.isAcceptingCall) return;
+
+    emit(
+      state.copyWith(
+        isAcceptingCall: true,
+        clearError: true,
+        clearMediaError: true,
+        endStatus: InCallEndStatus.idle,
+        clearEndedCallId: true,
+      ),
+    );
+
+    await _callRepository.joinSocketCall(callId);
+    final tokenResult = await _callRepository.getCallToken(callId);
+    await tokenResult.fold(
+      (failure) async {
+        emit(
+          state.copyWith(
+            isAcceptingCall: false,
+            errorMessage: 'Rejoin call failed: ${failure.message}',
+          ),
+        );
+      },
+      (token) async {
+        final session = CallSession(
+          call: event.call,
+          token: token.token,
+          roomName: event.roomName.trim().isNotEmpty
+              ? event.roomName
+              : token.roomName,
+          liveKitUrl: token.liveKitUrl,
+          isIncoming: false,
+          isGroupCall: true,
         );
         emit(
           state.copyWith(
@@ -243,7 +309,16 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
   ) async {
     final session = state.session;
     if (session == null || state.isEndingCall) return;
-    if (session.isGroupCall && !await _isCurrentUserCaller(session)) {
+    if (session.isGroupCall) {
+      final callId = session.call.id.trim();
+      if (callId.isEmpty) return;
+      final shouldEndGroupCall =
+          (state.room?.remoteParticipants.length ?? 0) <= 1;
+      if (!shouldEndGroupCall) {
+        add(const InCallLeaveRequested());
+        return;
+      }
+    } else if (!await _isCurrentUserCaller(session)) {
       add(const InCallLeaveRequested());
       return;
     }
@@ -461,7 +536,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     final room = state.room;
     if (session == null || room == null) return;
 
-    if (session.isGroupCall || room.remoteParticipants.isNotEmpty) return;
+    if (room.remoteParticipants.isNotEmpty) return;
 
     final callId = session.call.id.trim();
     if (callId.isEmpty) return;
@@ -545,8 +620,10 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
 
     _roomRefreshListener = refreshRoom;
     room.addListener(refreshRoom);
-    void refreshVideoRoom() => add(const _InCallRoomChanged(videoChanged: true));
-    void refreshMediaRoom() => add(const _InCallRoomChanged(videoChanged: false));
+    void refreshVideoRoom() =>
+        add(const _InCallRoomChanged(videoChanged: true));
+    void refreshMediaRoom() =>
+        add(const _InCallRoomChanged(videoChanged: false));
 
     listener
       ..on<ParticipantConnectedEvent>((_) => refreshVideoRoom())
