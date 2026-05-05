@@ -20,6 +20,16 @@ abstract class ChatRepository {
 
   Future<Either<Failure, void>> fetchPinnedMessages(String conversationId);
 
+  Future<Either<Failure, void>> pinMessage({
+    required String messageId,
+    required String conversationId,
+  });
+
+  Future<Either<Failure, void>> unpinMessage({
+    required String messageId,
+    required String conversationId,
+  });
+
   Future<Either<Failure, Message>> sendMessage({
     required Message message,
     String? replyToMessageId,

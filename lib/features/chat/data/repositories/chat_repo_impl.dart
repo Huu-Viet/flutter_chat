@@ -227,9 +227,43 @@ class ChatRepoImpl implements ChatRepository {
       );
       final pinMessages = _apiPinMessageMapper.toDomainList(response.data);
       final entities = _localPinMessageMapper.toEntityList(pinMessages);
-      await _messageDao.updatePinMessage(entities);
+      await _messageDao.updatePinMessage(conversationId, entities);
 
       return Right(null);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> pinMessage({
+    required String messageId,
+    required String conversationId,
+  }) async {
+    try {
+      await _chatService.pinMessage(
+        messageId: messageId,
+        conversationId: conversationId,
+      );
+      final refresh = await fetchPinnedMessages(conversationId);
+      return refresh.fold(Left.new, (_) => const Right(null));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> unpinMessage({
+    required String messageId,
+    required String conversationId,
+  }) async {
+    try {
+      await _chatService.unpinMessage(
+        messageId: messageId,
+        conversationId: conversationId,
+      );
+      final refresh = await fetchPinnedMessages(conversationId);
+      return refresh.fold(Left.new, (_) => const Right(null));
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }

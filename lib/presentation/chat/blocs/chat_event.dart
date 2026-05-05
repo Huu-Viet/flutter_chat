@@ -321,3 +321,38 @@ final class _LocalPinnedMessagesChangedEvent extends ChatEvent {
   @override
   List<Object> get props => [pinnedMessages];
 }
+
+final class PinMessageEvent extends ChatEvent {
+  final String messageId;
+  final String conversationId;
+
+  const PinMessageEvent({
+    required this.messageId,
+    required this.conversationId,
+  });
+
+  @override
+  List<Object> get props => [messageId, conversationId];
+}
+
+final class UnpinMessageEvent extends ChatEvent {
+  final String messageId;
+  final String conversationId;
+
+  const UnpinMessageEvent({
+    required this.messageId,
+    required this.conversationId,
+  });
+
+  @override
+  List<Object> get props => [messageId, conversationId];
+}
+
+final class RefreshPinnedMessagesEvent extends ChatEvent {
+  final String conversationId;
+
+  const RefreshPinnedMessagesEvent(this.conversationId);
+
+  @override
+  List<Object> get props => [conversationId];
+}

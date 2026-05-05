@@ -92,6 +92,8 @@ class ChatAppEventSubscriber extends AppEventSubscriber {
       case 'message:deleted':
       case 'message:deleted_for_me':
       case 'message:updated':
+      case 'message:pinned':
+      case 'message:unpinned':
       case 'message:reaction_updated':
       case 'message:media_ready':
         await _syncRecentMessages(event.type, event.payload);

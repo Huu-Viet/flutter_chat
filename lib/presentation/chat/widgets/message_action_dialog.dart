@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
 
-enum MessageAction { copy, reply, edit, forward, revoke, delete }
+enum MessageAction { copy, reply, edit, forward, revoke, delete, pin, unpin }
 
 class MessageActionResult {
   final MessageAction? action;
@@ -26,6 +26,8 @@ class MessageActionDialog extends StatelessWidget {
   final bool canForward;
   final bool canRevoke;
   final bool canDelete;
+  final bool canPin;
+  final bool isPinned;
   final List<String> reactions;
 
   const MessageActionDialog({
@@ -36,6 +38,8 @@ class MessageActionDialog extends StatelessWidget {
     required this.canForward,
     required this.canRevoke,
     required this.canDelete,
+    required this.canPin,
+    required this.isPinned,
     this.reactions = const <String>[],
   });
 
@@ -80,6 +84,12 @@ class MessageActionDialog extends StatelessWidget {
           icon: Icons.subdirectory_arrow_left,
           label: l10n.action_forward,
           action: MessageAction.forward,
+        ),
+      if (canPin)
+        _ActionItem(
+          icon: isPinned ? Icons.push_pin_outlined : Icons.push_pin,
+          label: isPinned ? 'Unpin message' : 'Pin message',
+          action: isPinned ? MessageAction.unpin : MessageAction.pin,
         ),
     ];
 

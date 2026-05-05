@@ -134,6 +134,8 @@ class FriendshipRepositoryImpl implements FriendshipRepository {
         userId: dto.userId,
         targetUserId: dto.targetUserId,
         status: dto.status,
+        blockerUserId: dto.blockerUserId,
+        blockedUserId: dto.blockedUserId,
       ));
     } catch (e) {
       return Left(ServerFailure('Failed to get friendship status: $e'));

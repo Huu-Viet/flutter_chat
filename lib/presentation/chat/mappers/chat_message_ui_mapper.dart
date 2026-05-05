@@ -883,7 +883,11 @@ class ChatMessageUIMapper {
 
   String _buildSystemText(SystemMessage message) {
     final metadata = message.metadata;
-    final action = message.action.trim().toUpperCase();
+    final action = (message.action.trim().isNotEmpty
+            ? message.action
+            : (_readString(metadata['action']) ?? ''))
+        .trim()
+        .toUpperCase();
     final actorName =
         _readString(metadata['actorName']) ??
         _readString(metadata['updatedByName']) ??
@@ -971,6 +975,12 @@ class ChatMessageUIMapper {
           return "$actorName voted for '${optionTexts.join(', ')}' on a poll";
         }
         return '$actorName voted on a poll';
+      case 'MESSAGE_PINNED':
+      case 'PIN_MESSAGE':
+        return '$actorName pinned a message';
+      case 'MESSAGE_UNPINNED':
+      case 'UNPIN_MESSAGE':
+        return '$actorName unpinned a message';
       default:
         final fallback = message.content.trim();
         return fallback.isNotEmpty ? fallback : 'System activity';

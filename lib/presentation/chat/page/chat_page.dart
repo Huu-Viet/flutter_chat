@@ -9,6 +9,7 @@ import 'package:flutter_chat/app/app_providers.dart';
 import 'package:flutter_chat/core/platform_services/export.dart';
 import 'package:flutter_chat/core/network/realtime_gateway.dart';
 import 'package:flutter_chat/features/chat/export.dart';
+import 'package:flutter_chat/features/friendship/domain/entities/friendship_status.dart';
 import 'package:flutter_chat/features/friendship/friendship_providers.dart';
 import 'package:flutter_chat/features/group_manager/group_management_provider.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
@@ -31,6 +32,13 @@ import 'package:flutter_chat/presentation/chat/widgets/pin_message_panel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+
+enum _DirectBlockRelation {
+  none,
+  blockedByMe,
+  blockedByPeer,
+  blockedUnknown,
+}
 
 class ChatPage extends ConsumerStatefulWidget {
   final String conversationId;
@@ -66,6 +74,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   final ScrollController _scrollController = ScrollController();
   StreamSubscription<RealtimeGatewayEvent>? _realtimeSubscription;
   bool? _groupAllowMemberMessageRealtime;
+  _DirectBlockRelation? _directBlockRelationOverride;
   ChatMessage? _replyToMessage;
   List<Map<String, dynamic>> _polls = <Map<String, dynamic>>[];
   final Set<String> _explicitMentionUserIds = <String>{};
@@ -101,6 +110,52 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
       final payload = event.payload;
 
+      if (_isFriendshipStateEvent(event.event)) {
+        debugPrint(
+          '[ChatPage][FriendshipRealtime] Received ${event.event} payload=$payload',
+        );
+        final chatState = ref.read(chatBlocProvider).state;
+        if (chatState is! ChatLoaded) {
+          debugPrint(
+            '[ChatPage][FriendshipRealtime] Ignored ${event.event}: chat state is not ChatLoaded',
+          );
+          return;
+        }
+
+        final targetUserId = _resolveDirectTargetUserId(chatState);
+        if (targetUserId == null || targetUserId.isEmpty) {
+          debugPrint(
+            '[ChatPage][FriendshipRealtime] Ignored ${event.event}: direct target user is empty',
+          );
+          return;
+        }
+
+        final containsTarget = _payloadContainsUserId(payload, targetUserId);
+        debugPrint(
+          '[ChatPage][FriendshipRealtime] Event=${event.event} targetUserId=$targetUserId containsTarget=$containsTarget',
+        );
+
+        if (containsTarget) {
+          debugPrint(
+            '[ChatPage][FriendshipRealtime] Invalidating friendshipStatusProvider for $targetUserId',
+          );
+          final currentUserId = chatState.currentUserId?.trim() ?? '';
+          final relationFromEvent = _resolveBlockRelationFromRealtimeEvent(
+            eventName: event.event,
+            payload: payload,
+            currentUserId: currentUserId,
+            targetUserId: targetUserId,
+          );
+          if (relationFromEvent != null && mounted) {
+            setState(() {
+              _directBlockRelationOverride = relationFromEvent;
+            });
+          }
+          ref.invalidate(friendshipStatusProvider(targetUserId));
+        }
+        return;
+      }
+
       if (event.event == 'group:settings_updated' ||
           event.event == 'group.settings_updated') {
         final conversationId = _extractConversationIdFromPayload(payload);
@@ -126,6 +181,13 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         return;
       }
 
+      if (event.event == 'message:pinned' || event.event == 'message:unpinned') {
+        ref
+            .read(chatBlocProvider)
+            .add(RefreshPinnedMessagesEvent(widget.conversationId));
+        return;
+      }
+
       if (event.event != 'group:poll_created' &&
           event.event != 'group:poll_voted' &&
           event.event != 'group:poll_closed') {
@@ -134,6 +196,194 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
       unawaited(_loadConversationPolls());
     });
+  }
+
+  bool _isFriendshipStateEvent(String eventName) {
+    return eventName == 'friendship:request_sent' ||
+        eventName == 'friendship:request_received' ||
+        eventName == 'friendship:request_accepted' ||
+        eventName == 'friendship:request_rejected' ||
+        eventName == 'friendship:removed' ||
+        eventName == 'friendship:blocked' ||
+        eventName == 'friendship:unblocked' ||
+        eventName == 'friendship.request_sent' ||
+        eventName == 'friendship.request_received' ||
+        eventName == 'friendship.request_accepted' ||
+        eventName == 'friendship.request_rejected' ||
+        eventName == 'friendship.removed' ||
+        eventName == 'friendship.blocked' ||
+        eventName == 'friendship.unblocked';
+  }
+
+  bool _payloadContainsUserId(dynamic payload, String userId) {
+    if (userId.trim().isEmpty) {
+      return false;
+    }
+    if (payload is! Map) {
+      debugPrint(
+        '[ChatPage][FriendshipRealtime] Payload is not a map: ${payload.runtimeType}',
+      );
+      return false;
+    }
+
+    final normalizedRoot = payload.map(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+
+    bool containsInMap(Map<String, dynamic> normalized) {
+      final userIds = normalized['userIds'];
+      if (userIds is List) {
+        for (final item in userIds) {
+          if (item?.toString().trim() == userId) {
+            return true;
+          }
+        }
+      }
+
+      const candidateKeys = <String>[
+        'requesterId',
+        'targetUserId',
+        'fromUserId',
+        'toUserId',
+        'acceptedBy',
+        'rejectedBy',
+        'removedBy',
+        'blocker',
+        'blocked',
+        'unblocker',
+        'unblocked',
+        'userId',
+      ];
+
+      for (final key in candidateKeys) {
+        final value = normalized[key];
+        if (value != null && value.toString().trim() == userId) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    if (containsInMap(normalizedRoot)) {
+      return true;
+    }
+
+    final nestedData = normalizedRoot['data'];
+    if (nestedData is Map) {
+      final normalizedData = nestedData.map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+      if (containsInMap(normalizedData)) {
+        return true;
+      }
+    }
+
+    debugPrint(
+      '[ChatPage][FriendshipRealtime] Payload does not include target userId=$userId; root=$normalizedRoot',
+    );
+
+    return false;
+  }
+
+  _DirectBlockRelation _deriveBlockRelationFromStatus(
+    FriendshipStatus? status,
+  ) {
+    if (status == null || !status.isBlocked) {
+      return _DirectBlockRelation.none;
+    }
+
+    if (status.isBlockedByMe) {
+      return _DirectBlockRelation.blockedByMe;
+    }
+
+    if (status.isBlockedByTarget) {
+      return _DirectBlockRelation.blockedByPeer;
+    }
+
+    return _DirectBlockRelation.blockedUnknown;
+  }
+
+  Map<String, dynamic>? _toNormalizedMap(dynamic value) {
+    if (value is Map<String, dynamic>) {
+      return value;
+    }
+    if (value is Map) {
+      return value.map((key, item) => MapEntry(key.toString(), item));
+    }
+    return null;
+  }
+
+  String? _extractIdFromPayload(dynamic payload, List<String> keys) {
+    final root = _toNormalizedMap(payload);
+    if (root == null) {
+      return null;
+    }
+
+    final nested = _toNormalizedMap(root['data']);
+    final candidates = <Map<String, dynamic>>[
+      root,
+      if (nested != null) nested,
+    ];
+
+    for (final map in candidates) {
+      for (final key in keys) {
+        final value = map[key];
+        if (value == null) {
+          continue;
+        }
+        final normalized = value.toString().trim();
+        if (normalized.isNotEmpty) {
+          return normalized;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  _DirectBlockRelation? _resolveBlockRelationFromRealtimeEvent({
+    required String eventName,
+    required dynamic payload,
+    required String currentUserId,
+    required String targetUserId,
+  }) {
+    if (currentUserId.isEmpty || targetUserId.isEmpty) {
+      return null;
+    }
+
+    bool matchPair(String? first, String? second) {
+      if (first == null || second == null) {
+        return false;
+      }
+      return (first == currentUserId && second == targetUserId) ||
+          (first == targetUserId && second == currentUserId);
+    }
+
+    if (eventName == 'friendship:unblocked' || eventName == 'friendship.unblocked') {
+      final unblocker = _extractIdFromPayload(payload, const ['unblocker', 'unblockerId']);
+      final unblocked = _extractIdFromPayload(payload, const ['unblocked', 'unblockedId']);
+      if (matchPair(unblocker, unblocked)) {
+        return _DirectBlockRelation.none;
+      }
+      return null;
+    }
+
+    if (eventName == 'friendship:blocked' || eventName == 'friendship.blocked') {
+      final blocker = _extractIdFromPayload(payload, const ['blocker', 'blockerId']);
+      final blocked = _extractIdFromPayload(payload, const ['blocked', 'blockedId']);
+      if (blocker == currentUserId && blocked == targetUserId) {
+        return _DirectBlockRelation.blockedByMe;
+      }
+      if (blocker == targetUserId && blocked == currentUserId) {
+        return _DirectBlockRelation.blockedByPeer;
+      }
+      if (matchPair(blocker, blocked)) {
+        return _DirectBlockRelation.blockedUnknown;
+      }
+    }
+
+    return null;
   }
 
   bool? _extractAllowMemberMessageFromPayload(dynamic payload) {
@@ -462,6 +712,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               ? targetParticipant!.username
               : widget.friendName);
 
+    final status = ref.read(friendshipStatusProvider(targetUserId)).valueOrNull;
+    final blockRelation =
+        _directBlockRelationOverride ?? _deriveBlockRelationFromStatus(status);
+
     final deletedConversation = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
         builder: (_) => DirectChatInfoPage(
@@ -469,6 +723,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           targetUserId: targetUserId,
           title: title,
           avatarUrl: targetParticipant?.avatarUrl,
+          initialBlockedByTarget:
+              blockRelation == _DirectBlockRelation.blockedByPeer,
+          initialBlockedByMe:
+              blockRelation == _DirectBlockRelation.blockedByMe,
         ),
       ),
     );
@@ -534,8 +792,16 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     );
   }
 
-  Widget _buildBlockedComposerPanel() {
+  Widget _buildBlockedComposerPanel(_DirectBlockRelation relation) {
     final theme = Theme.of(context);
+    final message = switch (relation) {
+      _DirectBlockRelation.blockedByPeer =>
+        'You have been blocked by this user.',
+      _DirectBlockRelation.blockedByMe =>
+        'You blocked this user. Unblock them to send messages again.',
+      _ => 'You cannot send message because this direct chat is currently blocked.',
+    };
+
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -553,7 +819,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'You cannot send message because this direct chat is currently blocked.',
+              message,
               style: theme.textTheme.bodyMedium
             ),
           ),
@@ -671,10 +937,16 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               final directFriendshipStatus = directTargetUserId != null
                 ? ref.watch(friendshipStatusProvider(directTargetUserId))
                 : null;
-              final isDirectChatBlocked =
+              final directBlockRelation =
                 state is ChatLoaded &&
-                state.conversation?.type.trim().toLowerCase() == 'direct' &&
-                directFriendshipStatus?.valueOrNull?.isBlocked == true;
+                state.conversation?.type.trim().toLowerCase() == 'direct'
+                  ? (_directBlockRelationOverride ??
+                      _deriveBlockRelationFromStatus(
+                        directFriendshipStatus?.valueOrNull,
+                      ))
+                  : _DirectBlockRelation.none;
+              final isDirectChatBlocked =
+                  directBlockRelation != _DirectBlockRelation.none;
               final isGroupPostingRestricted =
                   state is ChatLoaded && _isGroupMemberPostingRestricted(state);
               final hideComposer = isDirectChatBlocked || isGroupPostingRestricted;
@@ -768,7 +1040,14 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       PinMessagePanel(
                         pinnedMessages: state.pinnedMessages,
                         onTapItem: (pinMessages) {},
-                        onUnpin: (pinMessage) {},
+                        onUnpin: (pinMessage) {
+                          ref.read(chatBlocProvider).add(
+                            UnpinMessageEvent(
+                              messageId: pinMessage.messageId,
+                              conversationId: widget.conversationId,
+                            ),
+                          );
+                        },
                       ),
 
                     if (state is ChatLoaded &&
@@ -802,7 +1081,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                     if (state is ChatLoaded && !hideComposer)
                       _buildComposerContextBar(state),
                     if (isDirectChatBlocked)
-                      _buildBlockedComposerPanel()
+                      _buildBlockedComposerPanel(directBlockRelation)
                     else if (isGroupPostingRestricted)
                       _buildGroupPostingRestrictedPanel()
                     else
@@ -1778,7 +2057,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     AppLocalizations l10n, {
     Offset? anchor,
   }) async {
-    if (message is SystemChatMessage || message is CallHistoryChatMessage) {
+    if (message is SystemChatMessage ||
+        message is PollChatMessage ||
+        message is CallHistoryChatMessage) {
       return;
     }
 
@@ -1786,12 +2067,30 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     final canDelete = _canDeleteMessage(message);
     final canReact = _canReactToMessage(message);
     final canReply = !message.isDeleted;
+    final pinMessageId = _resolveMessageIdForAction(message)?.trim();
+    final chatState = ref.read(chatBlocProvider).state;
+    final canPin =
+      !message.isDeleted &&
+      pinMessageId != null &&
+      pinMessageId.isNotEmpty;
+    final isPinned =
+      chatState is ChatLoaded &&
+      pinMessageId != null &&
+      pinMessageId.isNotEmpty &&
+      chatState.pinnedMessages.any((pin) => pin.messageId == pinMessageId);
     final hasText =
         !message.isDeleted &&
         message is TextChatMessage &&
         message.text.trim().isNotEmpty;
 
-    if (!hasText && !canEdit && !canDelete && !canReact && !canReply) return;
+    if (!hasText &&
+        !canEdit &&
+        !canDelete &&
+        !canReact &&
+        !canReply &&
+        !canPin) {
+      return;
+    }
 
     final mediaSize = MediaQuery.of(context).size;
     final dialogWidth = _messageActionDialogWidth
@@ -1832,6 +2131,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               canForward: true,
               canRevoke: true,
               canDelete: canDelete,
+              canPin: canPin,
+              isPinned: isPinned,
               reactions: canReact ? _reactionEmojis : const <String>[],
             ),
           ),
@@ -1921,6 +2222,24 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                 conversationId: widget.conversationId,
               ),
             );
+      case MessageAction.pin:
+        final messageId = _resolveMessageIdForAction(message)?.trim();
+        if (messageId == null || messageId.isEmpty) return;
+        ref.read(chatBlocProvider).add(
+          PinMessageEvent(
+            messageId: messageId,
+            conversationId: widget.conversationId,
+          ),
+        );
+      case MessageAction.unpin:
+        final messageId = _resolveMessageIdForAction(message)?.trim();
+        if (messageId == null || messageId.isEmpty) return;
+        ref.read(chatBlocProvider).add(
+          UnpinMessageEvent(
+            messageId: messageId,
+            conversationId: widget.conversationId,
+          ),
+        );
     }
   }
 

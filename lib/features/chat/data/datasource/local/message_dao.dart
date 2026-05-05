@@ -33,7 +33,10 @@ abstract class MessageDao {
     String messageIdentifier,
     List<MessageReactionEntity> reactions,
   );
-  Future<void> updatePinMessage(List<PinMessageEntity> pinMessages);
+  Future<void> updatePinMessage(
+    String conversationId,
+    List<PinMessageEntity> pinMessages,
+  );
   Future<List<PinMessageEntity>> getPinnedMessagesByConversationId(String conversationId);
 }
 
@@ -305,9 +308,16 @@ class DriftMessageDaoImpl implements MessageDao {
   }
 
   @override
-  Future<void> updatePinMessage(List<PinMessageEntity> pinMessages) async{
+  Future<void> updatePinMessage(
+    String conversationId,
+    List<PinMessageEntity> pinMessages,
+  ) async {
     try {
       await _database.transaction(() async {
+        await (_database.delete(_database.pinMessages)
+              ..where((tbl) => tbl.conversationId.equals(conversationId)))
+            .go();
+
         for (final pinMessage in pinMessages) {
           await _database.insertOrReplacePinMessage(pinMessage);
         }

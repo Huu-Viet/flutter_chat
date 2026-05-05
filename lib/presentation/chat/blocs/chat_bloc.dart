@@ -49,6 +49,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final WatchConversationsWithUsersUseCase watchConversationsWithUsersUseCase;
   final WatchPinMessageUseCase watchPinMessageUseCase;
   final FetchPinMessageUseCase fetchPinMessageUseCase;
+  final PinMessageUseCase pinMessageUseCase;
+  final UnpinMessageUseCase unpinMessageUseCase;
   final EmitTypingUseCase emitTypingUseCase;
   final UploadMultipartUseCase uploadMultipartUseCase;
   final AudioCacheDao audioCacheDao;
@@ -94,6 +96,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     required this.watchConversationsWithUsersUseCase,
     required this.watchPinMessageUseCase,
     required this.fetchPinMessageUseCase,
+    required this.pinMessageUseCase,
+    required this.unpinMessageUseCase,
     required this.uploadMultipartUseCase,
     required this.emitTypingUseCase,
     required this.audioCacheDao,
@@ -118,6 +122,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<TypingChangedEvent>(_onTypingStatusChanged);
     on<LoadMoreMessagesEvent>(_loadMoreMessages);
     on<SendVideoEvent>(_onSendVideo);
+    on<PinMessageEvent>(_onPinMessage);
+    on<UnpinMessageEvent>(_onUnpinMessage);
+    on<RefreshPinnedMessagesEvent>(_onRefreshPinnedMessages);
     on<_LocalPinnedMessagesChangedEvent>((event, emit) async {
       _currentPinnedMessages = event.pinnedMessages;
 
@@ -448,6 +455,49 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     unawaited(fetchMessagesUseCase(event.conversationId));
     unawaited(fetchConversationDetailUseCase(event.conversationId));
     unawaited(fetchPinMessageUseCase(event.conversationId));
+  }
+
+  FutureOr<void> _onPinMessage(
+    PinMessageEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final result = await pinMessageUseCase(
+      messageId: event.messageId,
+      conversationId: event.conversationId,
+    );
+
+    result.fold(
+      (failure) => debugPrint('[ChatBloc] pinMessage failed: ${failure.message}'),
+      (_) => null,
+    );
+  }
+
+  FutureOr<void> _onUnpinMessage(
+    UnpinMessageEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final result = await unpinMessageUseCase(
+      messageId: event.messageId,
+      conversationId: event.conversationId,
+    );
+
+    result.fold(
+      (failure) => debugPrint('[ChatBloc] unpinMessage failed: ${failure.message}'),
+      (_) => null,
+    );
+  }
+
+  FutureOr<void> _onRefreshPinnedMessages(
+    RefreshPinnedMessagesEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final result = await fetchPinMessageUseCase(event.conversationId);
+    result.fold(
+      (failure) => debugPrint(
+        '[ChatBloc] refresh pinned failed: ${failure.message}',
+      ),
+      (_) => null,
+    );
   }
 
   FutureOr<void> _onSendText(

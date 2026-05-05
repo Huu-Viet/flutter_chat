@@ -58,6 +58,8 @@ final chatBlocProvider = Provider<ChatBloc>((ref) {
     ),
     watchPinMessageUseCase: ref.read(watchPinMessageUseCaseProvider),
     fetchPinMessageUseCase: ref.read(fetchPinMessageUseCaseProvider),
+    pinMessageUseCase: ref.read(pinMessageUseCaseProvider),
+    unpinMessageUseCase: ref.read(unpinMessageUseCaseProvider),
     emitTypingUseCase: ref.read(emitTypingUseCaseProvider),
     uploadMultipartUseCase: ref.read(uploadMultipartUseCaseProvider),
     audioCacheDao: ref.read(audioCacheDaoProvider),

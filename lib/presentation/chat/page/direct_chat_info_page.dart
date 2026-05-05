@@ -13,6 +13,8 @@ class DirectChatInfoPage extends ConsumerStatefulWidget {
   final String targetUserId;
   final String title;
   final String? avatarUrl;
+  final bool initialBlockedByTarget;
+  final bool initialBlockedByMe;
 
   const DirectChatInfoPage({
     super.key,
@@ -20,6 +22,8 @@ class DirectChatInfoPage extends ConsumerStatefulWidget {
     required this.targetUserId,
     required this.title,
     this.avatarUrl,
+    this.initialBlockedByTarget = false,
+    this.initialBlockedByMe = false,
   });
 
   @override
@@ -31,6 +35,7 @@ class _DirectChatInfoPageState extends ConsumerState<DirectChatInfoPage> {
   bool _busyNotify = false;
   bool _busyDanger = false;
   String _muteDuration = 'off';
+  bool? _blockedByMeLocalHint;
 
   Dio get _dio => ref.read(authDioProvider);
   static String get _baseUrl => dotenv.get('NEST_API_BASE_URL');
@@ -112,7 +117,10 @@ class _DirectChatInfoPageState extends ConsumerState<DirectChatInfoPage> {
 
       result.fold(
         (failure) => throw failure,
-        (_) => ref.invalidate(friendshipStatusProvider(widget.targetUserId)),
+        (_) {
+          _blockedByMeLocalHint = isBlocked ? false : true;
+          ref.invalidate(friendshipStatusProvider(widget.targetUserId));
+        },
       );
 
       _toast('User ${isBlocked ? 'unblocked' : 'blocked'}');
@@ -264,14 +272,43 @@ class _DirectChatInfoPageState extends ConsumerState<DirectChatInfoPage> {
                 friendshipStatusAsync.when(
                   data: (status) {
                     final isBlocked = status?.isBlocked == true;
+                    final hasDirection = status?.hasBlockDirection == true;
+
+                    final localHintBlockedByMe = _blockedByMeLocalHint;
+                    final fallbackBlockedByMe =
+                        localHintBlockedByMe ?? widget.initialBlockedByMe;
+                    final fallbackBlockedByTarget =
+                        localHintBlockedByMe == null
+                        ? widget.initialBlockedByTarget
+                        : !localHintBlockedByMe;
+
+                    final blockedByMe =
+                        status?.isBlockedByMe == true ||
+                        (!hasDirection && isBlocked && fallbackBlockedByMe);
+                    final blockedByTarget =
+                        status?.isBlockedByTarget == true ||
+                        (!hasDirection && isBlocked && fallbackBlockedByTarget);
+
+                    if (blockedByTarget && !blockedByMe) {
+                      return const _DangerActionTile(
+                        icon: Icons.block_outlined,
+                        label: 'You are blocked',
+                        description:
+                            'This user blocked you. You cannot unblock from your side.',
+                        busy: false,
+                        enabled: false,
+                      );
+                    }
+
+                    final canUnblock = isBlocked && blockedByMe;
                     return _DangerActionTile(
                       icon: Icons.block_outlined,
-                      label: isBlocked ? 'Unblock user' : 'Block user',
-                      description: isBlocked
+                      label: canUnblock ? 'Unblock user' : 'Block user',
+                      description: canUnblock
                           ? 'Allow this user to message you again in direct chat.'
                           : 'Prevent this user from messaging you in direct chat.',
                       busy: _busyDanger,
-                      onTap: () => _toggleBlock(isBlocked: isBlocked),
+                      onTap: () => _toggleBlock(isBlocked: canUnblock),
                     );
                   },
                   loading: () => const Padding(
@@ -388,21 +425,27 @@ class _DangerActionTile extends StatelessWidget {
   final String label;
   final String description;
   final bool busy;
-  final VoidCallback onTap;
+  final bool enabled;
+  final VoidCallback? onTap;
 
   const _DangerActionTile({
     required this.icon,
     required this.label,
     required this.description,
     required this.busy,
-    required this.onTap,
+    this.enabled = true,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final effectiveEnabled = enabled && !busy;
+    final labelColor = effectiveEnabled
+        ? theme.colorScheme.error
+        : theme.colorScheme.onSurfaceVariant;
     return InkWell(
-      onTap: busy ? null : onTap,
+      onTap: effectiveEnabled ? onTap : null,
       borderRadius: BorderRadius.circular(16),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -415,7 +458,7 @@ class _DangerActionTile extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: theme.colorScheme.error),
+              child: Icon(icon, color: labelColor),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -425,7 +468,7 @@ class _DangerActionTile extends StatelessWidget {
                   Text(
                     label,
                     style: theme.textTheme.titleSmall?.copyWith(
-                      color: theme.colorScheme.error,
+                      color: labelColor,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -446,7 +489,7 @@ class _DangerActionTile extends StatelessWidget {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : Icon(
-                    Icons.chevron_right,
+                    effectiveEnabled ? Icons.chevron_right : Icons.block,
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
           ],

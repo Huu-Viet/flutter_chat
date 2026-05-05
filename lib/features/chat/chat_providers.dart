@@ -201,6 +201,14 @@ final fetchPinMessageUseCaseProvider = Provider<FetchPinMessageUseCase>((ref) {
   return FetchPinMessageUseCase(ref.read(chatRepoProvider));
 });
 
+final pinMessageUseCaseProvider = Provider<PinMessageUseCase>((ref) {
+  return PinMessageUseCase(ref.read(chatRepoProvider));
+});
+
+final unpinMessageUseCaseProvider = Provider<UnpinMessageUseCase>((ref) {
+  return UnpinMessageUseCase(ref.read(chatRepoProvider));
+});
+
 final deleteLocalConversationUseCaseProvider = Provider<DeleteLocalConversationUseCase>((ref) {
   return DeleteLocalConversationUseCase(ref.read(chatRepoProvider));
 });
