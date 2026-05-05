@@ -37,14 +37,7 @@ class InCallPage extends ConsumerWidget {
           if (state is InCallEnded) {
             ref.read(notiServiceProvider).endCallKit(state.endedCallId);
             debugPrint('[InCallPage]Check conversation: $conversationId');
-            final navigator = Navigator.of(context);
-            if (navigator.canPop()) {
-              navigator.pop();
-            } else if (conversationId.trim().isNotEmpty) {
-              context.go('/chat/$conversationId/$initialRoomName');
-            } else {
-              context.go('/home');
-            }
+            context.go('/home');
           }
 
           final message = state.errorMessage ?? state.mediaErrorMessage;
@@ -58,6 +51,33 @@ class InCallPage extends ConsumerWidget {
         child: BlocBuilder<InCallBloc, InCallState>(
           builder: (context, state) {
             final activeSession = state.session;
+
+            // Show error UI if there's an error and no session
+            if (activeSession == null && state.errorMessage != null && state.errorMessage!.isNotEmpty) {
+              return Scaffold(
+                backgroundColor: Colors.black,
+                body: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, color: Colors.red, size: 64),
+                      const SizedBox(height: 24),
+                      Text(
+                        state.errorMessage!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: () => Navigator.of(context).maybePop(),
+                        icon: const Icon(Icons.arrow_back),
+                        label: const Text('Go Back'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
 
             if (activeSession == null) {
               return const Scaffold(

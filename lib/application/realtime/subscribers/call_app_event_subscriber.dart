@@ -7,6 +7,8 @@ import 'package:flutter_chat/features/call/export.dart';
 class CallAppEventSubscriber extends AppEventSubscriber {
   final void Function(CallInfo call) setIncomingCall;
   final void Function(CallInfo? call) updateIncomingCall;
+  final void Function(CallInfo call, int participantCount) setActiveGroupCall;
+  final void Function(String conversationId, String callId) clearActiveGroupCall;
 
   final void Function(String callId) onCallAccepted;
   final void Function(String callId) onCallDeclined;
@@ -19,6 +21,8 @@ class CallAppEventSubscriber extends AppEventSubscriber {
   CallAppEventSubscriber({
     required this.setIncomingCall,
     required this.updateIncomingCall,
+    required this.setActiveGroupCall,
+    required this.clearActiveGroupCall,
     required this.onCallAccepted,
     required this.onCallDeclined,
     required this.onCallEnded,
@@ -46,6 +50,13 @@ class CallAppEventSubscriber extends AppEventSubscriber {
           '[CALL] parsed ringing call -> id=${call.id}, conversationId=${call.conversationId}, callerId=${call.callerId}, status=${call.status}',
         );
 
+        if (_isGroupPayload(_eventPayloadMap(event.payload))) {
+          setActiveGroupCall(
+            call,
+            _resolveParticipantCount(_eventPayloadMap(event.payload), call),
+          );
+        }
+
         // 1. update state
         setIncomingCall(call);
 
@@ -67,6 +78,10 @@ class CallAppEventSubscriber extends AppEventSubscriber {
           '[CALL] parsed accepted call -> id=${call.id}, conversationId=${call.conversationId}, callerId=${call.callerId}, status=${call.status}',
         );
 
+        if (_isGroupPayload(payload)) {
+          setActiveGroupCall(call, _resolveParticipantCount(payload, call));
+        }
+
         if (!_isGroupPayload(payload)) {
           updateIncomingCall(null);
         }
@@ -81,15 +96,15 @@ class CallAppEventSubscriber extends AppEventSubscriber {
       case 'call:declined':
         final payload = _eventPayloadMap(event.payload);
         final callId = _extractCallId(payload);
-        final isGroupCall = _isGroupPayload(payload);
-
-        if (!isGroupCall) {
-          _markClosedCall(callId);
-        }
+        // NOTE: Do NOT call _markClosedCall here. The call:declined payload
+        // does not carry conversationType/participants, so _isGroupPayload
+        // always returns false even for group calls. Marking the call as
+        // closed here would silently drop a subsequent call:accepted from
+        // another callee in a group call. Let call:ended handle cleanup.
 
         updateIncomingCall(null);
 
-        if (!isGroupCall && callId != null && callId.isNotEmpty) {
+        if (callId != null && callId.isNotEmpty) {
           onCallDeclined(callId);
         }
 
@@ -98,8 +113,13 @@ class CallAppEventSubscriber extends AppEventSubscriber {
       case 'call:ended':
         final payload = _eventPayloadMap(event.payload);
         final callId = _extractCallId(payload);
+        final conversationId = _extractConversationId(payload);
 
         _markClosedCall(callId);
+
+        if (callId != null && conversationId != null) {
+          clearActiveGroupCall(conversationId, callId);
+        }
 
         updateIncomingCall(null);
 
@@ -153,6 +173,38 @@ class CallAppEventSubscriber extends AppEventSubscriber {
       if (value != null && value.isNotEmpty) return value;
     }
     return null;
+  }
+
+  String? _extractConversationId(Map<String, dynamic> payload) {
+    final candidates = [
+      payload['conversationId'],
+      payload['conversation_id'],
+      payload['call'] is Map ? (payload['call'] as Map)['conversationId'] : null,
+      payload['data'] is Map ? (payload['data'] as Map)['conversationId'] : null,
+    ];
+    for (final candidate in candidates) {
+      final value = candidate?.toString().trim();
+      if (value != null && value.isNotEmpty) return value;
+    }
+    return null;
+  }
+
+  int _resolveParticipantCount(Map<String, dynamic> payload, CallInfo call) {
+    if (call.participants.isNotEmpty) {
+      return call.participants.length;
+    }
+
+    final calleeIds = payload['calleeIds'];
+    if (calleeIds is List) {
+      return calleeIds.length + 1;
+    }
+
+    final calleeProfiles = payload['calleeProfiles'];
+    if (calleeProfiles is List) {
+      return calleeProfiles.length + 1;
+    }
+
+    return 1;
   }
 
   bool _isGroupPayload(Map<String, dynamic> payload) {

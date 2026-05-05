@@ -78,7 +78,25 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     InCallIncomingAccepted event,
     Emitter<InCallState> emit,
   ) async {
-    if (state.isAcceptingCall) return;
+    final callId = event.call.id.trim();
+    debugPrint('[InCallBloc] _onIncomingAccepted: callId=$callId');
+    
+    if (state.isAcceptingCall) {
+      debugPrint('[InCallBloc] _onIncomingAccepted: already accepting, skipping');
+      return;
+    }
+
+    // Guard: _onRemoteAccepted may have already fetched a token for this call
+    // (race: server sends call:accepted socket event before the local CallKit
+    // event fires, so InCallRemoteAccepted runs before InCallIncomingAccepted).
+    // If a session with a valid token already exists, skip the duplicate accept.
+    if (state.session?.call.id.trim() == callId &&
+        state.session?.token.trim().isNotEmpty == true) {
+      debugPrint(
+        '[InCallBloc] _onIncomingAccepted: session already has token (handled by InCallRemoteAccepted), skipping duplicate accept',
+      );
+      return;
+    }
 
     emit(
       state.copyWith(
@@ -90,17 +108,22 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
       ),
     );
 
-    final result = await _acceptIncomingCallUseCase(event.call.id);
+    final result = await _acceptIncomingCallUseCase(callId);
+    debugPrint('[InCallBloc] _onIncomingAccepted: useCase completed, result=$result');
+    
     await result.fold(
       (failure) async {
+        final errorMsg = 'Accept call failed: ${failure.message}';
+        debugPrint('[InCallBloc] _onIncomingAccepted: FAILED -> $errorMsg');
         emit(
           state.copyWith(
             isAcceptingCall: false,
-            errorMessage: 'Accept call failed: ${failure.message}',
+            errorMessage: errorMsg,
           ),
         );
       },
       (acceptedCall) async {
+        debugPrint('[InCallBloc] _onIncomingAccepted: accepted, call=${acceptedCall.call.id}, token=${acceptedCall.token.isNotEmpty ? 'present' : 'empty'}, roomName=${acceptedCall.roomName}');
         final session = _sessionFromAcceptedCall(
           acceptedCall,
           isIncoming: true,
@@ -159,6 +182,12 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
       );
       return;
     }
+    if (state.isAcceptingCall) {
+      debugPrint(
+        '[InCallBloc] _onRemoteAccepted: already accepting call, skipping concurrent event',
+      );
+      return;
+    }
 
     emit(
       state.copyWith(
@@ -214,7 +243,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
           roomName: token.roomName,
           liveKitUrl: token.liveKitUrl,
           isIncoming: false,
-          isGroupCall: _isGroupCall(call),
+          isGroupCall: state.session?.isGroupCall == true || _isGroupCall(call),
         );
         emit(
           state.copyWith(

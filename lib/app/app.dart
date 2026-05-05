@@ -56,28 +56,50 @@ class _MyAppState extends ConsumerState<MyApp> {
 
       switch (event.event) {
         case Event.actionCallAccept:
-          final call = _incomingCallsById[callId];
+          debugPrint('[MyApp] CallKit actionCallAccept: callId=$callId');
+          
+          final call = _incomingCallsById[callId] ??
+              _restoreIncomingCallFromCallKitEvent(event, callId);
           if (call == null) {
+            debugPrint('[MyApp] CallKit: cannot restore call, callId=$callId');
             break;
           }
+
+          debugPrint('[MyApp] CallKit: call restored, conversationId=${call.conversationId}, callerId=${call.callerId}');
+          
+          final isGroupCall = _isGroupCallFromCallKitEvent(event, call);
+          debugPrint('[MyApp] CallKit: isGroupCall=$isGroupCall');
 
           ref
               .read(inCallBlocProvider)
               .add(
                 InCallIncomingAccepted(
                   call,
-                  isGroupCall: call.participants.length > 2,
+                  isGroupCall: isGroupCall,
                 ),
               );
           ref.read(incomingCallProvider.notifier).state = null;
           _incomingCallsById.remove(callId);
           _shownCallKitIds.remove(callId);
 
-          final router = ref.read(routerProvider);
-          final currentPath = router.routeInformationProvider.value.uri.path;
-          if (currentPath != '/in-call') {
-            router.go('/in-call');
-          }
+          // Navigate immediately like direct outgoing call does.
+          // InCallPage handles loading state while accept is processing,
+          // and shows error UI if accept fails.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            final router = ref.read(routerProvider);
+            final currentPath = router.routeInformationProvider.value.uri.path;
+            if (currentPath == '/in-call') return;
+            final conversationId = call.conversationId.trim();
+            final destination = Uri(
+              path: '/in-call',
+              queryParameters: {
+                if (conversationId.isNotEmpty) 'conversationId': conversationId,
+              },
+            ).toString();
+            debugPrint('[MyApp] CallKit accept: navigating to $destination');
+            router.go(destination);
+          });
           break;
 
         case Event.actionCallDecline:
@@ -100,18 +122,118 @@ class _MyAppState extends ConsumerState<MyApp> {
   }
 
   String? _extractCallIdFromCallKitEvent(CallEvent event) {
-    final body = event.body;
-    if (body is! Map) {
-      return null;
-    }
-
-    final id = body['id'] ?? body['callId'];
+    final body = _callKitEventBody(event);
+    final id = body['id'] ??
+        body['callId'] ??
+        body['call_roomId'] ??
+        body['call_id'];
     if (id == null) {
       return null;
     }
 
     final callId = id.toString().trim();
     return callId.isEmpty ? null : callId;
+  }
+
+  Map<String, dynamic> _callKitEventBody(CallEvent event) {
+    final body = event.body;
+    if (body is! Map) {
+      return <String, dynamic>{};
+    }
+
+    final data = Map<String, dynamic>.from(body);
+    final extra = data['extra'];
+    if (extra is Map) {
+      data.addAll(Map<String, dynamic>.from(extra));
+    }
+    return data;
+  }
+
+  String _readCallKitString(Map<String, dynamic> body, List<String> keys) {
+    for (final key in keys) {
+      final value = body[key]?.toString().trim();
+      if (value != null && value.isNotEmpty) {
+        return value;
+      }
+    }
+    return '';
+  }
+
+  bool _isGroupCallFromCallKitEvent(CallEvent event, CallInfo call) {
+    if (call.participants.length > 2) {
+      return true;
+    }
+
+    final body = _callKitEventBody(event);
+    final conversationType = _readCallKitString(body, const [
+      'conversationType',
+      'conversation_type',
+      'type',
+    ]).toLowerCase();
+    if (conversationType == 'group') {
+      return true;
+    }
+
+    final rawIsGroupCall = body['isGroupCall'];
+    if (rawIsGroupCall is bool) {
+      return rawIsGroupCall;
+    }
+    if (rawIsGroupCall != null) {
+      final normalized = rawIsGroupCall.toString().trim().toLowerCase();
+      if (normalized == 'true') {
+        return true;
+      }
+    }
+
+    final calleeIds = body['calleeIds'];
+    if (calleeIds is List && calleeIds.length > 1) {
+      return true;
+    }
+    final calleeProfiles = body['calleeProfiles'];
+    if (calleeProfiles is List && calleeProfiles.length > 1) {
+      return true;
+    }
+
+    return false;
+  }
+
+  CallInfo? _restoreIncomingCallFromCallKitEvent(CallEvent event, String callId) {
+    final body = _callKitEventBody(event);
+    final conversationId = _readCallKitString(body, const [
+      'conversationId',
+      'conversation_id',
+    ]);
+    final callerId = _readCallKitString(body, const ['callerId', 'caller_id']);
+    final callerName = _readCallKitString(body, const [
+      'callerName',
+      'caller_name',
+      'nameCaller',
+      'name',
+    ]);
+    final callerAvatar = _readCallKitString(body, const [
+      'callerAvatar',
+      'caller_avatar',
+      'avatar',
+      'avatarUrl',
+    ]);
+
+    if (conversationId.isEmpty && callerId.isEmpty && callerName.isEmpty) {
+      return null;
+    }
+
+    final now = DateTime.now();
+    return CallInfo(
+      id: callId,
+      conversationId: conversationId,
+      callerId: callerId,
+      callerName: callerName,
+      callerAvatar: callerAvatar,
+      status: 'RINGING',
+      createdAt: now,
+      startedAt: now,
+      endedAt: now,
+      participants: const [],
+    );
   }
 
   Future<void> _initDeepLinks() async {
@@ -237,9 +359,17 @@ class _MyAppState extends ConsumerState<MyApp> {
             null,
             callerName.isNotEmpty ? callerName : 'Incoming call',
             callerAvatar: callerAvatar.isNotEmpty ? callerAvatar : null,
+          conversationId: next.conversationId.trim().isNotEmpty
+            ? next.conversationId.trim()
+            : null,
+          callerId: next.callerId.trim().isNotEmpty
+            ? next.callerId.trim()
+            : null,
+          conversationType: next.participants.length > 2 ? 'group' : 'direct',
           );
     });
 
+    // Listen to call actions from socket events (remote accepted/declined/ended)
     ref.listen<CallAction?>(callActionProvider, (prev, next) {
       if (next == null) return;
 
@@ -248,14 +378,21 @@ class _MyAppState extends ConsumerState<MyApp> {
       switch (next.type) {
         case CallActionType.accepted:
           final session = bloc.state.session;
-          if (session?.call.id != next.callId) {
-            ref.read(callActionProvider.notifier).state = null;
-            return;
+          final incomingCall = ref.read(incomingCallProvider);
+          final activeGroupCalls = ref.read(activeGroupCallsProvider);
+          final matchedGroupCall = activeGroupCalls.values
+              .where((entry) => entry.call.id.trim() == next.callId)
+              .map((entry) => entry.call)
+              .cast<CallInfo?>()
+              .firstOrNull;
+
+          if (session != null && session.call.id != next.callId) {
+            debugPrint(
+              '[MyApp] callActionProvider accepted: session mismatch current=${session.call.id} accepted=${next.callId}, continuing',
+            );
           }
 
-          if (session != null) {
-            bloc.add(InCallRemoteAccepted(next.callId));
-          }
+          bloc.add(InCallRemoteAccepted(next.callId));
 
           final currentPath = router.routeInformationProvider.value.uri.path;
           debugPrint(
@@ -265,7 +402,21 @@ class _MyAppState extends ConsumerState<MyApp> {
           // in-call page. The caller is already there after starting the call,
           // so re-navigating would rebuild the page with empty conversationId.
           if (currentPath != '/in-call') {
-            router.go('/in-call');
+            final convId =
+                (session?.call.id == next.callId
+                        ? session?.call.conversationId
+                        : null)
+                    ?.trim() ??
+                (incomingCall?.id == next.callId
+                        ? incomingCall?.conversationId
+                        : null)
+                    ?.trim() ??
+                matchedGroupCall?.conversationId.trim() ??
+                '';
+            final destination = convId.isNotEmpty
+                ? '/in-call?conversationId=$convId'
+                : '/in-call';
+            router.go(destination);
           }
           break;
 

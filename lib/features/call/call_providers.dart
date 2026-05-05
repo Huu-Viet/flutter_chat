@@ -58,6 +58,21 @@ final endCallUseCaseProvider = Provider<EndCallUseCase>((ref) {
 
 final incomingCallProvider = StateProvider<CallInfo?>((ref) => null);
 
+class ActiveGroupCallState {
+  final CallInfo call;
+  final int participantCount;
+
+  const ActiveGroupCallState({
+    required this.call,
+    required this.participantCount,
+  });
+}
+
 final lastRouteBeforeInCallProvider = StateProvider<String?>((ref) => null);
 
 final closedCallIdsProvider = StateProvider<Set<String>>((ref) => <String>{});
+
+final activeGroupCallsProvider =
+    StateProvider<Map<String, ActiveGroupCallState>>((ref) {
+      return <String, ActiveGroupCallState>{};
+    });

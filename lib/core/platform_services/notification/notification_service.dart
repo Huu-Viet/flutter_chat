@@ -57,6 +57,9 @@ class NotificationService {
     String? deepLink,
     String callerName, {
     String? callerAvatar,
+    String? conversationId,
+    String? callerId,
+    String? conversationType,
   }) async {
     final String notificationKey = '$callId${DateTime.now().millisecondsSinceEpoch}';
 
@@ -80,7 +83,13 @@ class NotificationService {
       ),
       extra: <String, dynamic>{
         'call_roomId': callId,
+        'callId': callId,
         'deeplink': deepLink,
+        'conversationId': conversationId,
+        'callerId': callerId,
+        'callerName': callerName,
+        'callerAvatar': callerAvatar,
+        'conversationType': conversationType,
         'notification_id': notificationKey.hashCode,
       },
       android: const AndroidParams(

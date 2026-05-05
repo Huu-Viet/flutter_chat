@@ -3,13 +3,18 @@ import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/presentation/call/blocs/call_bloc.dart';
 import 'package:flutter_chat/presentation/call/blocs/in_call_bloc.dart';
 import 'package:flutter_chat/presentation/call/blocs/outgoing_call_bloc.dart';
-import 'package:riverpod/riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 //incoming call provider
 
 final callBlocProvider = Provider<CallBloc>((ref) {
   // final sendCallRequest = ref.watch(sendCallRequestUseCaseProvider);
   return CallBloc();
+});
+
+final inCallStateProvider = StreamProvider<InCallState>((ref) {
+  final bloc = ref.watch(inCallBlocProvider);
+  return bloc.stream;
 });
 
 final inCallBlocProvider = Provider<InCallBloc>((ref) {

@@ -9,8 +9,36 @@ class CallRemoteDSImpl implements CallRemoteDataSource {
   final Dio dio;
   final RealtimeGateway realtimeGateway;
   static String get _baseUrl => dotenv.get('NEST_API_BASE_URL');
+  static const Duration _reconnectCheckInterval = Duration(milliseconds: 250);
+  static const int _maxReconnectChecks = 16;
 
   CallRemoteDSImpl({required this.dio, required this.realtimeGateway});
+
+  Future<void> _ensureCallSocketConnected() async {
+    if (realtimeGateway.isConnected) {
+      return;
+    }
+
+    debugPrint(
+      '[CallRemoteDSImpl] call socket not connected; triggering reconnect',
+    );
+    await realtimeGateway.reconnect();
+
+    for (var i = 0; i < _maxReconnectChecks; i++) {
+      if (realtimeGateway.isConnected) {
+        return;
+      }
+
+      await Future<void>.delayed(_reconnectCheckInterval);
+
+      // Nudge reconnect once more midway if socket is still not ready.
+      if (i == (_maxReconnectChecks ~/ 2)) {
+        await realtimeGateway.reconnect();
+      }
+    }
+
+    throw Exception('Call socket is not connected after reconnect attempts');
+  }
 
   @override
   Future<CallDto> startCall(
@@ -219,6 +247,7 @@ class CallRemoteDSImpl implements CallRemoteDataSource {
   @override
   Future<void> joinSocketCall(String callId) async {
     try {
+      await _ensureCallSocketConnected();
       await realtimeGateway.emitCallEvent('call:join_room', {'callId': callId});
     } catch (e) {
       debugPrint('[CallServiceImpl] Join room error: $e');
@@ -229,6 +258,7 @@ class CallRemoteDSImpl implements CallRemoteDataSource {
   @override
   Future<void> leaveSocketCall(String callId) async {
     try {
+      await _ensureCallSocketConnected();
       await realtimeGateway.emitCallEvent('call:leave_room', {
         'callId': callId,
       });

@@ -12,6 +12,7 @@ import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/features/friendship/domain/entities/friendship_status.dart';
 import 'package:flutter_chat/features/friendship/friendship_providers.dart';
 import 'package:flutter_chat/features/group_manager/group_management_provider.dart';
+import 'package:flutter_chat/features/call/call_providers.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
 import 'package:flutter_chat/presentation/call/blocs/in_call_bloc.dart';
 import 'package:flutter_chat/presentation/call/blocs/outgoing_call_bloc.dart';
@@ -33,12 +34,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../app/router.dart';
+
 enum _DirectBlockRelation {
   none,
   blockedByMe,
   blockedByPeer,
   blockedUnknown,
 }
+
+enum _ActiveGroupCallDialogResult { accept, decline }
 
 class ChatPage extends ConsumerStatefulWidget {
   final String conversationId;
@@ -79,6 +84,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   List<Map<String, dynamic>> _polls = <Map<String, dynamic>>[];
   final Set<String> _explicitMentionUserIds = <String>{};
   String? _activeMentionQuery;
+  String? _dismissedActiveGroupCallId;
+  String? _activeGroupCallDialogId;
 
   @override
   void initState() {
@@ -956,6 +963,21 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       return name.isNotEmpty ? name : widget.friendName;
                     })()
                   : widget.friendName;
+              final activeGroupCall = isGroupConversation
+                  ? ref.watch(
+                      activeGroupCallsProvider.select(
+                        (calls) => calls[widget.conversationId],
+                      ),
+                    )
+                  : null;
+
+              if (isGroupConversation && activeGroupCall != null) {
+                _maybeShowActiveGroupCallDialog(
+                  context,
+                  activeGroupCall,
+                  appBarTitle,
+                );
+              }
 
               return Scaffold(
                 appBar: AppBar(
@@ -1003,7 +1025,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                           children: [
                             IconButton(
                               tooltip: 'Call',
-                              onPressed: callState.isStarting
+                              onPressed: callState.isStarting ||
+                                  (isGroupConversation &&
+                                    activeGroupCall != null)
                                   ? null
                                   : () => _startOutgoingCall(context, state),
                               icon: callState.isStarting
@@ -1546,6 +1570,98 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         calleeIds: calleeIds,
       ),
     );
+  }
+
+  void _maybeShowActiveGroupCallDialog(
+    BuildContext context,
+    ActiveGroupCallState activeCall,
+    String roomName,
+  ) {
+    if (!_isCurrentChatRoute()) {
+      return;
+    }
+
+    final call = activeCall.call;
+    final callId = call.id.trim();
+    if (callId.isEmpty ||
+        _dismissedActiveGroupCallId == callId ||
+        _activeGroupCallDialogId == callId) {
+      return;
+    }
+
+    _activeGroupCallDialogId = callId;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        _activeGroupCallDialogId = null;
+        return;
+      }
+
+      final result = await showDialog<_ActiveGroupCallDialogResult>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          final participantCount = activeCall.participantCount;
+          return AlertDialog(
+            title: const Text('Group call is still active'),
+            content: Text(
+              '$participantCount participant${participantCount == 1 ? '' : 's'} still in this group call.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop(
+                    _ActiveGroupCallDialogResult.decline,
+                  );
+                },
+                child: const Text('Decline'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop(
+                    _ActiveGroupCallDialogResult.accept,
+                  );
+                },
+                child: const Text('Accept'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (!mounted) {
+        _activeGroupCallDialogId = null;
+        return;
+      }
+
+      if (result == _ActiveGroupCallDialogResult.decline) {
+        setState(() {
+          _dismissedActiveGroupCallId = callId;
+          _activeGroupCallDialogId = null;
+        });
+        return;
+      }
+
+      _activeGroupCallDialogId = null;
+      if (result == _ActiveGroupCallDialogResult.accept) {
+        ref.read(inCallBlocProvider).add(
+          InCallRejoinRequested(call, roomName: roomName),
+        );
+        final route = Uri(
+          path: '/in-call',
+          queryParameters: {
+            'conversationId': widget.conversationId,
+            'roomName': roomName,
+          },
+        ).toString();
+        context.push(route);
+      }
+    });
+  }
+
+  bool _isCurrentChatRoute() {
+    final currentPath =
+        ref.read(routerProvider).routeInformationProvider.value.uri.path;
+    return currentPath.startsWith('/chat/${widget.conversationId}/');
   }
 
   List<String> _resolveOutgoingCallCalleeIds(

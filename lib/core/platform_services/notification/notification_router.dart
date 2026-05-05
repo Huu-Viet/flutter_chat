@@ -59,6 +59,16 @@ class NotificationRouter {
       debugPrint('$_tag: _handleIncomingCallPush: missing callId, skip');
       return;
     }
+    final conversationId =
+      (data['conversationId'] ?? data['conversation_id'] ?? '')
+        .toString()
+        .trim();
+    final callerId =
+      (data['callerId'] ?? data['caller_id'] ?? '').toString().trim();
+    final conversationType =
+      (data['conversationType'] ?? data['conversation_type'] ?? '')
+        .toString()
+        .trim();
 
     String callerName = '';
     String callerAvatar = '';
@@ -94,6 +104,9 @@ class NotificationRouter {
       deepLink,
       callerName.isNotEmpty ? callerName : 'Incoming call',
       callerAvatar: callerAvatar.isNotEmpty ? callerAvatar : null,
+      conversationId: conversationId.isNotEmpty ? conversationId : null,
+      callerId: callerId.isNotEmpty ? callerId : null,
+      conversationType: conversationType.isNotEmpty ? conversationType : null,
     );
   }
 
