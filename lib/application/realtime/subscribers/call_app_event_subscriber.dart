@@ -8,7 +8,9 @@ class CallAppEventSubscriber extends AppEventSubscriber {
   final void Function(CallInfo call) setIncomingCall;
   final void Function(CallInfo? call) updateIncomingCall;
   final void Function(CallInfo call, int participantCount) setActiveGroupCall;
-  final void Function(String conversationId, String callId) clearActiveGroupCall;
+  final void Function(String conversationId, String callId)
+  clearActiveGroupCall;
+  final void Function(String callId) clearActiveGroupCallByCallId;
 
   final void Function(String callId) onCallAccepted;
   final void Function(String callId) onCallDeclined;
@@ -23,6 +25,7 @@ class CallAppEventSubscriber extends AppEventSubscriber {
     required this.updateIncomingCall,
     required this.setActiveGroupCall,
     required this.clearActiveGroupCall,
+    required this.clearActiveGroupCallByCallId,
     required this.onCallAccepted,
     required this.onCallDeclined,
     required this.onCallEnded,
@@ -119,6 +122,8 @@ class CallAppEventSubscriber extends AppEventSubscriber {
 
         if (callId != null && conversationId != null) {
           clearActiveGroupCall(conversationId, callId);
+        } else if (callId != null && callId.isNotEmpty) {
+          clearActiveGroupCallByCallId(callId);
         }
 
         updateIncomingCall(null);
@@ -179,8 +184,12 @@ class CallAppEventSubscriber extends AppEventSubscriber {
     final candidates = [
       payload['conversationId'],
       payload['conversation_id'],
-      payload['call'] is Map ? (payload['call'] as Map)['conversationId'] : null,
-      payload['data'] is Map ? (payload['data'] as Map)['conversationId'] : null,
+      payload['call'] is Map
+          ? (payload['call'] as Map)['conversationId']
+          : null,
+      payload['data'] is Map
+          ? (payload['data'] as Map)['conversationId']
+          : null,
     ];
     for (final candidate in candidates) {
       final value = candidate?.toString().trim();
@@ -212,6 +221,10 @@ class CallAppEventSubscriber extends AppEventSubscriber {
     if (type?.toString().toLowerCase() == 'group') return true;
     final participants = payload['participants'];
     if (participants is List && participants.length > 2) return true;
+    final calleeIds = payload['calleeIds'];
+    if (calleeIds is List && calleeIds.length > 1) return true;
+    final calleeProfiles = payload['calleeProfiles'];
+    if (calleeProfiles is List && calleeProfiles.length > 1) return true;
     return false;
   }
 }

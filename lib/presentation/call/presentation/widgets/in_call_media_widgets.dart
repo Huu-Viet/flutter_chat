@@ -5,12 +5,16 @@ class _LiveKitCallStage extends StatelessWidget {
   final CallSession session;
   final bool isConnecting;
   final String? errorMessage;
+  final String peerName;
+  final String? peerAvatar;
 
   const _LiveKitCallStage({
     required this.room,
     required this.session,
     required this.isConnecting,
     required this.errorMessage,
+    required this.peerName,
+    this.peerAvatar,
   });
 
   @override
@@ -52,7 +56,7 @@ class _LiveKitCallStage extends StatelessWidget {
       return Stack(
         fit: StackFit.expand,
         children: [
-          _AudioOnlyCallView(room: activeRoom, session: session),
+          _AudioOnlyCallView(room: activeRoom, session: session, peerName: peerName, peerAvatar: peerAvatar),
           if (localVideoTile != null)
             Positioned(
               right: 20,
@@ -280,8 +284,15 @@ class _VideoGrid extends StatelessWidget {
 class _AudioOnlyCallView extends StatelessWidget {
   final Room room;
   final CallSession session;
+  final String peerName;
+  final String? peerAvatar;
 
-  const _AudioOnlyCallView({required this.room, required this.session});
+  const _AudioOnlyCallView({
+    required this.room,
+    required this.session,
+    required this.peerName,
+    this.peerAvatar,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -305,22 +316,26 @@ class _AudioOnlyCallView extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             _ParticipantAvatar(
-              title: session.call.callerId,
+              title: peerName.trim().isNotEmpty ? peerName : '?',
               isSpeaking: false,
               size: 112,
+              avatarUrl: peerAvatar,
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Audio Call',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
+            if (peerName.trim().isNotEmpty) ...[
+              Text(
+                peerName,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
+              const SizedBox(height: 8),
+            ],
             const Text(
-              'Video will appear when someone turns on camera',
+              'Turn on camera to enable video',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.white60),
             ),
@@ -356,9 +371,11 @@ class _AudioParticipantChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = participant.name.trim().isNotEmpty
+    // Use display name; identity is typically a UUID so never show it raw
+    final raw = participant.name.trim().isNotEmpty
         ? participant.name.trim()
-        : participant.identity.trim();
+        : '';
+    final title = raw.isNotEmpty ? raw : (isLocal ? 'You' : 'Participant');
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -393,11 +410,13 @@ class _ParticipantAvatar extends StatelessWidget {
   final String title;
   final bool isSpeaking;
   final double size;
+  final String? avatarUrl;
 
   const _ParticipantAvatar({
     required this.title,
     required this.isSpeaking,
     this.size = 88,
+    this.avatarUrl,
   });
 
   @override
@@ -405,6 +424,7 @@ class _ParticipantAvatar extends StatelessWidget {
     final initial = title.trim().isNotEmpty
         ? title.trim()[0].toUpperCase()
         : '?';
+    final hasAvatar = avatarUrl != null && avatarUrl!.trim().isNotEmpty;
     return Center(
       child: Container(
         width: size,
@@ -417,15 +437,34 @@ class _ParticipantAvatar extends StatelessWidget {
             width: isSpeaking ? 4 : 1,
           ),
         ),
-        child: Center(
-          child: Text(
-            initial,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: size * 0.36,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+        child: ClipOval(
+          child: hasAvatar
+              ? Image.network(
+                  avatarUrl!,
+                  width: size,
+                  height: size,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Center(
+                    child: Text(
+                      initial,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: size * 0.36,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                )
+              : Center(
+                  child: Text(
+                    initial,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: size * 0.36,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
         ),
       ),
     );

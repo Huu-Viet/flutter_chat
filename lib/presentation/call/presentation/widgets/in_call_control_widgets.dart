@@ -140,6 +140,7 @@ class _ActiveCallControls extends StatelessWidget {
   final bool isCameraEnabled;
   final bool isSpeakerOn;
   final bool isGroupCall;
+  final bool willEndCall;
   final bool isMicUpdating;
   final bool isCameraUpdating;
   final VoidCallback onToggleMic;
@@ -153,6 +154,7 @@ class _ActiveCallControls extends StatelessWidget {
     required this.isCameraEnabled,
     required this.isSpeakerOn,
     required this.isGroupCall,
+    required this.willEndCall,
     required this.isMicUpdating,
     required this.isCameraUpdating,
     required this.onToggleMic,
@@ -223,8 +225,8 @@ class _ActiveCallControls extends StatelessWidget {
                   : const Icon(Icons.call_end),
               label: Text(
                 isEndingCall
-                    ? (isGroupCall ? 'Leaving...' : 'Ending...')
-                    : (isGroupCall ? 'Leave' : 'End Call'),
+                    ? (willEndCall ? 'Ending...' : 'Leaving...')
+                    : (willEndCall ? 'End Call' : 'Leave'),
               ),
             ),
           ),
@@ -267,6 +269,122 @@ class _CallActionButton extends StatelessWidget {
         const SizedBox(height: 8),
         Text(label, style: const TextStyle(color: Colors.white70)),
       ],
+    );
+  }
+}
+
+class _PulsingCallAvatar extends StatefulWidget {
+  final String name;
+  final String? avatarUrl;
+  final double size;
+
+  const _PulsingCallAvatar({
+    required this.name,
+    this.avatarUrl,
+    this.size = 96,
+  });
+
+  @override
+  State<_PulsingCallAvatar> createState() => _PulsingCallAvatarState();
+}
+
+class _PulsingCallAvatarState extends State<_PulsingCallAvatar>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnim;
+  late Animation<double> _opacityAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
+    _scaleAnim = Tween<double>(begin: 1.0, end: 1.6).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+    _opacityAnim = Tween<double>(begin: 0.4, end: 0.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.size;
+    final initial = widget.name.trim().isNotEmpty
+        ? widget.name.trim()[0].toUpperCase()
+        : '?';
+    final hasAvatar =
+        widget.avatarUrl != null && widget.avatarUrl!.trim().isNotEmpty;
+    return SizedBox(
+      width: s * 2,
+      height: s * 2,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Pulse ring
+          AnimatedBuilder(
+            animation: _controller,
+            builder: (_, __) => Transform.scale(
+              scale: _scaleAnim.value,
+              child: Container(
+                width: s,
+                height: s,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white
+                      .withValues(alpha: _opacityAnim.value),
+                ),
+              ),
+            ),
+          ),
+          // Avatar circle
+          Container(
+            width: s,
+            height: s,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Color(0xFF3C4043),
+            ),
+            child: ClipOval(
+              child: hasAvatar
+                  ? Image.network(
+                      widget.avatarUrl!,
+                      width: s,
+                      height: s,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Center(
+                        child: Text(
+                          initial,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: s * 0.36,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    )
+                  : Center(
+                      child: Text(
+                        initial,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: s * 0.36,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

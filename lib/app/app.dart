@@ -477,10 +477,24 @@ class _MyAppState extends ConsumerState<MyApp> {
               .cast<CallInfo?>()
               .firstOrNull;
 
-          if (session != null && session.call.id != next.callId) {
+          final sessionMatches = session?.call.id.trim() == next.callId;
+          if (session != null && !sessionMatches) {
             debugPrint(
-              '[MyApp] callActionProvider accepted: session mismatch current=${session.call.id} accepted=${next.callId}, continuing',
+              '[MyApp] callActionProvider accepted: session mismatch current=${session.call.id} accepted=${next.callId}, ignoring auto-join',
             );
+          }
+
+          if (!sessionMatches) {
+            if (matchedGroupCall != null) {
+              ref.read(notiServiceProvider).endCallKit(next.callId);
+              if (incomingCall?.id.trim() == next.callId) {
+                ref.read(incomingCallProvider.notifier).state = null;
+              }
+            }
+            debugPrint(
+              '[MyApp] callActionProvider accepted: no local in-call session for callId=${next.callId}, not joining automatically',
+            );
+            break;
           }
 
           bloc.add(InCallRemoteAccepted(next.callId));

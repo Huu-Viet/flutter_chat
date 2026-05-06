@@ -80,9 +80,11 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
   ) async {
     final callId = event.call.id.trim();
     debugPrint('[InCallBloc] _onIncomingAccepted: callId=$callId');
-    
+
     if (state.isAcceptingCall) {
-      debugPrint('[InCallBloc] _onIncomingAccepted: already accepting, skipping');
+      debugPrint(
+        '[InCallBloc] _onIncomingAccepted: already accepting, skipping',
+      );
       return;
     }
 
@@ -109,21 +111,20 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     );
 
     final result = await _acceptIncomingCallUseCase(callId);
-    debugPrint('[InCallBloc] _onIncomingAccepted: useCase completed, result=$result');
-    
+    debugPrint(
+      '[InCallBloc] _onIncomingAccepted: useCase completed, result=$result',
+    );
+
     await result.fold(
       (failure) async {
         final errorMsg = 'Accept call failed: ${failure.message}';
         debugPrint('[InCallBloc] _onIncomingAccepted: FAILED -> $errorMsg');
-        emit(
-          state.copyWith(
-            isAcceptingCall: false,
-            errorMessage: errorMsg,
-          ),
-        );
+        emit(state.copyWith(isAcceptingCall: false, errorMessage: errorMsg));
       },
       (acceptedCall) async {
-        debugPrint('[InCallBloc] _onIncomingAccepted: accepted, call=${acceptedCall.call.id}, token=${acceptedCall.token.isNotEmpty ? 'present' : 'empty'}, roomName=${acceptedCall.roomName}');
+        debugPrint(
+          '[InCallBloc] _onIncomingAccepted: accepted, call=${acceptedCall.call.id}, token=${acceptedCall.token.isNotEmpty ? 'present' : 'empty'}, roomName=${acceptedCall.roomName}',
+        );
         final session = _sessionFromAcceptedCall(
           acceptedCall,
           isIncoming: true,
@@ -276,6 +277,34 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
       ),
     );
 
+    final callResult = await _callRepository.fetchSingleCallRecord(callId);
+    var activeCall = event.call;
+    final canRejoin = callResult.fold(
+      (failure) {
+        emit(
+          state.copyWith(
+            isAcceptingCall: false,
+            errorMessage: 'Rejoin call failed: ${failure.message}',
+          ),
+        );
+        return false;
+      },
+      (call) {
+        if (call.status.trim().toUpperCase() != 'ACTIVE') {
+          emit(
+            state.copyWith(
+              isAcceptingCall: false,
+              errorMessage: 'Rejoin call failed: call is no longer active',
+            ),
+          );
+          return false;
+        }
+        activeCall = call;
+        return true;
+      },
+    );
+    if (!canRejoin) return;
+
     await _callRepository.joinSocketCall(callId);
     final tokenResult = await _callRepository.getCallToken(callId);
     await tokenResult.fold(
@@ -289,7 +318,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
       },
       (token) async {
         final session = CallSession(
-          call: event.call,
+          call: activeCall,
           token: token.token,
           roomName: event.roomName.trim().isNotEmpty
               ? event.roomName
@@ -338,12 +367,10 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
   ) async {
     final session = state.session;
     if (session == null || state.isEndingCall) return;
-    if (session.isGroupCall) {
+    if (session.isGroupCall && !_isRingingSession(session)) {
       final callId = session.call.id.trim();
       if (callId.isEmpty) return;
-      final shouldEndGroupCall =
-          (state.room?.remoteParticipants.length ?? 0) <= 1;
-      if (!shouldEndGroupCall) {
+      if (_activeCallParticipantCount(session) > 2) {
         add(const InCallLeaveRequested());
         return;
       }
@@ -421,6 +448,35 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     await _callRepository.leaveSocketCall(callId);
     await _disposeLiveKitRoom();
     emit(_endedState(session.isGroupCall ? null : callId));
+  }
+
+  int _activeCallParticipantCount(CallSession session) {
+    final room = state.room;
+    if (room != null) {
+      return room.remoteParticipants.length + 1;
+    }
+    return session.call.participants.isNotEmpty
+        ? session.call.participants.length
+        : 1;
+  }
+
+  bool _isRingingSession(CallSession session) {
+    final hasMediaSession =
+        session.token.trim().isNotEmpty ||
+        session.roomName.trim().isNotEmpty ||
+        session.liveKitUrl.trim().isNotEmpty;
+    if (hasMediaSession) return false;
+    final status = session.call.status.trim().toUpperCase();
+    return !{
+      'ACTIVE',
+      'ACCEPTED',
+      'CONNECTED',
+      'ENDED',
+      'DECLINED',
+      'CANCELLED',
+      'CANCELED',
+      'FAILED',
+    }.contains(status);
   }
 
   Future<void> _onToggleMicrophoneRequested(

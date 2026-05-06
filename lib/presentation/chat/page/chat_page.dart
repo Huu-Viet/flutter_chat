@@ -36,14 +36,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../app/router.dart';
 
-enum _DirectBlockRelation {
-  none,
-  blockedByMe,
-  blockedByPeer,
-  blockedUnknown,
-}
-
-enum _ActiveGroupCallDialogResult { accept, decline }
+enum _DirectBlockRelation { none, blockedByMe, blockedByPeer, blockedUnknown }
 
 class ChatPage extends ConsumerStatefulWidget {
   final String conversationId;
@@ -85,7 +78,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   final Set<String> _explicitMentionUserIds = <String>{};
   String? _activeMentionQuery;
   String? _dismissedActiveGroupCallId;
-  String? _activeGroupCallDialogId;
+  final Set<String> _verifiedActiveGroupCallIds = <String>{};
+  final Set<String> _verifyingActiveGroupCallIds = <String>{};
+  final Set<String> _activeGroupCallCheckedConversationIds = <String>{};
 
   @override
   void initState() {
@@ -142,7 +137,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         // (the sender's ID), which may not match targetUserId when received on
         // the receiver's side. Since in a direct chat any cancel event is
         // relevant to exactly our two parties, we always invalidate here.
-        final isCancelEvent = event.event == 'friendship:request_canceled' ||
+        final isCancelEvent =
+            event.event == 'friendship:request_canceled' ||
             event.event == 'friendship.request_canceled';
         debugPrint(
           '[ChatPage][FriendshipRealtime] Event=${event.event} targetUserId=$targetUserId containsTarget=$containsTarget isCancelEvent=$isCancelEvent',
@@ -175,7 +171,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         if (conversationId != widget.conversationId) {
           return;
         }
-        final allowMemberMessage = _extractAllowMemberMessageFromPayload(payload);
+        final allowMemberMessage = _extractAllowMemberMessageFromPayload(
+          payload,
+        );
         if (mounted) {
           if (allowMemberMessage != null) {
             setState(() {
@@ -194,7 +192,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         return;
       }
 
-      if (event.event == 'message:pinned' || event.event == 'message:unpinned') {
+      if (event.event == 'message:pinned' ||
+          event.event == 'message:unpinned') {
         ref
             .read(chatBlocProvider)
             .add(RefreshPinnedMessagesEvent(widget.conversationId));
@@ -337,10 +336,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
 
     final nested = _toNormalizedMap(root['data']);
-    final candidates = <Map<String, dynamic>>[
-      root,
-      if (nested != null) nested,
-    ];
+    final candidates = <Map<String, dynamic>>[root, if (nested != null) nested];
 
     for (final map in candidates) {
       for (final key in keys) {
@@ -376,18 +372,32 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           (first == targetUserId && second == currentUserId);
     }
 
-    if (eventName == 'friendship:unblocked' || eventName == 'friendship.unblocked') {
-      final unblocker = _extractIdFromPayload(payload, const ['unblocker', 'unblockerId']);
-      final unblocked = _extractIdFromPayload(payload, const ['unblocked', 'unblockedId']);
+    if (eventName == 'friendship:unblocked' ||
+        eventName == 'friendship.unblocked') {
+      final unblocker = _extractIdFromPayload(payload, const [
+        'unblocker',
+        'unblockerId',
+      ]);
+      final unblocked = _extractIdFromPayload(payload, const [
+        'unblocked',
+        'unblockedId',
+      ]);
       if (matchPair(unblocker, unblocked)) {
         return _DirectBlockRelation.none;
       }
       return null;
     }
 
-    if (eventName == 'friendship:blocked' || eventName == 'friendship.blocked') {
-      final blocker = _extractIdFromPayload(payload, const ['blocker', 'blockerId']);
-      final blocked = _extractIdFromPayload(payload, const ['blocked', 'blockedId']);
+    if (eventName == 'friendship:blocked' ||
+        eventName == 'friendship.blocked') {
+      final blocker = _extractIdFromPayload(payload, const [
+        'blocker',
+        'blockerId',
+      ]);
+      final blocked = _extractIdFromPayload(payload, const [
+        'blocked',
+        'blockedId',
+      ]);
       if (blocker == currentUserId && blocked == targetUserId) {
         return _DirectBlockRelation.blockedByMe;
       }
@@ -414,8 +424,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
 
     if (current['data'] is Map) {
-      current = (current['data'] as Map)
-          .map((key, value) => MapEntry(key.toString(), value));
+      current = (current['data'] as Map).map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
     }
 
     if (current is! Map<String, dynamic>) {
@@ -468,8 +479,12 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
       final data = normalized['data'];
       if (data is Map) {
-        final nested = data.map((key, value) => MapEntry(key.toString(), value));
-        final nestedConversationId = nested['conversationId']?.toString().trim();
+        final nested = data.map(
+          (key, value) => MapEntry(key.toString(), value),
+        );
+        final nestedConversationId = nested['conversationId']
+            ?.toString()
+            .trim();
         if (nestedConversationId != null && nestedConversationId.isNotEmpty) {
           return nestedConversationId;
         }
@@ -666,7 +681,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
   bool _isGroupMemberPostingRestricted(ChatLoaded state) {
     final conversation = state.conversation;
-    if (conversation == null || conversation.type.trim().toLowerCase() != 'group') {
+    if (conversation == null ||
+        conversation.type.trim().toLowerCase() != 'group') {
       return false;
     }
 
@@ -709,7 +725,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         return;
       }
 
-      ref.read(chatBlocProvider).add(ChatInitialLoadEvent(widget.conversationId));
+      ref
+          .read(chatBlocProvider)
+          .add(ChatInitialLoadEvent(widget.conversationId));
       unawaited(_loadConversationPolls());
       return;
     }
@@ -724,7 +742,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       return;
     }
 
-    final title = targetParticipant != null &&
+    final title =
+        targetParticipant != null &&
             targetParticipant.displayName.trim().isNotEmpty
         ? targetParticipant.displayName
         : (targetParticipant?.username.trim().isNotEmpty == true
@@ -744,8 +763,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           avatarUrl: targetParticipant?.avatarUrl,
           initialBlockedByTarget:
               blockRelation == _DirectBlockRelation.blockedByPeer,
-          initialBlockedByMe:
-              blockRelation == _DirectBlockRelation.blockedByMe,
+          initialBlockedByMe: blockRelation == _DirectBlockRelation.blockedByMe,
         ),
       ),
     );
@@ -785,11 +803,15 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           const SizedBox(width: 8),
           FilledButton.tonal(
             onPressed: () async {
-              final result = await ref.read(sendFriendRequestUseCaseProvider).call(targetUserId);
+              final result = await ref
+                  .read(sendFriendRequestUseCaseProvider)
+                  .call(targetUserId);
               if (!mounted) return;
               result.fold(
                 (failure) => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to send request: ${failure.message}')),
+                  SnackBar(
+                    content: Text('Failed to send request: ${failure.message}'),
+                  ),
                 ),
                 (_) {
                   ref.invalidate(friendshipStatusProvider(targetUserId));
@@ -821,7 +843,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-            color: theme.colorScheme.primary.withValues(alpha: 0.3)),
+          color: theme.colorScheme.primary.withValues(alpha: 0.3),
+        ),
       ),
       child: Row(
         children: [
@@ -831,8 +854,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             size: 20,
           ),
           const SizedBox(width: 10),
-          const Expanded(
-              child: Text('This person sent you a friend request.')),
+          const Expanded(child: Text('This person sent you a friend request.')),
           const SizedBox(width: 8),
           FilledButton(
             onPressed: () async {
@@ -843,14 +865,15 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               result.fold(
                 (failure) => ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                      content: Text(
-                          'Failed to accept request: ${failure.message}')),
+                    content: Text(
+                      'Failed to accept request: ${failure.message}',
+                    ),
+                  ),
                 ),
                 (_) {
                   ref.invalidate(friendshipStatusProvider(targetUserId));
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Friend request accepted!')),
+                    const SnackBar(content: Text('Friend request accepted!')),
                   );
                 },
               );
@@ -887,7 +910,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           ),
           const SizedBox(width: 10),
           const Expanded(
-              child: Text('You sent a friend request to this person.')),
+            child: Text('You sent a friend request to this person.'),
+          ),
           const SizedBox(width: 8),
           OutlinedButton(
             onPressed: () async {
@@ -898,14 +922,15 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               result.fold(
                 (failure) => ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                      content: Text(
-                          'Failed to cancel request: ${failure.message}')),
+                    content: Text(
+                      'Failed to cancel request: ${failure.message}',
+                    ),
+                  ),
                 ),
                 (_) {
                   ref.invalidate(friendshipStatusProvider(targetUserId));
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Friend request cancelled.')),
+                    const SnackBar(content: Text('Friend request cancelled.')),
                   );
                 },
               );
@@ -929,7 +954,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         'You have been blocked by this user.',
       _DirectBlockRelation.blockedByMe =>
         'You blocked this user. Unblock them to send messages again.',
-      _ => 'You cannot send message because this direct chat is currently blocked.',
+      _ =>
+        'You cannot send message because this direct chat is currently blocked.',
     };
 
     return Container(
@@ -947,12 +973,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         children: [
           Icon(Icons.block_outlined, color: theme.colorScheme.error),
           const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              message,
-              style: theme.textTheme.bodyMedium
-            ),
-          ),
+          Expanded(child: Text(message, style: theme.textTheme.bodyMedium)),
         ],
       ),
     );
@@ -1013,8 +1034,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   final message = rawMessage.contains('STRANGER_NOT_ALLOWED')
                       ? 'This user does not allow calls from people they don\'t know.'
                       : rawMessage.trim().isNotEmpty
-                          ? rawMessage
-                          : null;
+                      ? rawMessage
+                      : null;
 
                   if (message != null) {
                     messenger.showSnackBar(SnackBar(content: Text(message)));
@@ -1066,9 +1087,16 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               if (state is ChatLoaded && state.jumpHighlightMessageId != null) {
                 Future.delayed(const Duration(seconds: 2), () {
                   if (mounted) {
-                    ref.read(chatBlocProvider).add(const ClearJumpHighlightEvent());
+                    ref
+                        .read(chatBlocProvider)
+                        .add(const ClearJumpHighlightEvent());
                   }
                 });
+              }
+
+              if (state is ChatLoaded &&
+                  state.conversation?.type.trim().toLowerCase() == 'group') {
+                _checkActiveGroupCallForConversation(state.conversation!);
               }
             },
             builder: (context, state) {
@@ -1076,24 +1104,26 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   state is ChatLoaded &&
                   state.conversation != null &&
                   state.conversation?.type.trim().toLowerCase() == 'group';
-              final directTargetUserId =
-                state is ChatLoaded ? _resolveDirectTargetUserId(state) : null;
+              final directTargetUserId = state is ChatLoaded
+                  ? _resolveDirectTargetUserId(state)
+                  : null;
               final directFriendshipStatus = directTargetUserId != null
-                ? ref.watch(friendshipStatusProvider(directTargetUserId))
-                : null;
+                  ? ref.watch(friendshipStatusProvider(directTargetUserId))
+                  : null;
               final directBlockRelation =
-                state is ChatLoaded &&
-                state.conversation?.type.trim().toLowerCase() == 'direct'
+                  state is ChatLoaded &&
+                      state.conversation?.type.trim().toLowerCase() == 'direct'
                   ? (_directBlockRelationOverride ??
-                      _deriveBlockRelationFromStatus(
-                        directFriendshipStatus?.valueOrNull,
-                      ))
+                        _deriveBlockRelationFromStatus(
+                          directFriendshipStatus?.valueOrNull,
+                        ))
                   : _DirectBlockRelation.none;
               final isDirectChatBlocked =
                   directBlockRelation != _DirectBlockRelation.none;
               final isGroupPostingRestricted =
                   state is ChatLoaded && _isGroupMemberPostingRestricted(state);
-              final hideComposer = isDirectChatBlocked || isGroupPostingRestricted;
+              final hideComposer =
+                  isDirectChatBlocked || isGroupPostingRestricted;
               final appBarTitle = isGroupConversation
                   ? (() {
                       final name = state.conversation?.name.trim() ?? '';
@@ -1109,11 +1139,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   : null;
 
               if (isGroupConversation && activeGroupCall != null) {
-                _maybeShowActiveGroupCallDialog(
-                  context,
-                  activeGroupCall,
-                  appBarTitle,
-                );
+                _verifyActiveGroupCallState(activeGroupCall);
               }
 
               return Scaffold(
@@ -1129,10 +1155,11 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       children: [
                         Text(
                           appBarTitle,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface,
+                                fontWeight: FontWeight.bold,
+                              ),
                           textAlign: TextAlign.left,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -1162,9 +1189,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                           children: [
                             IconButton(
                               tooltip: 'Call',
-                              onPressed: callState.isStarting ||
-                                  (isGroupConversation &&
-                                    activeGroupCall != null)
+                              onPressed:
+                                  callState.isStarting ||
+                                      (isGroupConversation &&
+                                          activeGroupCall != null)
                                   ? null
                                   : () => _startOutgoingCall(context, state),
                               icon: callState.isStarting
@@ -1201,64 +1229,101 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       PinMessagePanel(
                         pinnedMessages: state.pinnedMessages,
                         onTapItem: (pinMessage) {
-                          ref.read(chatBlocProvider).add(
-                            JumpToMessageEvent(
-                              conversationId: widget.conversationId,
-                              messageId: pinMessage.messageId,
-                            ),
-                          );
+                          ref
+                              .read(chatBlocProvider)
+                              .add(
+                                JumpToMessageEvent(
+                                  conversationId: widget.conversationId,
+                                  messageId: pinMessage.messageId,
+                                ),
+                              );
                         },
                         onUnpin: (pinMessage) {
-                          ref.read(chatBlocProvider).add(
-                            UnpinMessageEvent(
-                              messageId: pinMessage.messageId,
-                              conversationId: widget.conversationId,
-                            ),
-                          );
+                          ref
+                              .read(chatBlocProvider)
+                              .add(
+                                UnpinMessageEvent(
+                                  messageId: pinMessage.messageId,
+                                  conversationId: widget.conversationId,
+                                ),
+                              );
                         },
                       ),
 
                     if (state is ChatLoaded &&
-                      state.conversation?.type.trim().toLowerCase() == 'direct' &&
-                      directTargetUserId != null) ...[
+                        state.conversation?.type.trim().toLowerCase() ==
+                            'direct' &&
+                        directTargetUserId != null) ...[
                       if (directFriendshipStatus?.valueOrNull?.isNone == true)
                         _buildStrangerPanel(context, directTargetUserId),
-                      if (directFriendshipStatus?.valueOrNull?.isPendingIn == true)
+                      if (directFriendshipStatus?.valueOrNull?.isPendingIn ==
+                          true)
                         _buildPendingInPanel(context, directTargetUserId),
-                      if (directFriendshipStatus?.valueOrNull?.isPendingOut == true)
+                      if (directFriendshipStatus?.valueOrNull?.isPendingOut ==
+                          true)
                         _buildPendingOutPanel(context, directTargetUserId),
                     ],
 
                     if (state is ChatLoaded) _buildOpenPollPanel(state),
+                    if (isGroupConversation &&
+                        activeGroupCall != null &&
+                        _verifiedActiveGroupCallIds.contains(
+                          activeGroupCall.call.id.trim(),
+                        ) &&
+                        _dismissedActiveGroupCallId !=
+                            activeGroupCall.call.id.trim())
+                      _buildActiveGroupCallPanel(
+                        context,
+                        activeGroupCall,
+                        appBarTitle,
+                      ),
 
                     Expanded(
                       child: Stack(
                         children: [
                           _buildMessagesPane(state, l10n, chatBloc),
                           // "↓ N new messages" badge when jumped
-                          if (state is ChatLoaded && state.isJumped && state.pendingCount > 0)
+                          if (state is ChatLoaded &&
+                              state.isJumped &&
+                              state.pendingCount > 0)
                             Positioned(
                               bottom: 12,
                               right: 16,
                               child: GestureDetector(
-                                onTap: () => chatBloc.add(ReturnToLiveEvent(widget.conversationId)),
+                                onTap: () => chatBloc.add(
+                                  ReturnToLiveEvent(widget.conversationId),
+                                ),
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.primaryContainer,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primaryContainer,
                                     borderRadius: BorderRadius.circular(20),
                                     boxShadow: [
-                                      BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+                                      BoxShadow(
+                                        color: Colors.black26,
+                                        blurRadius: 4,
+                                        offset: Offset(0, 2),
+                                      ),
                                     ],
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.keyboard_arrow_down, size: 16),
+                                      const Icon(
+                                        Icons.keyboard_arrow_down,
+                                        size: 16,
+                                      ),
                                       const SizedBox(width: 4),
                                       Text(
                                         '${state.pendingCount} new',
-                                        style: Theme.of(context).textTheme.labelMedium,
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.labelMedium,
                                       ),
                                     ],
                                   ),
@@ -1280,10 +1345,13 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                         ),
                         child: Text(
                           l10n.typing_indicator,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontStyle: FontStyle.italic,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                fontStyle: FontStyle.italic,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
                         ),
                       ),
                     ],
@@ -1410,10 +1478,11 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         ? pollMessages.first
         : null;
 
-    final combinedMessages = displayMessages
-        .where((message) => message is! PollChatMessage)
-        .toList(growable: true)
-      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    final combinedMessages =
+        displayMessages
+            .where((message) => message is! PollChatMessage)
+            .toList(growable: true)
+          ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
     // Business rule: poll still appears as a message but is always surfaced as the newest item.
     if (latestOpenPollMessage != null) {
@@ -1441,7 +1510,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         }
 
         final message = combinedMessages[combinedMessages.length - 1 - index];
-        final isHighlighted = state.jumpHighlightMessageId != null &&
+        final isHighlighted =
+            state.jumpHighlightMessageId != null &&
             (message.serverId == state.jumpHighlightMessageId ||
                 message.localId == state.jumpHighlightMessageId);
 
@@ -1489,7 +1559,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         if (!isHighlighted) return bubble;
 
         return _JumpHighlightWrapper(
-          key: ValueKey('highlight_${message.localId ?? message.serverId ?? index}'),
+          key: ValueKey(
+            'highlight_${message.localId ?? message.serverId ?? index}',
+          ),
           child: bubble,
         );
       },
@@ -1528,9 +1600,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               Expanded(
                 child: Text(
                   'Active poll',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
             ],
@@ -1540,9 +1612,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               question,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
         ],
       ),
@@ -1773,90 +1845,225 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     );
   }
 
-  void _maybeShowActiveGroupCallDialog(
+  Widget _buildActiveGroupCallPanel(
     BuildContext context,
     ActiveGroupCallState activeCall,
     String roomName,
   ) {
-    if (ModalRoute.of(context)?.isCurrent != true) {
-      return;
-    }
-
     final call = activeCall.call;
     final callId = call.id.trim();
+    final participantCount = activeCall.participantCount;
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.call,
+            color: Theme.of(context).colorScheme.onPrimaryContainer,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Group call is active',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$participantCount participants in this call',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: callId.isEmpty
+                ? null
+                : () {
+                    setState(() {
+                      _dismissedActiveGroupCallId = callId;
+                    });
+                  },
+            child: const Text('Dismiss'),
+          ),
+          const SizedBox(width: 4),
+          FilledButton(
+            onPressed: callId.isEmpty
+                ? null
+                : () {
+                    ref
+                        .read(inCallBlocProvider)
+                        .add(InCallRejoinRequested(call, roomName: roomName));
+                    final route = Uri(
+                      path: '/in-call',
+                      queryParameters: {
+                        'conversationId': widget.conversationId,
+                        'roomName': roomName,
+                      },
+                    ).toString();
+                    context.push(route);
+                  },
+            child: const Text('Rejoin'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _verifyActiveGroupCallState(ActiveGroupCallState activeCall) {
+    final callId = activeCall.call.id.trim();
     if (callId.isEmpty ||
-        _dismissedActiveGroupCallId == callId ||
-        _activeGroupCallDialogId == callId) {
+        _verifiedActiveGroupCallIds.contains(callId) ||
+        _verifyingActiveGroupCallIds.contains(callId)) {
       return;
     }
 
-    _activeGroupCallDialogId = callId;
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) {
-        _activeGroupCallDialogId = null;
-        return;
-      }
+    _verifyingActiveGroupCallIds.add(callId);
+    Future<void>(() async {
+      final result = await ref
+          .read(callRepositoryProvider)
+          .fetchSingleCallRecord(callId);
+      if (!mounted) return;
 
-      final result = await showDialog<_ActiveGroupCallDialogResult>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) {
-          final participantCount = activeCall.participantCount;
-          return AlertDialog(
-            title: const Text('Group call is still active'),
-            content: Text(
-              '$participantCount participant${participantCount == 1 ? '' : 's'} still in this group call.',
+      _verifyingActiveGroupCallIds.remove(callId);
+      result.fold((_) => _removeActiveGroupCall(callId), (call) {
+        final status = call.status.trim().toUpperCase();
+        final participantCount = call.participants.isNotEmpty
+            ? call.participants.length
+            : activeCall.participantCount;
+        if (status != 'ACTIVE') {
+          _removeActiveGroupCall(callId);
+          return;
+        }
+
+        final conversationId = call.conversationId.trim().isNotEmpty
+            ? call.conversationId.trim()
+            : widget.conversationId.trim();
+        if (conversationId.isNotEmpty) {
+          final previous = ref.read(activeGroupCallsProvider);
+          ref.read(activeGroupCallsProvider.notifier).state = {
+            ...previous,
+            conversationId: ActiveGroupCallState(
+              call: call,
+              participantCount: participantCount,
             ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(dialogContext).pop(
-                    _ActiveGroupCallDialogResult.decline,
-                  );
-                },
-                child: const Text('Decline'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  Navigator.of(dialogContext).pop(
-                    _ActiveGroupCallDialogResult.accept,
-                  );
-                },
-                child: const Text('Accept'),
-              ),
-            ],
+          };
+        }
+
+        if (mounted) {
+          setState(() {
+            _verifiedActiveGroupCallIds.add(callId);
+          });
+        }
+      });
+    });
+  }
+
+  void _checkActiveGroupCallForConversation(Conversation conversation) {
+    final conversationId = conversation.id.trim().isNotEmpty
+        ? conversation.id.trim()
+        : widget.conversationId.trim();
+    if (conversationId.isEmpty ||
+        _activeGroupCallCheckedConversationIds.contains(conversationId)) {
+      return;
+    }
+
+    _activeGroupCallCheckedConversationIds.add(conversationId);
+    Future<void>(() async {
+      final result = await ref
+          .read(callRepositoryProvider)
+          .fetchCallRecords(conversationId, 1, 10);
+      if (!mounted) return;
+
+      result.fold(
+        (failure) {
+          debugPrint(
+            '[ChatPage] active group call check failed: ${failure.message}',
           );
+          _activeGroupCallCheckedConversationIds.remove(conversationId);
+        },
+        (calls) {
+          final activeCalls = calls.where(
+            (call) => call.status.trim().toUpperCase() == 'ACTIVE',
+          );
+          if (activeCalls.isEmpty) {
+            return;
+          }
+
+          final call = activeCalls.reduce((a, b) {
+            final aTime = a.startedAt.isAfter(a.createdAt)
+                ? a.startedAt
+                : a.createdAt;
+            final bTime = b.startedAt.isAfter(b.createdAt)
+                ? b.startedAt
+                : b.createdAt;
+            return aTime.isAfter(bTime) ? a : b;
+          });
+          final participantCount = call.participants.isNotEmpty
+              ? call.participants.length
+              : conversation.memberCount;
+          final callId = call.id.trim();
+          if (callId.isEmpty) {
+            return;
+          }
+
+          final activeConversationId = call.conversationId.trim().isNotEmpty
+              ? call.conversationId.trim()
+              : conversationId;
+          final previous = ref.read(activeGroupCallsProvider);
+          ref.read(activeGroupCallsProvider.notifier).state = {
+            ...previous,
+            activeConversationId: ActiveGroupCallState(
+              call: call,
+              participantCount: participantCount,
+            ),
+          };
+
+          setState(() {
+            _verifiedActiveGroupCallIds.add(callId);
+          });
         },
       );
-
-      if (!mounted) {
-        _activeGroupCallDialogId = null;
-        return;
-      }
-
-      if (result == _ActiveGroupCallDialogResult.decline) {
-        setState(() {
-          _dismissedActiveGroupCallId = callId;
-          _activeGroupCallDialogId = null;
-        });
-        return;
-      }
-
-      _activeGroupCallDialogId = null;
-      if (result == _ActiveGroupCallDialogResult.accept) {
-        ref.read(inCallBlocProvider).add(
-          InCallRejoinRequested(call, roomName: roomName),
-        );
-        final route = Uri(
-          path: '/in-call',
-          queryParameters: {
-            'conversationId': widget.conversationId,
-            'roomName': roomName,
-          },
-        ).toString();
-        context.push(route);
-      }
     });
+  }
+
+  void _removeActiveGroupCall(String callId) {
+    final normalizedCallId = callId.trim();
+    if (normalizedCallId.isEmpty) return;
+    final previous = ref.read(activeGroupCallsProvider);
+    final next = Map<String, ActiveGroupCallState>.from(previous)
+      ..removeWhere(
+        (_, activeCall) => activeCall.call.id.trim() == normalizedCallId,
+      );
+    if (next.length != previous.length) {
+      ref.read(activeGroupCallsProvider.notifier).state = next;
+    }
+    if (mounted) {
+      setState(() {
+        _verifiedActiveGroupCallIds.remove(normalizedCallId);
+        if (_dismissedActiveGroupCallId == normalizedCallId) {
+          _dismissedActiveGroupCallId = null;
+        }
+      });
+    }
   }
 
   List<String> _resolveOutgoingCallCalleeIds(
@@ -1897,7 +2104,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     if (state is ChatLoaded && _isGroupMemberPostingRestricted(state)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Only admins can send messages in this group right now.'),
+          content: Text(
+            'Only admins can send messages in this group right now.',
+          ),
         ),
       );
       return;
@@ -2380,14 +2589,12 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     final pinMessageId = _resolveMessageIdForAction(message)?.trim();
     final chatState = ref.read(chatBlocProvider).state;
     final canPin =
-      !message.isDeleted &&
-      pinMessageId != null &&
-      pinMessageId.isNotEmpty;
+        !message.isDeleted && pinMessageId != null && pinMessageId.isNotEmpty;
     final isPinned =
-      chatState is ChatLoaded &&
-      pinMessageId != null &&
-      pinMessageId.isNotEmpty &&
-      chatState.pinnedMessages.any((pin) => pin.messageId == pinMessageId);
+        chatState is ChatLoaded &&
+        pinMessageId != null &&
+        pinMessageId.isNotEmpty &&
+        chatState.pinnedMessages.any((pin) => pin.messageId == pinMessageId);
     final hasText =
         !message.isDeleted &&
         message is TextChatMessage &&
@@ -2535,21 +2742,25 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       case MessageAction.pin:
         final messageId = _resolveMessageIdForAction(message)?.trim();
         if (messageId == null || messageId.isEmpty) return;
-        ref.read(chatBlocProvider).add(
-          PinMessageEvent(
-            messageId: messageId,
-            conversationId: widget.conversationId,
-          ),
-        );
+        ref
+            .read(chatBlocProvider)
+            .add(
+              PinMessageEvent(
+                messageId: messageId,
+                conversationId: widget.conversationId,
+              ),
+            );
       case MessageAction.unpin:
         final messageId = _resolveMessageIdForAction(message)?.trim();
         if (messageId == null || messageId.isEmpty) return;
-        ref.read(chatBlocProvider).add(
-          UnpinMessageEvent(
-            messageId: messageId,
-            conversationId: widget.conversationId,
-          ),
-        );
+        ref
+            .read(chatBlocProvider)
+            .add(
+              UnpinMessageEvent(
+                messageId: messageId,
+                conversationId: widget.conversationId,
+              ),
+            );
     }
   }
 
@@ -2786,10 +2997,8 @@ class _JumpHighlightWrapperState extends State<_JumpHighlightWrapper>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _colorAnimation,
-      builder: (context, child) => Container(
-        color: _colorAnimation.value,
-        child: child,
-      ),
+      builder: (context, child) =>
+          Container(color: _colorAnimation.value, child: child),
       child: widget.child,
     );
   }

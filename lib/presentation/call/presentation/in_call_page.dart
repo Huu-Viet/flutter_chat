@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_chat/core/platform_services/platform_service_providers.dart';
+import 'package:flutter_chat/features/call/call_providers.dart';
 import 'package:flutter_chat/features/call/export.dart';
 import 'package:flutter_chat/presentation/call/blocs/in_call_bloc.dart';
 import 'package:flutter_chat/presentation/call/providers/call_bloc_provider.dart';
@@ -37,6 +38,17 @@ class InCallPage extends ConsumerWidget {
           if (state is InCallEnded) {
             ref.read(notiServiceProvider).endCallKit(state.endedCallId);
             debugPrint('[InCallPage]Check conversation: $conversationId');
+            if ((state.endedCallId ?? '').trim().isEmpty &&
+                conversationId.trim().isNotEmpty) {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go(
+                  '/chat/${Uri.encodeComponent(conversationId)}/${Uri.encodeComponent(initialRoomName.trim().isEmpty ? 'Group' : initialRoomName)}',
+                );
+              }
+              return;
+            }
             context.go('/home');
           }
 
@@ -53,19 +65,28 @@ class InCallPage extends ConsumerWidget {
             final activeSession = state.session;
 
             // Show error UI if there's an error and no session
-            if (activeSession == null && state.errorMessage != null && state.errorMessage!.isNotEmpty) {
+            if (activeSession == null &&
+                state.errorMessage != null &&
+                state.errorMessage!.isNotEmpty) {
               return Scaffold(
                 backgroundColor: Colors.black,
                 body: Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, color: Colors.red, size: 64),
+                      const Icon(
+                        Icons.error_outline,
+                        color: Colors.red,
+                        size: 64,
+                      ),
                       const SizedBox(height: 24),
                       Text(
                         state.errorMessage!,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white, fontSize: 16),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                        ),
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton.icon(
@@ -86,8 +107,13 @@ class InCallPage extends ConsumerWidget {
               );
             }
 
-            final participantCount = activeSession.call.participants.length;
+            final participantCount = _activeParticipantCount(
+              state,
+              activeSession,
+            );
             final isRinging = _isRinging(activeSession);
+            final willEndCall =
+                !activeSession.isGroupCall || participantCount <= 2;
 
             if (!isRinging) {
               return Scaffold(
@@ -118,6 +144,14 @@ class InCallPage extends ConsumerWidget {
                               videoState.isConnectingRoom ||
                               videoState.isAcceptingCall,
                           errorMessage: videoState.mediaErrorMessage,
+                          peerName: initialRoomName.isNotEmpty
+                              ? initialRoomName
+                              : (activeSession.call.callerName.isNotEmpty
+                                  ? activeSession.call.callerName
+                                  : 'Participant'),
+                          peerAvatar: activeSession.call.callerAvatar.isNotEmpty
+                              ? activeSession.call.callerAvatar
+                              : null,
                         ),
                       ),
                     ),
@@ -136,8 +170,8 @@ class InCallPage extends ConsumerWidget {
                             ),
                             const Spacer(),
                             _CallInfoPill(
-                              title: activeSession.roomName.isNotEmpty
-                                  ? activeSession.roomName
+                              title: initialRoomName.isNotEmpty
+                                  ? initialRoomName
                                   : 'Call in Progress',
                               subtitle: 'Participants: $participantCount',
                             ),
@@ -155,6 +189,7 @@ class InCallPage extends ConsumerWidget {
                           isCameraEnabled: state.isCameraEnabled,
                           isSpeakerOn: state.isSpeakerOn,
                           isGroupCall: activeSession.isGroupCall,
+                          willEndCall: willEndCall,
                           isMicUpdating: state.isMicUpdating,
                           isCameraUpdating: state.isCameraUpdating,
                           onToggleMic: () => context.read<InCallBloc>().add(
@@ -166,9 +201,18 @@ class InCallPage extends ConsumerWidget {
                           onToggleSpeaker: () => context.read<InCallBloc>().add(
                             const InCallToggleSpeakerRequested(),
                           ),
-                          onEndCall: () => context.read<InCallBloc>().add(
-                            const InCallEndRequested(),
-                          ),
+                          onEndCall: () {
+                            if (!willEndCall) {
+                              _cacheActiveGroupCallForRejoin(
+                                ref,
+                                activeSession.call,
+                                participantCount,
+                              );
+                            }
+                            context.read<InCallBloc>().add(
+                              const InCallEndRequested(),
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -178,73 +222,79 @@ class InCallPage extends ConsumerWidget {
             }
 
             return Scaffold(
-              backgroundColor: Colors.black,
-              body: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
+              body: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFF1A1A2E), Color(0xFF050510)],
+                  ),
+                ),
+                child: SafeArea(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Align(
-                        alignment: Alignment.topLeft,
-                        child: IconButton(
-                          onPressed: () => Navigator.of(context).maybePop(),
-                          color: Colors.white,
-                          icon: const Icon(Icons.keyboard_arrow_down_rounded),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      CircleAvatar(
-                        radius: 48,
-                        backgroundColor: Colors.white12,
-                        child: Text(
-                          activeSession.call.callerId.isNotEmpty
-                              ? activeSession.call.callerId
-                                    .substring(0, 1)
-                                    .toUpperCase()
-                              : '?',
-                          style: const TextStyle(
+                      // Top bar
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(4, 8, 16, 0),
+                        child: Align(
+                          alignment: Alignment.topLeft,
+                          child: IconButton(
+                            onPressed: () => Navigator.of(context).maybePop(),
                             color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
+                            icon: const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const Spacer(),
+                      // Pulsing avatar
+                      _PulsingCallAvatar(
+                        name: initialRoomName.isNotEmpty
+                            ? initialRoomName
+                            : (activeSession.call.callerName.isNotEmpty
+                                ? activeSession.call.callerName
+                                : '?'),
+                        avatarUrl: activeSession.call.callerAvatar.isNotEmpty
+                            ? activeSession.call.callerAvatar
+                            : null,
+                        size: 96,
+                      ),
+                      const SizedBox(height: 32),
+                      // Name
+                      if (initialRoomName.isNotEmpty) ...[
+                        Text(
+                          initialRoomName,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      // Status
                       Text(
                         activeSession.isIncoming
                             ? 'Connecting...'
-                            : 'Ringing...',
+                            : 'Calling...',
                         style: const TextStyle(
-                          color: Colors.white70,
+                          color: Colors.white60,
                           fontSize: 16,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        activeSession.call.callerId,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Participants: $participantCount',
-                        style: const TextStyle(color: Colors.white60),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Status: ${activeSession.call.status}',
-                        style: const TextStyle(color: Colors.white60),
-                      ),
                       const Spacer(),
-                      _RingingCallPanel(
-                        isEndingCall: state.isEndingCall,
-                        onCancel: () => context.read<InCallBloc>().add(
-                          const InCallEndRequested(),
+                      // Cancel button
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+                        child: _RingingCallPanel(
+                          isEndingCall: state.isEndingCall,
+                          onCancel: () => context.read<InCallBloc>().add(
+                            const InCallEndRequested(),
+                          ),
                         ),
                       ),
                     ],
@@ -275,5 +325,40 @@ class InCallPage extends ConsumerWidget {
       'CANCELED',
       'FAILED',
     }.contains(status);
+  }
+
+  int _activeParticipantCount(InCallState state, CallSession session) {
+    final room = state.room;
+    if (room != null) {
+      return room.remoteParticipants.length + 1;
+    }
+    return session.call.participants.isNotEmpty
+        ? session.call.participants.length
+        : 1;
+  }
+
+  void _cacheActiveGroupCallForRejoin(
+    WidgetRef ref,
+    CallInfo call,
+    int participantCount,
+  ) {
+    final normalizedConversationId = call.conversationId.trim().isNotEmpty
+        ? call.conversationId.trim()
+        : conversationId.trim();
+    final normalizedCallId = call.id.trim();
+    if (normalizedConversationId.isEmpty ||
+        normalizedCallId.isEmpty ||
+        participantCount <= 2) {
+      return;
+    }
+
+    final previous = ref.read(activeGroupCallsProvider);
+    ref.read(activeGroupCallsProvider.notifier).state = {
+      ...previous,
+      normalizedConversationId: ActiveGroupCallState(
+        call: call,
+        participantCount: participantCount,
+      ),
+    };
   }
 }

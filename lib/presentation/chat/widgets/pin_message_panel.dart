@@ -55,7 +55,11 @@ class _PinMessagePanelState extends State<PinMessagePanel> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             child: Row(
               children: [
-                Icon(Icons.push_pin, size: 16, color: theme.colorScheme.primary),
+                Icon(
+                  Icons.push_pin,
+                  size: 16,
+                  color: theme.colorScheme.primary,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   l10n.pin_message,
@@ -67,6 +71,7 @@ class _PinMessagePanelState extends State<PinMessagePanel> {
               ],
             ),
           ),
+
           /// LIST
           ..._displayMessages.map((msg) {
             return InkWell(
@@ -83,16 +88,20 @@ class _PinMessagePanelState extends State<PinMessagePanel> {
                         mainAxisSize: MainAxisSize.min,
                         children: List.generate(
                           widget.pinnedMessages.length,
-                              (index) => Container(
+                          (index) => Container(
                             margin: const EdgeInsets.symmetric(vertical: 1),
                             width: 3,
                             height: 18 / widget.pinnedMessages.length,
-                            decoration: _isExpanded ? null : BoxDecoration(
-                              color: index == 0
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.primary.withAlpha(40),
-                              borderRadius: BorderRadius.circular(2),
-                            ),
+                            decoration: _isExpanded
+                                ? null
+                                : BoxDecoration(
+                                    color: index == 0
+                                        ? theme.colorScheme.primary
+                                        : theme.colorScheme.primary.withAlpha(
+                                            40,
+                                          ),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
                           ),
                         ),
                       ),
@@ -105,7 +114,7 @@ class _PinMessagePanelState extends State<PinMessagePanel> {
                         children: [
                           Expanded(
                             child: Text(
-                              msg.content,
+                              _previewText(msg),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.bodyMedium?.copyWith(
@@ -138,7 +147,10 @@ class _PinMessagePanelState extends State<PinMessagePanel> {
                 });
               },
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 child: Row(
                   children: [
                     Icon(
@@ -166,5 +178,26 @@ class _PinMessagePanelState extends State<PinMessagePanel> {
       ),
     );
   }
-  
+
+  String _previewText(PinMessage message) {
+    final type = message.type.trim().toLowerCase();
+    if (_isMediaType(type)) {
+      return '[media]';
+    }
+    if (type == 'file') {
+      return '[file]';
+    }
+    return message.content;
+  }
+
+  bool _isMediaType(String type) {
+    return type == 'media' ||
+        type == 'multi_image' ||
+        type == 'multi-image' ||
+        type == 'multiple_image' ||
+        type == 'multiple-image' ||
+        type == 'image' ||
+        type == 'video' ||
+        type == 'audio';
+  }
 }

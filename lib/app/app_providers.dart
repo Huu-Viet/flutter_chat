@@ -130,6 +130,17 @@ final callAppEventSubscriberProvider = Provider<AppEventSubscriber>((ref) {
         ..remove(normalizedConversationId);
       ref.read(activeGroupCallsProvider.notifier).state = next;
     },
+    clearActiveGroupCallByCallId: (callId) {
+      final normalizedCallId = callId.trim();
+      if (normalizedCallId.isEmpty) return;
+      final previous = ref.read(activeGroupCallsProvider);
+      final next = Map<String, ActiveGroupCallState>.from(previous)
+        ..removeWhere(
+          (_, activeCall) => activeCall.call.id.trim() == normalizedCallId,
+        );
+      if (next.length == previous.length) return;
+      ref.read(activeGroupCallsProvider.notifier).state = next;
+    },
     isClosedCall: (callId) {
       return ref.read(closedCallIdsProvider).contains(callId.trim());
     },
