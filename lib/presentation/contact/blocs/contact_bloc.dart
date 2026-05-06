@@ -119,12 +119,11 @@ class ContactBloc extends Bloc<ContactEvent, ContactState> {
       return;
     }
 
-    final busy = previousLoaded?.busyUserIds ?? const <String>{};
     emit(ContactLoaded(
       incomingRequests: incomingUsers,
       outgoingRequests: outgoingUsers,
       friends: friends,
-      busyUserIds: busy,
+      busyUserIds: const <String>{},
       isRefreshing: false,
     ));
   }

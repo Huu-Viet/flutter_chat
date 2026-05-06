@@ -19,16 +19,30 @@ abstract class MessageDao {
   Future<void> saveMessages(List<ChatMessageWithMediasEntity> items);
   Future<void> saveMessage(ChatMessageWithMediasEntity item);
   Future<ChatMessageWithMediasEntity?> getMessageById(String id);
-  Future<ChatMessageWithMediasEntity?> getMessageByClientMessageId(String clientMessageId);
-  Future<List<ChatMessageWithMediasEntity>> getMessagesByConversationId(String conversationId);
-  Stream<List<ChatMessageWithMediasEntity>> watchMessagesByConversationId(String conversationId);
-  Stream<List<PinMessageEntity>> watchPinnedMessagesByConversationId(String conversationId);
+  Future<ChatMessageWithMediasEntity?> getMessageByClientMessageId(
+    String clientMessageId,
+  );
+  Future<List<ChatMessageWithMediasEntity>> getMessagesByConversationId(
+    String conversationId,
+  );
+  Stream<List<ChatMessageWithMediasEntity>> watchMessagesByConversationId(
+    String conversationId,
+  );
+  Stream<List<PinMessageEntity>> watchPinnedMessagesByConversationId(
+    String conversationId,
+  );
   Future<void> clearMessagesByConversationId(String conversationId);
   Future<void> clearAllMessages();
   Future<void> updateServerId(String localId, String serverId);
-  Future<void> updateMessageContent(String id, String content, DateTime editedAt);
+  Future<void> updateMessageContent(
+    String id,
+    String content,
+    DateTime editedAt,
+  );
   Future<void> updateMessageDeleted(String messageIdentifier);
-  Future<List<MessageReactionEntity>> getMessageReactions(String messageIdentifier);
+  Future<List<MessageReactionEntity>> getMessageReactions(
+    String messageIdentifier,
+  );
   Future<void> saveMessageReactions(
     String messageIdentifier,
     List<MessageReactionEntity> reactions,
@@ -37,11 +51,15 @@ abstract class MessageDao {
     String conversationId,
     List<PinMessageEntity> pinMessages,
   );
-  Future<List<PinMessageEntity>> getPinnedMessagesByConversationId(String conversationId);
+  Future<List<PinMessageEntity>> getPinnedMessagesByConversationId(
+    String conversationId,
+  );
+  Future<void> deleteLocalMessage(String localId);
 }
 
 class DriftMessageDaoImpl implements MessageDao {
   final AppDatabase _database;
+  static const Duration _optimisticMessageMergeWindow = Duration(minutes: 2);
 
   DriftMessageDaoImpl(this._database);
 
@@ -63,6 +81,11 @@ class DriftMessageDaoImpl implements MessageDao {
       final message = item.message;
       final clientMessageId = message.serverId?.trim();
       if (clientMessageId == null || clientMessageId.isEmpty) {
+        final optimistic = await _findMatchingOptimisticMessage(message);
+        if (optimistic != null) {
+          await _replaceExistingMessage(optimistic.id, item);
+          return;
+        }
         await _database.insertMessage(message);
         await _database.replaceMessageMedias(message.id, item.medias);
         return;
@@ -87,26 +110,13 @@ class DriftMessageDaoImpl implements MessageDao {
           return;
         }
 
-        await (_database.update(_database.chatMessages)
-              ..where((tbl) => tbl.id.equals(existing.id)))
-            .write(
-          ChatMessagesCompanion(
-            id: Value(message.id),
-            conversationId: Value(message.conversationId),
-            senderId: Value(message.senderId),
-            content: Value(message.content),
-            type: Value(message.type),
-            offset: Value(message.offset),
-            isDeleted: Value(message.isDeleted),
-            isRevoked: Value(message.isRevoked),
-            metadata: Value(message.metadata),
-            serverId: Value(message.serverId),
-            createdAt: Value(message.createdAt),
-            editedAt: Value(message.editedAt),
-            forwardInfoJson: Value(message.forwardInfoJson)
-          ),
-        );
-        await _database.replaceMessageMedias(existing.id, item.medias);
+        await _replaceExistingMessage(existing.id, item);
+        return;
+      }
+
+      final optimistic = await _findMatchingOptimisticMessage(message);
+      if (optimistic != null) {
+        await _replaceExistingMessage(optimistic.id, item);
         return;
       }
 
@@ -118,6 +128,97 @@ class DriftMessageDaoImpl implements MessageDao {
     }
   }
 
+  Future<void> _replaceExistingMessage(
+    String existingMessageId,
+    ChatMessageWithMediasEntity item,
+  ) async {
+    final message = item.message;
+    await _database.transaction(() async {
+      await (_database.delete(
+        _database.messageMedias,
+      )..where((tbl) => tbl.messageId.equals(existingMessageId))).go();
+      await (_database.update(
+        _database.chatMessages,
+      )..where((tbl) => tbl.id.equals(existingMessageId))).write(
+        ChatMessagesCompanion(
+          id: Value(message.id),
+          conversationId: Value(message.conversationId),
+          senderId: Value(message.senderId),
+          content: Value(message.content),
+          type: Value(message.type),
+          offset: Value(message.offset),
+          isDeleted: Value(message.isDeleted),
+          isRevoked: Value(message.isRevoked),
+          metadata: Value(message.metadata),
+          serverId: Value(message.serverId),
+          createdAt: Value(message.createdAt),
+          editedAt: Value(message.editedAt),
+          forwardInfoJson: Value(message.forwardInfoJson),
+          replyToId: Value(message.replyToId),
+        ),
+      );
+      if (item.medias.isNotEmpty) {
+        await _database.replaceMessageMedias(message.id, item.medias);
+      }
+    });
+  }
+
+  Future<ChatMessageEntity?> _findMatchingOptimisticMessage(
+    ChatMessageEntity message,
+  ) async {
+    final incomingClientMessageId = message.serverId?.trim();
+    if (incomingClientMessageId != null &&
+        incomingClientMessageId.isNotEmpty &&
+        incomingClientMessageId == message.id.trim()) {
+      return null;
+    }
+
+    final incomingCreatedAt = DateTime.tryParse(message.createdAt);
+    if (incomingCreatedAt == null) {
+      return null;
+    }
+
+    final candidates =
+        await (_database.select(_database.chatMessages)..where(
+              (tbl) =>
+                  tbl.conversationId.equals(message.conversationId) &
+                  tbl.senderId.equals(message.senderId) &
+                  tbl.type.equals(message.type) &
+                  tbl.content.equals(message.content) &
+                  tbl.isDeleted.equals(false) &
+                  tbl.id.equals(message.id).not(),
+            ))
+            .get();
+
+    ChatMessageEntity? bestMatch;
+    Duration? bestDifference;
+    for (final candidate in candidates) {
+      final candidateServerId = candidate.serverId?.trim();
+      if (candidateServerId == null ||
+          candidateServerId.isEmpty ||
+          candidateServerId != candidate.id) {
+        continue;
+      }
+
+      final candidateCreatedAt = DateTime.tryParse(candidate.createdAt);
+      if (candidateCreatedAt == null) {
+        continue;
+      }
+
+      final difference = incomingCreatedAt.difference(candidateCreatedAt).abs();
+      if (difference > _optimisticMessageMergeWindow) {
+        continue;
+      }
+
+      if (bestDifference == null || difference < bestDifference) {
+        bestMatch = candidate;
+        bestDifference = difference;
+      }
+    }
+
+    return bestMatch;
+  }
+
   @override
   Future<ChatMessageWithMediasEntity?> getMessageById(String id) async {
     try {
@@ -125,7 +226,9 @@ class DriftMessageDaoImpl implements MessageDao {
       if (message == null) {
         return null;
       }
-      final medias = await _database.getMessageMediasByMessageIds(<String>[message.id]);
+      final medias = await _database.getMessageMediasByMessageIds(<String>[
+        message.id,
+      ]);
       return ChatMessageWithMediasEntity(message: message, medias: medias);
     } catch (e) {
       log(e.toString());
@@ -134,13 +237,17 @@ class DriftMessageDaoImpl implements MessageDao {
   }
 
   @override
-  Future<ChatMessageWithMediasEntity?> getMessageByClientMessageId(String clientMessageId) async {
+  Future<ChatMessageWithMediasEntity?> getMessageByClientMessageId(
+    String clientMessageId,
+  ) async {
     try {
       final message = await _database.getMessageByServerId(clientMessageId);
       if (message == null) {
         return null;
       }
-      final medias = await _database.getMessageMediasByMessageIds(<String>[message.id]);
+      final medias = await _database.getMessageMediasByMessageIds(<String>[
+        message.id,
+      ]);
       return ChatMessageWithMediasEntity(message: message, medias: medias);
     } catch (e) {
       log(e.toString());
@@ -149,9 +256,13 @@ class DriftMessageDaoImpl implements MessageDao {
   }
 
   @override
-  Future<List<ChatMessageWithMediasEntity>> getMessagesByConversationId(String conversationId) async {
+  Future<List<ChatMessageWithMediasEntity>> getMessagesByConversationId(
+    String conversationId,
+  ) async {
     try {
-      final messages = await _database.getMessagesByConversationId(conversationId);
+      final messages = await _database.getMessagesByConversationId(
+        conversationId,
+      );
       return _attachMedias(messages);
     } catch (e) {
       log(e.toString());
@@ -160,12 +271,18 @@ class DriftMessageDaoImpl implements MessageDao {
   }
 
   @override
-  Stream<List<ChatMessageWithMediasEntity>> watchMessagesByConversationId(String conversationId) {
-    return _database.watchMessagesByConversationId(conversationId).asyncMap(_attachMedias);
+  Stream<List<ChatMessageWithMediasEntity>> watchMessagesByConversationId(
+    String conversationId,
+  ) {
+    return _database
+        .watchMessagesByConversationId(conversationId)
+        .asyncMap(_attachMedias);
   }
 
   @override
-  Stream<List<PinMessageEntity>> watchPinnedMessagesByConversationId(String conversationId) {
+  Stream<List<PinMessageEntity>> watchPinnedMessagesByConversationId(
+    String conversationId,
+  ) {
     return _database.watchPinnedMessagesByConversationId(conversationId);
   }
 
@@ -193,10 +310,8 @@ class DriftMessageDaoImpl implements MessageDao {
   Future<void> updateServerId(String localId, String serverId) async {
     try {
       await (_database.update(_database.chatMessages)
-        ..where((tbl) => tbl.id.equals(localId)))
-          .write(ChatMessagesCompanion(
-          serverId: Value(serverId),),
-      );
+            ..where((tbl) => tbl.id.equals(localId)))
+          .write(ChatMessagesCompanion(serverId: Value(serverId)));
     } catch (e) {
       log(e.toString());
       rethrow;
@@ -218,6 +333,15 @@ class DriftMessageDaoImpl implements MessageDao {
   }
 
   @override
+  @override
+  Future<void> deleteLocalMessage(String localId) async {
+    try {
+      await _database.deleteMessageById(localId);
+    } catch (e) {
+      log('[MessageDao] deleteLocalMessage error: $e');
+    }
+  }
+
   Future<void> updateMessageDeleted(String messageIdentifier) async {
     try {
       await _database.updateMessageDeleted(messageIdentifier);
@@ -228,7 +352,9 @@ class DriftMessageDaoImpl implements MessageDao {
   }
 
   @override
-  Future<List<MessageReactionEntity>> getMessageReactions(String messageIdentifier) async {
+  Future<List<MessageReactionEntity>> getMessageReactions(
+    String messageIdentifier,
+  ) async {
     try {
       final message = await _resolveMessageByIdentifier(messageIdentifier);
       final rawMessage = message?.message;
@@ -249,7 +375,8 @@ class DriftMessageDaoImpl implements MessageDao {
               messageId: (node['messageId'] ?? rawMessage.id).toString(),
               emoji: (node['emoji'] ?? '').toString(),
               count: _asInt(node['count']) ?? 0,
-              reactors: (node['reactors'] as List<dynamic>?)
+              reactors:
+                  (node['reactors'] as List<dynamic>?)
                       ?.map((e) => e.toString())
                       .where((e) => e.isNotEmpty)
                       .toList(growable: false) ??
@@ -290,17 +417,14 @@ class DriftMessageDaoImpl implements MessageDao {
           )
           .toList(growable: false);
 
-      await (_database.update(_database.chatMessages)
-            ..where(
-              (tbl) =>
-                  tbl.id.equals(rawMessage.id) |
-                  tbl.serverId.equals(messageIdentifier),
-            ))
+      await (_database.update(_database.chatMessages)..where(
+            (tbl) =>
+                tbl.id.equals(rawMessage.id) |
+                tbl.serverId.equals(messageIdentifier),
+          ))
           .write(
-        ChatMessagesCompanion(
-          metadata: Value(jsonEncode(metadataMap)),
-        ),
-      );
+            ChatMessagesCompanion(metadata: Value(jsonEncode(metadataMap))),
+          );
     } catch (e) {
       log(e.toString());
       rethrow;
@@ -314,9 +438,9 @@ class DriftMessageDaoImpl implements MessageDao {
   ) async {
     try {
       await _database.transaction(() async {
-        await (_database.delete(_database.pinMessages)
-              ..where((tbl) => tbl.conversationId.equals(conversationId)))
-            .go();
+        await (_database.delete(
+          _database.pinMessages,
+        )..where((tbl) => tbl.conversationId.equals(conversationId))).go();
 
         for (final pinMessage in pinMessages) {
           await _database.insertOrReplacePinMessage(pinMessage);
@@ -329,7 +453,9 @@ class DriftMessageDaoImpl implements MessageDao {
   }
 
   @override
-  Future<List<PinMessageEntity>> getPinnedMessagesByConversationId(String conversationId) async {
+  Future<List<PinMessageEntity>> getPinnedMessagesByConversationId(
+    String conversationId,
+  ) async {
     try {
       return await _database.getPinnedMessagesByConversationId(conversationId);
     } catch (e) {
@@ -338,30 +464,43 @@ class DriftMessageDaoImpl implements MessageDao {
     }
   }
 
-  Future<ChatMessageWithMediasEntity?> _resolveMessageByIdentifier(String messageIdentifier) async {
+  Future<ChatMessageWithMediasEntity?> _resolveMessageByIdentifier(
+    String messageIdentifier,
+  ) async {
     final byId = await _database.getMessageById(messageIdentifier);
     if (byId != null) {
-      final medias = await _database.getMessageMediasByMessageIds(<String>[byId.id]);
+      final medias = await _database.getMessageMediasByMessageIds(<String>[
+        byId.id,
+      ]);
       return ChatMessageWithMediasEntity(message: byId, medias: medias);
     }
     final byServerId = await _database.getMessageByServerId(messageIdentifier);
     if (byServerId == null) {
       return null;
     }
-    final medias = await _database.getMessageMediasByMessageIds(<String>[byServerId.id]);
+    final medias = await _database.getMessageMediasByMessageIds(<String>[
+      byServerId.id,
+    ]);
     return ChatMessageWithMediasEntity(message: byServerId, medias: medias);
   }
 
-  Future<List<ChatMessageWithMediasEntity>> _attachMedias(List<ChatMessageEntity> messages) async {
+  Future<List<ChatMessageWithMediasEntity>> _attachMedias(
+    List<ChatMessageEntity> messages,
+  ) async {
     if (messages.isEmpty) {
       return const <ChatMessageWithMediasEntity>[];
     }
 
-    final messageIds = messages.map((entry) => entry.id).toList(growable: false);
+    final messageIds = messages
+        .map((entry) => entry.id)
+        .toList(growable: false);
     final medias = await _database.getMessageMediasByMessageIds(messageIds);
     final mediasByMessageId = <String, List<MessageMediaEntity>>{};
     for (final media in medias) {
-      final bucket = mediasByMessageId.putIfAbsent(media.messageId, () => <MessageMediaEntity>[]);
+      final bucket = mediasByMessageId.putIfAbsent(
+        media.messageId,
+        () => <MessageMediaEntity>[],
+      );
       bucket.add(media);
     }
 

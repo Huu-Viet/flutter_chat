@@ -179,6 +179,10 @@ final updateNotificationsUseCaseProvider = Provider<UpdateNotificationsUseCase>(
   },
 );
 
+final updatePrivacyUseCaseProvider = Provider<UpdatePrivacyUseCase>((ref) {
+  return UpdatePrivacyUseCase(ref.watch(authRemoteRepoProvider));
+});
+
 final updateUserPresenceLocalUseCaseProvider =
     Provider<UpdateUserPresenceLocalUseCase>((ref) {
       return UpdateUserPresenceLocalUseCase(ref.watch(authLocalRepoProvider));
@@ -274,6 +278,26 @@ final watchNotificationsProvider = StreamProvider<UserNotifications>((
     yield userResult.fold(
       (_) => const UserNotifications(),
       (user) => user.settings.notifications,
+    );
+  }
+});
+
+final watchPrivacyProvider = StreamProvider<UserPrivacy>((ref) async* {
+  final currentUserIdResult = await ref
+      .watch(getCurrentUserIdUseCaseProvider)
+      .call();
+  final userId = currentUserIdResult.fold((_) => null, (id) => id);
+
+  if (userId == null) {
+    yield const UserPrivacy();
+    return;
+  }
+
+  await for (final userResult
+      in ref.watch(authLocalRepoProvider).getUserData(userId)) {
+    yield userResult.fold(
+      (_) => const UserPrivacy(),
+      (user) => user.settings.privacy,
     );
   }
 });

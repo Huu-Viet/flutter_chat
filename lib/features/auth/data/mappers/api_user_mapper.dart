@@ -106,6 +106,10 @@ class APIUserMapper extends RemoteMapper<UserDto, MyUser> {
           notifyFor: _parseNotifyFor(dto.notificationsNotifyFor),
           muteUntil: DateTime.tryParse(dto.notificationsMuteUntil ?? ''),
         ),
+        privacy: UserPrivacy(
+          allowStrangerMessagesAndCalls:
+              dto.privacyAllowStrangerMessagesAndCalls ?? true,
+        ),
       ),
       isActive: dto.isActive ?? false,
       createdAt: createdAt,

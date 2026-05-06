@@ -9,6 +9,9 @@ class CallBannerOverlay {
     required String callerName,
     required VoidCallback onAccept,
     required VoidCallback onDecline,
+    String? title,
+    String acceptLabel = 'Accept',
+    String declineLabel = 'Decline',
   }) {
     hide(); // tránh duplicate
 
@@ -21,6 +24,9 @@ class CallBannerOverlay {
           callerName: callerName,
           onAccept: onAccept,
           onDecline: onDecline,
+          title: title,
+          acceptLabel: acceptLabel,
+          declineLabel: declineLabel,
         ),
       ),
     );

@@ -12,6 +12,13 @@ import 'package:flutter_chat/features/chat/export.dart';
 abstract class ChatService {
   Future<ConversationResponse> fetchConversations(int page, int limit);
 
+  Future<ConversationResponse> searchConversations({
+    String? query,
+    int page = 1,
+    int limit = 20,
+    String avatarVariant = 'thumb',
+  });
+
   Future<ConversationDto> fetchConversation(String conversationId);
 
   Future<void> joinConversation(String conversationId);

@@ -5,6 +5,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_chat/core/utils/animated_sticker_sprite.dart';
 import 'package:flutter_chat/features/auth/domain/entities/user.dart';
@@ -149,6 +150,7 @@ class _MessageBubbleState extends State<MessageBubble> {
             (videoUrl != null && videoUrl.trim().isNotEmpty),
       StickerChatMessage(:final stickerPath) => stickerPath != null,
       ContactCardChatMessage() => true,
+      TextChatMessage(:final text) => _matchInviteLink(text) != null,
       _ => false,
     };
 
@@ -375,7 +377,9 @@ class _MessageBubbleState extends State<MessageBubble> {
       CallHistoryChatMessage() => const SizedBox.shrink(),
 
       TextChatMessage(:final text, :final forwardInfo, :final replyPreview) =>
-        _buildTextContent(text, forwardInfo, replyPreview: replyPreview),
+        _matchInviteLink(text) != null
+            ? _buildGroupInviteContent(context, _matchInviteLink(text)!)
+            : _buildTextContent(text, forwardInfo, replyPreview: replyPreview),
       UnknownChatMessage(:final content, :final forwardInfo) =>
         _buildTextContent(content ?? '', forwardInfo),
     };
@@ -1339,6 +1343,160 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
+  // ── Group Invite Link ─────────────────────────────────────────────────────
+
+  static final _inviteLinkRegex = RegExp(
+    r'^Join "(.+)" on Zolo:\n(https://zolo-smoky\.vercel\.app/join/\S+)$',
+  );
+
+  /// Returns `{groupName, inviteUrl}` when [text] matches the invite format, else null.
+  ({String groupName, String inviteUrl})? _matchInviteLink(String text) {
+    final m = _inviteLinkRegex.firstMatch(text.trim());
+    if (m == null) return null;
+    return (groupName: m.group(1)!, inviteUrl: m.group(2)!);
+  }
+
+  Widget _buildGroupInviteContent(
+    BuildContext context,
+    ({String groupName, String inviteUrl}) invite,
+  ) {
+    final message = widget.message;
+    final colorScheme = Theme.of(context).colorScheme;
+    final cardBg = colorScheme.surface;
+    final onCard = colorScheme.onSurface;
+    final subtleColor = colorScheme.onSurfaceVariant;
+
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 260),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ── Header ───────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.group_outlined,
+                    size: 20,
+                    color: colorScheme.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'GROUP INVITE',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: subtleColor,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        invite.groupName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: onCard,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // ── QR Code ───────────────────────────────────────────────────────
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: QrImageView(
+                data: invite.inviteUrl,
+                version: QrVersions.auto,
+                size: 180,
+                backgroundColor: Colors.white,
+                eyeStyle: const QrEyeStyle(
+                  eyeShape: QrEyeShape.square,
+                  color: Colors.black,
+                ),
+                dataModuleStyle: const QrDataModuleStyle(
+                  dataModuleShape: QrDataModuleShape.square,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+          ),
+          // ── Footer – Join group ───────────────────────────────────────────
+          const Divider(height: 1),
+          InkWell(
+            onTap: () => _launchUrl(invite.inviteUrl),
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(14),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.open_in_new_rounded,
+                    size: 16,
+                    color: colorScheme.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Join group',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                  if (message.isLastInGroup) ...[
+                    const Spacer(),
+                    Text(
+                      AppDateUtils.formatTime(message.timestamp),
+                      style: TextStyle(fontSize: 10, color: subtleColor),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTextContent(
     String text,
     ForwardInfo? forwardInfo, {
@@ -1590,8 +1748,11 @@ class _MessageBubbleState extends State<MessageBubble> {
     required TextStyle mentionStyle,
   }) {
     final spans = <InlineSpan>[];
-    // Regex for detecting mentions and URLs
-    final mentionRegex = RegExp(r'(@all|@[A-Za-z0-9._-]+)');
+    // Detect @All/@all and mention names that may include a single space.
+    final mentionRegex = RegExp(
+      r'(@All|@all|@[\p{L}\p{N}._-]+(?: [\p{L}\p{N}._-]+)?)',
+      unicode: true,
+    );
     final urlRegex = RegExp(
       r'https?://[^\s]+|www\.[^\s]+|(?:^|\s)([a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.)+[a-zA-Z]{2,}(?:\s|$)',
       multiLine: true,

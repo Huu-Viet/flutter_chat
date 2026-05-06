@@ -10,6 +10,8 @@ import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/chat/domain/entities/conversation.dart';
 import 'package:flutter_chat/features/chat/domain/entities/conversation_participant.dart';
 import 'package:flutter_chat/features/group_manager/data/datasources/api/group_management_service.dart';
+import 'package:flutter_chat/presentation/chat/widgets/share_invite_link_dialog.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter_chat/features/group_manager/group_management_provider.dart';
 import 'package:flutter_chat/features/upload_media/upload_media_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -2225,6 +2227,15 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
                 const LinearProgressIndicator(),
               ],
               if (_inviteUrl != null) ...[
+                const SizedBox(height: 16),
+                Center(
+                  child: QrImageView(
+                    data: _inviteUrl!,
+                    version: QrVersions.auto,
+                    size: 200,
+                    backgroundColor: Colors.white,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 SelectableText(_inviteUrl!),
                 if ((_inviteExpiresAt ?? '').isNotEmpty) ...[
@@ -2232,13 +2243,32 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
                   Text('Expires: ${_inviteExpiresAt!}'),
                 ],
                 const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: _inviteUrl!));
-                    _toast('Invite link copied');
-                  },
-                  icon: const Icon(Icons.copy_outlined),
-                  label: const Text('Copy Link'),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: _inviteUrl!));
+                        _toast('Invite link copied');
+                      },
+                      icon: const Icon(Icons.copy_outlined),
+                      label: const Text('Copy Link'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        showDialog<void>(
+                          context: context,
+                          builder: (_) => ShareInviteLinkDialog(
+                            inviteUrl: _inviteUrl!,
+                            groupName: widget.conversation.name,
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.share_outlined),
+                      label: const Text('Share Link'),
+                    ),
+                  ],
                 ),
               ],
             ],

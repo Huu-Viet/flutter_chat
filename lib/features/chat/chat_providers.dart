@@ -121,6 +121,11 @@ final fetchConversationUseCaseProvider = Provider<FetchConversationUseCase>((ref
   return FetchConversationUseCase(ref.read(chatRepoProvider));
 });
 
+final searchConversationsUseCaseProvider =
+    Provider<SearchConversationsUseCase>((ref) {
+      return SearchConversationsUseCase(ref.read(chatRepoProvider));
+    });
+
 final fetchConversationDetailUseCaseProvider = Provider<FetchConversationDetailUseCase>((ref) {
   return FetchConversationDetailUseCase(ref.read(chatRepoProvider));
 });

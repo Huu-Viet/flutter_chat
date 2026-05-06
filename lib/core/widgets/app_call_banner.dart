@@ -4,12 +4,18 @@ class TopCallBanner extends StatelessWidget {
   final String callerName;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
+  final String? title;
+  final String acceptLabel;
+  final String declineLabel;
 
   const TopCallBanner({
     super.key,
     required this.callerName,
     required this.onAccept,
     required this.onDecline,
+    this.title,
+    this.acceptLabel = 'Accept',
+    this.declineLabel = 'Decline',
   });
 
   @override
@@ -27,7 +33,7 @@ class TopCallBanner extends StatelessWidget {
 
               Expanded(
                 child: Text(
-                  'Incoming call from $callerName',
+                  title ?? 'Incoming call from $callerName',
                   style: const TextStyle(color: Colors.white),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -35,12 +41,12 @@ class TopCallBanner extends StatelessWidget {
 
               TextButton(
                 onPressed: onDecline,
-                child: const Text('Decline'),
+                child: Text(declineLabel),
               ),
 
               ElevatedButton(
                 onPressed: onAccept,
-                child: const Text('Accept'),
+                child: Text(acceptLabel),
               ),
             ],
           ),

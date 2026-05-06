@@ -590,6 +590,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   String? _mapChatErrorMessage(String message, AppLocalizations l10n) {
+    if (message.contains('STRANGER_NOT_ALLOWED')) {
+      return 'This user does not allow messages from people they don\'t know.';
+    }
     if (message.contains('FORBIDDEN_EDIT_WINDOW_EXPIRED')) {
       return l10n.error_edit_time_limited;
     }
@@ -886,9 +889,14 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
                 //failure
                 if (state.status == OutgoingCallStatus.failure) {
-                  final message = state.errorMessage;
+                  final rawMessage = state.errorMessage ?? '';
+                  final message = rawMessage.contains('STRANGER_NOT_ALLOWED')
+                      ? 'This user does not allow calls from people they don\'t know.'
+                      : rawMessage.trim().isNotEmpty
+                          ? rawMessage
+                          : null;
 
-                  if (message != null && message.trim().isNotEmpty) {
+                  if (message != null) {
                     messenger.showSnackBar(SnackBar(content: Text(message)));
                   }
                   context.read<OutgoingCallBloc>().add(
@@ -1257,6 +1265,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
         final message = combinedMessages[combinedMessages.length - 1 - index];
         return MessageBubble(
+          key: ValueKey(message.localId ?? message.serverId ?? index),
           message: message,
           conversationId: widget.conversationId,
           showReactAction: message.isLastInGroup && _canReactToMessage(message),
@@ -1528,9 +1537,13 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   color: Theme.of(context).colorScheme.outlineVariant,
                 ),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: mentionSuggestions,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 240),
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  children: mentionSuggestions,
+                ),
               ),
             ),
         ],
@@ -1577,7 +1590,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     ActiveGroupCallState activeCall,
     String roomName,
   ) {
-    if (!_isCurrentChatRoute()) {
+    if (ModalRoute.of(context)?.isCurrent != true) {
       return;
     }
 
@@ -1656,12 +1669,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         context.push(route);
       }
     });
-  }
-
-  bool _isCurrentChatRoute() {
-    final currentPath =
-        ref.read(routerProvider).routeInformationProvider.value.uri.path;
-    return currentPath.startsWith('/chat/${widget.conversationId}/');
   }
 
   List<String> _resolveOutgoingCallCalleeIds(
@@ -1781,7 +1788,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         ListTile(
           dense: true,
           leading: const Icon(Icons.groups, size: 18),
-          title: const Text('@all', maxLines: 1),
+          title: const Text('@All', maxLines: 1),
           subtitle: const Text('Mention everyone', maxLines: 1),
           onTap: () => _applyAllMention(),
         ),
@@ -1799,7 +1806,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           if (q.isEmpty) return true;
           return username.contains(q) || displayName.contains(q);
         })
-        .take(5)
         .toList(growable: false);
 
     for (final participant in memberSuggestions) {
@@ -1844,9 +1850,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     if (match != null) {
       final separator = match.group(1) ?? '';
       final start = match.start + separator.length;
-      rebuiltPrefix = '${prefix.substring(0, start)}@all ';
+      rebuiltPrefix = '${prefix.substring(0, start)}@All ';
     } else {
-      rebuiltPrefix = '$prefix@all ';
+      rebuiltPrefix = '$prefix@All ';
     }
 
     final rebuiltText = '$rebuiltPrefix$suffix';

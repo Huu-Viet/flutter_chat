@@ -1000,10 +1000,26 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     ForwardMessageEvent event,
     Emitter<ChatState> emit,
   ) async {
+    final normalizedTargets = event.targetConversationIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+
+    if (normalizedTargets.isEmpty) {
+      add(const _LocalMessagesErrorEvent('Please select at least 1 conversation'));
+      return;
+    }
+
+    if (normalizedTargets.length > 10) {
+      add(const _LocalMessagesErrorEvent('You can forward to at most 10 conversations'));
+      return;
+    }
+
     final result = await forwardMessageUseCase(
       sourceMessageId: event.messageId,
       sourceConversationId: event.srcConversationId,
-      targetConversationIds: event.targetConversationIds,
+      targetConversationIds: normalizedTargets,
     );
 
     result.fold(
@@ -1093,13 +1109,16 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     emit(_buildChatLoaded(_currentMessages));
 
     final result = await getUrlByMediaIdUseCase(mediaId);
-    result.fold((failure) => add(_LocalMessagesErrorEvent(failure.message)), (
-      imageUrl,
-    ) {
-      if (imageUrl.trim().isNotEmpty) {
-        _imageUrlsByMediaId[mediaId] = imageUrl;
-      }
-    });
+    result.fold(
+      (failure) => debugPrint(
+        '[ImageFetch] Cannot resolve image URL for mediaId=$mediaId: ${failure.message}',
+      ),
+      (imageUrl) {
+        if (imageUrl.trim().isNotEmpty) {
+          _imageUrlsByMediaId[mediaId] = imageUrl;
+        }
+      },
+    );
 
     _resolvingImageMediaIds.remove(mediaId);
     emit(_buildChatLoaded(_currentMessages));
@@ -1230,7 +1249,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     if (resolvedVideoUrl.isNotEmpty) {
       _videoUrlsByMediaId[mediaId] = resolvedVideoUrl;
     } else {
-      add(_LocalMessagesErrorEvent('Cannot resolve playable video URL'));
+      debugPrint('[VideoFetch] Cannot resolve playable video URL for mediaId=$mediaId');
     }
 
     _resolvingVideoMediaIds.remove(mediaId);

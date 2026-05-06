@@ -51,12 +51,27 @@ class UserNotifications extends Equatable {
   List<Object?> get props => [desktopEnabled, mobileEnabled, notifyFor, muteUntil];
 }
 
+class UserPrivacy extends Equatable {
+  final bool allowStrangerMessagesAndCalls;
+
+  const UserPrivacy({this.allowStrangerMessagesAndCalls = true});
+
+  UserPrivacy copyWith({bool? allowStrangerMessagesAndCalls}) => UserPrivacy(
+        allowStrangerMessagesAndCalls:
+            allowStrangerMessagesAndCalls ?? this.allowStrangerMessagesAndCalls,
+      );
+
+  @override
+  List<Object?> get props => [allowStrangerMessagesAndCalls];
+}
+
 class UserSettings extends Equatable {
   final String? statusMessage;
   final UserThemeMode theme;
   final MessageDensity messageDensity;
   final bool enterToSend;
   final UserNotifications notifications;
+  final UserPrivacy privacy;
 
   const UserSettings({
     this.statusMessage,
@@ -64,6 +79,7 @@ class UserSettings extends Equatable {
     this.messageDensity = MessageDensity.comfortable,
     this.enterToSend = true,
     this.notifications = const UserNotifications(),
+    this.privacy = const UserPrivacy(),
   });
 
   UserSettings copyWith({
@@ -72,6 +88,7 @@ class UserSettings extends Equatable {
     MessageDensity? messageDensity,
     bool? enterToSend,
     UserNotifications? notifications,
+    UserPrivacy? privacy,
   }) {
     return UserSettings(
       statusMessage: statusMessage ?? this.statusMessage,
@@ -79,11 +96,12 @@ class UserSettings extends Equatable {
       messageDensity: messageDensity ?? this.messageDensity,
       enterToSend: enterToSend ?? this.enterToSend,
       notifications: notifications ?? this.notifications,
+      privacy: privacy ?? this.privacy,
     );
   }
 
   @override
-  List<Object?> get props => [statusMessage, theme, messageDensity, enterToSend, notifications];
+  List<Object?> get props => [statusMessage, theme, messageDensity, enterToSend, notifications, privacy];
 }
 
 class MyUser extends Equatable {

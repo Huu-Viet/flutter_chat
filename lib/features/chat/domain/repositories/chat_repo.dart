@@ -5,6 +5,12 @@ import 'package:flutter_chat/features/chat/export.dart';
 abstract class ChatRepository {
   Future<Either<Failure, bool>> fetchConversations(int page, int limit);
 
+  Future<Either<Failure, List<Conversation>>> searchConversations({
+    String? query,
+    int page,
+    int limit,
+  });
+
   Future<Either<Failure, Conversation>> fetchConversation(String conversationId);
 
   Future<Either<Failure, List<Conversation>>> getConversations();

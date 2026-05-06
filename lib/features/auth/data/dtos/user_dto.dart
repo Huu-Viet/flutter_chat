@@ -17,6 +17,7 @@ class UserDto {
   final bool? notificationsMobileEnabled;
   final String? notificationsNotifyFor;
   final String? notificationsMuteUntil;
+  final bool? privacyAllowStrangerMessagesAndCalls;
   final String? createdAt;
   final String? updatedAt;
 
@@ -39,6 +40,7 @@ class UserDto {
     this.notificationsMobileEnabled,
     this.notificationsNotifyFor,
     this.notificationsMuteUntil,
+    this.privacyAllowStrangerMessagesAndCalls,
     this.createdAt,
     this.updatedAt,
   });
@@ -47,6 +49,7 @@ class UserDto {
   factory UserDto.fromJson(Map<String, dynamic> json) {
     final settings = _asMap(json['settings']);
     final notifications = settings != null ? _asMap(settings['notifications']) : null;
+    final privacy = settings != null ? _asMap(settings['privacy']) : null;
 
     return UserDto(
       id: _asString(json['id']),
@@ -71,6 +74,8 @@ class UserDto {
           notifications != null ? _asString(notifications['notifyFor']) : null,
         notificationsMuteUntil:
           notifications != null ? _asString(notifications['muteUntil']) : null,
+        privacyAllowStrangerMessagesAndCalls:
+          privacy != null ? _asBool(privacy['allowStrangerMessagesAndCalls']) : null,
       createdAt: _asString(json['createdAt']),
       updatedAt: _asString(json['updatedAt']),
     );
@@ -97,6 +102,7 @@ class UserDto {
       'notificationsMobileEnabled': notificationsMobileEnabled,
       'notificationsNotifyFor': notificationsNotifyFor,
       'notificationsMuteUntil': notificationsMuteUntil,
+      'privacyAllowStrangerMessagesAndCalls': privacyAllowStrangerMessagesAndCalls,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
     };

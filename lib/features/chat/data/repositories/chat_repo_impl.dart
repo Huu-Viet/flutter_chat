@@ -134,6 +134,28 @@ class ChatRepoImpl implements ChatRepository {
   }
 
   @override
+  Future<Either<Failure, List<Conversation>>> searchConversations({
+    String? query,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final response = await _chatService.searchConversations(
+        query: query,
+        page: page,
+        limit: limit,
+      );
+      final conversations = response.conversations
+          .map(_apiConversationMapper.toDomain)
+          .toList(growable: false);
+      return Right(conversations);
+    } catch (e) {
+      debugPrint('[ChatRepoImpl] searchConversations error: $e');
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, Conversation>> fetchConversation(
     String conversationId,
   ) async {
@@ -329,7 +351,14 @@ class ChatRepoImpl implements ChatRepository {
 
       return Right(message);
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      final errStr = e.toString();
+      if (errStr.contains('status=403')) {
+        try {
+          await _messageDao.deleteLocalMessage(message.id);
+        } catch (_) {}
+        return Left(ServerFailure('STRANGER_NOT_ALLOWED'));
+      }
+      return Left(ServerFailure(errStr));
     }
   }
 
@@ -372,6 +401,12 @@ class ChatRepoImpl implements ChatRepository {
     required List<String> targetConversationIds,
   }) async {
     try {
+      if (targetConversationIds.length > 10) {
+        return const Left(
+          ServerFailure('You can forward to at most 10 conversations'),
+        );
+      }
+
       await _chatService.forwardMessage(
         sourceMessageId: messageId,
         sourceConversationId: srcConversationId,

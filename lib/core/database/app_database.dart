@@ -241,6 +241,11 @@ class AppDatabase extends _$AppDatabase {
     return (select(chatMessages)..where((tbl) => tbl.id.equals(id))).getSingleOrNull();
   }
 
+  Future<void> deleteMessageById(String id) async {
+    await (delete(messageMedias)..where((tbl) => tbl.messageId.equals(id))).go();
+    await (delete(chatMessages)..where((tbl) => tbl.id.equals(id))).go();
+  }
+
   Future<void> deleteMessagesByServerId(String serverId) async {
     final messages = await (select(chatMessages)..where((tbl) => tbl.serverId.equals(serverId))).get();
     final messageIds = messages.map((e) => e.id).toList(growable: false);

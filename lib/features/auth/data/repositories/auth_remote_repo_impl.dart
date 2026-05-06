@@ -266,6 +266,27 @@ class AuthRemoteRepoImpl implements AuthRemoteRepository, AuthLocalRepo {
     }
   }
 
+  @override
+  Future<Either<Failure, void>> updatePrivacy(UserPrivacy privacy) async {
+    try {
+      final updatedDto = await userRemoteDataSource.updateSettings(
+        privacyAllowStrangerMessagesAndCalls:
+            privacy.allowStrangerMessagesAndCalls,
+      );
+
+      if (updatedDto == null) {
+        return Left(ServerFailure('Failed to update privacy settings'));
+      }
+
+      final updatedUser = apiMapper.toDomain(updatedDto);
+      await _upsertUserToLocal(updatedUser);
+
+      return Right(null);
+    } catch (e) {
+      return Left(ServerFailure('Failed to update privacy settings: $e'));
+    }
+  }
+
   String _themeToRaw(UserThemeMode value) {
     switch (value) {
       case UserThemeMode.light:

@@ -51,6 +51,44 @@ class ChatServiceImpl implements ChatService {
   }
 
   @override
+  Future<ConversationResponse> searchConversations({
+    String? query,
+    int page = 1,
+    int limit = 20,
+    String avatarVariant = 'thumb',
+  }) async {
+    try {
+      final normalizedQuery = query?.trim();
+      final response = await _dio.get(
+        '$_baseUrl/conversations/search',
+        queryParameters: {
+          if (normalizedQuery != null && normalizedQuery.isNotEmpty)
+            'q': normalizedQuery,
+          'page': page,
+          'limit': limit,
+          'avatarVariant': avatarVariant,
+        },
+      );
+
+      if (response.statusCode != 200 || response.data == null) {
+        throw Exception(
+          'Failed to search conversations: ${response.statusCode}',
+        );
+      }
+
+      final responseBody = response.data;
+      if (responseBody is! Map<String, dynamic>) {
+        throw Exception('Invalid response body format');
+      }
+
+      return ConversationResponse.fromJson(responseBody);
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] Search conversations error: $e');
+      throw Exception('Failed to search conversations: $e');
+    }
+  }
+
+  @override
   Future<ConversationDto> fetchConversation(String conversationId) async {
     try {
       final response = await _dio.get(

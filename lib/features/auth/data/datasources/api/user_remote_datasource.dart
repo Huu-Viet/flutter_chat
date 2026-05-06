@@ -16,6 +16,7 @@ abstract class UserRemoteDataSource {
     bool? notificationsMobileEnabled,
     bool? notificationsDesktopEnabled,
     String? notificationsNotifyFor,
+    bool? privacyAllowStrangerMessagesAndCalls,
   });
   Future<UserDto?> updateProfile({
     String? username,

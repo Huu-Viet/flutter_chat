@@ -32,8 +32,10 @@ class _MyAppState extends ConsumerState<MyApp> {
   late final AppLinks _appLinks;
   StreamSubscription<Uri>? _deepLinkSubscription;
   StreamSubscription<CallEvent?>? _callKitEventSubscription;
+  StreamSubscription<InCallState>? _inCallStateSubscription;
   final Map<String, CallInfo> _incomingCallsById = <String, CallInfo>{};
   final Set<String> _shownCallKitIds = <String>{};
+  String _lastObservedPath = '';
 
   @override
   void initState() {
@@ -41,6 +43,87 @@ class _MyAppState extends ConsumerState<MyApp> {
     _appLinks = AppLinks();
     _initDeepLinks();
     _initCallKitEvents();
+    _bindInCallPanel();
+    _bindRouteChangeListener();
+  }
+
+  void _bindRouteChangeListener() {
+    // GoRouter routerDelegate is a ChangeNotifier that fires on every route
+    // change. We use this to sync the in-call panel whenever the user
+    // navigates away from (or back to) /in-call.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final router = ref.read(routerProvider);
+      router.routerDelegate.addListener(_onRouteChanged);
+    });
+  }
+
+  void _onRouteChanged() {
+    if (!mounted) return;
+    _syncInCallPanel(ref.read(inCallBlocProvider).state);
+  }
+
+  void _bindInCallPanel() {
+    final bloc = ref.read(inCallBlocProvider);
+    _inCallStateSubscription = bloc.stream.listen(_syncInCallPanel);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _syncInCallPanel(bloc.state);
+    });
+  }
+
+  void _syncInCallPanel(InCallState state) {
+    if (!mounted) {
+      return;
+    }
+
+    final overlay = ref.read(callBannerOverlayProvider);
+    final session = state.session;
+    if (session == null) {
+      overlay.hide();
+      return;
+    }
+
+    final router = ref.read(routerProvider);
+    final currentPath = router.routeInformationProvider.value.uri.path;
+    if (currentPath == '/in-call') {
+      overlay.hide();
+      return;
+    }
+
+    final callerName = session.call.callerName.trim();
+    final title = session.isIncoming
+        ? 'Incoming call from ${callerName.isNotEmpty ? callerName : 'Unknown'}'
+        : 'Call in progress';
+
+    final overlayState = Overlay.maybeOf(context, rootOverlay: true);
+    if (overlayState == null) {
+      return;
+    }
+
+    overlay.show(
+      overlayState: overlayState,
+      callerName: callerName.isNotEmpty ? callerName : 'Unknown',
+      onAccept: () {
+        overlay.hide();
+        final conversationId = session.call.conversationId.trim();
+        final destination = Uri(
+          path: '/in-call',
+          queryParameters: {
+            if (conversationId.isNotEmpty) 'conversationId': conversationId,
+          },
+        ).toString();
+        debugPrint('[MyApp] in-call panel: navigating to $destination');
+        router.go(destination);
+      },
+      onDecline: () {
+        debugPrint('[MyApp] in-call panel: ending current call');
+        ref.read(inCallBlocProvider).add(const InCallEndRequested());
+      },
+      title: title,
+      acceptLabel: 'Open',
+      declineLabel: 'Hang up',
+    );
   }
 
   void _initCallKitEvents() {
@@ -301,6 +384,12 @@ class _MyAppState extends ConsumerState<MyApp> {
   void dispose() {
     _deepLinkSubscription?.cancel();
     _callKitEventSubscription?.cancel();
+    _inCallStateSubscription?.cancel();
+    ref.read(callBannerOverlayProvider).hide();
+    // Remove the route-change listener if the router is still alive.
+    try {
+      ref.read(routerProvider).routerDelegate.removeListener(_onRouteChanged);
+    } catch (_) {}
     super.dispose();
   }
 

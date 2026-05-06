@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_chat/core/utils/date_utils.dart';
+import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/presentation/profile/blocs/manage_session_bloc/manage_session_bloc.dart';
 import 'package:flutter_chat/presentation/profile/providers/profile_bloc_provider.dart';
@@ -94,6 +95,8 @@ class ManageSessionPageContent extends StatelessWidget {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16),
                 children: [
+                  const _ChatCallPrivacySection(),
+                  const SizedBox(height: 16),
                   _SecuritySectionHeader(
                     isActionInProgress: isActionInProgress,
                     onRevokeOtherSessions:
@@ -459,6 +462,71 @@ class _SessionErrorView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatCallPrivacySection extends ConsumerWidget {
+  const _ChatCallPrivacySection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final privacyAsync = ref.watch(watchPrivacyProvider);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.chat_bubble_outline,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Chat & Call',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            privacyAsync.when(
+              data: (privacy) => SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Allow messages and calls from strangers'),
+                subtitle: const Text(
+                  'People who are not your friends can send you messages and calls',
+                ),
+                value: privacy.allowStrangerMessagesAndCalls,
+                onChanged: (value) async {
+                  final useCase = ref.read(updatePrivacyUseCaseProvider);
+                  await useCase(
+                    privacy.copyWith(allowStrangerMessagesAndCalls: value),
+                  );
+                },
+              ),
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (_, __) => SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Allow messages and calls from strangers'),
+                subtitle: const Text(
+                  'People who are not your friends can send you messages and calls',
+                ),
+                value: true,
+                onChanged: null,
+              ),
+            ),
           ],
         ),
       ),

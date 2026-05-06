@@ -266,6 +266,7 @@ class UserRemoteDtsImpl extends UserRemoteDataSource {
     bool? notificationsMobileEnabled,
     bool? notificationsDesktopEnabled,
     String? notificationsNotifyFor,
+    bool? privacyAllowStrangerMessagesAndCalls,
   }) async {
     final notifications =
         notificationsMobileEnabled == null &&
@@ -277,9 +278,15 @@ class UserRemoteDtsImpl extends UserRemoteDataSource {
             'desktopEnabled': notificationsDesktopEnabled,
             'notifyFor': notificationsNotifyFor,
           }..removeWhere((key, value) => value == null));
+    final privacy = privacyAllowStrangerMessagesAndCalls == null
+        ? null
+        : <String, dynamic>{
+            'allowStrangerMessagesAndCalls': privacyAllowStrangerMessagesAndCalls,
+          };
     final requestBody = <String, dynamic>{
       'theme': theme,
       'notifications': notifications,
+      'privacy': privacy,
     }..removeWhere((key, value) => value == null);
 
     if (requestBody.isEmpty) {

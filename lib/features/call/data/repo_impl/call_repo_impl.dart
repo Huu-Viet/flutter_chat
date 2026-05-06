@@ -40,7 +40,11 @@ class CallRepoImpl extends CallRepository {
       );
       return Right(_apiCallMapper.toDomain(response));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      final errStr = e.toString();
+      if (errStr.contains('403')) {
+        return Left(ServerFailure('STRANGER_NOT_ALLOWED'));
+      }
+      return Left(ServerFailure(errStr));
     }
   }
 

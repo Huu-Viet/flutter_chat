@@ -27,6 +27,7 @@ abstract class AuthRemoteRepository {
   Future<Either<Failure, void>> updateNotifications(
     UserNotifications notifications,
   );
+  Future<Either<Failure, void>> updatePrivacy(UserPrivacy privacy);
   Future<Either<Failure, void>> setUserDataToRemote(MyUser user);
   Future<Either<Failure, void>> sendDeviceToken(String userId);
   Future<Either<Failure, void>> forgotPassword(String email);
