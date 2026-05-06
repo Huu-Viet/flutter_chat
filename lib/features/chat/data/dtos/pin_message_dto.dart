@@ -5,6 +5,7 @@ class PinMessageDto {
   final String content;
   final String type;
   final String createdAt;
+  final int? offset;
 
   PinMessageDto({
     required this.messageId,
@@ -13,6 +14,7 @@ class PinMessageDto {
     required this.content,
     required this.type,
     required this.createdAt,
+    this.offset,
   });
 
   factory PinMessageDto.fromJson(Map<String, dynamic> json) {
@@ -23,6 +25,14 @@ class PinMessageDto {
       content: json['content']?.toString() ?? '',
       type: json['type']?.toString() ?? '',
       createdAt: json['createdAt']?.toString() ?? '',
+      offset: _asInt(json['offset']),
     );
+  }
+
+  static int? _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 }

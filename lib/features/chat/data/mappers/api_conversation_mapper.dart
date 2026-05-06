@@ -1,12 +1,32 @@
 import 'package:flutter_chat/core/mappers/remote_mapper.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 
-class ApiConversationMapper implements RemoteMapper<ConversationDto, Conversation> {
+class ApiConversationMapper
+    implements RemoteMapper<ConversationDto, Conversation> {
   DateTime _parseUpdatedAt(String? value) {
-    return DateTime.tryParse(value ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+    return DateTime.tryParse(value ?? '') ??
+        DateTime.fromMillisecondsSinceEpoch(0);
   }
 
-  List<ConversationParticipant> _mapParticipants(List<UserInRoomDto> participants) {
+  ConversationLastMessage? _mapLastMessage(MessageDto? dto) {
+    if (dto == null) {
+      return null;
+    }
+    return ConversationLastMessage(
+      id: dto.id ?? '',
+      content: dto.content ?? '',
+      type: dto.type ?? 'text',
+      offset: dto.offset,
+      senderId: dto.senderId ?? '',
+      isDeleted: dto.isDeleted ?? false,
+      isRevoked: dto.isRevoked ?? false,
+      createdAt: _parseUpdatedAt(dto.createdAt),
+    );
+  }
+
+  List<ConversationParticipant> _mapParticipants(
+    List<UserInRoomDto> participants,
+  ) {
     return participants
         .where((item) => (item.userId ?? '').trim().isNotEmpty)
         .map(
@@ -44,6 +64,7 @@ class ApiConversationMapper implements RemoteMapper<ConversationDto, Conversatio
       updatedAt: _parseUpdatedAt(dto.updatedAt),
       avatarUrl: dto.avatarUrl ?? '',
       participants: _mapParticipants(dto.participants),
+      lastMessage: _mapLastMessage(dto.lastMessage),
     );
   }
 
@@ -72,6 +93,19 @@ class ApiConversationMapper implements RemoteMapper<ConversationDto, Conversatio
       createdAt: domain.createdAt.toIso8601String(),
       updatedAt: domain.updatedAt.toIso8601String(),
       avatarUrl: domain.avatarUrl,
+      lastMessage: domain.lastMessage == null
+          ? null
+          : MessageDto(
+              id: domain.lastMessage!.id,
+              conversationId: domain.id,
+              senderId: domain.lastMessage!.senderId,
+              content: domain.lastMessage!.content,
+              type: domain.lastMessage!.type,
+              offset: domain.lastMessage!.offset,
+              isDeleted: domain.lastMessage!.isDeleted,
+              isRevoked: domain.lastMessage!.isRevoked,
+              createdAt: domain.lastMessage!.createdAt.toIso8601String(),
+            ),
       participants: domain.participants
           .map(
             (participant) => UserInRoomDto(

@@ -46,9 +46,9 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> _openQrScanner(BuildContext context) async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => const QrScannerPage()),
-    );
+    await Navigator.of(
+      context,
+    ).push<void>(MaterialPageRoute(builder: (_) => const QrScannerPage()));
   }
 
   @override
@@ -140,12 +140,16 @@ class _HomePageContentState extends ConsumerState<HomePageContent> {
       _isSearchLoading = normalizedQuery.isNotEmpty;
       _searchResults = normalizedQuery.isEmpty
           ? const <Conversation>[]
-          : localItems.where((conversation) {
-              final name = conversation.name.trim().toLowerCase();
-              final description = conversation.description.trim().toLowerCase();
-              final q = normalizedQuery.toLowerCase();
-              return name.contains(q) || description.contains(q);
-            }).toList(growable: false);
+          : localItems
+                .where((conversation) {
+                  final name = conversation.name.trim().toLowerCase();
+                  final description = conversation.description
+                      .trim()
+                      .toLowerCase();
+                  final q = normalizedQuery.toLowerCase();
+                  return name.contains(q) || description.contains(q);
+                })
+                .toList(growable: false);
     });
   }
 
@@ -303,7 +307,9 @@ class _HomePageContentState extends ConsumerState<HomePageContent> {
 
                     if (state is HomeLoaded) {
                       if (state.conversations.isEmpty) {
-                        return Center(child: Text(l10n.warning_no_conversation));
+                        return Center(
+                          child: Text(l10n.warning_no_conversation),
+                        );
                       }
 
                       return ListView.builder(
@@ -326,7 +332,7 @@ class _HomePageContentState extends ConsumerState<HomePageContent> {
                           return ChatListTile(
                             conversationId: c.id,
                             name: c.name,
-                            lastMessage: '',
+                            lastMessage: _conversationPreview(c),
                             time: c.updatedAt,
                             unreadCount: 0,
                             avatarUrl: c.avatarUrl.isEmpty ? null : c.avatarUrl,
@@ -363,7 +369,7 @@ class _HomePageContentState extends ConsumerState<HomePageContent> {
               return ChatListTile(
                 conversationId: c.id,
                 name: c.name,
-                lastMessage: '',
+                lastMessage: _conversationPreview(c),
                 time: c.updatedAt,
                 unreadCount: 0,
                 avatarUrl: c.avatarUrl.isEmpty ? null : c.avatarUrl,
@@ -374,6 +380,35 @@ class _HomePageContentState extends ConsumerState<HomePageContent> {
         ),
       ],
     );
+  }
+
+  String _conversationPreview(Conversation conversation) {
+    final lastMessage = conversation.lastMessage;
+    if (lastMessage == null) {
+      return '';
+    }
+    if (lastMessage.isDeleted) {
+      return 'Tin nhắn đã bị xóa';
+    }
+    if (lastMessage.isRevoked) {
+      return 'Tin nhắn đã bị thu hồi';
+    }
+
+    final content = lastMessage.content.trim();
+    if (content.isNotEmpty) {
+      return content;
+    }
+
+    return switch (lastMessage.type.toLowerCase()) {
+      'image' => '[Hình ảnh]',
+      'video' => '[Video]',
+      'audio' => '[Âm thanh]',
+      'file' => '[Tệp]',
+      'sticker' => '[Sticker]',
+      'system' => '[Thông báo]',
+      'contact_card' || 'contact_page' => '[Danh thiếp]',
+      _ => '[Tin nhắn]',
+    };
   }
 }
 

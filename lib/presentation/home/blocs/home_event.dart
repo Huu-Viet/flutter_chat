@@ -46,6 +46,15 @@ final class _LocalConversationsErrorEvent extends HomeEvent {
   List<Object> get props => [failure];
 }
 
+final class _RealtimeMessageNewEvent extends HomeEvent {
+  final Map<String, dynamic> payload;
+
+  const _RealtimeMessageNewEvent(this.payload);
+
+  @override
+  List<Object> get props => [payload];
+}
+
 final class JoinConversationEvent extends HomeEvent {
   final String conversationId;
 

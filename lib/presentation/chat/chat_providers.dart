@@ -62,6 +62,7 @@ final chatBlocProvider = Provider<ChatBloc>((ref) {
     unpinMessageUseCase: ref.read(unpinMessageUseCaseProvider),
     emitTypingUseCase: ref.read(emitTypingUseCaseProvider),
     uploadMultipartUseCase: ref.read(uploadMultipartUseCaseProvider),
+    fetchMessagesAroundUseCase: ref.read(fetchMessagesAroundUseCaseProvider),
     audioCacheDao: ref.read(audioCacheDaoProvider),
   );
   ref.onDispose(bloc.close);

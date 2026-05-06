@@ -30,6 +30,12 @@ abstract class ChatService {
     int limit = 30,
   });
 
+  Future<MessageListResponse> fetchMessagesAround(
+    String conversationId, {
+    required String messageId,
+    int limit = 30,
+  });
+
   Future<MessageSendResponse> sendMessage({
     required String conversationId,
     required String content,

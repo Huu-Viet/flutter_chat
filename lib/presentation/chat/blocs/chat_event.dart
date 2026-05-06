@@ -356,3 +356,41 @@ final class RefreshPinnedMessagesEvent extends ChatEvent {
   @override
   List<Object> get props => [conversationId];
 }
+
+final class JumpToMessageEvent extends ChatEvent {
+  final String conversationId;
+  final String messageId;
+
+  const JumpToMessageEvent({
+    required this.conversationId,
+    required this.messageId,
+  });
+
+  @override
+  List<Object> get props => [conversationId, messageId];
+}
+
+final class ReturnToLiveEvent extends ChatEvent {
+  final String conversationId;
+
+  const ReturnToLiveEvent(this.conversationId);
+
+  @override
+  List<Object> get props => [conversationId];
+}
+
+final class LoadMoreAfterEvent extends ChatEvent {
+  final String conversationId;
+
+  const LoadMoreAfterEvent(this.conversationId);
+
+  @override
+  List<Object> get props => [conversationId];
+}
+
+final class ClearJumpHighlightEvent extends ChatEvent {
+  const ClearJumpHighlightEvent();
+
+  @override
+  List<Object> get props => [];
+}

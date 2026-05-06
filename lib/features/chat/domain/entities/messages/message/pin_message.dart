@@ -5,6 +5,7 @@ class PinMessage {
   final String content;
   final String type;
   final DateTime createdAt;
+  final int? offset;
 
   PinMessage({
     required this.messageId,
@@ -13,5 +14,6 @@ class PinMessage {
     required this.content,
     required this.type,
     required this.createdAt,
+    this.offset,
   });
 }

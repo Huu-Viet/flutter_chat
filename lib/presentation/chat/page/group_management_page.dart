@@ -66,13 +66,12 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
 
   String? _inviteUrl;
   String? _inviteExpiresAt;
-  String _muteDuration = 'off';
+  String _muteDuration = '1';
 
   List<Map<String, dynamic>> _joinRequests = <Map<String, dynamic>>[];
   List<Map<String, dynamic>> _polls = <Map<String, dynamic>>[];
   List<Map<String, dynamic>> _appointments = <Map<String, dynamic>>[];
   List<MyUser> _memberSearchResults = const <MyUser>[];
-
 
   @override
   void initState() {
@@ -93,6 +92,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _syncParticipantsFromServer();
+      _loadInviteLink();
       _loadJoinRequests();
       _loadPolls();
       _loadAppointments();
@@ -278,11 +278,44 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     return text.isEmpty ? null : text;
   }
 
-  void _logDebugError(
-    String scope,
-    Object error,
-    StackTrace stackTrace,
-  ) {
+  String get _normalizedMuteDuration {
+    switch (_muteDuration.trim().toLowerCase()) {
+      case '1h':
+      case '1':
+        return '1';
+      case '4h':
+      case '4':
+        return '4';
+      case '8h':
+      case '8':
+        return '8';
+      case '24h':
+      case '24':
+        return '24';
+      case 'until turn back':
+      case 'until_turn_back':
+      case 'untilturnback':
+      case 'forever':
+        return 'untilTurnBack';
+      default:
+        return '1';
+    }
+  }
+
+  void _applyInviteLinkPayload(dynamic payload) {
+    final link = payload is Map<String, dynamic> && payload.containsKey('link')
+        ? payload['link']
+        : payload;
+    if (link is Map) {
+      _inviteUrl = _readString(link['url']);
+      _inviteExpiresAt = _readString(link['expiresAt']);
+    } else {
+      _inviteUrl = null;
+      _inviteExpiresAt = null;
+    }
+  }
+
+  void _logDebugError(String scope, Object error, StackTrace stackTrace) {
     if (error is DioException) {
       final status = error.response?.statusCode;
       final method = error.requestOptions.method;
@@ -343,6 +376,22 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     }
   }
 
+  Future<void> _loadInviteLink() async {
+    if (!_isAdminOrOwner) return;
+
+    try {
+      final response = await _dio.get(
+        _url('/conversations/${widget.conversation.id}/invite-link'),
+        options: _requestOptions,
+      );
+      final data = _unwrap(response.data);
+      if (!mounted) return;
+      setState(() => _applyInviteLinkPayload(data));
+    } catch (e, st) {
+      _logDebugError('loadInviteLink', e, st);
+    }
+  }
+
   Future<void> _loadPolls() async {
     if (!mounted) return;
     setState(() => _busyPolls = true);
@@ -357,9 +406,13 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
         _polls = List<Map<String, dynamic>>.from(mapped)
           ..sort((a, b) {
             DateTime parse(Map<String, dynamic> item) {
-              final updated = DateTime.tryParse((item['updatedAt'] ?? '').toString());
+              final updated = DateTime.tryParse(
+                (item['updatedAt'] ?? '').toString(),
+              );
               if (updated != null) return updated;
-              final created = DateTime.tryParse((item['createdAt'] ?? '').toString());
+              final created = DateTime.tryParse(
+                (item['createdAt'] ?? '').toString(),
+              );
               if (created != null) return created;
               return DateTime.fromMillisecondsSinceEpoch(0);
             }
@@ -420,9 +473,9 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
           parsed?['statusCode'] == 404 &&
           ((parsed?['errorCode'] as String?)?.toUpperCase() ==
                   'RESOURCE_NOT_FOUND' ||
-              (parsed?['message'] as String?)
-                      ?.toLowerCase()
-                      .contains('cannot get /conversations/') ==
+              (parsed?['message'] as String?)?.toLowerCase().contains(
+                    'cannot get /conversations/',
+                  ) ==
                   true);
 
       if (isEndpointUnsupported) {
@@ -602,15 +655,14 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
       final shouldRetryLegacyPayload =
           parsed?['statusCode'] == 500 &&
           (message.contains('property "ispublic" was not found') ||
-              message.contains('property "joinapprovalrequired" was not found') ||
+              message.contains(
+                'property "joinapprovalrequired" was not found',
+              ) ||
               message.contains('property "allowmembermessage" was not found'));
 
       if (!shouldRetryLegacyPayload) {
         _toast(
-          _errorMessageFor(
-            error,
-            fallback: 'Failed to update group settings.',
-          ),
+          _errorMessageFor(error, fallback: 'Failed to update group settings.'),
         );
         return;
       }
@@ -890,21 +942,27 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     if (!_isAdminOrOwner) return;
 
     setState(() => _busyInvite = true);
+    var regenerated = (_inviteUrl ?? '').isNotEmpty;
     try {
-      final response = await _dio.post(
-        _url('/conversations/${widget.conversation.id}/invite-link'),
+      final inviteLinkUrl = _url(
+        '/conversations/${widget.conversation.id}/invite-link',
       );
+      Response<dynamic> response;
+      if (regenerated) {
+        response = await _dio.put(inviteLinkUrl, options: _requestOptions);
+      } else {
+        try {
+          response = await _dio.post(inviteLinkUrl, options: _requestOptions);
+        } on DioException catch (e) {
+          if (e.response?.statusCode != 409) rethrow;
+          regenerated = true;
+          response = await _dio.put(inviteLinkUrl, options: _requestOptions);
+        }
+      }
       final data = _unwrap(response.data);
       if (!mounted) return;
-      setState(() {
-        _inviteUrl = data is Map<String, dynamic>
-            ? data['url']?.toString()
-            : null;
-        _inviteExpiresAt = data is Map<String, dynamic>
-            ? data['expiresAt']?.toString()
-            : null;
-      });
-      _toast('Invite link generated');
+      setState(() => _applyInviteLinkPayload(data));
+      _toast(regenerated ? 'Invite link regenerated' : 'Invite link generated');
     } catch (e) {
       _toast(_errorMessageFor(e, fallback: 'Failed to generate invite link.'));
     } finally {
@@ -919,31 +977,18 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
 
     setState(() => _busyInvite = true);
     try {
-      // Preferred by FE guide
-      await _dio.post(
-        _url('/conversations/${widget.conversation.id}/invite-link/reset'),
+      await _dio.delete(
+        _url('/conversations/${widget.conversation.id}/invite-link'),
+        options: _requestOptions,
       );
       if (!mounted) return;
       setState(() {
         _inviteUrl = null;
         _inviteExpiresAt = null;
       });
-      _toast('Invite links reset');
-    } catch (_) {
-      try {
-        // Fallback for older contract variant
-        await _dio.delete(
-          _url('/conversations/${widget.conversation.id}/invite-link'),
-        );
-        if (!mounted) return;
-        setState(() {
-          _inviteUrl = null;
-          _inviteExpiresAt = null;
-        });
-        _toast('Invite links reset');
-      } catch (e) {
-        _toast(_errorMessageFor(e, fallback: 'Failed to reset invite links.'));
-      }
+      _toast('Invite link revoked');
+    } catch (e) {
+      _toast(_errorMessageFor(e, fallback: 'Failed to revoke invite link.'));
     } finally {
       if (mounted) {
         setState(() => _busyInvite = false);
@@ -1146,7 +1191,9 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
       if (roleCompare != 0) {
         return roleCompare;
       }
-      return displayName(a).toLowerCase().compareTo(displayName(b).toLowerCase());
+      return displayName(
+        a,
+      ).toLowerCase().compareTo(displayName(b).toLowerCase());
     });
 
     return candidates;
@@ -1447,7 +1494,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     try {
       await _dio.put(
         _url('/notifications/conversations/${widget.conversation.id}/mute'),
-        data: {'duration': _muteDuration},
+        data: {'duration': _normalizedMuteDuration},
       );
       _toast('Notification mute updated');
     } catch (e) {
@@ -1611,7 +1658,8 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
               Row(
                 children: [
                   FilledButton.icon(
-                    onPressed: (!_isAdminOrOwner ||
+                    onPressed:
+                        (!_isAdminOrOwner ||
                             _openingPollDialog ||
                             _submittingPoll)
                         ? null
@@ -2185,6 +2233,55 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
           ),
         ),
         const SizedBox(height: 14),
+        _buildSectionCard(
+          context,
+          title: 'Notifications',
+          subtitle: 'Mute notifications for this group.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              DropdownButtonFormField<String>(
+                value: _muteDuration,
+                decoration: const InputDecoration(
+                  labelText: 'Mute duration',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                ),
+                items: const [
+                  DropdownMenuItem(value: '1', child: Text('1 hour')),
+                  DropdownMenuItem(value: '4', child: Text('4 hours')),
+                  DropdownMenuItem(value: '8', child: Text('8 hours')),
+                  DropdownMenuItem(value: '24', child: Text('24 hours')),
+                  DropdownMenuItem(
+                    value: 'untilTurnBack',
+                    child: Text('Until turned back on'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value != null) setState(() => _muteDuration = value);
+                },
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton(
+                  onPressed: _busyNotify ? null : _applyMute,
+                  child: _busyNotify
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Apply'),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
         _buildDangerZoneCard(context),
       ],
     );
@@ -2198,7 +2295,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
           context,
           title: 'Invite Links',
           subtitle: _isAdminOrOwner
-              ? 'Owner/Admin can generate and reset invite links.'
+              ? 'Owner/Admin can generate, regenerate, and revoke invite links.'
               : 'Only Owner/Admin can manage invite links.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2210,18 +2307,25 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
                         ? _createInviteLink
                         : null,
                     icon: const Icon(Icons.link),
-                    label: const Text('Generate'),
+                    label: Text(_inviteUrl == null ? 'Generate' : 'Regenerate'),
                   ),
                   const SizedBox(width: 10),
                   OutlinedButton.icon(
-                    onPressed: _isAdminOrOwner && !_busyInvite
+                    onPressed:
+                        _isAdminOrOwner &&
+                            !_busyInvite &&
+                            (_inviteUrl ?? '').isNotEmpty
                         ? _resetInviteLink
                         : null,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Reset'),
+                    icon: const Icon(Icons.link_off_outlined),
+                    label: const Text('Revoke'),
                   ),
                 ],
               ),
+              if (!_busyInvite && _inviteUrl == null) ...[
+                const SizedBox(height: 12),
+                const Text('No active invite link. Generate one to share.'),
+              ],
               if (_busyInvite) ...[
                 const SizedBox(height: 10),
                 const LinearProgressIndicator(),

@@ -1,5 +1,27 @@
 import 'package:flutter_chat/features/chat/domain/entities/conversation_participant.dart';
 
+class ConversationLastMessage {
+  final String id;
+  final String content;
+  final String type;
+  final int? offset;
+  final String senderId;
+  final bool isDeleted;
+  final bool isRevoked;
+  final DateTime createdAt;
+
+  const ConversationLastMessage({
+    required this.id,
+    required this.content,
+    required this.type,
+    required this.offset,
+    required this.senderId,
+    required this.isDeleted,
+    required this.isRevoked,
+    required this.createdAt,
+  });
+}
+
 class Conversation {
   final String id;
   final String orgId;
@@ -19,6 +41,7 @@ class Conversation {
   final DateTime updatedAt;
   final String avatarUrl;
   final List<ConversationParticipant> participants;
+  final ConversationLastMessage? lastMessage;
 
   const Conversation({
     required this.id,
@@ -39,5 +62,6 @@ class Conversation {
     required this.updatedAt,
     required this.avatarUrl,
     this.participants = const <ConversationParticipant>[],
+    this.lastMessage,
   });
 }

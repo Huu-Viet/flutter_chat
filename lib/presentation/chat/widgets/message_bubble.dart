@@ -1346,7 +1346,7 @@ class _MessageBubbleState extends State<MessageBubble> {
   // ── Group Invite Link ─────────────────────────────────────────────────────
 
   static final _inviteLinkRegex = RegExp(
-    r'^Join "(.+)" on Zolo:\n(https://zolo-smoky\.vercel\.app/join/\S+)$',
+    r'^Join "(.+)" on Zolo:\n(https://(?:zolo\.chat|zolo-smoky\.vercel\.app)/join/\S+)$',
   );
 
   /// Returns `{groupName, inviteUrl}` when [text] matches the invite format, else null.

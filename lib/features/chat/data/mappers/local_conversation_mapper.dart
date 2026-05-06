@@ -2,9 +2,13 @@ import 'package:flutter_chat/core/database/app_database.dart';
 import 'package:flutter_chat/core/mappers/local_mapper.dart';
 import 'package:flutter_chat/features/chat/domain/entities/conversation.dart';
 
-class LocalConversationMapper extends LocalMapper<ChatConversationEntity, Conversation> {
+class LocalConversationMapper
+    extends LocalMapper<ChatConversationEntity, Conversation> {
   @override
   Conversation toDomain(ChatConversationEntity entity) {
+    final lastMessageCreatedAt = DateTime.tryParse(
+      entity.lastMessageCreatedAt ?? '',
+    );
     return Conversation(
       id: entity.id,
       orgId: entity.orgId,
@@ -20,9 +24,27 @@ class LocalConversationMapper extends LocalMapper<ChatConversationEntity, Conver
       joinApprovalRequired: entity.joinApprovalRequired,
       allowMemberMessage: entity.allowMemberMessage,
       linkVersion: entity.linkVersion ?? 0,
-      createdAt: DateTime.tryParse(entity.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
-      updatedAt: DateTime.tryParse(entity.updatedAt) ?? DateTime.fromMillisecondsSinceEpoch(0),
+      createdAt:
+          DateTime.tryParse(entity.createdAt) ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+      updatedAt:
+          DateTime.tryParse(entity.updatedAt) ??
+          DateTime.fromMillisecondsSinceEpoch(0),
       avatarUrl: entity.avatarUrl ?? '',
+      lastMessage: entity.lastMessageId == null
+          ? null
+          : ConversationLastMessage(
+              id: entity.lastMessageId ?? '',
+              content: entity.lastMessageContent ?? '',
+              type: entity.lastMessageType ?? 'text',
+              offset: entity.lastMessageOffset,
+              senderId: entity.lastMessageSenderId ?? '',
+              isDeleted: entity.lastMessageIsDeleted,
+              isRevoked: entity.lastMessageIsRevoked,
+              createdAt:
+                  lastMessageCreatedAt ??
+                  DateTime.fromMillisecondsSinceEpoch(0),
+            ),
     );
   }
 
@@ -46,6 +68,14 @@ class LocalConversationMapper extends LocalMapper<ChatConversationEntity, Conver
       createdAt: domain.createdAt.toIso8601String(),
       updatedAt: domain.updatedAt.toIso8601String(),
       avatarUrl: domain.avatarUrl.isEmpty ? null : domain.avatarUrl,
+      lastMessageId: domain.lastMessage?.id,
+      lastMessageContent: domain.lastMessage?.content,
+      lastMessageType: domain.lastMessage?.type,
+      lastMessageOffset: domain.lastMessage?.offset,
+      lastMessageSenderId: domain.lastMessage?.senderId,
+      lastMessageIsDeleted: domain.lastMessage?.isDeleted ?? false,
+      lastMessageIsRevoked: domain.lastMessage?.isRevoked ?? false,
+      lastMessageCreatedAt: domain.lastMessage?.createdAt.toIso8601String(),
     );
   }
 }

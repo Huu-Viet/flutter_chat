@@ -1,31 +1,39 @@
-  import 'dart:developer';
+import 'dart:developer';
 
 import 'package:flutter_chat/core/database/app_database.dart';
-  import 'package:drift/drift.dart';
+import 'package:drift/drift.dart';
 
-  class ConversationMemberLocal {
-    final UserEntity user;
-    final String role;
+class ConversationMemberLocal {
+  final UserEntity user;
+  final String role;
 
-    const ConversationMemberLocal({
-      required this.user,
-      required this.role,
-    });
-  }
+  const ConversationMemberLocal({required this.user, required this.role});
+}
 
-  class ConversationWithUsersLocal {
-    final ChatConversationEntity conversation;
-    final List<ConversationMemberLocal> participants;
+class ConversationWithUsersLocal {
+  final ChatConversationEntity conversation;
+  final List<ConversationMemberLocal> participants;
 
-    const ConversationWithUsersLocal({
-      required this.conversation,
-      required this.participants,
-    });
-  }
+  const ConversationWithUsersLocal({
+    required this.conversation,
+    required this.participants,
+  });
+}
 
 abstract class ConversationDao {
   Future<void> saveConversations(List<ChatConversationEntity> items);
   Future<void> saveConversation(ChatConversationEntity item);
+  Future<void> updateConversationLastMessage({
+    required String conversationId,
+    required String messageId,
+    required String content,
+    required String type,
+    required int? offset,
+    required String senderId,
+    required bool isDeleted,
+    required bool isRevoked,
+    required DateTime createdAt,
+  });
   Future<List<ChatConversationEntity>> getAllConversations();
   Stream<List<ChatConversationEntity>> watchAllConversations();
   Stream<List<ConversationWithUsersLocal>> watchConversationsWithUsers();
@@ -59,6 +67,36 @@ class DriftConversationDaoImpl implements ConversationDao {
   }
 
   @override
+  Future<void> updateConversationLastMessage({
+    required String conversationId,
+    required String messageId,
+    required String content,
+    required String type,
+    required int? offset,
+    required String senderId,
+    required bool isDeleted,
+    required bool isRevoked,
+    required DateTime createdAt,
+  }) async {
+    try {
+      await _database.updateConversationLastMessage(
+        conversationId: conversationId,
+        messageId: messageId,
+        content: content,
+        type: type,
+        offset: offset,
+        senderId: senderId,
+        isDeleted: isDeleted,
+        isRevoked: isRevoked,
+        createdAt: createdAt,
+      );
+    } catch (e) {
+      log(e.toString());
+      rethrow;
+    }
+  }
+
+  @override
   Future<List<ChatConversationEntity>> getAllConversations() async {
     try {
       return await _database.getAllChatConversations();
@@ -75,11 +113,10 @@ class DriftConversationDaoImpl implements ConversationDao {
 
   @override
   Stream<List<ConversationWithUsersLocal>> watchConversationsWithUsers() {
-    final joinedQuery = (_database.select(_database.chatConversations)
-          ..orderBy([
-            (tbl) => OrderingTerm.desc(tbl.updatedAt),
-          ]))
-        .join([
+    final joinedQuery =
+        (_database.select(
+          _database.chatConversations,
+        )..orderBy([(tbl) => OrderingTerm.desc(tbl.updatedAt)])).join([
           leftOuterJoin(
             _database.conversationUsers,
             _database.conversationUsers.conversationId.equalsExp(
@@ -110,16 +147,11 @@ class DriftConversationDaoImpl implements ConversationDao {
         }
 
         accumulator.addParticipant(
-          ConversationMemberLocal(
-            user: user,
-            role: membership.role ?? '',
-          ),
+          ConversationMemberLocal(user: user, role: membership.role ?? ''),
         );
       }
 
-      return grouped.values
-          .map((item) => item.build())
-          .toList(growable: false);
+      return grouped.values.map((item) => item.build()).toList(growable: false);
     });
   }
 
@@ -146,7 +178,8 @@ class DriftConversationDaoImpl implements ConversationDao {
 
 class _ConversationWithUsersAccumulator {
   final ChatConversationEntity conversation;
-  final List<ConversationMemberLocal> _participants = <ConversationMemberLocal>[];
+  final List<ConversationMemberLocal> _participants =
+      <ConversationMemberLocal>[];
   final Set<String> _userIds = <String>{};
 
   _ConversationWithUsersAccumulator(this.conversation);

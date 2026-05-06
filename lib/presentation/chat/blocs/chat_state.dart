@@ -1,5 +1,8 @@
 part of 'chat_bloc.dart';
 
+// Sentinel value to distinguish "not passed" from explicit null in copyWith
+const _sentinel = Object();
+
 sealed class ChatState extends Equatable {
   const ChatState();
 
@@ -31,6 +34,11 @@ final class ChatLoaded extends ChatState {
   final List<PinMessage> pinnedMessages;
   final Set<String> typingUserIds;
   final Map<String, String> typingUsernames;
+  // Jump-to-message fields
+  final bool isJumped;
+  final bool hasMoreAfter;
+  final String? jumpHighlightMessageId;
+  final int pendingCount;
 
   const ChatLoaded(
       this.messages, {
@@ -52,6 +60,10 @@ final class ChatLoaded extends ChatState {
         this.pinnedMessages = const <PinMessage>[],
         this.typingUserIds = const <String>{},
         this.typingUsernames = const <String, String>{},
+        this.isJumped = false,
+        this.hasMoreAfter = false,
+        this.jumpHighlightMessageId,
+        this.pendingCount = 0,
       }
   );
 
@@ -74,6 +86,10 @@ final class ChatLoaded extends ChatState {
     pinnedMessages,
     typingUserIds,
     typingUsernames,
+    isJumped,
+    hasMoreAfter,
+    if (jumpHighlightMessageId != null) jumpHighlightMessageId!,
+    pendingCount,
   ];
 
   //copyWith method to update the isTyping status
@@ -97,6 +113,10 @@ final class ChatLoaded extends ChatState {
     List<PinMessage>? pinnedMessages,
     Set<String>? typingUserIds,
     Map<String, String>? typingUsernames,
+    bool? isJumped,
+    bool? hasMoreAfter,
+    Object? jumpHighlightMessageId = _sentinel,
+    int? pendingCount,
   }) {
     return ChatLoaded(
       messages ?? this.messages,
@@ -122,6 +142,12 @@ final class ChatLoaded extends ChatState {
       pinnedMessages: pinnedMessages ?? this.pinnedMessages,
       typingUserIds: typingUserIds ?? this.typingUserIds,
       typingUsernames: typingUsernames ?? this.typingUsernames,
+      isJumped: isJumped ?? this.isJumped,
+      hasMoreAfter: hasMoreAfter ?? this.hasMoreAfter,
+      jumpHighlightMessageId: jumpHighlightMessageId == _sentinel
+          ? this.jumpHighlightMessageId
+          : jumpHighlightMessageId as String?,
+      pendingCount: pendingCount ?? this.pendingCount,
     );
   }
 }

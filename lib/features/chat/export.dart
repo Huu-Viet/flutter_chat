@@ -78,3 +78,5 @@ export '../chat/domain/usecases/fetch_pin_message_usecase.dart';
 export '../chat/domain/usecases/pin_message_usecase.dart';
 export '../chat/domain/usecases/unpin_message_usecase.dart';
 export '../chat/domain/usecases/delete_local_conversation_usecase.dart';
+export '../chat/domain/usecases/update_conversation_last_message_local_usecase.dart';
+export '../chat/domain/usecases/fetch_messages_around_usecase.dart';

@@ -28,7 +28,11 @@ class ChatServiceImpl implements ChatService {
       );
       final response = await _dio.get(
         '$_baseUrl/conversations',
-        queryParameters: {'page': page, 'limit': limit},
+        queryParameters: {
+          'page': page,
+          'limit': limit,
+          'avatarVariant': 'thumb',
+        },
       );
 
       if (response.statusCode != 200 || response.data == null) {
@@ -156,6 +160,36 @@ class ChatServiceImpl implements ChatService {
     } catch (e) {
       debugPrint('[ChatServiceImpl] Fetch messages error: $e');
       throw Exception('Failed to fetch messages: $e');
+    }
+  }
+
+  @override
+  Future<MessageListResponse> fetchMessagesAround(
+    String conversationId, {
+    required String messageId,
+    int limit = 30,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '$_baseUrl/conversations/$conversationId/messages/around',
+        queryParameters: {'messageId': messageId, 'limit': limit},
+      );
+
+      if (response.statusCode != 200 || response.data == null) {
+        throw Exception(
+          'Failed to fetch messages around: ${response.statusCode}',
+        );
+      }
+
+      final responseBody = response.data;
+      if (responseBody is! Map<String, dynamic>) {
+        throw Exception('Invalid response body format');
+      }
+
+      return MessageListResponse.fromJson(responseBody);
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] Fetch messages around error: $e');
+      throw Exception('Failed to fetch messages around: $e');
     }
   }
 

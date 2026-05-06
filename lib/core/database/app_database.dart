@@ -15,51 +15,53 @@ import '../../features/chat/data/entities/conversation_user_entity.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: [
-  Users,
-  ChatConversations,
-  ConversationUsers,
-  ChatMessages,
-  MessageMedias,
-  Friendships,
-  StickerPackages,
-  StickerItems,
-  PinMessages,
-  UserGroupSettings,
-])
+@DriftDatabase(
+  tables: [
+    Users,
+    ChatConversations,
+    ConversationUsers,
+    ChatMessages,
+    MessageMedias,
+    Friendships,
+    StickerPackages,
+    StickerItems,
+    PinMessages,
+    UserGroupSettings,
+  ],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onUpgrade: (m, from, to) async {
-          // We do not preserve old local data, so any schema upgrade recreates all tables.
-          await m.deleteTable('sticker_items');
-          await m.deleteTable('sticker_packages');
-          await m.deleteTable('message_medias');
-          await m.deleteTable('chat_messages');
-          await m.deleteTable('conversation_users');
-          await m.deleteTable('chat_conversations');
-          await m.deleteTable('friendships');
-          await m.deleteTable('users');
-          await m.deleteTable('pin_messages');
-          await m.deleteTable('user_group_settings');
+    onUpgrade: (m, from, to) async {
+      // We do not preserve old local data, so any schema upgrade recreates all tables.
+      await m.deleteTable('sticker_items');
+      await m.deleteTable('sticker_packages');
+      await m.deleteTable('message_medias');
+      await m.deleteTable('chat_messages');
+      await m.deleteTable('conversation_users');
+      await m.deleteTable('chat_conversations');
+      await m.deleteTable('friendships');
+      await m.deleteTable('users');
+      await m.deleteTable('pin_messages');
+      await m.deleteTable('user_group_settings');
 
-          await m.createTable(users);
-          await m.createTable(friendships);
-          await m.createTable(chatConversations);
-          await m.createTable(conversationUsers);
-          await m.createTable(chatMessages);
-          await m.createTable(messageMedias);
-          await m.createTable(stickerPackages);
-          await m.createTable(stickerItems);
-          await m.createTable(pinMessages);
-          await m.createTable(userGroupSettings);
-        },
-      );
+      await m.createTable(users);
+      await m.createTable(friendships);
+      await m.createTable(chatConversations);
+      await m.createTable(conversationUsers);
+      await m.createTable(chatMessages);
+      await m.createTable(messageMedias);
+      await m.createTable(stickerPackages);
+      await m.createTable(stickerItems);
+      await m.createTable(pinMessages);
+      await m.createTable(userGroupSettings);
+    },
+  );
 
   // Query methods for Users table
   Future<void> insertUser(UserEntity user) async {
@@ -67,11 +69,15 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<int> updateUserData(UserEntity user) async {
-    return (update(users)..where((u) => u.id.equals(user.id))).write(user.toCompanion(false));
+    return (update(
+      users,
+    )..where((u) => u.id.equals(user.id))).write(user.toCompanion(false));
   }
 
   Future<bool> deleteUserById(String userId) async {
-    return (delete(users)..where((u) => u.id.equals(userId))).go().then((count) => count > 0);
+    return (delete(
+      users,
+    )..where((u) => u.id.equals(userId))).go().then((count) => count > 0);
   }
 
   Future<bool> clearAllUsers() async {
@@ -105,7 +111,9 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Stream<UserEntity?> watchUserById(String userId) {
-    return (select(users)..where((u) => u.id.equals(userId))).watchSingleOrNull();
+    return (select(
+      users,
+    )..where((u) => u.id.equals(userId))).watchSingleOrNull();
   }
 
   // Chat conversation queries
@@ -120,39 +128,70 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
+  Future<void> updateConversationLastMessage({
+    required String conversationId,
+    required String messageId,
+    required String content,
+    required String type,
+    required int? offset,
+    required String senderId,
+    required bool isDeleted,
+    required bool isRevoked,
+    required DateTime createdAt,
+  }) async {
+    await (update(
+      chatConversations,
+    )..where((tbl) => tbl.id.equals(conversationId))).write(
+      ChatConversationsCompanion(
+        maxOffset: offset == null ? const Value.absent() : Value(offset),
+        updatedAt: Value(createdAt.toIso8601String()),
+        lastMessageId: Value(messageId),
+        lastMessageContent: Value(content),
+        lastMessageType: Value(type),
+        lastMessageOffset: Value(offset),
+        lastMessageSenderId: Value(senderId),
+        lastMessageIsDeleted: Value(isDeleted),
+        lastMessageIsRevoked: Value(isRevoked),
+        lastMessageCreatedAt: Value(createdAt.toIso8601String()),
+      ),
+    );
+  }
+
   Future<List<ChatConversationEntity>> getAllChatConversations() {
-    return (select(chatConversations)
-          ..orderBy([
-            (tbl) => OrderingTerm.desc(tbl.updatedAt),
-          ]))
-        .get();
+    return (select(
+      chatConversations,
+    )..orderBy([(tbl) => OrderingTerm.desc(tbl.updatedAt)])).get();
   }
 
   Stream<List<ChatConversationEntity>> watchAllChatConversations() {
-    return (select(chatConversations)
-          ..orderBy([
-            (tbl) => OrderingTerm.desc(tbl.updatedAt),
-          ]))
-        .watch();
+    return (select(
+      chatConversations,
+    )..orderBy([(tbl) => OrderingTerm.desc(tbl.updatedAt)])).watch();
   }
 
-  Future<void> insertConversationUsers(List<ConversationUserEntity> items) async {
+  Future<void> insertConversationUsers(
+    List<ConversationUserEntity> items,
+  ) async {
     if (items.isEmpty) return;
     await batch((b) {
       b.insertAllOnConflictUpdate(conversationUsers, items);
     });
   }
 
-  Future<List<ConversationUserEntity>> getConversationUsers(String conversationId) {
-    return (select(conversationUsers)
-          ..where((tbl) => tbl.conversationId.equals(conversationId)))
-        .get();
+  Future<List<ConversationUserEntity>> getConversationUsers(
+    String conversationId,
+  ) {
+    return (select(
+      conversationUsers,
+    )..where((tbl) => tbl.conversationId.equals(conversationId))).get();
   }
 
-  Stream<List<ConversationUserEntity>> watchConversationUsers(String conversationId) {
-    return (select(conversationUsers)
-          ..where((tbl) => tbl.conversationId.equals(conversationId)))
-        .watch();
+  Stream<List<ConversationUserEntity>> watchConversationUsers(
+    String conversationId,
+  ) {
+    return (select(
+      conversationUsers,
+    )..where((tbl) => tbl.conversationId.equals(conversationId))).watch();
   }
 
   Future<void> clearConversationUsers() async {
@@ -161,9 +200,15 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> deleteConversation(String conversationId) async {
     await transaction(() async {
-      await (delete(conversationUsers)..where((tbl) => tbl.conversationId.equals(conversationId))).go();
-      await (delete(chatMessages)..where((tbl) => tbl.conversationId.equals(conversationId))).go();
-      await (delete(chatConversations)..where((tbl) => tbl.id.equals(conversationId))).go();
+      await (delete(
+        conversationUsers,
+      )..where((tbl) => tbl.conversationId.equals(conversationId))).go();
+      await (delete(
+        chatMessages,
+      )..where((tbl) => tbl.conversationId.equals(conversationId))).go();
+      await (delete(
+        chatConversations,
+      )..where((tbl) => tbl.id.equals(conversationId))).go();
     });
   }
 
@@ -213,15 +258,23 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<List<StickerItemEntity>> getStickerItemsByPackageId(String packageId) {
-    return (select(stickerItems)..where((tbl) => tbl.packageId.equals(packageId))).get();
+    return (select(
+      stickerItems,
+    )..where((tbl) => tbl.packageId.equals(packageId))).get();
   }
 
-  Stream<List<StickerItemEntity>> watchStickerItemsByPackageId(String packageId) {
-    return (select(stickerItems)..where((tbl) => tbl.packageId.equals(packageId))).watch();
+  Stream<List<StickerItemEntity>> watchStickerItemsByPackageId(
+    String packageId,
+  ) {
+    return (select(
+      stickerItems,
+    )..where((tbl) => tbl.packageId.equals(packageId))).watch();
   }
 
   Future<void> clearStickerItemsByPackageId(String packageId) async {
-    await (delete(stickerItems)..where((tbl) => tbl.packageId.equals(packageId))).go();
+    await (delete(
+      stickerItems,
+    )..where((tbl) => tbl.packageId.equals(packageId))).go();
   }
 
   Future<void> clearAllStickerItems() async {
@@ -234,25 +287,37 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<ChatMessageEntity?> getMessageByServerId(String serverId) async {
-    return (select(chatMessages)..where((tbl) => tbl.serverId.equals(serverId))).getSingleOrNull();
+    return (select(
+      chatMessages,
+    )..where((tbl) => tbl.serverId.equals(serverId))).getSingleOrNull();
   }
 
   Future<ChatMessageEntity?> getMessageById(String id) async {
-    return (select(chatMessages)..where((tbl) => tbl.id.equals(id))).getSingleOrNull();
+    return (select(
+      chatMessages,
+    )..where((tbl) => tbl.id.equals(id))).getSingleOrNull();
   }
 
   Future<void> deleteMessageById(String id) async {
-    await (delete(messageMedias)..where((tbl) => tbl.messageId.equals(id))).go();
+    await (delete(
+      messageMedias,
+    )..where((tbl) => tbl.messageId.equals(id))).go();
     await (delete(chatMessages)..where((tbl) => tbl.id.equals(id))).go();
   }
 
   Future<void> deleteMessagesByServerId(String serverId) async {
-    final messages = await (select(chatMessages)..where((tbl) => tbl.serverId.equals(serverId))).get();
+    final messages = await (select(
+      chatMessages,
+    )..where((tbl) => tbl.serverId.equals(serverId))).get();
     final messageIds = messages.map((e) => e.id).toList(growable: false);
     if (messageIds.isNotEmpty) {
-      await (delete(messageMedias)..where((tbl) => tbl.messageId.isIn(messageIds))).go();
+      await (delete(
+        messageMedias,
+      )..where((tbl) => tbl.messageId.isIn(messageIds))).go();
     }
-    await (delete(chatMessages)..where((tbl) => tbl.serverId.equals(serverId))).go();
+    await (delete(
+      chatMessages,
+    )..where((tbl) => tbl.serverId.equals(serverId))).go();
   }
 
   Future<void> insertMessages(List<ChatMessageEntity> items) async {
@@ -262,7 +327,9 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
-  Future<List<ChatMessageEntity>> getMessagesByConversationId(String conversationId) {
+  Future<List<ChatMessageEntity>> getMessagesByConversationId(
+    String conversationId,
+  ) {
     return (select(chatMessages)
           ..where((tbl) => tbl.conversationId.equals(conversationId))
           ..orderBy([
@@ -272,7 +339,9 @@ class AppDatabase extends _$AppDatabase {
         .get();
   }
 
-  Stream<List<ChatMessageEntity>> watchMessagesByConversationId(String conversationId) {
+  Stream<List<ChatMessageEntity>> watchMessagesByConversationId(
+    String conversationId,
+  ) {
     return (select(chatMessages)
           ..where((tbl) => tbl.conversationId.equals(conversationId))
           ..orderBy([
@@ -282,25 +351,33 @@ class AppDatabase extends _$AppDatabase {
         .watch();
   }
 
-  Stream<List<PinMessageEntity>> watchPinnedMessagesByConversationId(String conversationId) {
+  Stream<List<PinMessageEntity>> watchPinnedMessagesByConversationId(
+    String conversationId,
+  ) {
     return (select(pinMessages)
           ..where((tbl) => tbl.conversationId.equals(conversationId))
-          ..orderBy([
-            (tbl) => OrderingTerm.desc(tbl.createdAt),
-          ]))
+          ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)]))
         .watch();
   }
 
   Future<void> clearMessagesByConversationId(String conversationId) async {
-    final messages = await (select(chatMessages)..where((tbl) => tbl.conversationId.equals(conversationId))).get();
+    final messages = await (select(
+      chatMessages,
+    )..where((tbl) => tbl.conversationId.equals(conversationId))).get();
     final messageIds = messages.map((e) => e.id).toList(growable: false);
     if (messageIds.isNotEmpty) {
-      await (delete(messageMedias)..where((tbl) => tbl.messageId.isIn(messageIds))).go();
+      await (delete(
+        messageMedias,
+      )..where((tbl) => tbl.messageId.isIn(messageIds))).go();
     }
-    await (delete(chatMessages)..where((tbl) => tbl.conversationId.equals(conversationId))).go();
+    await (delete(
+      chatMessages,
+    )..where((tbl) => tbl.conversationId.equals(conversationId))).go();
   }
 
-  Future<List<MessageMediaEntity>> getMessageMediasByMessageIds(List<String> messageIds) async {
+  Future<List<MessageMediaEntity>> getMessageMediasByMessageIds(
+    List<String> messageIds,
+  ) async {
     if (messageIds.isEmpty) {
       return const <MessageMediaEntity>[];
     }
@@ -314,9 +391,14 @@ class AppDatabase extends _$AppDatabase {
         .get();
   }
 
-  Future<void> replaceMessageMedias(String messageId, List<MessageMediaEntity> medias) async {
+  Future<void> replaceMessageMedias(
+    String messageId,
+    List<MessageMediaEntity> medias,
+  ) async {
     await transaction(() async {
-      await (delete(messageMedias)..where((tbl) => tbl.messageId.equals(messageId))).go();
+      await (delete(
+        messageMedias,
+      )..where((tbl) => tbl.messageId.equals(messageId))).go();
       if (medias.isNotEmpty) {
         await batch((b) {
           b.insertAllOnConflictUpdate(messageMedias, medias);
@@ -339,26 +421,29 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> updateMessageDeleted(String messageIdentifier) async {
-    await (update(chatMessages)
-          ..where(
-            (tbl) =>
-                tbl.id.equals(messageIdentifier) |
-                tbl.serverId.equals(messageIdentifier),
-          ))
+    await (update(chatMessages)..where(
+          (tbl) =>
+              tbl.id.equals(messageIdentifier) |
+              tbl.serverId.equals(messageIdentifier),
+        ))
         .write(
-      const ChatMessagesCompanion(
-        isDeleted: Value(true),
-        isRevoked: Value(true),
-      ),
-    );
+          const ChatMessagesCompanion(
+            isDeleted: Value(true),
+            isRevoked: Value(true),
+          ),
+        );
   }
 
   Future<void> insertOrReplacePinMessage(PinMessageEntity item) async {
     await into(pinMessages).insert(item, mode: InsertMode.replace);
   }
 
-  Future<List<PinMessageEntity>> getPinnedMessagesByConversationId(String conversationId) async {
-    return (select(pinMessages)..where((tbl) => tbl.conversationId.equals(conversationId))).get();
+  Future<List<PinMessageEntity>> getPinnedMessagesByConversationId(
+    String conversationId,
+  ) async {
+    return (select(
+      pinMessages,
+    )..where((tbl) => tbl.conversationId.equals(conversationId))).get();
   }
 
   Future<void> clearFriendships() async {
@@ -374,7 +459,7 @@ class AppDatabase extends _$AppDatabase {
     required String userId,
   }) {
     return (select(userGroupSettings)
-      ..where((t) => t.groupId.equals(groupId) & t.userId.equals(userId)))
+          ..where((t) => t.groupId.equals(groupId) & t.userId.equals(userId)))
         .getSingleOrNull();
   }
 
@@ -384,12 +469,8 @@ class AppDatabase extends _$AppDatabase {
     required bool isMuted,
   }) {
     return (update(userGroupSettings)
-      ..where((t) => t.groupId.equals(groupId) & t.userId.equals(userId)))
-        .write(
-      UserGroupSettingsCompanion(
-        isMute: Value(isMuted),
-      ),
-    );
+          ..where((t) => t.groupId.equals(groupId) & t.userId.equals(userId)))
+        .write(UserGroupSettingsCompanion(isMute: Value(isMuted)));
   }
 }
 

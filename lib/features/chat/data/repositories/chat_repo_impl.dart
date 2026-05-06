@@ -79,24 +79,37 @@ class ChatRepoImpl implements ChatRepository {
         for (final item in existingItems)
           item.id.trim(): item.allowMemberMessage,
       };
+      final existingLastMessageById = <String, ConversationLastMessage?>{
+        for (final item in existingItems)
+          item.id.trim(): _localConversationMapper.toDomain(item).lastMessage,
+      };
 
-      final conversations = response.conversations.map((dto) {
-        final mapped = _apiConversationMapper.toDomain(dto);
-        final id = (dto.id ?? '').trim();
-        if (id.isNotEmpty &&
-            dto.allowMemberMessage == null &&
-            existingAllowMemberMessageById.containsKey(id)) {
-          return _withAllowMemberMessage(
-            mapped,
-            existingAllowMemberMessageById[id]!,
-          );
-        }
-        return mapped;
-      }).toList(growable: false);
+      final conversations = response.conversations
+          .map((dto) {
+            var mapped = _apiConversationMapper.toDomain(dto);
+            final id = (dto.id ?? '').trim();
+            if (id.isNotEmpty &&
+                dto.allowMemberMessage == null &&
+                existingAllowMemberMessageById.containsKey(id)) {
+              mapped = _withAllowMemberMessage(
+                mapped,
+                existingAllowMemberMessageById[id]!,
+              );
+            }
+            if (id.isNotEmpty &&
+                dto.lastMessage == null &&
+                existingLastMessageById[id] != null) {
+              mapped = _withLastMessage(mapped, existingLastMessageById[id]);
+            }
+            return mapped;
+          })
+          .toList(growable: false);
       debugPrint(
         '[ChatRepoImpl] fetchConversations mapped: count=${conversations.length}',
       );
-      final hasMore = conversations.length == limit && conversations.isNotEmpty;
+      final hasMore =
+          response.hasNextPage ??
+          (conversations.length == limit && conversations.isNotEmpty);
 
       if (page == 1 && conversations.isEmpty) {
         await _conversationDao.clearConversations();
@@ -162,19 +175,26 @@ class ChatRepoImpl implements ChatRepository {
     try {
       final dto = await _chatService.fetchConversation(conversationId);
       var conversation = _apiConversationMapper.toDomain(dto);
-      if (dto.allowMemberMessage == null) {
-        final existingItems = await _conversationDao.getAllConversations();
-        ChatConversationEntity? existing;
-        for (final item in existingItems) {
-          if (item.id.trim() == conversationId.trim()) {
-            existing = item;
-            break;
-          }
+      final existingItems = await _conversationDao.getAllConversations();
+      ChatConversationEntity? existing;
+      for (final item in existingItems) {
+        if (item.id.trim() == conversationId.trim()) {
+          existing = item;
+          break;
         }
-        if (existing != null) {
+      }
+      if (existing != null) {
+        final existingDomain = _localConversationMapper.toDomain(existing);
+        if (dto.allowMemberMessage == null) {
           conversation = _withAllowMemberMessage(
             conversation,
             existing.allowMemberMessage,
+          );
+        }
+        if (dto.lastMessage == null && existingDomain.lastMessage != null) {
+          conversation = _withLastMessage(
+            conversation,
+            existingDomain.lastMessage,
           );
         }
       }
@@ -234,6 +254,43 @@ class ChatRepoImpl implements ChatRepository {
       final entities = _localMessageMapper.toEntityList(messages);
       await _messageDao.saveMessages(entities);
       return Right(messages);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<
+    Either<
+      Failure,
+      ({
+        List<Message> messages,
+        bool hasMoreBefore,
+        bool hasMoreAfter,
+        int? newestOffset,
+      })
+    >
+  >
+  fetchMessagesAround(
+    String conversationId, {
+    required String messageId,
+    int limit = 30,
+  }) async {
+    try {
+      final response = await _chatService.fetchMessagesAround(
+        conversationId,
+        messageId: messageId,
+        limit: limit,
+      );
+      final messages = _apiMessageMapper.toDomainList(response.messages);
+      final entities = _localMessageMapper.toEntityList(messages);
+      await _messageDao.saveMessages(entities);
+      return Right((
+        messages: messages,
+        hasMoreBefore: response.meta?.hasMoreBefore ?? false,
+        hasMoreAfter: response.meta?.hasMoreAfter ?? false,
+        newestOffset: response.meta?.newestOffset,
+      ));
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }
@@ -799,6 +856,7 @@ class ChatRepoImpl implements ChatRepository {
       updatedAt: base.updatedAt,
       avatarUrl: base.avatarUrl,
       participants: participants,
+      lastMessage: base.lastMessage,
     );
   }
 
@@ -825,6 +883,34 @@ class ChatRepoImpl implements ChatRepository {
       updatedAt: source.updatedAt,
       avatarUrl: source.avatarUrl,
       participants: source.participants,
+      lastMessage: source.lastMessage,
+    );
+  }
+
+  Conversation _withLastMessage(
+    Conversation source,
+    ConversationLastMessage? lastMessage,
+  ) {
+    return Conversation(
+      id: source.id,
+      orgId: source.orgId,
+      type: source.type,
+      name: source.name,
+      description: source.description,
+      avatarMediaId: source.avatarMediaId,
+      memberCount: source.memberCount,
+      maxOffset: source.maxOffset,
+      myOffset: source.myOffset,
+      createBy: source.createBy,
+      isPublic: source.isPublic,
+      joinApprovalRequired: source.joinApprovalRequired,
+      allowMemberMessage: source.allowMemberMessage,
+      linkVersion: source.linkVersion,
+      createdAt: source.createdAt,
+      updatedAt: source.updatedAt,
+      avatarUrl: source.avatarUrl,
+      participants: source.participants,
+      lastMessage: lastMessage,
     );
   }
 
@@ -952,6 +1038,61 @@ class ChatRepoImpl implements ChatRepository {
     } catch (e) {
       debugPrint('[ChatRepoImpl] deleteLocalConversation error: $e');
       return Left(CacheFailure('Failed to delete local conversation: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> updateConversationLastMessageLocal({
+    required String conversationId,
+    required ConversationLastMessage lastMessage,
+  }) async {
+    try {
+      final existingItems = await _conversationDao.getAllConversations();
+      ChatConversationEntity? existing;
+      for (final item in existingItems) {
+        if (item.id.trim() == conversationId.trim()) {
+          existing = item;
+          break;
+        }
+      }
+      if (existing == null) {
+        return const Right(null);
+      }
+
+      final existingLastMessage = _localConversationMapper
+          .toDomain(existing)
+          .lastMessage;
+      final existingOffset = existingLastMessage?.offset;
+      final incomingOffset = lastMessage.offset;
+      if (existingOffset != null &&
+          incomingOffset != null &&
+          incomingOffset < existingOffset) {
+        return const Right(null);
+      }
+      if (existingOffset == null &&
+          incomingOffset == null &&
+          existingLastMessage != null &&
+          lastMessage.createdAt.isBefore(existingLastMessage.createdAt)) {
+        return const Right(null);
+      }
+
+      await _conversationDao.updateConversationLastMessage(
+        conversationId: conversationId,
+        messageId: lastMessage.id,
+        content: lastMessage.content,
+        type: lastMessage.type,
+        offset: lastMessage.offset,
+        senderId: lastMessage.senderId,
+        isDeleted: lastMessage.isDeleted,
+        isRevoked: lastMessage.isRevoked,
+        createdAt: lastMessage.createdAt,
+      );
+      return const Right(null);
+    } catch (e) {
+      debugPrint('[ChatRepoImpl] updateConversationLastMessageLocal error: $e');
+      return Left(
+        CacheFailure('Failed to update conversation last message: $e'),
+      );
     }
   }
 

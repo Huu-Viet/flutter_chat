@@ -47,11 +47,15 @@ final apiPinMessageMapperProvider = Provider<ApiPinMessageMapper>((ref) {
   return ApiPinMessageMapper();
 });
 
-final apiMessageReactionMapperProvider = Provider<ApiMessageReactionMapper>((ref) {
+final apiMessageReactionMapperProvider = Provider<ApiMessageReactionMapper>((
+  ref,
+) {
   return ApiMessageReactionMapper();
 });
 
-final localConversationMapperProvider = Provider<LocalConversationMapper>((ref) {
+final localConversationMapperProvider = Provider<LocalConversationMapper>((
+  ref,
+) {
   return LocalConversationMapper();
 });
 
@@ -63,9 +67,11 @@ final localPinMessageMapperProvider = Provider<LocalPinMessageMapper>((ref) {
   return LocalPinMessageMapper();
 });
 
-final localMessageReactionMapperProvider = Provider<LocalMessageReactionMapper>((ref) {
-  return LocalMessageReactionMapper();
-});
+final localMessageReactionMapperProvider = Provider<LocalMessageReactionMapper>(
+  (ref) {
+    return LocalMessageReactionMapper();
+  },
+);
 
 final stickerPackageMapperProvider = Provider<ApiStickerPackageMapper>((ref) {
   return ApiStickerPackageMapper();
@@ -75,7 +81,9 @@ final stickerItemMapperProvider = Provider<ApiStickerItemMapper>((ref) {
   return ApiStickerItemMapper();
 });
 
-final localStickerPackageMapperProvider = Provider<LocalStickerPackageMapper>((ref) {
+final localStickerPackageMapperProvider = Provider<LocalStickerPackageMapper>((
+  ref,
+) {
   return LocalStickerPackageMapper();
 });
 
@@ -117,20 +125,26 @@ final chatRepoProvider = Provider<ChatRepository>((ref) {
 });
 
 //use cases
-final fetchConversationUseCaseProvider = Provider<FetchConversationUseCase>((ref) {
+final fetchConversationUseCaseProvider = Provider<FetchConversationUseCase>((
+  ref,
+) {
   return FetchConversationUseCase(ref.read(chatRepoProvider));
 });
 
-final searchConversationsUseCaseProvider =
-    Provider<SearchConversationsUseCase>((ref) {
-      return SearchConversationsUseCase(ref.read(chatRepoProvider));
+final searchConversationsUseCaseProvider = Provider<SearchConversationsUseCase>(
+  (ref) {
+    return SearchConversationsUseCase(ref.read(chatRepoProvider));
+  },
+);
+
+final fetchConversationDetailUseCaseProvider =
+    Provider<FetchConversationDetailUseCase>((ref) {
+      return FetchConversationDetailUseCase(ref.read(chatRepoProvider));
     });
 
-final fetchConversationDetailUseCaseProvider = Provider<FetchConversationDetailUseCase>((ref) {
-  return FetchConversationDetailUseCase(ref.read(chatRepoProvider));
-});
-
-final joinConversationUseCaseProvider = Provider<JoinConversationUseCase>((ref) {
+final joinConversationUseCaseProvider = Provider<JoinConversationUseCase>((
+  ref,
+) {
   return JoinConversationUseCase(ref.read(chatRepoProvider));
 });
 
@@ -138,29 +152,42 @@ final fetchMessagesUseCaseProvider = Provider<FetchMessagesUseCase>((ref) {
   return FetchMessagesUseCase(ref.read(chatRepoProvider));
 });
 
+final fetchMessagesAroundUseCaseProvider = Provider<FetchMessagesAroundUseCase>(
+  (ref) {
+    return FetchMessagesAroundUseCase(ref.read(chatRepoProvider));
+  },
+);
+
 final sendMessageUseCaseProvider = Provider<SendMessageUseCase>((ref) {
   return SendMessageUseCase(ref.read(chatRepoProvider));
 });
 
-final watchConversationsLocalUseCaseProvider = Provider<WatchConversationsLocalUseCase>((ref) {
-  return WatchConversationsLocalUseCase(ref.read(chatRepoProvider));
-});
+final watchConversationsLocalUseCaseProvider =
+    Provider<WatchConversationsLocalUseCase>((ref) {
+      return WatchConversationsLocalUseCase(ref.read(chatRepoProvider));
+    });
 
-final watchConversationsWithUsersUseCaseProvider = Provider<WatchConversationsWithUsersUseCase>((ref) {
-  return WatchConversationsWithUsersUseCase(ref.read(chatRepoProvider));
-});
+final watchConversationsWithUsersUseCaseProvider =
+    Provider<WatchConversationsWithUsersUseCase>((ref) {
+      return WatchConversationsWithUsersUseCase(ref.read(chatRepoProvider));
+    });
 
-final watchMessagesLocalUseCaseProvider = Provider<WatchMessagesLocalUseCase>((ref) {
+final watchMessagesLocalUseCaseProvider = Provider<WatchMessagesLocalUseCase>((
+  ref,
+) {
   return WatchMessagesLocalUseCase(ref.read(chatRepoProvider));
 });
 
-final getStickerPackagesUseCaseProvider = Provider<GetStickerPackagesUseCase>((ref) {
+final getStickerPackagesUseCaseProvider = Provider<GetStickerPackagesUseCase>((
+  ref,
+) {
   return GetStickerPackagesUseCase(ref.read(chatRepoProvider));
 });
 
-final getStickersInPackageUseCaseProvider = Provider<GetStickersInPackageUseCase>((ref) {
-  return GetStickersInPackageUseCase(ref.read(chatRepoProvider));
-});
+final getStickersInPackageUseCaseProvider =
+    Provider<GetStickersInPackageUseCase>((ref) {
+      return GetStickersInPackageUseCase(ref.read(chatRepoProvider));
+    });
 
 final editMessageUseCaseProvider = Provider<EditMessageUseCase>((ref) {
   return EditMessageUseCase(ref.read(chatRepoProvider));
@@ -178,17 +205,20 @@ final revokeMessageUseCaseProvider = Provider<RevokeMessageUseCase>((ref) {
   return RevokeMessageUseCase(ref.read(chatRepoProvider));
 });
 
-final markMessageDeletedLocalUseCaseProvider = Provider<MarkMessageDeletedLocalUseCase>((ref) {
-  return MarkMessageDeletedLocalUseCase(ref.read(chatRepoProvider));
-});
+final markMessageDeletedLocalUseCaseProvider =
+    Provider<MarkMessageDeletedLocalUseCase>((ref) {
+      return MarkMessageDeletedLocalUseCase(ref.read(chatRepoProvider));
+    });
 
-final updateMessageReactionUseCaseProvider = Provider<UpdateMessageReactionUseCase>((ref) {
-  return UpdateMessageReactionUseCase(ref.read(chatRepoProvider));
-});
+final updateMessageReactionUseCaseProvider =
+    Provider<UpdateMessageReactionUseCase>((ref) {
+      return UpdateMessageReactionUseCase(ref.read(chatRepoProvider));
+    });
 
-final markMessageReactionsLocalUseCaseProvider = Provider<MarkMessageReactionsLocalUseCase>((ref) {
-  return MarkMessageReactionsLocalUseCase(ref.read(chatRepoProvider));
-});
+final markMessageReactionsLocalUseCaseProvider =
+    Provider<MarkMessageReactionsLocalUseCase>((ref) {
+      return MarkMessageReactionsLocalUseCase(ref.read(chatRepoProvider));
+    });
 
 final getConversationUseCaseProvider = Provider<GetConversationUseCase>((ref) {
   return GetConversationUseCase(ref.read(chatRepoProvider));
@@ -214,10 +244,19 @@ final unpinMessageUseCaseProvider = Provider<UnpinMessageUseCase>((ref) {
   return UnpinMessageUseCase(ref.read(chatRepoProvider));
 });
 
-final deleteLocalConversationUseCaseProvider = Provider<DeleteLocalConversationUseCase>((ref) {
-  return DeleteLocalConversationUseCase(ref.read(chatRepoProvider));
-});
+final deleteLocalConversationUseCaseProvider =
+    Provider<DeleteLocalConversationUseCase>((ref) {
+      return DeleteLocalConversationUseCase(ref.read(chatRepoProvider));
+    });
 
-final createDirectConversationUseCaseProvider = Provider<CreateDirectConversationUseCase>((ref) {
-  return CreateDirectConversationUseCase(ref.read(chatRepoProvider));
-});
+final updateConversationLastMessageLocalUseCaseProvider =
+    Provider<UpdateConversationLastMessageLocalUseCase>((ref) {
+      return UpdateConversationLastMessageLocalUseCase(
+        ref.read(chatRepoProvider),
+      );
+    });
+
+final createDirectConversationUseCaseProvider =
+    Provider<CreateDirectConversationUseCase>((ref) {
+      return CreateDirectConversationUseCase(ref.read(chatRepoProvider));
+    });

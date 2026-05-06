@@ -1,3 +1,4 @@
+import 'package:flutter_chat/features/chat/data/dtos/message_dto.dart';
 import 'package:flutter_chat/features/chat/data/dtos/user_in_room_dto.dart';
 
 class ConversationDto {
@@ -18,6 +19,7 @@ class ConversationDto {
   final String? createdAt;
   final String? updatedAt;
   final String? avatarUrl;
+  final MessageDto? lastMessage;
   final List<UserInRoomDto> participants;
 
   const ConversationDto({
@@ -38,6 +40,7 @@ class ConversationDto {
     this.createdAt,
     this.updatedAt,
     this.avatarUrl,
+    this.lastMessage,
     this.participants = const <UserInRoomDto>[],
   });
 
@@ -48,20 +51,24 @@ class ConversationDto {
     }
 
     final otherUser = json['otherUser'] as Map<String, dynamic>?;
+    final rawLastMessage = json['lastMessage'];
     final rawParticipants = json['participants'];
     final participants = <UserInRoomDto>[
       if (rawParticipants is List)
-        ...rawParticipants
-            .whereType<Map>()
-            .map((e) => UserInRoomDto.fromJson(Map<String, dynamic>.from(e))),
+        ...rawParticipants.whereType<Map>().map(
+          (e) => UserInRoomDto.fromJson(Map<String, dynamic>.from(e)),
+        ),
     ];
 
     if (otherUser != null) {
       final mappedOther = UserInRoomDto.fromJson(otherUser);
       final mappedOtherId = mappedOther.userId?.trim();
-      final isAlreadyIncluded = mappedOtherId != null &&
+      final isAlreadyIncluded =
+          mappedOtherId != null &&
           mappedOtherId.isNotEmpty &&
-          participants.any((participant) => participant.userId == mappedOtherId);
+          participants.any(
+            (participant) => participant.userId == mappedOtherId,
+          );
       if (!isAlreadyIncluded) {
         participants.add(mappedOther);
       }
@@ -74,7 +81,8 @@ class ConversationDto {
       name: json['name'] as String?,
       description: json['description'] as String?,
       avatarMediaId: json['avatarMediaId'] as String?,
-      memberCount: (json['memberCount'] as num?)?.toInt() ??
+      memberCount:
+          (json['memberCount'] as num?)?.toInt() ??
           (participants.isNotEmpty ? participants.length : null),
       maxOffset: _asInt(json['maxOffset']),
       myOffset: _asInt(json['myOffset']),
@@ -85,7 +93,15 @@ class ConversationDto {
       linkVersion: _asInt(json['linkVersion']),
       createdAt: json['createdAt']?.toString(),
       updatedAt: (json['updatedAt'] ?? json['createdAt'])?.toString(),
-      avatarUrl: json['avatarUrl'] as String? ?? otherUser?['avatarUrl'] as String?,
+      avatarUrl:
+          json['avatarUrl'] as String? ?? otherUser?['avatarUrl'] as String?,
+      lastMessage: rawLastMessage is Map
+          ? MessageDto.fromJson(
+              rawLastMessage.map(
+                (key, value) => MapEntry(key.toString(), value),
+              ),
+            )
+          : null,
       participants: participants,
     );
   }
@@ -98,23 +114,24 @@ class ConversationDto {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'orgId': orgId,
-        'type': type,
-        'name': name,
-        'description': description,
-        'avatarMediaId': avatarMediaId,
-        'memberCount': memberCount,
-        'maxOffset': maxOffset,
-        'myOffset': myOffset,
-        'createBy': createBy,
-        'isPublic': isPublic,
-        'joinApprovalRequired': joinApprovalRequired,
-        'allowMemberMessage': allowMemberMessage,
-        'linkVersion': linkVersion,
-        'createdAt': createdAt,
-        'updatedAt': updatedAt,
-        'avatarUrl': avatarUrl,
-        'participants': participants.map((e) => e.toJson()).toList(growable: false),
-      };
+    'id': id,
+    'orgId': orgId,
+    'type': type,
+    'name': name,
+    'description': description,
+    'avatarMediaId': avatarMediaId,
+    'memberCount': memberCount,
+    'maxOffset': maxOffset,
+    'myOffset': myOffset,
+    'createBy': createBy,
+    'isPublic': isPublic,
+    'joinApprovalRequired': joinApprovalRequired,
+    'allowMemberMessage': allowMemberMessage,
+    'linkVersion': linkVersion,
+    'createdAt': createdAt,
+    'updatedAt': updatedAt,
+    'avatarUrl': avatarUrl,
+    'lastMessage': lastMessage?.toJson(),
+    'participants': participants.map((e) => e.toJson()).toList(growable: false),
+  };
 }

@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-const _inviteDeepLinkHost = 'zolo-smoky.vercel.app';
+const _inviteDeepLinkHosts = <String>{'zolo.chat', 'zolo-smoky.vercel.app'};
 
 class QrScannerPage extends StatefulWidget {
   const QrScannerPage({super.key});
@@ -37,8 +37,7 @@ class _QrScannerPageState extends State<QrScannerPage> {
     if (uri != null && _isInviteLink(uri)) {
       final token = uri.pathSegments[1].trim();
       context.go('/join/${Uri.encodeComponent(token)}');
-    } else if (uri != null &&
-        (uri.scheme == 'http' || uri.scheme == 'https')) {
+    } else if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
       context.pop();
       try {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -77,7 +76,7 @@ class _QrScannerPageState extends State<QrScannerPage> {
   }
 
   bool _isInviteLink(Uri uri) {
-    return uri.host == _inviteDeepLinkHost &&
+    return _inviteDeepLinkHosts.contains(uri.host.toLowerCase()) &&
         uri.pathSegments.length >= 2 &&
         uri.pathSegments[0] == 'join';
   }
@@ -102,10 +101,7 @@ class _QrScannerPageState extends State<QrScannerPage> {
       ),
       body: Stack(
         children: [
-          MobileScanner(
-            controller: _controller,
-            onDetect: _onDetect,
-          ),
+          MobileScanner(controller: _controller, onDetect: _onDetect),
           // Scan window overlay
           Center(
             child: Container(

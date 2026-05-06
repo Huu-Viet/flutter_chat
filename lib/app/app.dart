@@ -27,7 +27,10 @@ class MyApp extends ConsumerStatefulWidget {
 }
 
 class _MyAppState extends ConsumerState<MyApp> {
-  static const String _inviteDeepLinkHost = 'zolo-smoky.vercel.app';
+  static const Set<String> _inviteDeepLinkHosts = <String>{
+    'zolo.chat',
+    'zolo-smoky.vercel.app',
+  };
 
   late final AppLinks _appLinks;
   StreamSubscription<Uri>? _deepLinkSubscription;
@@ -140,27 +143,25 @@ class _MyAppState extends ConsumerState<MyApp> {
       switch (event.event) {
         case Event.actionCallAccept:
           debugPrint('[MyApp] CallKit actionCallAccept: callId=$callId');
-          
-          final call = _incomingCallsById[callId] ??
+
+          final call =
+              _incomingCallsById[callId] ??
               _restoreIncomingCallFromCallKitEvent(event, callId);
           if (call == null) {
             debugPrint('[MyApp] CallKit: cannot restore call, callId=$callId');
             break;
           }
 
-          debugPrint('[MyApp] CallKit: call restored, conversationId=${call.conversationId}, callerId=${call.callerId}');
-          
+          debugPrint(
+            '[MyApp] CallKit: call restored, conversationId=${call.conversationId}, callerId=${call.callerId}',
+          );
+
           final isGroupCall = _isGroupCallFromCallKitEvent(event, call);
           debugPrint('[MyApp] CallKit: isGroupCall=$isGroupCall');
 
           ref
               .read(inCallBlocProvider)
-              .add(
-                InCallIncomingAccepted(
-                  call,
-                  isGroupCall: isGroupCall,
-                ),
-              );
+              .add(InCallIncomingAccepted(call, isGroupCall: isGroupCall));
           ref.read(incomingCallProvider.notifier).state = null;
           _incomingCallsById.remove(callId);
           _shownCallKitIds.remove(callId);
@@ -206,10 +207,8 @@ class _MyAppState extends ConsumerState<MyApp> {
 
   String? _extractCallIdFromCallKitEvent(CallEvent event) {
     final body = _callKitEventBody(event);
-    final id = body['id'] ??
-        body['callId'] ??
-        body['call_roomId'] ??
-        body['call_id'];
+    final id =
+        body['id'] ?? body['callId'] ?? body['call_roomId'] ?? body['call_id'];
     if (id == null) {
       return null;
     }
@@ -280,7 +279,10 @@ class _MyAppState extends ConsumerState<MyApp> {
     return false;
   }
 
-  CallInfo? _restoreIncomingCallFromCallKitEvent(CallEvent event, String callId) {
+  CallInfo? _restoreIncomingCallFromCallKitEvent(
+    CallEvent event,
+    String callId,
+  ) {
     final body = _callKitEventBody(event);
     final conversationId = _readCallKitString(body, const [
       'conversationId',
@@ -368,7 +370,7 @@ class _MyAppState extends ConsumerState<MyApp> {
     final scheme = uri.scheme.toLowerCase();
     final host = uri.host.toLowerCase();
     if ((scheme != 'https' && scheme != 'http') ||
-        host != _inviteDeepLinkHost) {
+        !_inviteDeepLinkHosts.contains(host)) {
       return false;
     }
 
@@ -448,13 +450,13 @@ class _MyAppState extends ConsumerState<MyApp> {
             null,
             callerName.isNotEmpty ? callerName : 'Incoming call',
             callerAvatar: callerAvatar.isNotEmpty ? callerAvatar : null,
-          conversationId: next.conversationId.trim().isNotEmpty
-            ? next.conversationId.trim()
-            : null,
-          callerId: next.callerId.trim().isNotEmpty
-            ? next.callerId.trim()
-            : null,
-          conversationType: next.participants.length > 2 ? 'group' : 'direct',
+            conversationId: next.conversationId.trim().isNotEmpty
+                ? next.conversationId.trim()
+                : null,
+            callerId: next.callerId.trim().isNotEmpty
+                ? next.callerId.trim()
+                : null,
+            conversationType: next.participants.length > 2 ? 'group' : 'direct',
           );
     });
 

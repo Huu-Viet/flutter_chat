@@ -378,6 +378,7 @@ class RealtimeGatewayService implements RealtimeGateway {
       'friendship:request_received',
       'friendship:request_accepted',
       'friendship:request_rejected',
+      'friendship:request_canceled',
       'friendship:removed',
       'friendship:blocked',
       'friendship:unblocked',

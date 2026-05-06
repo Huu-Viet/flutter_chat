@@ -2,20 +2,29 @@ import 'package:flutter_chat/features/chat/data/dtos/message_dto.dart';
 
 class MessageListMetaDto {
   final bool hasMore;
+  final bool? hasMoreBefore;
+  final bool? hasMoreAfter;
   final int? oldestOffset;
   final int? newestOffset;
+  final int? targetOffset;
 
   const MessageListMetaDto({
     required this.hasMore,
+    this.hasMoreBefore,
+    this.hasMoreAfter,
     required this.oldestOffset,
     required this.newestOffset,
+    this.targetOffset,
   });
 
   factory MessageListMetaDto.fromJson(Map<String, dynamic> json) {
     return MessageListMetaDto(
       hasMore: json['hasMore'] == true,
+      hasMoreBefore: json['hasMoreBefore'] as bool?,
+      hasMoreAfter: json['hasMoreAfter'] as bool?,
       oldestOffset: _asInt(json['oldestOffset']),
       newestOffset: _asInt(json['newestOffset']),
+      targetOffset: _asInt(json['targetOffset']),
     );
   }
 

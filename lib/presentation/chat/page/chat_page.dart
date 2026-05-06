@@ -138,11 +138,17 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         }
 
         final containsTarget = _payloadContainsUserId(payload, targetUserId);
+        // For request_canceled the server may only include the canceledBy field
+        // (the sender's ID), which may not match targetUserId when received on
+        // the receiver's side. Since in a direct chat any cancel event is
+        // relevant to exactly our two parties, we always invalidate here.
+        final isCancelEvent = event.event == 'friendship:request_canceled' ||
+            event.event == 'friendship.request_canceled';
         debugPrint(
-          '[ChatPage][FriendshipRealtime] Event=${event.event} targetUserId=$targetUserId containsTarget=$containsTarget',
+          '[ChatPage][FriendshipRealtime] Event=${event.event} targetUserId=$targetUserId containsTarget=$containsTarget isCancelEvent=$isCancelEvent',
         );
 
-        if (containsTarget) {
+        if (containsTarget || isCancelEvent) {
           debugPrint(
             '[ChatPage][FriendshipRealtime] Invalidating friendshipStatusProvider for $targetUserId',
           );
@@ -219,7 +225,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         eventName == 'friendship.request_rejected' ||
         eventName == 'friendship.removed' ||
         eventName == 'friendship.blocked' ||
-        eventName == 'friendship.unblocked';
+        eventName == 'friendship.unblocked' ||
+        eventName == 'friendship:request_canceled' ||
+        eventName == 'friendship.request_canceled';
   }
 
   bool _payloadContainsUserId(dynamic payload, String userId) {
@@ -260,6 +268,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         'unblocker',
         'unblocked',
         'userId',
+        'canceledBy',
       ];
 
       for (final key in candidateKeys) {
@@ -802,6 +811,117 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     );
   }
 
+  Widget _buildPendingInPanel(BuildContext context, String targetUserId) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: theme.colorScheme.primary.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.person_add_outlined,
+            color: theme.colorScheme.primary,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          const Expanded(
+              child: Text('This person sent you a friend request.')),
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed: () async {
+              final result = await ref
+                  .read(acceptFriendRequestUseCaseProvider)
+                  .call(targetUserId);
+              if (!mounted) return;
+              result.fold(
+                (failure) => ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text(
+                          'Failed to accept request: ${failure.message}')),
+                ),
+                (_) {
+                  ref.invalidate(friendshipStatusProvider(targetUserId));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Friend request accepted!')),
+                  );
+                },
+              );
+            },
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPendingOutPanel(BuildContext context, String targetUserId) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.schedule_outlined,
+            color: theme.colorScheme.onSecondaryContainer,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          const Expanded(
+              child: Text('You sent a friend request to this person.')),
+          const SizedBox(width: 8),
+          OutlinedButton(
+            onPressed: () async {
+              final result = await ref
+                  .read(rejectFriendRequestUseCaseProvider)
+                  .call(targetUserId);
+              if (!mounted) return;
+              result.fold(
+                (failure) => ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text(
+                          'Failed to cancel request: ${failure.message}')),
+                ),
+                (_) {
+                  ref.invalidate(friendshipStatusProvider(targetUserId));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Friend request cancelled.')),
+                  );
+                },
+              );
+            },
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text('Cancel request'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBlockedComposerPanel(_DirectBlockRelation relation) {
     final theme = Theme.of(context);
     final message = switch (relation) {
@@ -941,6 +1061,15 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   context,
                 ).showSnackBar(SnackBar(content: Text(message)));
               }
+
+              // Clear jump highlight after 2 seconds
+              if (state is ChatLoaded && state.jumpHighlightMessageId != null) {
+                Future.delayed(const Duration(seconds: 2), () {
+                  if (mounted) {
+                    ref.read(chatBlocProvider).add(const ClearJumpHighlightEvent());
+                  }
+                });
+              }
             },
             builder: (context, state) {
               final isGroupConversation =
@@ -1071,7 +1200,14 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                     if (state is ChatLoaded && state.pinnedMessages.isNotEmpty)
                       PinMessagePanel(
                         pinnedMessages: state.pinnedMessages,
-                        onTapItem: (pinMessages) {},
+                        onTapItem: (pinMessage) {
+                          ref.read(chatBlocProvider).add(
+                            JumpToMessageEvent(
+                              conversationId: widget.conversationId,
+                              messageId: pinMessage.messageId,
+                            ),
+                          );
+                        },
                         onUnpin: (pinMessage) {
                           ref.read(chatBlocProvider).add(
                             UnpinMessageEvent(
@@ -1084,13 +1220,54 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
                     if (state is ChatLoaded &&
                       state.conversation?.type.trim().toLowerCase() == 'direct' &&
-                      directTargetUserId != null &&
-                      directFriendshipStatus?.valueOrNull?.isNone == true)
-                      _buildStrangerPanel(context, directTargetUserId),
+                      directTargetUserId != null) ...[
+                      if (directFriendshipStatus?.valueOrNull?.isNone == true)
+                        _buildStrangerPanel(context, directTargetUserId),
+                      if (directFriendshipStatus?.valueOrNull?.isPendingIn == true)
+                        _buildPendingInPanel(context, directTargetUserId),
+                      if (directFriendshipStatus?.valueOrNull?.isPendingOut == true)
+                        _buildPendingOutPanel(context, directTargetUserId),
+                    ],
 
                     if (state is ChatLoaded) _buildOpenPollPanel(state),
 
-                    Expanded(child: _buildMessagesPane(state, l10n, chatBloc)),
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          _buildMessagesPane(state, l10n, chatBloc),
+                          // "↓ N new messages" badge when jumped
+                          if (state is ChatLoaded && state.isJumped && state.pendingCount > 0)
+                            Positioned(
+                              bottom: 12,
+                              right: 16,
+                              child: GestureDetector(
+                                onTap: () => chatBloc.add(ReturnToLiveEvent(widget.conversationId)),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.primaryContainer,
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: [
+                                      BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.keyboard_arrow_down, size: 16),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '${state.pendingCount} new',
+                                        style: Theme.of(context).textTheme.labelMedium,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                     // is typing badge
                     if (state is ChatLoaded &&
                         state.typingUserIds.isNotEmpty &&
@@ -1264,7 +1441,11 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         }
 
         final message = combinedMessages[combinedMessages.length - 1 - index];
-        return MessageBubble(
+        final isHighlighted = state.jumpHighlightMessageId != null &&
+            (message.serverId == state.jumpHighlightMessageId ||
+                message.localId == state.jumpHighlightMessageId);
+
+        final bubble = MessageBubble(
           key: ValueKey(message.localId ?? message.serverId ?? index),
           message: message,
           conversationId: widget.conversationId,
@@ -1303,6 +1484,13 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           },
           onVotePoll: (pollId, optionIds) => _votePoll(pollId, optionIds),
           onClosePoll: canManagePoll ? (pollId) => _closePoll(pollId) : null,
+        );
+
+        if (!isHighlighted) return bubble;
+
+        return _JumpHighlightWrapper(
+          key: ValueKey('highlight_${message.localId ?? message.serverId ?? index}'),
+          child: bubble,
         );
       },
     );
@@ -2534,14 +2722,75 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
     final threshold = 100; // px
 
-    // ⚠️ reverse: true → maxScrollExtent is "top"
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - threshold) {
-      final state = chatBloc.state;
+    // ⚠️ reverse: true → maxScrollExtent is "top", position.pixels near 0 is bottom
+    final pos = _scrollController.position.pixels;
+    final max = _scrollController.position.maxScrollExtent;
+    final state = chatBloc.state;
 
-      if (state is ChatLoaded && state.hasMoreOld && !state.isLoadingMore) {
+    if (state is! ChatLoaded) return;
+
+    // Scrolling toward top (older messages)
+    if (pos >= max - threshold) {
+      if (state.hasMoreOld && !state.isLoadingMore) {
         chatBloc.add(LoadMoreMessagesEvent(widget.conversationId));
       }
     }
+
+    // Scrolling toward bottom (newer messages) in jumped mode
+    if (pos <= threshold && state.isJumped) {
+      if (state.hasMoreAfter && !state.isLoadingMore) {
+        chatBloc.add(LoadMoreAfterEvent(widget.conversationId));
+      } else if (!state.hasMoreAfter) {
+        // Already at newest — return to live
+        chatBloc.add(ReturnToLiveEvent(widget.conversationId));
+      }
+    }
+  }
+}
+
+/// Wraps a widget with a golden highlight that fades out over ~1.5 seconds.
+class _JumpHighlightWrapper extends StatefulWidget {
+  final Widget child;
+  const _JumpHighlightWrapper({super.key, required this.child});
+
+  @override
+  State<_JumpHighlightWrapper> createState() => _JumpHighlightWrapperState();
+}
+
+class _JumpHighlightWrapperState extends State<_JumpHighlightWrapper>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<Color?> _colorAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+    _colorAnimation = ColorTween(
+      begin: const Color(0x66FFC107),
+      end: Colors.transparent,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _colorAnimation,
+      builder: (context, child) => Container(
+        color: _colorAnimation.value,
+        child: child,
+      ),
+      child: widget.child,
+    );
   }
 }

@@ -53,6 +53,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final UnpinMessageUseCase unpinMessageUseCase;
   final EmitTypingUseCase emitTypingUseCase;
   final UploadMultipartUseCase uploadMultipartUseCase;
+  final FetchMessagesAroundUseCase fetchMessagesAroundUseCase;
   final AudioCacheDao audioCacheDao;
 
   String? _currentUserId;
@@ -66,6 +67,13 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   List<Message> _currentMessages = const [];
   List<PinMessage> _currentPinnedMessages = [];
+
+  // Jump-to-message state
+  bool _isJumped = false;
+  bool _hasMoreAfter = false;
+  String? _jumpHighlightMessageId;
+  int _pendingCount = 0;
+  int? _jumpNewestOffset;
   final Set<String> _uploadingImagePaths = <String>{};
   final Set<String> _uploadingFilePaths = <String>{};
   final Set<String> _uploadingVideoPaths = <String>{};
@@ -100,6 +108,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     required this.unpinMessageUseCase,
     required this.uploadMultipartUseCase,
     required this.emitTypingUseCase,
+    required this.fetchMessagesAroundUseCase,
     required this.audioCacheDao,
   }) : super(ChatInitial()) {
     on<ChatInitialLoadEvent>(_onChatInitialLoad);
@@ -125,6 +134,16 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<PinMessageEvent>(_onPinMessage);
     on<UnpinMessageEvent>(_onUnpinMessage);
     on<RefreshPinnedMessagesEvent>(_onRefreshPinnedMessages);
+    on<JumpToMessageEvent>(_onJumpToMessage);
+    on<ReturnToLiveEvent>(_onReturnToLive);
+    on<LoadMoreAfterEvent>(_onLoadMoreAfter);
+    on<ClearJumpHighlightEvent>((event, emit) {
+      final current = state;
+      if (current is ChatLoaded) {
+        emit(current.copyWith(jumpHighlightMessageId: null));
+        _jumpHighlightMessageId = null;
+      }
+    });
     on<_LocalPinnedMessagesChangedEvent>((event, emit) async {
       _currentPinnedMessages = event.pinnedMessages;
 
@@ -140,6 +159,28 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<_LocalMessagesChangedEvent>((event, emit) async {
       _currentMessages = event.messages;
       _requestMissingMediaUrls(event.messages);
+
+      // In jumped mode, new messages arrive via local watcher but we don't
+      // want to display them yet — we count them as pending instead.
+      if (_isJumped) {
+        final currentState = state;
+        if (currentState is ChatLoaded) {
+          // Count messages newer than newestOffset from the jump
+          final pending = _jumpNewestOffset == null
+              ? 0
+              : event.messages
+                  .where((m) => m.offset != null && m.offset! > _jumpNewestOffset!)
+                  .length;
+          if (pending != _pendingCount) {
+            _pendingCount = pending;
+            emit(currentState.copyWith(
+              pendingCount: _pendingCount,
+            ));
+          }
+        }
+        return;
+      }
+
       emit(_buildChatLoaded(_currentMessages));
     });
     on<_LocalMessagesErrorEvent>(
@@ -165,6 +206,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       conversation: _currentConversation,
       currentUserId: _currentUserId,
       pinnedMessages: _currentPinnedMessages,
+      isJumped: _isJumped,
+      hasMoreAfter: _hasMoreAfter,
+      jumpHighlightMessageId: _jumpHighlightMessageId,
+      pendingCount: _pendingCount,
     );
   }
 
@@ -497,6 +542,125 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         '[ChatBloc] refresh pinned failed: ${failure.message}',
       ),
       (_) => null,
+    );
+  }
+
+  FutureOr<void> _onJumpToMessage(
+    JumpToMessageEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final current = state;
+    if (current is! ChatLoaded) return;
+
+    final result = await fetchMessagesAroundUseCase(
+      event.conversationId,
+      messageId: event.messageId,
+    );
+
+    result.fold(
+      (failure) => debugPrint('[ChatBloc] jumpToMessage failed: ${failure.message}'),
+      (data) {
+        // Sort messages by offset
+        final sorted = List<Message>.from(data.messages)
+          ..sort((a, b) => (a.offset ?? 0).compareTo(b.offset ?? 0));
+
+        _isJumped = true;
+        _hasMoreAfter = data.hasMoreAfter;
+        _jumpHighlightMessageId = event.messageId;
+        _jumpNewestOffset = data.newestOffset;
+        _pendingCount = 0;
+
+        emit(current.copyWith(
+          messages: sorted,
+          isJumped: true,
+          hasMoreAfter: data.hasMoreAfter,
+          jumpHighlightMessageId: event.messageId,
+          pendingCount: 0,
+        ));
+      },
+    );
+  }
+
+  FutureOr<void> _onReturnToLive(
+    ReturnToLiveEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    _isJumped = false;
+    _hasMoreAfter = false;
+    _jumpHighlightMessageId = null;
+    _jumpNewestOffset = null;
+    _pendingCount = 0;
+
+    // Re-fetch latest messages and let the local watcher take over
+    unawaited(fetchMessagesUseCase(event.conversationId));
+
+    final current = state;
+    if (current is ChatLoaded) {
+      emit(current.copyWith(
+        messages: _currentMessages,
+        isJumped: false,
+        hasMoreAfter: false,
+        jumpHighlightMessageId: null,
+        pendingCount: 0,
+      ));
+    }
+  }
+
+  FutureOr<void> _onLoadMoreAfter(
+    LoadMoreAfterEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final current = state;
+    if (current is! ChatLoaded || !current.isJumped || !current.hasMoreAfter) return;
+
+    final validMessages = current.messages.where((m) => m.offset != null).toList();
+    if (validMessages.isEmpty) return;
+
+    final newestOffset = validMessages
+        .map((m) => m.offset!)
+        .reduce((a, b) => a > b ? a : b);
+
+    emit(current.copyWith(isLoadingMore: true));
+
+    final result = await fetchMessagesUseCase(
+      event.conversationId,
+      after: newestOffset,
+      limit: 30,
+    );
+
+    result.fold(
+      (failure) {
+        emit(current.copyWith(isLoadingMore: false));
+      },
+      (newMessages) {
+        final merged = [...current.messages, ...newMessages];
+        final map = <String, Message>{};
+        for (final m in merged) {
+          final key = m.serverId ?? m.id;
+          map[key] = m;
+        }
+        final sorted = map.values.toList()
+          ..sort((a, b) => (a.offset ?? 0).compareTo(b.offset ?? 0));
+
+        final newHasMoreAfter = newMessages.length == 30;
+        _hasMoreAfter = newHasMoreAfter;
+        if (!newHasMoreAfter) {
+          // Reached the end — exit jumped mode
+          _isJumped = false;
+          _jumpHighlightMessageId = null;
+          _jumpNewestOffset = null;
+          _pendingCount = 0;
+        }
+
+        emit(current.copyWith(
+          messages: sorted,
+          isLoadingMore: false,
+          hasMoreAfter: newHasMoreAfter,
+          isJumped: newHasMoreAfter,
+          jumpHighlightMessageId: null,
+          pendingCount: 0,
+        ));
+      },
     );
   }
 

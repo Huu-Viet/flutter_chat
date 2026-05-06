@@ -11,7 +11,9 @@ abstract class ChatRepository {
     int limit,
   });
 
-  Future<Either<Failure, Conversation>> fetchConversation(String conversationId);
+  Future<Either<Failure, Conversation>> fetchConversation(
+    String conversationId,
+  );
 
   Future<Either<Failure, List<Conversation>>> getConversations();
 
@@ -21,6 +23,26 @@ abstract class ChatRepository {
     String conversationId, {
     int? before,
     int? after,
+    int limit,
+  });
+
+  /// Returns messages around a specific messageId.
+  /// The result contains the messages, plus meta:
+  /// [hasMoreBefore], [hasMoreAfter], [newestOffset].
+  Future<
+    Either<
+      Failure,
+      ({
+        List<Message> messages,
+        bool hasMoreBefore,
+        bool hasMoreAfter,
+        int? newestOffset,
+      })
+    >
+  >
+  fetchMessagesAround(
+    String conversationId, {
+    required String messageId,
     int limit,
   });
 
@@ -86,19 +108,38 @@ abstract class ChatRepository {
 
   Stream<Either<Failure, List<Conversation>>> watchConversationsLocal();
 
-  Stream<Either<Failure, List<Conversation>>> watchConversationsWithUsersLocal();
+  Stream<Either<Failure, List<Conversation>>>
+  watchConversationsWithUsersLocal();
 
-  Stream<Either<Failure, List<Message>>> watchMessagesLocal(String conversationId);
+  Stream<Either<Failure, List<Message>>> watchMessagesLocal(
+    String conversationId,
+  );
 
-  Stream<Either<Failure, List<PinMessage>>> watchPinnedMessagesLocal(String conversationId);
+  Stream<Either<Failure, List<PinMessage>>> watchPinnedMessagesLocal(
+    String conversationId,
+  );
 
   Future<Either<Failure, List<StickerPackage>>> getStickerPackages();
 
-  Future<Either<Failure, List<StickerItem>>> getStickersInPackage(String packageId, {int limit = 50, int offset = 0});
+  Future<Either<Failure, List<StickerItem>>> getStickersInPackage(
+    String packageId, {
+    int limit = 50,
+    int offset = 0,
+  });
 
-  Future<Either<Failure, void>> sendTypingIndicator(String conversationId, bool isTyping);
+  Future<Either<Failure, void>> sendTypingIndicator(
+    String conversationId,
+    bool isTyping,
+  );
 
   Future<Either<Failure, void>> deleteLocalConversation(String conversationId);
 
-  Future<Either<Failure, Conversation>> createDirectConversation(String targetUserId);
+  Future<Either<Failure, void>> updateConversationLastMessageLocal({
+    required String conversationId,
+    required ConversationLastMessage lastMessage,
+  });
+
+  Future<Either<Failure, Conversation>> createDirectConversation(
+    String targetUserId,
+  );
 }

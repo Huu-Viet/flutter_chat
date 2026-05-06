@@ -1395,6 +1395,100 @@ class $ChatConversationsTable extends ChatConversations
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _lastMessageIdMeta = const VerificationMeta(
+    'lastMessageId',
+  );
+  @override
+  late final GeneratedColumn<String> lastMessageId = GeneratedColumn<String>(
+    'last_message_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastMessageContentMeta =
+      const VerificationMeta('lastMessageContent');
+  @override
+  late final GeneratedColumn<String> lastMessageContent =
+      GeneratedColumn<String>(
+        'last_message_content',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _lastMessageTypeMeta = const VerificationMeta(
+    'lastMessageType',
+  );
+  @override
+  late final GeneratedColumn<String> lastMessageType = GeneratedColumn<String>(
+    'last_message_type',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastMessageOffsetMeta = const VerificationMeta(
+    'lastMessageOffset',
+  );
+  @override
+  late final GeneratedColumn<int> lastMessageOffset = GeneratedColumn<int>(
+    'last_message_offset',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastMessageSenderIdMeta =
+      const VerificationMeta('lastMessageSenderId');
+  @override
+  late final GeneratedColumn<String> lastMessageSenderId =
+      GeneratedColumn<String>(
+        'last_message_sender_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _lastMessageIsDeletedMeta =
+      const VerificationMeta('lastMessageIsDeleted');
+  @override
+  late final GeneratedColumn<bool> lastMessageIsDeleted = GeneratedColumn<bool>(
+    'last_message_is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("last_message_is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _lastMessageIsRevokedMeta =
+      const VerificationMeta('lastMessageIsRevoked');
+  @override
+  late final GeneratedColumn<bool> lastMessageIsRevoked = GeneratedColumn<bool>(
+    'last_message_is_revoked',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("last_message_is_revoked" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _lastMessageCreatedAtMeta =
+      const VerificationMeta('lastMessageCreatedAt');
+  @override
+  late final GeneratedColumn<String> lastMessageCreatedAt =
+      GeneratedColumn<String>(
+        'last_message_created_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1414,6 +1508,14 @@ class $ChatConversationsTable extends ChatConversations
     createdAt,
     updatedAt,
     avatarUrl,
+    lastMessageId,
+    lastMessageContent,
+    lastMessageType,
+    lastMessageOffset,
+    lastMessageSenderId,
+    lastMessageIsDeleted,
+    lastMessageIsRevoked,
+    lastMessageCreatedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1558,6 +1660,78 @@ class $ChatConversationsTable extends ChatConversations
         avatarUrl.isAcceptableOrUnknown(data['avatar_url']!, _avatarUrlMeta),
       );
     }
+    if (data.containsKey('last_message_id')) {
+      context.handle(
+        _lastMessageIdMeta,
+        lastMessageId.isAcceptableOrUnknown(
+          data['last_message_id']!,
+          _lastMessageIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_message_content')) {
+      context.handle(
+        _lastMessageContentMeta,
+        lastMessageContent.isAcceptableOrUnknown(
+          data['last_message_content']!,
+          _lastMessageContentMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_message_type')) {
+      context.handle(
+        _lastMessageTypeMeta,
+        lastMessageType.isAcceptableOrUnknown(
+          data['last_message_type']!,
+          _lastMessageTypeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_message_offset')) {
+      context.handle(
+        _lastMessageOffsetMeta,
+        lastMessageOffset.isAcceptableOrUnknown(
+          data['last_message_offset']!,
+          _lastMessageOffsetMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_message_sender_id')) {
+      context.handle(
+        _lastMessageSenderIdMeta,
+        lastMessageSenderId.isAcceptableOrUnknown(
+          data['last_message_sender_id']!,
+          _lastMessageSenderIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_message_is_deleted')) {
+      context.handle(
+        _lastMessageIsDeletedMeta,
+        lastMessageIsDeleted.isAcceptableOrUnknown(
+          data['last_message_is_deleted']!,
+          _lastMessageIsDeletedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_message_is_revoked')) {
+      context.handle(
+        _lastMessageIsRevokedMeta,
+        lastMessageIsRevoked.isAcceptableOrUnknown(
+          data['last_message_is_revoked']!,
+          _lastMessageIsRevokedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_message_created_at')) {
+      context.handle(
+        _lastMessageCreatedAtMeta,
+        lastMessageCreatedAt.isAcceptableOrUnknown(
+          data['last_message_created_at']!,
+          _lastMessageCreatedAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1635,6 +1809,38 @@ class $ChatConversationsTable extends ChatConversations
         DriftSqlType.string,
         data['${effectivePrefix}avatar_url'],
       ),
+      lastMessageId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_message_id'],
+      ),
+      lastMessageContent: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_message_content'],
+      ),
+      lastMessageType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_message_type'],
+      ),
+      lastMessageOffset: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_message_offset'],
+      ),
+      lastMessageSenderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_message_sender_id'],
+      ),
+      lastMessageIsDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}last_message_is_deleted'],
+      )!,
+      lastMessageIsRevoked: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}last_message_is_revoked'],
+      )!,
+      lastMessageCreatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_message_created_at'],
+      ),
     );
   }
 
@@ -1663,6 +1869,14 @@ class ChatConversationEntity extends DataClass
   final String createdAt;
   final String updatedAt;
   final String? avatarUrl;
+  final String? lastMessageId;
+  final String? lastMessageContent;
+  final String? lastMessageType;
+  final int? lastMessageOffset;
+  final String? lastMessageSenderId;
+  final bool lastMessageIsDeleted;
+  final bool lastMessageIsRevoked;
+  final String? lastMessageCreatedAt;
   const ChatConversationEntity({
     required this.id,
     required this.orgId,
@@ -1681,6 +1895,14 @@ class ChatConversationEntity extends DataClass
     required this.createdAt,
     required this.updatedAt,
     this.avatarUrl,
+    this.lastMessageId,
+    this.lastMessageContent,
+    this.lastMessageType,
+    this.lastMessageOffset,
+    this.lastMessageSenderId,
+    required this.lastMessageIsDeleted,
+    required this.lastMessageIsRevoked,
+    this.lastMessageCreatedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1713,6 +1935,26 @@ class ChatConversationEntity extends DataClass
     map['updated_at'] = Variable<String>(updatedAt);
     if (!nullToAbsent || avatarUrl != null) {
       map['avatar_url'] = Variable<String>(avatarUrl);
+    }
+    if (!nullToAbsent || lastMessageId != null) {
+      map['last_message_id'] = Variable<String>(lastMessageId);
+    }
+    if (!nullToAbsent || lastMessageContent != null) {
+      map['last_message_content'] = Variable<String>(lastMessageContent);
+    }
+    if (!nullToAbsent || lastMessageType != null) {
+      map['last_message_type'] = Variable<String>(lastMessageType);
+    }
+    if (!nullToAbsent || lastMessageOffset != null) {
+      map['last_message_offset'] = Variable<int>(lastMessageOffset);
+    }
+    if (!nullToAbsent || lastMessageSenderId != null) {
+      map['last_message_sender_id'] = Variable<String>(lastMessageSenderId);
+    }
+    map['last_message_is_deleted'] = Variable<bool>(lastMessageIsDeleted);
+    map['last_message_is_revoked'] = Variable<bool>(lastMessageIsRevoked);
+    if (!nullToAbsent || lastMessageCreatedAt != null) {
+      map['last_message_created_at'] = Variable<String>(lastMessageCreatedAt);
     }
     return map;
   }
@@ -1748,6 +1990,26 @@ class ChatConversationEntity extends DataClass
       avatarUrl: avatarUrl == null && nullToAbsent
           ? const Value.absent()
           : Value(avatarUrl),
+      lastMessageId: lastMessageId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastMessageId),
+      lastMessageContent: lastMessageContent == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastMessageContent),
+      lastMessageType: lastMessageType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastMessageType),
+      lastMessageOffset: lastMessageOffset == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastMessageOffset),
+      lastMessageSenderId: lastMessageSenderId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastMessageSenderId),
+      lastMessageIsDeleted: Value(lastMessageIsDeleted),
+      lastMessageIsRevoked: Value(lastMessageIsRevoked),
+      lastMessageCreatedAt: lastMessageCreatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastMessageCreatedAt),
     );
   }
 
@@ -1776,6 +2038,24 @@ class ChatConversationEntity extends DataClass
       createdAt: serializer.fromJson<String>(json['createdAt']),
       updatedAt: serializer.fromJson<String>(json['updatedAt']),
       avatarUrl: serializer.fromJson<String?>(json['avatarUrl']),
+      lastMessageId: serializer.fromJson<String?>(json['lastMessageId']),
+      lastMessageContent: serializer.fromJson<String?>(
+        json['lastMessageContent'],
+      ),
+      lastMessageType: serializer.fromJson<String?>(json['lastMessageType']),
+      lastMessageOffset: serializer.fromJson<int?>(json['lastMessageOffset']),
+      lastMessageSenderId: serializer.fromJson<String?>(
+        json['lastMessageSenderId'],
+      ),
+      lastMessageIsDeleted: serializer.fromJson<bool>(
+        json['lastMessageIsDeleted'],
+      ),
+      lastMessageIsRevoked: serializer.fromJson<bool>(
+        json['lastMessageIsRevoked'],
+      ),
+      lastMessageCreatedAt: serializer.fromJson<String?>(
+        json['lastMessageCreatedAt'],
+      ),
     );
   }
   @override
@@ -1799,6 +2079,14 @@ class ChatConversationEntity extends DataClass
       'createdAt': serializer.toJson<String>(createdAt),
       'updatedAt': serializer.toJson<String>(updatedAt),
       'avatarUrl': serializer.toJson<String?>(avatarUrl),
+      'lastMessageId': serializer.toJson<String?>(lastMessageId),
+      'lastMessageContent': serializer.toJson<String?>(lastMessageContent),
+      'lastMessageType': serializer.toJson<String?>(lastMessageType),
+      'lastMessageOffset': serializer.toJson<int?>(lastMessageOffset),
+      'lastMessageSenderId': serializer.toJson<String?>(lastMessageSenderId),
+      'lastMessageIsDeleted': serializer.toJson<bool>(lastMessageIsDeleted),
+      'lastMessageIsRevoked': serializer.toJson<bool>(lastMessageIsRevoked),
+      'lastMessageCreatedAt': serializer.toJson<String?>(lastMessageCreatedAt),
     };
   }
 
@@ -1820,6 +2108,14 @@ class ChatConversationEntity extends DataClass
     String? createdAt,
     String? updatedAt,
     Value<String?> avatarUrl = const Value.absent(),
+    Value<String?> lastMessageId = const Value.absent(),
+    Value<String?> lastMessageContent = const Value.absent(),
+    Value<String?> lastMessageType = const Value.absent(),
+    Value<int?> lastMessageOffset = const Value.absent(),
+    Value<String?> lastMessageSenderId = const Value.absent(),
+    bool? lastMessageIsDeleted,
+    bool? lastMessageIsRevoked,
+    Value<String?> lastMessageCreatedAt = const Value.absent(),
   }) => ChatConversationEntity(
     id: id ?? this.id,
     orgId: orgId ?? this.orgId,
@@ -1840,6 +2136,26 @@ class ChatConversationEntity extends DataClass
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     avatarUrl: avatarUrl.present ? avatarUrl.value : this.avatarUrl,
+    lastMessageId: lastMessageId.present
+        ? lastMessageId.value
+        : this.lastMessageId,
+    lastMessageContent: lastMessageContent.present
+        ? lastMessageContent.value
+        : this.lastMessageContent,
+    lastMessageType: lastMessageType.present
+        ? lastMessageType.value
+        : this.lastMessageType,
+    lastMessageOffset: lastMessageOffset.present
+        ? lastMessageOffset.value
+        : this.lastMessageOffset,
+    lastMessageSenderId: lastMessageSenderId.present
+        ? lastMessageSenderId.value
+        : this.lastMessageSenderId,
+    lastMessageIsDeleted: lastMessageIsDeleted ?? this.lastMessageIsDeleted,
+    lastMessageIsRevoked: lastMessageIsRevoked ?? this.lastMessageIsRevoked,
+    lastMessageCreatedAt: lastMessageCreatedAt.present
+        ? lastMessageCreatedAt.value
+        : this.lastMessageCreatedAt,
   );
   ChatConversationEntity copyWithCompanion(ChatConversationsCompanion data) {
     return ChatConversationEntity(
@@ -1872,6 +2188,30 @@ class ChatConversationEntity extends DataClass
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       avatarUrl: data.avatarUrl.present ? data.avatarUrl.value : this.avatarUrl,
+      lastMessageId: data.lastMessageId.present
+          ? data.lastMessageId.value
+          : this.lastMessageId,
+      lastMessageContent: data.lastMessageContent.present
+          ? data.lastMessageContent.value
+          : this.lastMessageContent,
+      lastMessageType: data.lastMessageType.present
+          ? data.lastMessageType.value
+          : this.lastMessageType,
+      lastMessageOffset: data.lastMessageOffset.present
+          ? data.lastMessageOffset.value
+          : this.lastMessageOffset,
+      lastMessageSenderId: data.lastMessageSenderId.present
+          ? data.lastMessageSenderId.value
+          : this.lastMessageSenderId,
+      lastMessageIsDeleted: data.lastMessageIsDeleted.present
+          ? data.lastMessageIsDeleted.value
+          : this.lastMessageIsDeleted,
+      lastMessageIsRevoked: data.lastMessageIsRevoked.present
+          ? data.lastMessageIsRevoked.value
+          : this.lastMessageIsRevoked,
+      lastMessageCreatedAt: data.lastMessageCreatedAt.present
+          ? data.lastMessageCreatedAt.value
+          : this.lastMessageCreatedAt,
     );
   }
 
@@ -1894,13 +2234,21 @@ class ChatConversationEntity extends DataClass
           ..write('linkVersion: $linkVersion, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
-          ..write('avatarUrl: $avatarUrl')
+          ..write('avatarUrl: $avatarUrl, ')
+          ..write('lastMessageId: $lastMessageId, ')
+          ..write('lastMessageContent: $lastMessageContent, ')
+          ..write('lastMessageType: $lastMessageType, ')
+          ..write('lastMessageOffset: $lastMessageOffset, ')
+          ..write('lastMessageSenderId: $lastMessageSenderId, ')
+          ..write('lastMessageIsDeleted: $lastMessageIsDeleted, ')
+          ..write('lastMessageIsRevoked: $lastMessageIsRevoked, ')
+          ..write('lastMessageCreatedAt: $lastMessageCreatedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     orgId,
     type,
@@ -1918,7 +2266,15 @@ class ChatConversationEntity extends DataClass
     createdAt,
     updatedAt,
     avatarUrl,
-  );
+    lastMessageId,
+    lastMessageContent,
+    lastMessageType,
+    lastMessageOffset,
+    lastMessageSenderId,
+    lastMessageIsDeleted,
+    lastMessageIsRevoked,
+    lastMessageCreatedAt,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1939,7 +2295,15 @@ class ChatConversationEntity extends DataClass
           other.linkVersion == this.linkVersion &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
-          other.avatarUrl == this.avatarUrl);
+          other.avatarUrl == this.avatarUrl &&
+          other.lastMessageId == this.lastMessageId &&
+          other.lastMessageContent == this.lastMessageContent &&
+          other.lastMessageType == this.lastMessageType &&
+          other.lastMessageOffset == this.lastMessageOffset &&
+          other.lastMessageSenderId == this.lastMessageSenderId &&
+          other.lastMessageIsDeleted == this.lastMessageIsDeleted &&
+          other.lastMessageIsRevoked == this.lastMessageIsRevoked &&
+          other.lastMessageCreatedAt == this.lastMessageCreatedAt);
 }
 
 class ChatConversationsCompanion
@@ -1961,6 +2325,14 @@ class ChatConversationsCompanion
   final Value<String> createdAt;
   final Value<String> updatedAt;
   final Value<String?> avatarUrl;
+  final Value<String?> lastMessageId;
+  final Value<String?> lastMessageContent;
+  final Value<String?> lastMessageType;
+  final Value<int?> lastMessageOffset;
+  final Value<String?> lastMessageSenderId;
+  final Value<bool> lastMessageIsDeleted;
+  final Value<bool> lastMessageIsRevoked;
+  final Value<String?> lastMessageCreatedAt;
   final Value<int> rowid;
   const ChatConversationsCompanion({
     this.id = const Value.absent(),
@@ -1980,6 +2352,14 @@ class ChatConversationsCompanion
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.avatarUrl = const Value.absent(),
+    this.lastMessageId = const Value.absent(),
+    this.lastMessageContent = const Value.absent(),
+    this.lastMessageType = const Value.absent(),
+    this.lastMessageOffset = const Value.absent(),
+    this.lastMessageSenderId = const Value.absent(),
+    this.lastMessageIsDeleted = const Value.absent(),
+    this.lastMessageIsRevoked = const Value.absent(),
+    this.lastMessageCreatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ChatConversationsCompanion.insert({
@@ -2000,6 +2380,14 @@ class ChatConversationsCompanion
     required String createdAt,
     required String updatedAt,
     this.avatarUrl = const Value.absent(),
+    this.lastMessageId = const Value.absent(),
+    this.lastMessageContent = const Value.absent(),
+    this.lastMessageType = const Value.absent(),
+    this.lastMessageOffset = const Value.absent(),
+    this.lastMessageSenderId = const Value.absent(),
+    this.lastMessageIsDeleted = const Value.absent(),
+    this.lastMessageIsRevoked = const Value.absent(),
+    this.lastMessageCreatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        orgId = Value(orgId),
@@ -2026,6 +2414,14 @@ class ChatConversationsCompanion
     Expression<String>? createdAt,
     Expression<String>? updatedAt,
     Expression<String>? avatarUrl,
+    Expression<String>? lastMessageId,
+    Expression<String>? lastMessageContent,
+    Expression<String>? lastMessageType,
+    Expression<int>? lastMessageOffset,
+    Expression<String>? lastMessageSenderId,
+    Expression<bool>? lastMessageIsDeleted,
+    Expression<bool>? lastMessageIsRevoked,
+    Expression<String>? lastMessageCreatedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2048,6 +2444,19 @@ class ChatConversationsCompanion
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (avatarUrl != null) 'avatar_url': avatarUrl,
+      if (lastMessageId != null) 'last_message_id': lastMessageId,
+      if (lastMessageContent != null)
+        'last_message_content': lastMessageContent,
+      if (lastMessageType != null) 'last_message_type': lastMessageType,
+      if (lastMessageOffset != null) 'last_message_offset': lastMessageOffset,
+      if (lastMessageSenderId != null)
+        'last_message_sender_id': lastMessageSenderId,
+      if (lastMessageIsDeleted != null)
+        'last_message_is_deleted': lastMessageIsDeleted,
+      if (lastMessageIsRevoked != null)
+        'last_message_is_revoked': lastMessageIsRevoked,
+      if (lastMessageCreatedAt != null)
+        'last_message_created_at': lastMessageCreatedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2070,6 +2479,14 @@ class ChatConversationsCompanion
     Value<String>? createdAt,
     Value<String>? updatedAt,
     Value<String?>? avatarUrl,
+    Value<String?>? lastMessageId,
+    Value<String?>? lastMessageContent,
+    Value<String?>? lastMessageType,
+    Value<int?>? lastMessageOffset,
+    Value<String?>? lastMessageSenderId,
+    Value<bool>? lastMessageIsDeleted,
+    Value<bool>? lastMessageIsRevoked,
+    Value<String?>? lastMessageCreatedAt,
     Value<int>? rowid,
   }) {
     return ChatConversationsCompanion(
@@ -2090,6 +2507,14 @@ class ChatConversationsCompanion
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      lastMessageId: lastMessageId ?? this.lastMessageId,
+      lastMessageContent: lastMessageContent ?? this.lastMessageContent,
+      lastMessageType: lastMessageType ?? this.lastMessageType,
+      lastMessageOffset: lastMessageOffset ?? this.lastMessageOffset,
+      lastMessageSenderId: lastMessageSenderId ?? this.lastMessageSenderId,
+      lastMessageIsDeleted: lastMessageIsDeleted ?? this.lastMessageIsDeleted,
+      lastMessageIsRevoked: lastMessageIsRevoked ?? this.lastMessageIsRevoked,
+      lastMessageCreatedAt: lastMessageCreatedAt ?? this.lastMessageCreatedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2150,6 +2575,38 @@ class ChatConversationsCompanion
     if (avatarUrl.present) {
       map['avatar_url'] = Variable<String>(avatarUrl.value);
     }
+    if (lastMessageId.present) {
+      map['last_message_id'] = Variable<String>(lastMessageId.value);
+    }
+    if (lastMessageContent.present) {
+      map['last_message_content'] = Variable<String>(lastMessageContent.value);
+    }
+    if (lastMessageType.present) {
+      map['last_message_type'] = Variable<String>(lastMessageType.value);
+    }
+    if (lastMessageOffset.present) {
+      map['last_message_offset'] = Variable<int>(lastMessageOffset.value);
+    }
+    if (lastMessageSenderId.present) {
+      map['last_message_sender_id'] = Variable<String>(
+        lastMessageSenderId.value,
+      );
+    }
+    if (lastMessageIsDeleted.present) {
+      map['last_message_is_deleted'] = Variable<bool>(
+        lastMessageIsDeleted.value,
+      );
+    }
+    if (lastMessageIsRevoked.present) {
+      map['last_message_is_revoked'] = Variable<bool>(
+        lastMessageIsRevoked.value,
+      );
+    }
+    if (lastMessageCreatedAt.present) {
+      map['last_message_created_at'] = Variable<String>(
+        lastMessageCreatedAt.value,
+      );
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2176,6 +2633,14 @@ class ChatConversationsCompanion
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('avatarUrl: $avatarUrl, ')
+          ..write('lastMessageId: $lastMessageId, ')
+          ..write('lastMessageContent: $lastMessageContent, ')
+          ..write('lastMessageType: $lastMessageType, ')
+          ..write('lastMessageOffset: $lastMessageOffset, ')
+          ..write('lastMessageSenderId: $lastMessageSenderId, ')
+          ..write('lastMessageIsDeleted: $lastMessageIsDeleted, ')
+          ..write('lastMessageIsRevoked: $lastMessageIsRevoked, ')
+          ..write('lastMessageCreatedAt: $lastMessageCreatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7072,6 +7537,14 @@ typedef $$ChatConversationsTableCreateCompanionBuilder =
       required String createdAt,
       required String updatedAt,
       Value<String?> avatarUrl,
+      Value<String?> lastMessageId,
+      Value<String?> lastMessageContent,
+      Value<String?> lastMessageType,
+      Value<int?> lastMessageOffset,
+      Value<String?> lastMessageSenderId,
+      Value<bool> lastMessageIsDeleted,
+      Value<bool> lastMessageIsRevoked,
+      Value<String?> lastMessageCreatedAt,
       Value<int> rowid,
     });
 typedef $$ChatConversationsTableUpdateCompanionBuilder =
@@ -7093,6 +7566,14 @@ typedef $$ChatConversationsTableUpdateCompanionBuilder =
       Value<String> createdAt,
       Value<String> updatedAt,
       Value<String?> avatarUrl,
+      Value<String?> lastMessageId,
+      Value<String?> lastMessageContent,
+      Value<String?> lastMessageType,
+      Value<int?> lastMessageOffset,
+      Value<String?> lastMessageSenderId,
+      Value<bool> lastMessageIsDeleted,
+      Value<bool> lastMessageIsRevoked,
+      Value<String?> lastMessageCreatedAt,
       Value<int> rowid,
     });
 
@@ -7187,6 +7668,46 @@ class $$ChatConversationsTableFilterComposer
 
   ColumnFilters<String> get avatarUrl => $composableBuilder(
     column: $table.avatarUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastMessageId => $composableBuilder(
+    column: $table.lastMessageId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastMessageContent => $composableBuilder(
+    column: $table.lastMessageContent,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastMessageType => $composableBuilder(
+    column: $table.lastMessageType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastMessageOffset => $composableBuilder(
+    column: $table.lastMessageOffset,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastMessageSenderId => $composableBuilder(
+    column: $table.lastMessageSenderId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get lastMessageIsDeleted => $composableBuilder(
+    column: $table.lastMessageIsDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get lastMessageIsRevoked => $composableBuilder(
+    column: $table.lastMessageIsRevoked,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastMessageCreatedAt => $composableBuilder(
+    column: $table.lastMessageCreatedAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -7284,6 +7805,46 @@ class $$ChatConversationsTableOrderingComposer
     column: $table.avatarUrl,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get lastMessageId => $composableBuilder(
+    column: $table.lastMessageId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastMessageContent => $composableBuilder(
+    column: $table.lastMessageContent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastMessageType => $composableBuilder(
+    column: $table.lastMessageType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastMessageOffset => $composableBuilder(
+    column: $table.lastMessageOffset,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastMessageSenderId => $composableBuilder(
+    column: $table.lastMessageSenderId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get lastMessageIsDeleted => $composableBuilder(
+    column: $table.lastMessageIsDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get lastMessageIsRevoked => $composableBuilder(
+    column: $table.lastMessageIsRevoked,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastMessageCreatedAt => $composableBuilder(
+    column: $table.lastMessageCreatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ChatConversationsTableAnnotationComposer
@@ -7357,6 +7918,46 @@ class $$ChatConversationsTableAnnotationComposer
 
   GeneratedColumn<String> get avatarUrl =>
       $composableBuilder(column: $table.avatarUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get lastMessageId => $composableBuilder(
+    column: $table.lastMessageId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastMessageContent => $composableBuilder(
+    column: $table.lastMessageContent,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastMessageType => $composableBuilder(
+    column: $table.lastMessageType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastMessageOffset => $composableBuilder(
+    column: $table.lastMessageOffset,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastMessageSenderId => $composableBuilder(
+    column: $table.lastMessageSenderId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get lastMessageIsDeleted => $composableBuilder(
+    column: $table.lastMessageIsDeleted,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get lastMessageIsRevoked => $composableBuilder(
+    column: $table.lastMessageIsRevoked,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastMessageCreatedAt => $composableBuilder(
+    column: $table.lastMessageCreatedAt,
+    builder: (column) => column,
+  );
 }
 
 class $$ChatConversationsTableTableManager
@@ -7416,6 +8017,14 @@ class $$ChatConversationsTableTableManager
                 Value<String> createdAt = const Value.absent(),
                 Value<String> updatedAt = const Value.absent(),
                 Value<String?> avatarUrl = const Value.absent(),
+                Value<String?> lastMessageId = const Value.absent(),
+                Value<String?> lastMessageContent = const Value.absent(),
+                Value<String?> lastMessageType = const Value.absent(),
+                Value<int?> lastMessageOffset = const Value.absent(),
+                Value<String?> lastMessageSenderId = const Value.absent(),
+                Value<bool> lastMessageIsDeleted = const Value.absent(),
+                Value<bool> lastMessageIsRevoked = const Value.absent(),
+                Value<String?> lastMessageCreatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ChatConversationsCompanion(
                 id: id,
@@ -7435,6 +8044,14 @@ class $$ChatConversationsTableTableManager
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 avatarUrl: avatarUrl,
+                lastMessageId: lastMessageId,
+                lastMessageContent: lastMessageContent,
+                lastMessageType: lastMessageType,
+                lastMessageOffset: lastMessageOffset,
+                lastMessageSenderId: lastMessageSenderId,
+                lastMessageIsDeleted: lastMessageIsDeleted,
+                lastMessageIsRevoked: lastMessageIsRevoked,
+                lastMessageCreatedAt: lastMessageCreatedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -7456,6 +8073,14 @@ class $$ChatConversationsTableTableManager
                 required String createdAt,
                 required String updatedAt,
                 Value<String?> avatarUrl = const Value.absent(),
+                Value<String?> lastMessageId = const Value.absent(),
+                Value<String?> lastMessageContent = const Value.absent(),
+                Value<String?> lastMessageType = const Value.absent(),
+                Value<int?> lastMessageOffset = const Value.absent(),
+                Value<String?> lastMessageSenderId = const Value.absent(),
+                Value<bool> lastMessageIsDeleted = const Value.absent(),
+                Value<bool> lastMessageIsRevoked = const Value.absent(),
+                Value<String?> lastMessageCreatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ChatConversationsCompanion.insert(
                 id: id,
@@ -7475,6 +8100,14 @@ class $$ChatConversationsTableTableManager
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 avatarUrl: avatarUrl,
+                lastMessageId: lastMessageId,
+                lastMessageContent: lastMessageContent,
+                lastMessageType: lastMessageType,
+                lastMessageOffset: lastMessageOffset,
+                lastMessageSenderId: lastMessageSenderId,
+                lastMessageIsDeleted: lastMessageIsDeleted,
+                lastMessageIsRevoked: lastMessageIsRevoked,
+                lastMessageCreatedAt: lastMessageCreatedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

@@ -12,6 +12,7 @@ class ApiPinMessageMapper extends RemoteMapper<PinMessageDto, PinMessage> {
       content: dto.content,
       type: dto.type,
       createdAt: _parseDate(dto.createdAt),
+      offset: dto.offset,
     );
   }
 
