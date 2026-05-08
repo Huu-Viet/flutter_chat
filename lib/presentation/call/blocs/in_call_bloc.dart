@@ -886,7 +886,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
 
   bool _hasActiveLocalAudio(LocalParticipant participant) {
     for (final publication in participant.audioTrackPublications) {
-      if (!publication.muted && publication.subscribed) return true;
+      if (!publication.muted && publication.track != null) return true;
     }
     return false;
   }
@@ -894,7 +894,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
   bool _hasActiveLocalVideo(LocalParticipant participant) {
     for (final publication in participant.videoTrackPublications) {
       if (publication.isScreenShare) continue;
-      if (!publication.muted && publication.subscribed) return true;
+      if (!publication.muted && publication.track != null) return true;
     }
     return false;
   }

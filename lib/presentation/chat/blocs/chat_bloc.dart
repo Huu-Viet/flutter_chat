@@ -169,13 +169,13 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           final pending = _jumpNewestOffset == null
               ? 0
               : event.messages
-                  .where((m) => m.offset != null && m.offset! > _jumpNewestOffset!)
-                  .length;
+                    .where(
+                      (m) => m.offset != null && m.offset! > _jumpNewestOffset!,
+                    )
+                    .length;
           if (pending != _pendingCount) {
             _pendingCount = pending;
-            emit(currentState.copyWith(
-              pendingCount: _pendingCount,
-            ));
+            emit(currentState.copyWith(pendingCount: _pendingCount));
           }
         }
         return;
@@ -512,7 +512,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     );
 
     result.fold(
-      (failure) => debugPrint('[ChatBloc] pinMessage failed: ${failure.message}'),
+      (failure) =>
+          debugPrint('[ChatBloc] pinMessage failed: ${failure.message}'),
       (_) => null,
     );
   }
@@ -527,7 +528,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     );
 
     result.fold(
-      (failure) => debugPrint('[ChatBloc] unpinMessage failed: ${failure.message}'),
+      (failure) =>
+          debugPrint('[ChatBloc] unpinMessage failed: ${failure.message}'),
       (_) => null,
     );
   }
@@ -538,9 +540,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   ) async {
     final result = await fetchPinMessageUseCase(event.conversationId);
     result.fold(
-      (failure) => debugPrint(
-        '[ChatBloc] refresh pinned failed: ${failure.message}',
-      ),
+      (failure) =>
+          debugPrint('[ChatBloc] refresh pinned failed: ${failure.message}'),
       (_) => null,
     );
   }
@@ -552,13 +553,26 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     final current = state;
     if (current is! ChatLoaded) return;
 
+    final normalizedMessageId = event.messageId.trim();
+    final alreadyLoaded = current.messages.any((message) {
+      final serverId = message.serverId?.trim();
+      final localId = message.id.trim();
+      return serverId == normalizedMessageId || localId == normalizedMessageId;
+    });
+    if (alreadyLoaded) {
+      _jumpHighlightMessageId = event.messageId;
+      emit(current.copyWith(jumpHighlightMessageId: event.messageId));
+      return;
+    }
+
     final result = await fetchMessagesAroundUseCase(
       event.conversationId,
       messageId: event.messageId,
     );
 
     result.fold(
-      (failure) => debugPrint('[ChatBloc] jumpToMessage failed: ${failure.message}'),
+      (failure) =>
+          debugPrint('[ChatBloc] jumpToMessage failed: ${failure.message}'),
       (data) {
         // Sort messages by offset
         final sorted = List<Message>.from(data.messages)
@@ -570,13 +584,15 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         _jumpNewestOffset = data.newestOffset;
         _pendingCount = 0;
 
-        emit(current.copyWith(
-          messages: sorted,
-          isJumped: true,
-          hasMoreAfter: data.hasMoreAfter,
-          jumpHighlightMessageId: event.messageId,
-          pendingCount: 0,
-        ));
+        emit(
+          current.copyWith(
+            messages: sorted,
+            isJumped: true,
+            hasMoreAfter: data.hasMoreAfter,
+            jumpHighlightMessageId: event.messageId,
+            pendingCount: 0,
+          ),
+        );
       },
     );
   }
@@ -596,13 +612,15 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
     final current = state;
     if (current is ChatLoaded) {
-      emit(current.copyWith(
-        messages: _currentMessages,
-        isJumped: false,
-        hasMoreAfter: false,
-        jumpHighlightMessageId: null,
-        pendingCount: 0,
-      ));
+      emit(
+        current.copyWith(
+          messages: _currentMessages,
+          isJumped: false,
+          hasMoreAfter: false,
+          jumpHighlightMessageId: null,
+          pendingCount: 0,
+        ),
+      );
     }
   }
 
@@ -611,9 +629,13 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     Emitter<ChatState> emit,
   ) async {
     final current = state;
-    if (current is! ChatLoaded || !current.isJumped || !current.hasMoreAfter) return;
+    if (current is! ChatLoaded || !current.isJumped || !current.hasMoreAfter) {
+      return;
+    }
 
-    final validMessages = current.messages.where((m) => m.offset != null).toList();
+    final validMessages = current.messages
+        .where((m) => m.offset != null)
+        .toList();
     if (validMessages.isEmpty) return;
 
     final newestOffset = validMessages
@@ -652,14 +674,16 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           _pendingCount = 0;
         }
 
-        emit(current.copyWith(
-          messages: sorted,
-          isLoadingMore: false,
-          hasMoreAfter: newHasMoreAfter,
-          isJumped: newHasMoreAfter,
-          jumpHighlightMessageId: null,
-          pendingCount: 0,
-        ));
+        emit(
+          current.copyWith(
+            messages: sorted,
+            isLoadingMore: false,
+            hasMoreAfter: newHasMoreAfter,
+            isJumped: newHasMoreAfter,
+            jumpHighlightMessageId: null,
+            pendingCount: 0,
+          ),
+        );
       },
     );
   }
@@ -1171,12 +1195,18 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         .toList(growable: false);
 
     if (normalizedTargets.isEmpty) {
-      add(const _LocalMessagesErrorEvent('Please select at least 1 conversation'));
+      add(
+        const _LocalMessagesErrorEvent('Please select at least 1 conversation'),
+      );
       return;
     }
 
     if (normalizedTargets.length > 10) {
-      add(const _LocalMessagesErrorEvent('You can forward to at most 10 conversations'));
+      add(
+        const _LocalMessagesErrorEvent(
+          'You can forward to at most 10 conversations',
+        ),
+      );
       return;
     }
 
@@ -1413,7 +1443,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     if (resolvedVideoUrl.isNotEmpty) {
       _videoUrlsByMediaId[mediaId] = resolvedVideoUrl;
     } else {
-      debugPrint('[VideoFetch] Cannot resolve playable video URL for mediaId=$mediaId');
+      debugPrint(
+        '[VideoFetch] Cannot resolve playable video URL for mediaId=$mediaId',
+      );
     }
 
     _resolvingVideoMediaIds.remove(mediaId);
@@ -1582,8 +1614,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     final current = state;
     if (current is! ChatLoaded) return null;
     if (_currentConversationId == null ||
-        _currentConversationId!.trim().isEmpty)
+        _currentConversationId!.trim().isEmpty) {
       return null;
+    }
 
     final validMessages = current.messages
         .where((m) => m.offset != null)

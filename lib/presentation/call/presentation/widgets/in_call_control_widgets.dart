@@ -263,7 +263,7 @@ class _CallActionButton extends StatelessWidget {
               color: isActive ? Colors.white : Colors.white12,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: isActive ? Colors.black : Colors.white),
+            child: Icon(icon, color: Colors.white),
           ),
         ),
         const SizedBox(height: 8),
