@@ -3,10 +3,6 @@ import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/auth/user_providers.dart';
 import 'package:flutter_chat/features/chat/data/datasource/api/chat_service_impl.dart';
 import 'package:flutter_chat/features/chat/data/repositories/chat_repo_impl.dart';
-import 'package:flutter_chat/features/chat/domain/usecases/create_direct_conversation_usecase.dart';
-import 'package:flutter_chat/features/chat/domain/usecases/get_conversation_usecase.dart';
-import 'package:flutter_chat/features/chat/domain/usecases/get_sticker_packages_usecase.dart';
-import 'package:flutter_chat/features/chat/domain/usecases/get_stickers_in_package_usecase.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:riverpod/riverpod.dart';
 
@@ -91,6 +87,11 @@ final localStickerItemMapperProvider = Provider<LocalStickerItemMapper>((ref) {
   return LocalStickerItemMapper();
 });
 
+final conversationMuteSettingMapperProvider =
+    Provider<ConversationMuteSettingMapper>((ref) {
+      return ConversationMuteSettingMapper();
+    });
+
 final stickerPackageDaoProvider = Provider<StickerPackageDao>((ref) {
   return DriftStickerPackageDaoImpl(ref.watch(databaseProvider));
 });
@@ -121,6 +122,9 @@ final chatRepoProvider = Provider<ChatRepository>((ref) {
     stickerItemMapper: ref.read(stickerItemMapperProvider),
     localStickerPackageMapper: ref.read(localStickerPackageMapperProvider),
     localStickerItemMapper: ref.read(localStickerItemMapperProvider),
+    conversationMuteSettingMapper: ref.read(
+      conversationMuteSettingMapperProvider,
+    ),
   );
 });
 
@@ -248,6 +252,20 @@ final deleteLocalConversationUseCaseProvider =
     Provider<DeleteLocalConversationUseCase>((ref) {
       return DeleteLocalConversationUseCase(ref.read(chatRepoProvider));
     });
+
+final updateConversationMuteUseCaseProvider =
+    Provider<UpdateConversationMuteUseCase>((ref) {
+      return UpdateConversationMuteUseCase(ref.read(chatRepoProvider));
+    });
+
+final deleteConversationForMeUseCaseProvider =
+    Provider<DeleteConversationForMeUseCase>((ref) {
+      return DeleteConversationForMeUseCase(ref.read(chatRepoProvider));
+    });
+
+final downloadFileUseCaseProvider = Provider<DownloadFileUseCase>((ref) {
+  return DownloadFileUseCase(ref.read(chatRepoProvider));
+});
 
 final updateConversationLastMessageLocalUseCaseProvider =
     Provider<UpdateConversationLastMessageLocalUseCase>((ref) {

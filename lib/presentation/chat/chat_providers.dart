@@ -1,6 +1,7 @@
 import 'package:flutter_chat/application/realtime/subscribers/chat_app_event_subscriber.dart';
 import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/chat/chat_providers.dart';
+import 'package:flutter_chat/features/friendship/friendship_providers.dart';
 import 'package:flutter_chat/features/group_manager/group_management_provider.dart';
 import 'package:flutter_chat/features/upload_media/upload_media_providers.dart';
 import 'package:flutter_chat/presentation/chat/blocs/chat_bloc.dart';
@@ -9,7 +10,7 @@ import 'package:riverpod/riverpod.dart';
 final chatBlocProvider = Provider<ChatBloc>((ref) {
   late final ChatBloc bloc;
 
-  final subscriber = ChatAppEventSubscriber(
+  ChatAppEventSubscriber(
     fetchConversationUseCase: ref.watch(fetchConversationUseCaseProvider),
     fetchConversationDetailUseCase: ref.watch(
       fetchConversationDetailUseCaseProvider,
@@ -70,6 +71,12 @@ final chatBlocProvider = Provider<ChatBloc>((ref) {
     ),
     votePollUseCase: ref.read(votePollUseCaseProvider),
     closePollUseCase: ref.read(closePollUseCaseProvider),
+    sendFriendRequestUseCase: ref.read(sendFriendRequestUseCaseProvider),
+    acceptFriendRequestUseCase: ref.read(acceptFriendRequestUseCaseProvider),
+    rejectFriendRequestUseCase: ref.read(rejectFriendRequestUseCaseProvider),
+    blockUserUseCase: ref.read(blockUserUseCaseProvider),
+    unblockUserUseCase: ref.read(unblockUserUseCaseProvider),
+    downloadFileUseCase: ref.read(downloadFileUseCaseProvider),
   );
   ref.onDispose(bloc.close);
   return bloc;

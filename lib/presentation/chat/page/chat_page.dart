@@ -412,35 +412,24 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   }
 
   bool? _extractAllowMemberMessageFromPayload(dynamic payload) {
-    dynamic current = payload;
-
-    if (current is Map) {
-      current = current.map((key, value) => MapEntry(key.toString(), value));
-    }
-
-    if (current is! Map<String, dynamic>) {
-      return null;
-    }
-
-    if (current['data'] is Map) {
-      current = (current['data'] as Map).map(
-        (key, value) => MapEntry(key.toString(), value),
-      );
-    }
-
-    if (current is! Map<String, dynamic>) {
-      return null;
-    }
-
-    final changes = current['changes'];
-    if (changes is Map) {
-      final normalizedChanges = changes.map(
-        (key, value) => MapEntry(key.toString(), value),
-      );
-      final value = normalizedChanges['allowMemberMessage'];
-      if (value is bool) {
-        return value;
+    Map<String, dynamic>? normalize(dynamic value) {
+      if (value is! Map) {
+        return null;
       }
+      return value.map((key, val) => MapEntry(key.toString(), val));
+    }
+
+    final payloadMap = normalize(payload);
+    if (payloadMap == null) {
+      return null;
+    }
+
+    final current = normalize(payloadMap['data']) ?? payloadMap;
+
+    final changes = normalize(current['changes']);
+    final changedValue = changes?['allowMemberMessage'];
+    if (changedValue is bool) {
+      return changedValue;
     }
 
     final directValue = current['allowMemberMessage'];
@@ -590,6 +579,24 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     return null;
   }
 
+  String _friendshipSuccessMessage(
+    FriendshipActionType actionType,
+    AppLocalizations l10n,
+  ) {
+    switch (actionType) {
+      case FriendshipActionType.sendRequest:
+        return l10n.success_friend_request_sent;
+      case FriendshipActionType.acceptRequest:
+        return l10n.success_friend_request_accepted;
+      case FriendshipActionType.cancelRequest:
+        return l10n.warning_friend_request_cancelled;
+      case FriendshipActionType.block:
+        return 'Blocked successfully';
+      case FriendshipActionType.unblock:
+        return 'Unblocked successfully';
+    }
+  }
+
   String? _resolveDirectTargetUserId(ChatLoaded state) {
     final currentUserId = state.currentUserId?.trim() ?? '';
     final participants =
@@ -650,7 +657,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     // Use realtime override if available, else fall back to conversation data.
     final realtimeVal = _groupAllowMemberMessageRealtime;
     final conversationVal = conversation.allowMemberMessage;
-    final allowMemberMessage = realtimeVal ?? conversationVal ?? true;
+    final allowMemberMessage = realtimeVal ?? conversationVal;
 
     if (allowMemberMessage) {
       return false;
@@ -832,6 +839,27 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   state.conversation?.type.trim().toLowerCase() == 'group') {
                 _checkActiveGroupCallForConversation(state.conversation!);
               }
+
+              if (state is ChatLoaded && state.friendshipActionFeedback != null) {
+                final feedback = state.friendshipActionFeedback!;
+                final message = feedback.isSuccess
+                    ? _friendshipSuccessMessage(feedback.actionType, l10n)
+                    : _mapChatErrorMessage(feedback.failureMessage ?? '', l10n) ??
+                          feedback.failureMessage ??
+                          'Action failed';
+
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(message)));
+
+                if (feedback.isSuccess) {
+                  ref.invalidate(friendshipStatusProvider(feedback.targetUserId));
+                }
+
+                ref
+                    .read(chatBlocProvider)
+                    .add(const ConsumeFriendshipActionFeedbackEvent());
+              }
             },
             builder: (context, state) {
               final isGroupConversation =
@@ -844,6 +872,12 @@ class _ChatPageState extends ConsumerState<ChatPage> {
               final directFriendshipStatus = directTargetUserId != null
                   ? ref.watch(friendshipStatusProvider(directTargetUserId))
                   : null;
+              final isFriendshipActionLoading =
+                  state is ChatLoaded &&
+                  directTargetUserId != null &&
+                  state.friendshipActionInProgressUserIds.contains(
+                    directTargetUserId,
+                  );
               final directBlockRelation =
                   state is ChatLoaded &&
                       state.conversation?.type.trim().toLowerCase() == 'direct'
@@ -989,13 +1023,31 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                             'direct' &&
                         directTargetUserId != null) ...[
                       if (directFriendshipStatus?.valueOrNull?.isNone == true)
-                        StrangerPanel(targetUserId: directTargetUserId),
+                        StrangerPanel(
+                          targetUserId: directTargetUserId,
+                          isSubmitting: isFriendshipActionLoading,
+                          onAddFriend: () => chatBloc.add(
+                            SendFriendRequestEvent(directTargetUserId),
+                          ),
+                        ),
                       if (directFriendshipStatus?.valueOrNull?.isPendingIn ==
                           true)
-                        PendingInPanel(targetUserId: directTargetUserId),
+                        PendingInPanel(
+                          targetUserId: directTargetUserId,
+                          isSubmitting: isFriendshipActionLoading,
+                          onAcceptRequest: () => chatBloc.add(
+                            AcceptFriendRequestEvent(directTargetUserId),
+                          ),
+                        ),
                       if (directFriendshipStatus?.valueOrNull?.isPendingOut ==
                           true)
-                        PendingOutPanel(targetUserId: directTargetUserId),
+                        PendingOutPanel(
+                          targetUserId: directTargetUserId,
+                          isSubmitting: isFriendshipActionLoading,
+                          onCancelRequest: () => chatBloc.add(
+                            CancelFriendRequestEvent(directTargetUserId),
+                          ),
+                        ),
                     ],
 
                     if (state is ChatLoaded)
@@ -1009,6 +1061,20 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                         activeCall: activeGroupCall,
                         conversationId: widget.conversationId,
                         roomName: appBarTitle,
+                        onRejoin: () {
+                          final call = activeGroupCall.call;
+                          context.read<InCallBloc>().add(
+                            InCallRejoinRequested(call, roomName: appBarTitle),
+                          );
+                          final route = Uri(
+                            path: '/in-call',
+                            queryParameters: {
+                              'conversationId': widget.conversationId,
+                              'roomName': appBarTitle,
+                            },
+                          ).toString();
+                          context.push(route);
+                        },
                       ),
 
                     Expanded(

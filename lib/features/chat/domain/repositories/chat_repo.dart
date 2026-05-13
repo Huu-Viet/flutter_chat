@@ -134,6 +134,18 @@ abstract class ChatRepository {
 
   Future<Either<Failure, void>> deleteLocalConversation(String conversationId);
 
+  Future<Either<Failure, void>> downloadFile({
+    required String url,
+    required String filePath,
+  });
+
+  Future<Either<Failure, ConversationMuteSetting>> updateConversationMute({
+    required String conversationId,
+    required String muteDuration,
+  });
+
+  Future<Either<Failure, void>> deleteConversationForMe(String conversationId);
+
   Future<Either<Failure, void>> updateConversationLastMessageLocal({
     required String conversationId,
     required ConversationLastMessage lastMessage,

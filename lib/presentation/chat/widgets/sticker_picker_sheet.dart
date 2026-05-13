@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/features/chat/chat_providers.dart';
+import 'package:flutter_chat/presentation/chat/blocs/sticker_picker_cubit.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/animated_sticker_sprite.dart';
@@ -20,6 +21,7 @@ class StickerPickerSheet extends ConsumerStatefulWidget {
 }
 
 class _StickerPickerSheetState extends ConsumerState<StickerPickerSheet> {
+  late final StickerPickerCubit _stickerPickerCubit;
   bool _loadingPackages = true;
   String? _packagesError;
   List<StickerPackage> _packages = [];
@@ -38,6 +40,10 @@ class _StickerPickerSheetState extends ConsumerState<StickerPickerSheet> {
   @override
   void initState() {
     super.initState();
+    _stickerPickerCubit = StickerPickerCubit(
+      getStickerPackagesUseCase: ref.read(getStickerPackagesUseCaseProvider),
+      getStickersInPackageUseCase: ref.read(getStickersInPackageUseCaseProvider),
+    );
     _loadPackages();
   }
 
@@ -48,17 +54,11 @@ class _StickerPickerSheetState extends ConsumerState<StickerPickerSheet> {
     });
 
     try {
-      final getPackages = ref.read(getStickerPackagesUseCaseProvider);
-      final result = await getPackages();
+      final packages = await _stickerPickerCubit.loadPackages();
 
-      result.fold(
-        (l) => throw Exception(l.message),
-        (r) {
-          setState(() {
-            _packages = r;
-          });
-        },
-      );
+      setState(() {
+        _packages = packages;
+      });
 
       setState(() {
         _loadingPackages = false;
@@ -109,31 +109,22 @@ class _StickerPickerSheetState extends ConsumerState<StickerPickerSheet> {
     }
 
     try {
-      final getStickers = ref.read(getStickersInPackageUseCaseProvider);
-      final result = await getStickers(packageId);
-
-      result.fold(
-        (l) {
-          if (!isBackground) throw Exception(l.message);
-        },
-        (r) {
-          _stickersCache[packageId] = r;
-          if (r.isNotEmpty) {
-            _packageCoverById[packageId] = r.first;
-          }
-          if (mounted) {
-            if (_packages.isNotEmpty && _packages[_selectedPackageIndex].id == packageId) {
-              setState(() {
-                _stickers = r;
-                if (!isBackground) _loadingStickers = false;
-              });
-            } else if (r.isNotEmpty) {
-              // Trigger rebuild to show the new cover
-              setState(() {});
-            }
-          }
-        },
-      );
+      final stickers = await _stickerPickerCubit.loadStickers(packageId);
+      _stickersCache[packageId] = stickers;
+      if (stickers.isNotEmpty) {
+        _packageCoverById[packageId] = stickers.first;
+      }
+      if (mounted) {
+        if (_packages.isNotEmpty && _packages[_selectedPackageIndex].id == packageId) {
+          setState(() {
+            _stickers = stickers;
+            if (!isBackground) _loadingStickers = false;
+          });
+        } else if (stickers.isNotEmpty) {
+          // Trigger rebuild to show the new cover
+          setState(() {});
+        }
+      }
 
       if (!isBackground && mounted) {
         setState(() {
@@ -272,6 +263,12 @@ class _StickerPickerSheetState extends ConsumerState<StickerPickerSheet> {
       fit: BoxFit.cover,
       errorIcon: const Icon(Icons.image_not_supported_outlined),
     );
+  }
+
+  @override
+  void dispose() {
+    _stickerPickerCubit.close();
+    super.dispose();
   }
 
   @override

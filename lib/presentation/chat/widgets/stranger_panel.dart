@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_chat/features/friendship/friendship_providers.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class StrangerPanel extends ConsumerWidget {
+class StrangerPanel extends StatelessWidget {
   final String targetUserId;
+  final VoidCallback onAddFriend;
+  final bool isSubmitting;
 
-  const StrangerPanel({super.key, required this.targetUserId});
+  const StrangerPanel({
+    super.key,
+    required this.targetUserId,
+    required this.onAddFriend,
+    this.isSubmitting = false,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
     return Container(
@@ -31,31 +36,19 @@ class StrangerPanel extends ConsumerWidget {
           Expanded(child: Text(l10n.warning_stranger)),
           const SizedBox(width: 8),
           FilledButton.tonal(
-            onPressed: () async {
-              final result = await ref
-                  .read(sendFriendRequestUseCaseProvider)
-                  .call(targetUserId);
-              if (!context.mounted) return;
-              result.fold(
-                (failure) => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Failed to send request: ${failure.message}'),
-                  ),
-                ),
-                (_) {
-                  ref.invalidate(friendshipStatusProvider(targetUserId));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(l10n.success_friend_request_sent)),
-                  );
-                },
-              );
-            },
+            onPressed: isSubmitting ? null : onAddFriend,
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            child: Text(l10n.action_add_friend),
+            child: isSubmitting
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(l10n.action_add_friend),
           ),
         ],
       ),

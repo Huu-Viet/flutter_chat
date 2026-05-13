@@ -1,11 +1,10 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/core/errors/failures.dart';
-import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/chat/chat_providers.dart';
 import 'package:flutter_chat/features/chat/domain/entities/conversation.dart';
 import 'package:flutter_chat/features/friendship/friendship_providers.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_chat/presentation/chat/blocs/chat_bloc.dart';
+import 'package:flutter_chat/presentation/chat/chat_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class DirectChatInfoPage extends ConsumerStatefulWidget {
@@ -33,20 +32,8 @@ class DirectChatInfoPage extends ConsumerStatefulWidget {
 
 class _DirectChatInfoPageState extends ConsumerState<DirectChatInfoPage> {
   bool _busyNotify = false;
-  bool _busyDanger = false;
   String _muteDuration = 'off';
   bool? _blockedByMeLocalHint;
-
-  Dio get _dio => ref.read(authDioProvider);
-  static String get _baseUrl => dotenv.get('NEST_API_BASE_URL');
-
-  String _url(String path) {
-    final base = _baseUrl.endsWith('/')
-        ? _baseUrl.substring(0, _baseUrl.length - 1)
-        : _baseUrl;
-    final normalizedPath = path.startsWith('/') ? path : '/$path';
-    return '$base$normalizedPath';
-  }
 
   void _toast(String message) {
     if (!mounted) {
@@ -68,30 +55,15 @@ class _DirectChatInfoPageState extends ConsumerState<DirectChatInfoPage> {
       };
     }
 
-    if (error is DioException) {
-      final responseData = error.response?.data;
-      if (responseData is Map<String, dynamic>) {
-        final nestedMessage = responseData['message']?.toString().trim();
-        if (nestedMessage != null && nestedMessage.isNotEmpty) {
-          return nestedMessage;
-        }
-      }
-
-      final message = error.message?.trim();
-      if (message != null && message.isNotEmpty) {
-        return message;
-      }
-    }
-
     return fallback;
   }
 
   Future<void> _applyMute() async {
     setState(() => _busyNotify = true);
     try {
-      await _dio.put(
-        _url('/notifications/conversations/${widget.conversation.id}/mute'),
-        data: {'duration': _muteDuration},
+      await ref.read(updateConversationMuteUseCaseProvider)(
+        conversationId: widget.conversation.id,
+        muteDuration: _muteDuration,
       );
       _toast('Notification mute updated');
     } catch (error) {
@@ -109,33 +81,29 @@ class _DirectChatInfoPageState extends ConsumerState<DirectChatInfoPage> {
   }
 
   Future<void> _toggleBlock({required bool isBlocked}) async {
-    setState(() => _busyDanger = true);
-    try {
-      final result = isBlocked
-          ? await ref.read(unblockUserUseCaseProvider)(widget.targetUserId)
-          : await ref.read(blockUserUseCaseProvider)(widget.targetUserId);
+    final event = isBlocked
+        ? UnblockUserEvent(widget.targetUserId)
+        : BlockUserEvent(widget.targetUserId);
 
-      result.fold(
-        (failure) => throw failure,
-        (_) {
-          _blockedByMeLocalHint = isBlocked ? false : true;
-          ref.invalidate(friendshipStatusProvider(widget.targetUserId));
-        },
-      );
+    ref.read(chatBlocProvider).add(event);
 
-      _toast('User ${isBlocked ? 'unblocked' : 'blocked'}');
-    } catch (error) {
-      _toast(
-        _errorMessageFor(
-          error,
-          fallback: 'Failed to ${isBlocked ? 'unblock' : 'block'} this user.',
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _busyDanger = false);
-      }
-    }
+    // Listen for feedback from BLoC
+    if (!mounted) return;
+
+    ref.listen<ChatState>(
+      chatBlocProvider.select((bloc) => bloc.state),
+      (previous, current) {
+        if (current is ChatLoaded) {
+          final feedback = current.conversationState.friendshipActionFeedback;
+          if (feedback != null &&
+              feedback.targetUserId == widget.targetUserId) {
+            _blockedByMeLocalHint = isBlocked ? false : true;
+            _toast('User ${isBlocked ? 'unblocked' : 'blocked'}');
+            ref.invalidate(friendshipStatusProvider(widget.targetUserId));
+          }
+        }
+      },
+    );
   }
 
   Future<void> _deleteConversation() async {
@@ -165,13 +133,11 @@ class _DirectChatInfoPageState extends ConsumerState<DirectChatInfoPage> {
       return;
     }
 
-    setState(() => _busyDanger = true);
     try {
-      await _dio.delete(_url('/conversations/${widget.conversation.id}/for-me'));
-      final deleteLocalResult = await ref.read(deleteLocalConversationUseCaseProvider)(
+      await ref.read(deleteConversationForMeUseCaseProvider)(
         widget.conversation.id,
       );
-      deleteLocalResult.fold((failure) => throw failure, (_) {});
+
       if (!mounted) {
         return;
       }
@@ -183,10 +149,6 @@ class _DirectChatInfoPageState extends ConsumerState<DirectChatInfoPage> {
           fallback: 'Failed to delete the conversation.',
         ),
       );
-    } finally {
-      if (mounted) {
-        setState(() => _busyDanger = false);
-      }
     }
   }
 
@@ -195,7 +157,14 @@ class _DirectChatInfoPageState extends ConsumerState<DirectChatInfoPage> {
     final friendshipStatusAsync = ref.watch(
       friendshipStatusProvider(widget.targetUserId),
     );
+    final chatState = ref.watch(chatBlocProvider).state;
     final theme = Theme.of(context);
+
+    // Track if a friendship action is in progress for this user
+    final isBusyDanger = chatState is ChatLoaded
+        ? chatState.conversationState.friendshipActionInProgressUserIds
+            .contains(widget.targetUserId)
+        : false;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Chat Info')),
@@ -265,7 +234,7 @@ class _DirectChatInfoPageState extends ConsumerState<DirectChatInfoPage> {
                   label: 'Delete conversation',
                   description:
                       'Remove this chat from your list on this account until a newer message appears.',
-                  busy: _busyDanger,
+                  busy: false,
                   onTap: _deleteConversation,
                 ),
                 const Divider(height: 24),
@@ -307,7 +276,7 @@ class _DirectChatInfoPageState extends ConsumerState<DirectChatInfoPage> {
                       description: canUnblock
                           ? 'Allow this user to message you again in direct chat.'
                           : 'Prevent this user from messaging you in direct chat.',
-                      busy: _busyDanger,
+                      busy: isBusyDanger,
                       onTap: () => _toggleBlock(isBlocked: canUnblock),
                     );
                   },
@@ -319,7 +288,7 @@ class _DirectChatInfoPageState extends ConsumerState<DirectChatInfoPage> {
                     icon: Icons.block_outlined,
                     label: 'Block user',
                     description: 'Unable to load block status right now.',
-                    busy: _busyDanger,
+                    busy: isBusyDanger,
                     onTap: () => _toggleBlock(isBlocked: false),
                   ),
                 ),
@@ -440,25 +409,20 @@ class _DangerActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final effectiveEnabled = enabled && !busy;
-    final labelColor = effectiveEnabled
-        ? theme.colorScheme.error
-        : theme.colorScheme.onSurfaceVariant;
+    final isEnabled = enabled && !busy;
+
     return InkWell(
-      onTap: effectiveEnabled ? onTap : null,
-      borderRadius: BorderRadius.circular(16),
+      onTap: isEnabled ? onTap : null,
+      borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: labelColor),
+            Icon(
+              icon,
+              color: isEnabled
+                  ? theme.colorScheme.error
+                  : theme.colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -467,31 +431,32 @@ class _DangerActionTile extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      color: labelColor,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: isEnabled
+                          ? theme.colorScheme.error
+                          : theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     description,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            busy
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Icon(
-                    effectiveEnabled ? Icons.chevron_right : Icons.block,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+            if (busy) ...[
+              const SizedBox(width: 12),
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ],
           ],
         ),
       ),

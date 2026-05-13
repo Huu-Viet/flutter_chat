@@ -39,8 +39,13 @@ class ChatMessagesPane extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     final mapper = ChatMessageUIMapper();
-    final participants =
-        state.conversation?.participants ?? const [];
+    final conversationState = state.conversationState;
+    final messageState = state.messageState;
+    final mediaState = state.mediaState;
+    final jumpState = state.jumpState;
+    final pollState = state.pollState;
+
+    final participants = conversationState.conversation?.participants ?? const [];
     final senderDisplayNameByUserId = <String, String>{
       for (final p in participants)
         p.userId.trim(): p.displayName.trim().isNotEmpty
@@ -50,28 +55,28 @@ class ChatMessagesPane extends ConsumerWidget {
     final senderAvatarUrlByUserId = <String, String>{
       for (final p in participants) p.userId.trim(): p.avatarUrl,
     };
-    final normalizedType = state.conversation?.type.toLowerCase() ?? '';
+    final normalizedType = conversationState.conversation?.type.toLowerCase() ?? '';
     final isGroupConversation = normalizedType == 'group';
 
     final displayMessages = mapper.mapStateMessagesToUI(
-      state.messages,
-      state.uploadingImagePaths,
-      state.imageUrlsByMediaId,
-      state.audioUrlsByMediaId,
-      state.videoUrlsByMediaId,
-      state.resolvingImageMediaIds,
-      state.resolvingAudioMediaIds,
-      state.resolvingVideoMediaIds,
-      state.currentUserId,
+      messageState.messages,
+      mediaState.uploadingImagePaths,
+      mediaState.imageUrlsByMediaId,
+      mediaState.audioUrlsByMediaId,
+      mediaState.videoUrlsByMediaId,
+      mediaState.resolvingImageMediaIds,
+      mediaState.resolvingAudioMediaIds,
+      mediaState.resolvingVideoMediaIds,
+      conversationState.currentUserId,
       senderDisplayNameByUserId,
       senderAvatarUrlByUserId,
       isGroupConversation,
-      state.conversation?.avatarUrl,
+      conversationState.conversation?.avatarUrl,
       deletedMessageText,
     );
 
-    final latestOpenPollMessage = state.pollMessages.isNotEmpty
-        ? state.pollMessages.first
+    final latestOpenPollMessage = pollState.pollMessages.isNotEmpty
+        ? pollState.pollMessages.first
         : null;
 
     final combinedMessages =
@@ -88,7 +93,8 @@ class ChatMessagesPane extends ConsumerWidget {
       return Center(child: Text(l10n.notify_no_message));
     }
 
-    final itemCount = combinedMessages.length + (state.isLoadingMore ? 1 : 0);
+    final itemCount =
+      combinedMessages.length + (messageState.isLoadingMore ? 1 : 0);
 
     return ListView.builder(
       controller: scrollController,
@@ -97,7 +103,7 @@ class ChatMessagesPane extends ConsumerWidget {
       itemCount: itemCount,
       cacheExtent: 2000,
       itemBuilder: (context, index) {
-        if (state.isLoadingMore && index == combinedMessages.length) {
+        if (messageState.isLoadingMore && index == combinedMessages.length) {
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
             child: Center(child: CircularProgressIndicator()),
@@ -106,9 +112,9 @@ class ChatMessagesPane extends ConsumerWidget {
 
         final message = combinedMessages[combinedMessages.length - 1 - index];
         final isHighlighted =
-            state.jumpHighlightMessageId != null &&
-            (message.serverId == state.jumpHighlightMessageId ||
-                message.localId == state.jumpHighlightMessageId);
+            jumpState.jumpHighlightMessageId != null &&
+            (message.serverId == jumpState.jumpHighlightMessageId ||
+                message.localId == jumpState.jumpHighlightMessageId);
 
         final canReact = canReactToMessage(message);
 

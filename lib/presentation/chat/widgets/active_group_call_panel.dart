@@ -1,29 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/features/call/call_providers.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
-import 'package:flutter_chat/presentation/call/blocs/in_call_bloc.dart';
-import 'package:flutter_chat/presentation/call/providers/call_bloc_provider.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-class ActiveGroupCallPanel extends ConsumerStatefulWidget {
+class ActiveGroupCallPanel extends StatefulWidget {
   final ActiveGroupCallState activeCall;
   final String conversationId;
   final String roomName;
+  final VoidCallback onRejoin;
 
   const ActiveGroupCallPanel({
     super.key,
     required this.activeCall,
     required this.conversationId,
     required this.roomName,
+    required this.onRejoin,
   });
 
   @override
-  ConsumerState<ActiveGroupCallPanel> createState() =>
-      _ActiveGroupCallPanelState();
+  State<ActiveGroupCallPanel> createState() => _ActiveGroupCallPanelState();
 }
 
-class _ActiveGroupCallPanelState extends ConsumerState<ActiveGroupCallPanel> {
+class _ActiveGroupCallPanelState extends State<ActiveGroupCallPanel> {
   bool _dismissed = false;
 
   @override
@@ -84,24 +81,7 @@ class _ActiveGroupCallPanelState extends ConsumerState<ActiveGroupCallPanel> {
           FilledButton(
             onPressed: callId.isEmpty
                 ? null
-                : () {
-                    ref
-                        .read(inCallBlocProvider)
-                        .add(
-                          InCallRejoinRequested(
-                            call,
-                            roomName: widget.roomName,
-                          ),
-                        );
-                    final route = Uri(
-                      path: '/in-call',
-                      queryParameters: {
-                        'conversationId': widget.conversationId,
-                        'roomName': widget.roomName,
-                      },
-                    ).toString();
-                    context.push(route);
-                  },
+                : widget.onRejoin,
             child: Text(l10n.action_rejoin),
           ),
         ],

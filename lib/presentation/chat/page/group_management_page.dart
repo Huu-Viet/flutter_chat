@@ -10,6 +10,7 @@ import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/chat/domain/entities/conversation.dart';
 import 'package:flutter_chat/features/chat/domain/entities/conversation_participant.dart';
 import 'package:flutter_chat/features/group_manager/data/datasources/api/group_management_service.dart';
+import 'package:flutter_chat/presentation/chat/blocs/chat_ui_actions_cubit.dart';
 import 'package:flutter_chat/presentation/chat/widgets/share_invite_link_dialog.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter_chat/features/group_manager/group_management_provider.dart';
@@ -46,6 +47,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   late final TextEditingController _descriptionController;
   late final TextEditingController _memberSearchController;
   final MediaService _mediaService = MediaService();
+  late final ChatUiActionsCubit _chatUiActionsCubit;
   String? _pickedAvatarPath;
   String? _uploadedAvatarMediaId;
 
@@ -76,6 +78,21 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   @override
   void initState() {
     super.initState();
+    _chatUiActionsCubit = ChatUiActionsCubit(
+      uploadMediaAction: (path, mediaType, size, fileName) =>
+          ref.read(uploadMediaUseCaseProvider)(
+            path,
+            mediaType,
+            size,
+            fileName,
+          ),
+      searchUsersByUsernameAction: (query, {page = 1, limit = 20}) =>
+          ref.read(searchUsersByUsernameUseCaseProvider)(
+            query,
+            page: page,
+            limit: limit,
+          ),
+    );
     _participants = List<ConversationParticipant>.from(
       widget.conversation.participants,
     );
@@ -101,6 +118,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
 
   @override
   void dispose() {
+    _chatUiActionsCubit.close();
     _tabController.dispose();
     _nameController.dispose();
     _descriptionController.dispose();
@@ -581,11 +599,9 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
       }
 
       setState(() => _busyInfo = true);
-      final result = await ref.read(uploadMediaUseCaseProvider)(
+      final result = await _chatUiActionsCubit.uploadImageAvatar(
         file.path,
-        'image',
         size,
-        null,
       );
 
       if (!mounted) return;
@@ -757,7 +773,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
       _hasSearchedMember = true;
     });
     try {
-      final result = await ref.read(searchUsersByUsernameUseCaseProvider)(
+      final result = await _chatUiActionsCubit.searchUsersByUsername(
         query,
         page: 1,
         limit: 20,

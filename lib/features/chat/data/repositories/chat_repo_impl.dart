@@ -26,6 +26,7 @@ class ChatRepoImpl implements ChatRepository {
   final ApiStickerItemMapper _stickerItemMapper;
   final LocalStickerPackageMapper _localStickerPackageMapper;
   final LocalStickerItemMapper _localStickerItemMapper;
+  final ConversationMuteSettingMapper _conversationMuteSettingMapper;
 
   ChatRepoImpl({
     required ChatService chatService,
@@ -47,6 +48,7 @@ class ChatRepoImpl implements ChatRepository {
     required ApiStickerItemMapper stickerItemMapper,
     required LocalStickerPackageMapper localStickerPackageMapper,
     required LocalStickerItemMapper localStickerItemMapper,
+    required ConversationMuteSettingMapper conversationMuteSettingMapper,
   }) : _chatService = chatService,
        _conversationDao = conversationDao,
        _conversationUserDao = conversationUserDao,
@@ -65,7 +67,8 @@ class ChatRepoImpl implements ChatRepository {
        _stickerPackageMapper = stickerPackageMapper,
        _stickerItemMapper = stickerItemMapper,
        _localStickerPackageMapper = localStickerPackageMapper,
-       _localStickerItemMapper = localStickerItemMapper;
+      _localStickerItemMapper = localStickerItemMapper,
+      _conversationMuteSettingMapper = conversationMuteSettingMapper;
 
   @override
   Future<Either<Failure, bool>> fetchConversations(int page, int limit) async {
@@ -1038,6 +1041,50 @@ class ChatRepoImpl implements ChatRepository {
     } catch (e) {
       debugPrint('[ChatRepoImpl] deleteLocalConversation error: $e');
       return Left(CacheFailure('Failed to delete local conversation: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> downloadFile({
+    required String url,
+    required String filePath,
+  }) async {
+    try {
+      await _chatService.downloadFile(url: url, filePath: filePath);
+      return const Right(null);
+    } catch (e) {
+      debugPrint('[ChatRepoImpl] downloadFile error: $e');
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, ConversationMuteSetting>> updateConversationMute({
+    required String conversationId,
+    required String muteDuration,
+  }) async {
+    try {
+      final dto = await _chatService.updateConversationMute(
+        conversationId: conversationId,
+        muteDuration: muteDuration,
+      );
+      return Right(_conversationMuteSettingMapper.toDomainDto(dto));
+    } catch (e) {
+      debugPrint('[ChatRepoImpl] updateConversationMute error: $e');
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteConversationForMe(
+    String conversationId,
+  ) async {
+    try {
+      await _chatService.deleteConversationForMe(conversationId);
+      return await deleteLocalConversation(conversationId);
+    } catch (e) {
+      debugPrint('[ChatRepoImpl] deleteConversationForMe error: $e');
+      return Left(ServerFailure(e.toString()));
     }
   }
 

@@ -1,12 +1,3 @@
-import 'package:flutter_chat/features/chat/data/response/conversation_response.dart';
-import 'package:flutter_chat/features/chat/data/response/message_edit_response.dart';
-import 'package:flutter_chat/features/chat/data/response/message_list_response.dart';
-import 'package:flutter_chat/features/chat/data/response/message_media_precheck_response.dart';
-import 'package:flutter_chat/features/chat/data/response/message_reaction_response.dart';
-import 'package:flutter_chat/features/chat/data/response/message_send_response.dart';
-import 'package:flutter_chat/features/chat/data/response/pin_message_response.dart';
-import 'package:flutter_chat/features/chat/data/response/sticker_package_response.dart';
-import 'package:flutter_chat/features/chat/data/response/sticker_item_response.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 
 abstract class ChatService {
@@ -68,6 +59,18 @@ abstract class ChatService {
     required String messageId,
     required String conversationId,
   });
+
+  Future<void> downloadFile({
+    required String url,
+    required String filePath,
+  });
+
+  Future<ConversationMuteSettingDto> updateConversationMute({
+    required String conversationId,
+    required String muteDuration,
+  });
+
+  Future<void> deleteConversationForMe(String conversationId);
 
   Future<void> forwardMessage({
     required String sourceMessageId,

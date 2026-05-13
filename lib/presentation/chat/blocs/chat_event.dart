@@ -431,3 +431,68 @@ final class ClosePollEvent extends ChatEvent {
   @override
   List<Object> get props => [conversationId, pollId];
 }
+
+final class SendFriendRequestEvent extends ChatEvent {
+  final String targetUserId;
+
+  const SendFriendRequestEvent(this.targetUserId);
+
+  @override
+  List<Object> get props => [targetUserId];
+}
+
+final class AcceptFriendRequestEvent extends ChatEvent {
+  final String targetUserId;
+
+  const AcceptFriendRequestEvent(this.targetUserId);
+
+  @override
+  List<Object> get props => [targetUserId];
+}
+
+final class CancelFriendRequestEvent extends ChatEvent {
+  final String targetUserId;
+
+  const CancelFriendRequestEvent(this.targetUserId);
+
+  @override
+  List<Object> get props => [targetUserId];
+}
+
+final class BlockUserEvent extends ChatEvent {
+  final String targetUserId;
+
+  const BlockUserEvent(this.targetUserId);
+
+  @override
+  List<Object> get props => [targetUserId];
+}
+
+final class UnblockUserEvent extends ChatEvent {
+  final String targetUserId;
+
+  const UnblockUserEvent(this.targetUserId);
+
+  @override
+  List<Object> get props => [targetUserId];
+}
+
+final class FetchMediaUrlEvent extends ChatEvent {
+  final String mediaId;
+  final String? conversationId;
+
+  const FetchMediaUrlEvent({
+    required this.mediaId,
+    this.conversationId,
+  });
+
+  @override
+  List<Object?> get props => [mediaId, conversationId];
+}
+
+final class ConsumeFriendshipActionFeedbackEvent extends ChatEvent {
+  const ConsumeFriendshipActionFeedbackEvent();
+
+  @override
+  List<Object> get props => [];
+}
