@@ -39,6 +39,8 @@ final class ChatLoaded extends ChatState {
   final bool hasMoreAfter;
   final String? jumpHighlightMessageId;
   final int pendingCount;
+  // Poll fields
+  final List<PollChatMessage> pollMessages;
 
   const ChatLoaded(
       this.messages, {
@@ -64,6 +66,7 @@ final class ChatLoaded extends ChatState {
         this.hasMoreAfter = false,
         this.jumpHighlightMessageId,
         this.pendingCount = 0,
+        this.pollMessages = const <PollChatMessage>[],
       }
   );
 
@@ -90,6 +93,7 @@ final class ChatLoaded extends ChatState {
     hasMoreAfter,
     if (jumpHighlightMessageId != null) jumpHighlightMessageId!,
     pendingCount,
+    pollMessages,
   ];
 
   //copyWith method to update the isTyping status
@@ -117,6 +121,7 @@ final class ChatLoaded extends ChatState {
     bool? hasMoreAfter,
     Object? jumpHighlightMessageId = _sentinel,
     int? pendingCount,
+    List<PollChatMessage>? pollMessages,
   }) {
     return ChatLoaded(
       messages ?? this.messages,
@@ -148,6 +153,7 @@ final class ChatLoaded extends ChatState {
           ? this.jumpHighlightMessageId
           : jumpHighlightMessageId as String?,
       pendingCount: pendingCount ?? this.pendingCount,
+      pollMessages: pollMessages ?? this.pollMessages,
     );
   }
 }

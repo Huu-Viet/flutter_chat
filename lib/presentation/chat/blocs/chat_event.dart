@@ -394,3 +394,40 @@ final class ClearJumpHighlightEvent extends ChatEvent {
   @override
   List<Object> get props => [];
 }
+
+final class LoadPollsEvent extends ChatEvent {
+  final String conversationId;
+
+  const LoadPollsEvent(this.conversationId);
+
+  @override
+  List<Object> get props => [conversationId];
+}
+
+final class VotePollEvent extends ChatEvent {
+  final String conversationId;
+  final String pollId;
+  final List<String> optionIds;
+
+  const VotePollEvent({
+    required this.conversationId,
+    required this.pollId,
+    required this.optionIds,
+  });
+
+  @override
+  List<Object> get props => [conversationId, pollId, optionIds];
+}
+
+final class ClosePollEvent extends ChatEvent {
+  final String conversationId;
+  final String pollId;
+
+  const ClosePollEvent({
+    required this.conversationId,
+    required this.pollId,
+  });
+
+  @override
+  List<Object> get props => [conversationId, pollId];
+}

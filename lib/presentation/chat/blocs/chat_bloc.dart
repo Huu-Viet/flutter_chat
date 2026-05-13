@@ -19,7 +19,12 @@ import 'package:flutter_chat/features/chat/domain/usecases/get_conversation_usec
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/features/upload_media/domain/usecases/upload_multipart_usecase.dart';
 import 'package:flutter_chat/features/upload_media/export.dart';
+import 'package:flutter_chat/features/group_manager/domain/usecase/close_poll_usecase.dart';
+import 'package:flutter_chat/features/group_manager/domain/usecase/list_conversation_polls_usecase.dart';
+import 'package:flutter_chat/features/group_manager/domain/usecase/vote_poll_usecase.dart';
 import 'package:flutter_chat/presentation/chat/chat_image_cache_manager.dart';
+import 'package:flutter_chat/presentation/chat/mappers/poll_chat_message_ui_mapper.dart';
+import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
 import 'package:mime/mime.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as p;
@@ -55,10 +60,16 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final UploadMultipartUseCase uploadMultipartUseCase;
   final FetchMessagesAroundUseCase fetchMessagesAroundUseCase;
   final AudioCacheDao audioCacheDao;
+  final ListConversationPollsUseCase listConversationPollsUseCase;
+  final VotePollUseCase votePollUseCase;
+  final ClosePollUseCase closePollUseCase;
 
   String? _currentUserId;
   String? _currentConversationId;
   Conversation? _currentConversation;
+
+  final PollChatMessageUIMapper _pollMapper = PollChatMessageUIMapper();
+  List<PollChatMessage> _currentPollMessages = const [];
 
   StreamSubscription<Either<Failure, List<Message>>>? _localSubscription;
   StreamSubscription<Either<Failure, List<Conversation>>>?
@@ -110,6 +121,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     required this.emitTypingUseCase,
     required this.fetchMessagesAroundUseCase,
     required this.audioCacheDao,
+    required this.listConversationPollsUseCase,
+    required this.votePollUseCase,
+    required this.closePollUseCase,
   }) : super(ChatInitial()) {
     on<ChatInitialLoadEvent>(_onChatInitialLoad);
     on<SendTextEvent>(_onSendText);
@@ -137,6 +151,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<JumpToMessageEvent>(_onJumpToMessage);
     on<ReturnToLiveEvent>(_onReturnToLive);
     on<LoadMoreAfterEvent>(_onLoadMoreAfter);
+    on<LoadPollsEvent>(_onLoadPolls);
+    on<VotePollEvent>(_onVotePoll);
+    on<ClosePollEvent>(_onClosePoll);
     on<ClearJumpHighlightEvent>((event, emit) {
       final current = state;
       if (current is ChatLoaded) {
@@ -210,6 +227,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       hasMoreAfter: _hasMoreAfter,
       jumpHighlightMessageId: _jumpHighlightMessageId,
       pendingCount: _pendingCount,
+      pollMessages: _currentPollMessages,
     );
   }
 
@@ -1778,6 +1796,77 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     await controller.dispose();
 
     return controller.value.duration.inMilliseconds;
+  }
+
+  Future<void> _onLoadPolls(
+    LoadPollsEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final result = await listConversationPollsUseCase(
+      conversationId: event.conversationId,
+      includeClosed: false,
+    );
+    result.fold(
+      (failure) => debugPrint('[ChatBloc] LoadPolls failed: ${failure.message}'),
+      (polls) {
+        final conversation = _currentConversation;
+        final participants = conversation?.participants ?? const [];
+        final isGroup =
+            conversation?.type.trim().toLowerCase() == 'group';
+        _currentPollMessages = _pollMapper.mapPolls(
+          polls: polls,
+          participants: participants,
+          currentUserId: _currentUserId,
+          conversationAvatarUrl: conversation?.avatarUrl,
+          isGroupConversation: isGroup,
+        );
+        final currentState = state;
+        if (currentState is ChatLoaded) {
+          emit(currentState.copyWith(pollMessages: _currentPollMessages));
+        }
+      },
+    );
+  }
+
+  Future<void> _onVotePoll(
+    VotePollEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final result = await votePollUseCase(
+      conversationId: event.conversationId,
+      pollId: event.pollId,
+      optionIds: event.optionIds,
+    );
+    result.fold(
+      (failure) {
+        final currentState = state;
+        if (currentState is ChatLoaded) {
+          emit(ChatError(failure.message));
+          emit(currentState);
+        }
+      },
+      (_) => add(LoadPollsEvent(event.conversationId)),
+    );
+  }
+
+  Future<void> _onClosePoll(
+    ClosePollEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final result = await closePollUseCase(
+      conversationId: event.conversationId,
+      pollId: event.pollId,
+    );
+    result.fold(
+      (failure) {
+        final currentState = state;
+        if (currentState is ChatLoaded) {
+          emit(ChatError(failure.message));
+          emit(currentState);
+        }
+      },
+      (_) => add(LoadPollsEvent(event.conversationId)),
+    );
   }
 
   Future<File?> _generateVideoThumbnail(File videoFile) async {

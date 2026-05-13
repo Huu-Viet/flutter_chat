@@ -11,7 +11,6 @@ import 'package:flutter_chat/core/network/realtime_gateway.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/features/friendship/domain/entities/friendship_status.dart';
 import 'package:flutter_chat/features/friendship/friendship_providers.dart';
-import 'package:flutter_chat/features/group_manager/group_management_provider.dart';
 import 'package:flutter_chat/features/call/call_providers.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
 import 'package:flutter_chat/presentation/call/blocs/in_call_bloc.dart';
@@ -19,24 +18,27 @@ import 'package:flutter_chat/presentation/call/blocs/outgoing_call_bloc.dart';
 import 'package:flutter_chat/presentation/call/providers/call_bloc_provider.dart';
 import 'package:flutter_chat/presentation/chat/blocs/chat_bloc.dart';
 import 'package:flutter_chat/presentation/chat/chat_providers.dart';
-import 'package:flutter_chat/presentation/chat/mappers/chat_message_ui_mapper.dart';
 import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
+import 'package:flutter_chat/presentation/chat/widgets/active_group_call_panel.dart';
+import 'package:flutter_chat/presentation/chat/widgets/blocked_composer_panel.dart';
+import 'package:flutter_chat/presentation/chat/widgets/chat_messages_pane.dart';
+import 'package:flutter_chat/presentation/chat/widgets/composer_context_bar.dart';
+import 'package:flutter_chat/presentation/chat/widgets/group_posting_restricted_panel.dart';
+import 'package:flutter_chat/presentation/chat/widgets/open_poll_panel.dart';
+import 'package:flutter_chat/presentation/chat/widgets/pending_in_panel.dart';
+import 'package:flutter_chat/presentation/chat/widgets/pending_out_panel.dart';
+import 'package:flutter_chat/presentation/chat/widgets/stranger_panel.dart';
 import 'package:flutter_chat/presentation/chat/page/direct_chat_info_page.dart';
 import 'package:flutter_chat/presentation/chat/widgets/file_send_confirmation_dialog.dart';
 import 'package:flutter_chat/presentation/chat/widgets/forward_message_dialog.dart';
 import 'package:flutter_chat/presentation/chat/page/group_management_page.dart';
 import 'package:flutter_chat/presentation/chat/widgets/image_send_confirmation_dialog.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_action_dialog.dart';
-import 'package:flutter_chat/presentation/chat/widgets/message_bubble.dart';
 import 'package:flutter_chat/presentation/chat/widgets/message_input.dart';
 import 'package:flutter_chat/presentation/chat/widgets/pin_message_panel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-
-import '../../../app/router.dart';
-
-enum _DirectBlockRelation { none, blockedByMe, blockedByPeer, blockedUnknown }
 
 class ChatPage extends ConsumerStatefulWidget {
   final String conversationId;
@@ -68,16 +70,13 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
   final TextEditingController _messageController = TextEditingController();
   final MediaService _mediaService = MediaService();
-  final ChatMessageUIMapper _uiMapper = ChatMessageUIMapper();
   final ScrollController _scrollController = ScrollController();
   StreamSubscription<RealtimeGatewayEvent>? _realtimeSubscription;
   bool? _groupAllowMemberMessageRealtime;
-  _DirectBlockRelation? _directBlockRelationOverride;
+  DirectBlockRelation? _directBlockRelationOverride;
   ChatMessage? _replyToMessage;
-  List<Map<String, dynamic>> _polls = <Map<String, dynamic>>[];
   final Set<String> _explicitMentionUserIds = <String>{};
   String? _activeMentionQuery;
-  String? _dismissedActiveGroupCallId;
   final Set<String> _verifiedActiveGroupCallIds = <String>{};
   final Set<String> _verifyingActiveGroupCallIds = <String>{};
   final Set<String> _activeGroupCallCheckedConversationIds = <String>{};
@@ -86,8 +85,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   void initState() {
     super.initState();
     ref.read(chatBlocProvider).add(ChatInitialLoadEvent(widget.conversationId));
+    ref.read(chatBlocProvider).add(LoadPollsEvent(widget.conversationId));
     _subscribeChatRealtimeEvents();
-    unawaited(_loadConversationPolls());
     _messageController.addListener(_onComposerTextChanged);
     _scrollController.addListener(() {
       _onScroll(ref.read(chatBlocProvider));
@@ -206,7 +205,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         return;
       }
 
-      unawaited(_loadConversationPolls());
+      ref.read(chatBlocProvider).add(LoadPollsEvent(widget.conversationId));
     });
   }
 
@@ -301,22 +300,22 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     return false;
   }
 
-  _DirectBlockRelation _deriveBlockRelationFromStatus(
+  DirectBlockRelation _deriveBlockRelationFromStatus(
     FriendshipStatus? status,
   ) {
     if (status == null || !status.isBlocked) {
-      return _DirectBlockRelation.none;
+      return DirectBlockRelation.none;
     }
 
     if (status.isBlockedByMe) {
-      return _DirectBlockRelation.blockedByMe;
+      return DirectBlockRelation.blockedByMe;
     }
 
     if (status.isBlockedByTarget) {
-      return _DirectBlockRelation.blockedByPeer;
+      return DirectBlockRelation.blockedByPeer;
     }
 
-    return _DirectBlockRelation.blockedUnknown;
+    return DirectBlockRelation.blockedUnknown;
   }
 
   Map<String, dynamic>? _toNormalizedMap(dynamic value) {
@@ -354,7 +353,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     return null;
   }
 
-  _DirectBlockRelation? _resolveBlockRelationFromRealtimeEvent({
+  DirectBlockRelation? _resolveBlockRelationFromRealtimeEvent({
     required String eventName,
     required dynamic payload,
     required String currentUserId,
@@ -383,7 +382,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         'unblockedId',
       ]);
       if (matchPair(unblocker, unblocked)) {
-        return _DirectBlockRelation.none;
+        return DirectBlockRelation.none;
       }
       return null;
     }
@@ -399,13 +398,13 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         'blockedId',
       ]);
       if (blocker == currentUserId && blocked == targetUserId) {
-        return _DirectBlockRelation.blockedByMe;
+        return DirectBlockRelation.blockedByMe;
       }
       if (blocker == targetUserId && blocked == currentUserId) {
-        return _DirectBlockRelation.blockedByPeer;
+        return DirectBlockRelation.blockedByPeer;
       }
       if (matchPair(blocker, blocked)) {
-        return _DirectBlockRelation.blockedUnknown;
+        return DirectBlockRelation.blockedUnknown;
       }
     }
 
@@ -492,44 +491,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
 
     return null;
-  }
-
-  Future<void> _loadConversationPolls() async {
-    try {
-      final mapped = await ref
-          .read(groupManagementServiceProvider)
-          .listConversationPolls(
-            conversationId: widget.conversationId,
-            includeClosed: false,
-          );
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _polls = _sortPollsByDateDescending(mapped);
-      });
-    } catch (_) {
-      // Poll API is conversation-scoped and may be unavailable for non-group chats.
-    }
-  }
-
-  List<Map<String, dynamic>> _sortPollsByDateDescending(
-    List<Map<String, dynamic>> polls,
-  ) {
-    final sorted = List<Map<String, dynamic>>.from(polls);
-    sorted.sort((a, b) => _pollDateTimeOf(b).compareTo(_pollDateTimeOf(a)));
-    return sorted;
-  }
-
-  DateTime _pollDateTimeOf(Map<String, dynamic> poll) {
-    DateTime? tryParse(dynamic value) {
-      if (value == null) return null;
-      return DateTime.tryParse(value.toString());
-    }
-
-    return tryParse(poll['updatedAt']) ??
-        tryParse(poll['createdAt']) ??
-        DateTime.fromMillisecondsSinceEpoch(0);
   }
 
   void _onComposerTextChanged() {
@@ -728,7 +689,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       ref
           .read(chatBlocProvider)
           .add(ChatInitialLoadEvent(widget.conversationId));
-      unawaited(_loadConversationPolls());
+      ref.read(chatBlocProvider).add(LoadPollsEvent(widget.conversationId));
       return;
     }
 
@@ -762,8 +723,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           title: title,
           avatarUrl: targetParticipant?.avatarUrl,
           initialBlockedByTarget:
-              blockRelation == _DirectBlockRelation.blockedByPeer,
-          initialBlockedByMe: blockRelation == _DirectBlockRelation.blockedByMe,
+              blockRelation == DirectBlockRelation.blockedByPeer,
+          initialBlockedByMe: blockRelation == DirectBlockRelation.blockedByMe,
         ),
       ),
     );
@@ -778,233 +739,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
 
     ref.read(chatBlocProvider).add(ChatInitialLoadEvent(widget.conversationId));
-  }
-
-  Widget _buildStrangerPanel(BuildContext context, String targetUserId) {
-    final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.person_outline,
-            color: theme.colorScheme.onSecondaryContainer,
-            size: 20,
-          ),
-          const SizedBox(width: 10),
-          const Expanded(child: Text('You are not friends with this person.')),
-          const SizedBox(width: 8),
-          FilledButton.tonal(
-            onPressed: () async {
-              final result = await ref
-                  .read(sendFriendRequestUseCaseProvider)
-                  .call(targetUserId);
-              if (!mounted) return;
-              result.fold(
-                (failure) => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Failed to send request: ${failure.message}'),
-                  ),
-                ),
-                (_) {
-                  ref.invalidate(friendshipStatusProvider(targetUserId));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Friend request sent!')),
-                  );
-                },
-              );
-            },
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: const Text('Add Friend'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPendingInPanel(BuildContext context, String targetUserId) {
-    final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.person_add_outlined,
-            color: theme.colorScheme.primary,
-            size: 20,
-          ),
-          const SizedBox(width: 10),
-          const Expanded(child: Text('This person sent you a friend request.')),
-          const SizedBox(width: 8),
-          FilledButton(
-            onPressed: () async {
-              final result = await ref
-                  .read(acceptFriendRequestUseCaseProvider)
-                  .call(targetUserId);
-              if (!mounted) return;
-              result.fold(
-                (failure) => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Failed to accept request: ${failure.message}',
-                    ),
-                  ),
-                ),
-                (_) {
-                  ref.invalidate(friendshipStatusProvider(targetUserId));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Friend request accepted!')),
-                  );
-                },
-              );
-            },
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPendingOutPanel(BuildContext context, String targetUserId) {
-    final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.schedule_outlined,
-            color: theme.colorScheme.onSecondaryContainer,
-            size: 20,
-          ),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Text('You sent a friend request to this person.'),
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton(
-            onPressed: () async {
-              final result = await ref
-                  .read(rejectFriendRequestUseCaseProvider)
-                  .call(targetUserId);
-              if (!mounted) return;
-              result.fold(
-                (failure) => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Failed to cancel request: ${failure.message}',
-                    ),
-                  ),
-                ),
-                (_) {
-                  ref.invalidate(friendshipStatusProvider(targetUserId));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Friend request cancelled.')),
-                  );
-                },
-              );
-            },
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: const Text('Cancel request'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBlockedComposerPanel(_DirectBlockRelation relation) {
-    final theme = Theme.of(context);
-    final message = switch (relation) {
-      _DirectBlockRelation.blockedByPeer =>
-        'You have been blocked by this user.',
-      _DirectBlockRelation.blockedByMe =>
-        'You blocked this user. Unblock them to send messages again.',
-      _ =>
-        'You cannot send message because this direct chat is currently blocked.',
-    };
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: theme.colorScheme.error.withValues(alpha: 0.2),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.block_outlined, color: theme.colorScheme.error),
-          const SizedBox(width: 12),
-          Expanded(child: Text(message, style: theme.textTheme.bodyMedium)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGroupPostingRestrictedPanel() {
-    final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.info_outline, color: theme.colorScheme.onSurfaceVariant),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Only admins can send messages in this group right now.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -1117,9 +851,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                         _deriveBlockRelationFromStatus(
                           directFriendshipStatus?.valueOrNull,
                         ))
-                  : _DirectBlockRelation.none;
+                  : DirectBlockRelation.none;
               final isDirectChatBlocked =
-                  directBlockRelation != _DirectBlockRelation.none;
+                  directBlockRelation != DirectBlockRelation.none;
               final isGroupPostingRestricted =
                   state is ChatLoaded && _isGroupMemberPostingRestricted(state);
               final hideComposer =
@@ -1255,33 +989,103 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                             'direct' &&
                         directTargetUserId != null) ...[
                       if (directFriendshipStatus?.valueOrNull?.isNone == true)
-                        _buildStrangerPanel(context, directTargetUserId),
+                        StrangerPanel(targetUserId: directTargetUserId),
                       if (directFriendshipStatus?.valueOrNull?.isPendingIn ==
                           true)
-                        _buildPendingInPanel(context, directTargetUserId),
+                        PendingInPanel(targetUserId: directTargetUserId),
                       if (directFriendshipStatus?.valueOrNull?.isPendingOut ==
                           true)
-                        _buildPendingOutPanel(context, directTargetUserId),
+                        PendingOutPanel(targetUserId: directTargetUserId),
                     ],
 
-                    if (state is ChatLoaded) _buildOpenPollPanel(state),
+                    if (state is ChatLoaded)
+                      OpenPollPanel(pollMessages: state.pollMessages),
                     if (isGroupConversation &&
                         activeGroupCall != null &&
                         _verifiedActiveGroupCallIds.contains(
                           activeGroupCall.call.id.trim(),
-                        ) &&
-                        _dismissedActiveGroupCallId !=
-                            activeGroupCall.call.id.trim())
-                      _buildActiveGroupCallPanel(
-                        context,
-                        activeGroupCall,
-                        appBarTitle,
+                        ))
+                      ActiveGroupCallPanel(
+                        activeCall: activeGroupCall,
+                        conversationId: widget.conversationId,
+                        roomName: appBarTitle,
                       ),
 
                     Expanded(
                       child: Stack(
                         children: [
-                          _buildMessagesPane(state, l10n, chatBloc),
+                          if (state is ChatInitial || state is ChatLoading)
+                            const Center(child: CircularProgressIndicator())
+                          else if (state is ChatError)
+                            Center(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.error_outline, size: 28),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      state.message.trim().isNotEmpty
+                                          ? state.message
+                                          : 'Failed to load chat',
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    FilledButton.icon(
+                                      onPressed: () => chatBloc.add(
+                                        ChatInitialLoadEvent(
+                                          widget.conversationId,
+                                        ),
+                                      ),
+                                      icon: const Icon(Icons.refresh),
+                                      label: const Text('Retry'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          else if (state is ChatLoaded)
+                            ChatMessagesPane(
+                              state: state,
+                              conversationId: widget.conversationId,
+                              deletedMessageText: l10n.chat_deleted_message,
+                              scrollController: _scrollController,
+                              canManagePoll: _isAdminOrOwnerRole(
+                                _resolveCurrentUserRole(state),
+                              ),
+                              canReactToMessage: _canReactToMessage,
+                              onReactPressed: (msg, emoji) =>
+                                  _handleReactionSelection(msg, emoji),
+                              onReactionTapToRemove: (msg, emoji) =>
+                                  _handleReactionTapToRemove(msg, emoji),
+                              onMessageLongPress: (msg, offset) =>
+                                  _showMessageActions(
+                                    context,
+                                    msg,
+                                    l10n,
+                                    anchor: offset,
+                                  ),
+                              onOpenFile: (mediaId, fileName) =>
+                                  chatBloc.add(
+                                    GetFileDownloadUrlEvent(
+                                      mediaId: mediaId,
+                                      fileName: fileName,
+                                    ),
+                                  ),
+                              onReplyPreviewTap: (
+                                replyMessageId,
+                                messages,
+                              ) =>
+                                  _scrollToRepliedMessage(
+                                    replyMessageId: replyMessageId,
+                                    displayMessages: messages,
+                                  ),
+                            )
+                          else
+                            const SizedBox.shrink(),
                           // "↓ N new messages" badge when jumped
                           if (state is ChatLoaded &&
                               state.isJumped &&
@@ -1356,11 +1160,20 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                       ),
                     ],
                     if (state is ChatLoaded && !hideComposer)
-                      _buildComposerContextBar(state),
+                      ComposerContextBar(
+                        replyToMessage: _replyToMessage,
+                        mentionSuggestions: _buildMentionSuggestions(
+                          participants:
+                              state.conversation?.participants ?? const [],
+                          currentUserId: state.currentUserId,
+                        ),
+                        onClearReply: () =>
+                            setState(() => _replyToMessage = null),
+                      ),
                     if (isDirectChatBlocked)
-                      _buildBlockedComposerPanel(directBlockRelation)
+                      BlockedComposerPanel(relation: directBlockRelation)
                     else if (isGroupPostingRestricted)
-                      _buildGroupPostingRestrictedPanel()
+                      const GroupPostingRestrictedPanel()
                     else
                       MessageInput(
                         controller: _messageController,
@@ -1386,427 +1199,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             },
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildMessagesPane(
-    ChatState state,
-    AppLocalizations l10n,
-    ChatBloc chatBloc,
-  ) {
-    if (state is ChatInitial || state is ChatLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (state is ChatError) {
-      final errorMessage = state.message.trim();
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 28),
-              const SizedBox(height: 8),
-              Text(
-                errorMessage.isNotEmpty ? errorMessage : 'Failed to load chat',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: () {
-                  ref
-                      .read(chatBlocProvider)
-                      .add(ChatInitialLoadEvent(widget.conversationId));
-                },
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (state is! ChatLoaded) {
-      return const SizedBox.shrink();
-    }
-
-    final participants =
-        state.conversation?.participants ?? const <ConversationParticipant>[];
-    final senderDisplayNameByUserId = <String, String>{
-      for (final participant in participants)
-        participant.userId.trim(): participant.displayName.trim().isNotEmpty
-            ? participant.displayName
-            : participant.username,
-    };
-    final senderAvatarUrlByUserId = <String, String>{
-      for (final participant in participants)
-        participant.userId.trim(): participant.avatarUrl,
-    };
-    final normalizedType = state.conversation?.type.toLowerCase() ?? '';
-    final isGroupConversation = normalizedType == 'group';
-    final canManagePoll = _isAdminOrOwnerRole(_resolveCurrentUserRole(state));
-
-    final displayMessages = _uiMapper.mapStateMessagesToUI(
-      state.messages,
-      state.uploadingImagePaths,
-      state.imageUrlsByMediaId,
-      state.audioUrlsByMediaId,
-      state.videoUrlsByMediaId,
-      state.resolvingImageMediaIds,
-      state.resolvingAudioMediaIds,
-      state.resolvingVideoMediaIds,
-      state.currentUserId,
-      senderDisplayNameByUserId,
-      senderAvatarUrlByUserId,
-      isGroupConversation,
-      state.conversation?.avatarUrl,
-      l10n.chat_deleted_message,
-    );
-
-    final pollMessages = _mapPollsToMessages(
-      polls: _polls,
-      participants: participants,
-      currentUserId: state.currentUserId,
-      conversationAvatarUrl: state.conversation?.avatarUrl,
-      isGroupConversation: isGroupConversation,
-    );
-
-    final latestOpenPollMessage = pollMessages.isNotEmpty
-        ? pollMessages.first
-        : null;
-
-    final combinedMessages =
-        displayMessages
-            .where((message) => message is! PollChatMessage)
-            .toList(growable: true)
-          ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
-
-    // Business rule: poll still appears as a message but is always surfaced as the newest item.
-    if (latestOpenPollMessage != null) {
-      combinedMessages.add(latestOpenPollMessage);
-    }
-
-    if (combinedMessages.isEmpty) {
-      return const Center(child: Text('No messages yet'));
-    }
-
-    final itemCount = combinedMessages.length + (state.isLoadingMore ? 1 : 0);
-
-    return ListView.builder(
-      controller: _scrollController,
-      reverse: true,
-      padding: const EdgeInsets.all(16),
-      itemCount: itemCount,
-      cacheExtent: 2000,
-      itemBuilder: (context, index) {
-        if (state.isLoadingMore && index == combinedMessages.length) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        final message = combinedMessages[combinedMessages.length - 1 - index];
-        final isHighlighted =
-            state.jumpHighlightMessageId != null &&
-            (message.serverId == state.jumpHighlightMessageId ||
-                message.localId == state.jumpHighlightMessageId);
-
-        final bubble = MessageBubble(
-          key: ValueKey(message.localId ?? message.serverId ?? index),
-          message: message,
-          conversationId: widget.conversationId,
-          showReactAction: message.isLastInGroup && _canReactToMessage(message),
-          onReactPressed: message.isLastInGroup && _canReactToMessage(message)
-              ? () => _handleReactionSelection(message, '❤️')
-              : null,
-          onReactionTap: _canReactToMessage(message)
-              ? (emoji) => _handleReactionTapToRemove(message, emoji)
-              : null,
-          onLongPressStart: (details) => _showMessageActions(
-            context,
-            message,
-            l10n,
-            anchor: details.globalPosition,
-          ),
-          onOpenFile: () {
-            chatBloc.add(
-              GetFileDownloadUrlEvent(
-                mediaId: switch (message) {
-                  FileChatMessage(:final mediaId) => mediaId!,
-                  _ => '',
-                },
-                fileName: switch (message) {
-                  FileChatMessage(:final fileName) => fileName!,
-                  _ => '',
-                },
-              ),
-            );
-          },
-          onReplyPreviewTap: (replyMessageId) {
-            _scrollToRepliedMessage(
-              replyMessageId: replyMessageId,
-              displayMessages: combinedMessages,
-            );
-          },
-          onVotePoll: (pollId, optionIds) => _votePoll(pollId, optionIds),
-          onClosePoll: canManagePoll ? (pollId) => _closePoll(pollId) : null,
-        );
-
-        if (!isHighlighted) return bubble;
-
-        return _JumpHighlightWrapper(
-          key: ValueKey(
-            'highlight_${message.localId ?? message.serverId ?? index}',
-          ),
-          child: bubble,
-        );
-      },
-    );
-  }
-
-  Widget _buildOpenPollPanel(ChatLoaded state) {
-    final openPolls = _sortPollsByDateDescending(
-      _polls.where((poll) => poll['isClosed'] != true).toList(growable: false),
-    );
-    if (openPolls.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final latestPoll = openPolls.first;
-    final pollId = (latestPoll['id'] ?? '').toString().trim();
-    final question = (latestPoll['question'] ?? '').toString().trim();
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.poll_outlined, size: 18, color: colorScheme.primary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Active poll',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
-          ),
-          if (question.isNotEmpty)
-            Text(
-              question,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-            ),
-        ],
-      ),
-    );
-  }
-
-  List<PollChatMessage> _mapPollsToMessages({
-    required List<Map<String, dynamic>> polls,
-    required List<ConversationParticipant> participants,
-    required String? currentUserId,
-    required String? conversationAvatarUrl,
-    required bool isGroupConversation,
-  }) {
-    final normalizedCurrentUserId = currentUserId?.trim() ?? '';
-
-    String? senderDisplayNameById(String userId) {
-      for (final participant in participants) {
-        if (participant.userId.trim() != userId) {
-          continue;
-        }
-        final displayName = participant.displayName.trim();
-        if (displayName.isNotEmpty) {
-          return displayName;
-        }
-        return participant.username;
-      }
-      return null;
-    }
-
-    String? senderAvatarUrlById(String userId) {
-      for (final participant in participants) {
-        if (participant.userId.trim() == userId) {
-          return participant.avatarUrl;
-        }
-      }
-      return null;
-    }
-
-    DateTime parseDateTime(dynamic value) {
-      if (value == null) {
-        return DateTime.now().toUtc();
-      }
-      final parsed = DateTime.tryParse(value.toString());
-      return parsed ?? DateTime.now().toUtc();
-    }
-
-    DateTime? parseOptionalDateTime(dynamic value) {
-      if (value == null) {
-        return null;
-      }
-      return DateTime.tryParse(value.toString());
-    }
-
-    int parseVoteCount(Map<String, dynamic> option) {
-      final explicitCount = option['voteCount'] ?? option['vote_count'];
-      if (explicitCount is int) {
-        return explicitCount;
-      }
-      if (explicitCount is num) {
-        return explicitCount.toInt();
-      }
-      if (explicitCount is String) {
-        final parsed = int.tryParse(explicitCount);
-        if (parsed != null) {
-          return parsed;
-        }
-      }
-
-      final voters = option['voterIds'];
-      if (voters is List) {
-        return voters.length;
-      }
-      return 0;
-    }
-
-    return polls
-        .map((poll) {
-          final pollId = (poll['id'] ?? '').toString();
-          final creatorId = (poll['creatorId'] ?? '').toString().trim();
-          final optionNodes = poll['options'];
-          final options = optionNodes is List
-              ? optionNodes
-                    .whereType<Map>()
-                    .map((rawOption) {
-                      final option = rawOption.map(
-                        (key, value) => MapEntry(key.toString(), value),
-                      );
-                      final voterIds = (option['voterIds'] is List)
-                          ? (option['voterIds'] as List)
-                                .map((item) => item.toString().trim())
-                                .where((id) => id.isNotEmpty)
-                                .toSet()
-                          : <String>{};
-                      return PollChatOption(
-                        id: (option['id'] ?? '').toString(),
-                        text: (option['text'] ?? 'Option').toString(),
-                        voteCount: parseVoteCount(option),
-                        isSelectedByMe:
-                            normalizedCurrentUserId.isNotEmpty &&
-                            voterIds.contains(normalizedCurrentUserId),
-                      );
-                    })
-                    .toList(growable: false)
-              : const <PollChatOption>[];
-
-          return PollChatMessage(
-            pollId: pollId,
-            question: (poll['question'] ?? '').toString(),
-            options: options,
-            multipleChoice: poll['multipleChoice'] == true,
-            deadline: parseOptionalDateTime(poll['deadline']),
-            isClosed: poll['isClosed'] == true,
-            isSentByMe:
-                creatorId.isNotEmpty && creatorId == normalizedCurrentUserId,
-            senderId: creatorId,
-            timestamp: parseDateTime(poll['createdAt']),
-            localId: pollId,
-            serverId: pollId,
-            senderDisplayName: senderDisplayNameById(creatorId),
-            senderAvatarUrl: senderAvatarUrlById(creatorId),
-            conversationAvatarUrl: conversationAvatarUrl,
-            isGroupConversation: isGroupConversation,
-          );
-        })
-        .toList(growable: false);
-  }
-
-  Widget _buildComposerContextBar(ChatLoaded state) {
-    final hasReply = _replyToMessage != null;
-    final participants =
-        state.conversation?.participants ?? const <ConversationParticipant>[];
-    final mentionSuggestions = _buildMentionSuggestions(
-      participants: participants,
-      currentUserId: state.currentUserId,
-    );
-
-    if (!hasReply && mentionSuggestions.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-      color: Theme.of(context).colorScheme.surfaceBright,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (hasReply)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Reply to: ${_previewForMessage(_replyToMessage!)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => setState(() => _replyToMessage = null),
-                    icon: const Icon(Icons.close, size: 18),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ],
-              ),
-            ),
-          if (mentionSuggestions.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.only(top: 8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.outlineVariant,
-                ),
-              ),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 240),
-                child: ListView(
-                  shrinkWrap: true,
-                  padding: EdgeInsets.zero,
-                  children: mentionSuggestions,
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }
@@ -1841,89 +1233,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         conversationId: widget.conversationId,
         callerId: callerId,
         calleeIds: calleeIds,
-      ),
-    );
-  }
-
-  Widget _buildActiveGroupCallPanel(
-    BuildContext context,
-    ActiveGroupCallState activeCall,
-    String roomName,
-  ) {
-    final call = activeCall.call;
-    final callId = call.id.trim();
-    final participantCount = activeCall.participantCount;
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.call,
-            color: Theme.of(context).colorScheme.onPrimaryContainer,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Group call is active',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$participantCount participants in this call',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: callId.isEmpty
-                ? null
-                : () {
-                    setState(() {
-                      _dismissedActiveGroupCallId = callId;
-                    });
-                  },
-            child: const Text('Dismiss'),
-          ),
-          const SizedBox(width: 4),
-          FilledButton(
-            onPressed: callId.isEmpty
-                ? null
-                : () {
-                    ref
-                        .read(inCallBlocProvider)
-                        .add(InCallRejoinRequested(call, roomName: roomName));
-                    final route = Uri(
-                      path: '/in-call',
-                      queryParameters: {
-                        'conversationId': widget.conversationId,
-                        'roomName': roomName,
-                      },
-                    ).toString();
-                    context.push(route);
-                  },
-            child: const Text('Rejoin'),
-          ),
-        ],
       ),
     );
   }
@@ -2059,9 +1368,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     if (mounted) {
       setState(() {
         _verifiedActiveGroupCallIds.remove(normalizedCallId);
-        if (_dismissedActiveGroupCallId == normalizedCallId) {
-          _dismissedActiveGroupCallId = null;
-        }
       });
     }
   }
@@ -2336,25 +1642,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
 
     return ids.toList(growable: false);
-  }
-
-  String _previewForMessage(ChatMessage message) {
-    if (message is TextChatMessage) {
-      final text = message.text.trim();
-      return text.isEmpty ? 'message' : text;
-    }
-    if (message is ImageChatMessage) {
-      final imageCount = message.imagePaths.isNotEmpty
-          ? message.imagePaths.length
-          : (message.mediaIds.isNotEmpty ? message.mediaIds.length : 1);
-      return imageCount > 1 ? '[Images]' : '[Image]';
-    }
-    if (message is VideoChatMessage) return '[Video]';
-    if (message is AudioChatMessage) return '[Audio]';
-    if (message is FileChatMessage) return '[File]';
-    if (message is StickerChatMessage) return '[Sticker]';
-    if (message is ContactCardChatMessage) return '[Contact card]';
-    return '[Message]';
   }
 
   void _scrollToRepliedMessage({
@@ -2881,53 +2168,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         );
   }
 
-  Future<void> _votePoll(String pollId, List<String> optionIds) async {
-    try {
-      await ref
-          .read(groupManagementServiceProvider)
-          .votePoll(
-            conversationId: widget.conversationId,
-            pollId: pollId,
-            optionIds: optionIds,
-          );
-      unawaited(_loadConversationPolls());
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Vote failed: $e')));
-      }
-    }
-  }
-
-  Future<void> _closePoll(String pollId) async {
-    final currentState = ref.read(chatBlocProvider).state;
-    if (currentState is ChatLoaded) {
-      final role = _resolveCurrentUserRole(currentState);
-      if (!_isAdminOrOwnerRole(role)) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Only owner/admin can close polls.')),
-          );
-        }
-        return;
-      }
-    }
-
-    try {
-      await ref
-          .read(groupManagementServiceProvider)
-          .closePoll(conversationId: widget.conversationId, pollId: pollId);
-      unawaited(_loadConversationPolls());
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Close poll failed: $e')));
-      }
-    }
-  }
-
   void _onScroll(ChatBloc chatBloc) {
     if (!_scrollController.hasClients) return;
 
@@ -2956,50 +2196,5 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         chatBloc.add(ReturnToLiveEvent(widget.conversationId));
       }
     }
-  }
-}
-
-/// Wraps a widget with a golden highlight that fades out over ~1.5 seconds.
-class _JumpHighlightWrapper extends StatefulWidget {
-  final Widget child;
-  const _JumpHighlightWrapper({super.key, required this.child});
-
-  @override
-  State<_JumpHighlightWrapper> createState() => _JumpHighlightWrapperState();
-}
-
-class _JumpHighlightWrapperState extends State<_JumpHighlightWrapper>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<Color?> _colorAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    );
-    _colorAnimation = ColorTween(
-      begin: const Color(0x66FFC107),
-      end: Colors.transparent,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-    _controller.forward();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _colorAnimation,
-      builder: (context, child) =>
-          Container(color: _colorAnimation.value, child: child),
-      child: widget.child,
-    );
   }
 }

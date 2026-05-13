@@ -35,7 +35,7 @@ class _AddFriendPageState extends ConsumerState<AddFriendPage> {
       value: _bloc,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(l10n.add_friend),
+          title: Text(l10n.action_add_friend),
         ),
         body: Column(
           children: [
