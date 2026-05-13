@@ -12,6 +12,8 @@ import 'package:flutter_chat/features/auth/domain/entities/user.dart';
 import 'package:flutter_chat/features/auth/user_providers.dart';
 import 'package:flutter_chat/features/friendship/friendship_providers.dart';
 import 'package:flutter_chat/features/friendship/domain/entities/friendship_status.dart';
+import 'package:flutter_chat/presentation/chat/blocs/chat_bloc.dart';
+import 'package:flutter_chat/presentation/chat/chat_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_chat/core/utils/date_utils.dart';
@@ -2144,7 +2146,8 @@ class _ContactCardBubble extends ConsumerWidget {
 
     if (status == null || status.isNone) {
       return OutlinedButton.icon(
-        onPressed: () => _sendRequest(context, ref, targetId),
+        onPressed: () =>
+            ref.read(chatBlocProvider).add(SendFriendRequestEvent(targetId)),
         icon: const Icon(Icons.person_add_outlined, size: 16),
         label: const Text('Add friend'),
         style: _friendBtnStyle(context),
@@ -2153,7 +2156,8 @@ class _ContactCardBubble extends ConsumerWidget {
 
     if (status.isPendingOut) {
       return OutlinedButton.icon(
-        onPressed: () => _cancelRequest(context, ref, targetId),
+        onPressed: () =>
+            ref.read(chatBlocProvider).add(CancelFriendRequestEvent(targetId)),
         icon: const Icon(Icons.cancel_outlined, size: 16),
         label: const Text('Pending...'),
         style: _friendBtnStyle(context),
@@ -2162,7 +2166,8 @@ class _ContactCardBubble extends ConsumerWidget {
 
     if (status.isPendingIn) {
       return OutlinedButton.icon(
-        onPressed: () => _acceptRequest(context, ref, targetId),
+        onPressed: () =>
+            ref.read(chatBlocProvider).add(AcceptFriendRequestEvent(targetId)),
         icon: const Icon(Icons.check_circle_outline, size: 16),
         label: const Text('Accept'),
         style: _friendBtnStyle(context),
@@ -2180,7 +2185,8 @@ class _ContactCardBubble extends ConsumerWidget {
 
     if (status.isBlocked) {
       return OutlinedButton.icon(
-        onPressed: () => _unblock(context, ref, targetId),
+        onPressed: () =>
+            ref.read(chatBlocProvider).add(UnblockUserEvent(targetId)),
         icon: const Icon(Icons.block_outlined, size: 16),
         label: const Text('Unblock'),
         style: _friendBtnStyle(context),
@@ -2202,42 +2208,6 @@ class _ContactCardBubble extends ConsumerWidget {
   void _onMessageTap(BuildContext context) {
     // Navigate to home — user can find or start a conversation from there.
     context.go('/');
-  }
-
-  Future<void> _sendRequest(
-    BuildContext context,
-    WidgetRef ref,
-    String targetId,
-  ) async {
-    await ref.read(sendFriendRequestUseCaseProvider)(targetId);
-    ref.invalidate(friendshipStatusProvider(targetId));
-  }
-
-  Future<void> _cancelRequest(
-    BuildContext context,
-    WidgetRef ref,
-    String targetId,
-  ) async {
-    await ref.read(rejectFriendRequestUseCaseProvider)(targetId);
-    ref.invalidate(friendshipStatusProvider(targetId));
-  }
-
-  Future<void> _acceptRequest(
-    BuildContext context,
-    WidgetRef ref,
-    String targetId,
-  ) async {
-    await ref.read(acceptFriendRequestUseCaseProvider)(targetId);
-    ref.invalidate(friendshipStatusProvider(targetId));
-  }
-
-  Future<void> _unblock(
-    BuildContext context,
-    WidgetRef ref,
-    String targetId,
-  ) async {
-    await ref.read(unblockUserUseCaseProvider)(targetId);
-    ref.invalidate(friendshipStatusProvider(targetId));
   }
 
   Widget _buildCardRow(

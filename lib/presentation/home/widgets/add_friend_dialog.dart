@@ -19,7 +19,7 @@ class AddFriendDialog extends StatelessWidget {
       value: addFriendBloc,
       child: AlertDialog(
         insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        title: Text(l10n.add_friend),
+        title: Text(l10n.action_add_friend),
         scrollable: true,
         content: SizedBox(
           width: 420,

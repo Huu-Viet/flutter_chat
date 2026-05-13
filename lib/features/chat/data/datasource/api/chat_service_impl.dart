@@ -1,13 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_chat/core/network/realtime_gateway.dart';
-import 'package:flutter_chat/features/chat/data/response/message_edit_response.dart';
-import 'package:flutter_chat/features/chat/data/response/message_media_precheck_response.dart';
-import 'package:flutter_chat/features/chat/data/response/message_reaction_response.dart';
-import 'package:flutter_chat/features/chat/data/response/message_send_response.dart';
-import 'package:flutter_chat/features/chat/data/response/pin_message_response.dart';
-import 'package:flutter_chat/features/chat/data/response/sticker_item_response.dart';
-import 'package:flutter_chat/features/chat/data/response/sticker_package_response.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:uuid/uuid.dart';
@@ -446,6 +439,102 @@ class ChatServiceImpl implements ChatService {
     } catch (e) {
       debugPrint('[ChatServiceImpl] Delete message for me error: $e');
       throw Exception('Failed to delete message for me: $e');
+    }
+  }
+
+  @override
+  Future<ConversationMuteSettingDto> updateConversationMute({
+    required String conversationId,
+    required String muteDuration,
+  }) async {
+    try {
+      final normalizedDuration = muteDuration.trim().isEmpty
+          ? 'off'
+          : muteDuration.trim();
+      final response = await _dio.put(
+        '$_baseUrl/notifications/conversations/$conversationId/mute',
+        data: {'duration': normalizedDuration},
+      );
+
+      if (response.statusCode == null ||
+          (response.statusCode! < 200 || response.statusCode! >= 300)) {
+        throw Exception(
+          'Failed to update conversation mute: ${response.statusCode}',
+        );
+      }
+
+      final responseBody = response.data;
+      if (responseBody is Map<String, dynamic>) {
+        return ConversationMuteSettingDto.fromJson({
+          ...responseBody,
+          'conversationId': responseBody['conversationId'] ?? conversationId,
+          'muteDuration': responseBody['muteDuration'] ?? normalizedDuration,
+          'isMuted': responseBody['isMuted'] ??
+              normalizedDuration.toLowerCase() != 'off',
+          'updatedAt': responseBody['updatedAt'] ??
+              DateTime.now().toUtc().toIso8601String(),
+        });
+      }
+
+      return ConversationMuteSettingDto(
+        conversationId: conversationId,
+        muteDuration: normalizedDuration,
+        isMuted: normalizedDuration.toLowerCase() != 'off',
+        updatedAt: DateTime.now().toUtc().toIso8601String(),
+      );
+    } on DioException catch (e) {
+      debugPrint(
+        '[ChatServiceImpl] Update conversation mute Dio error: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+      throw Exception(
+        'Failed to update conversation mute: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] Update conversation mute error: $e');
+      throw Exception('Failed to update conversation mute: $e');
+    }
+  }
+
+  @override
+  Future<void> deleteConversationForMe(String conversationId) async {
+    try {
+      final response = await _dio.delete('$_baseUrl/conversations/$conversationId/for-me');
+      if (response.statusCode == null ||
+          (response.statusCode! < 200 || response.statusCode! >= 300)) {
+        throw Exception(
+          'Failed to delete conversation for me: ${response.statusCode}',
+        );
+      }
+    } on DioException catch (e) {
+      debugPrint(
+        '[ChatServiceImpl] Delete conversation for me Dio error: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+      throw Exception(
+        'Failed to delete conversation for me: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] Delete conversation for me error: $e');
+      throw Exception('Failed to delete conversation for me: $e');
+    }
+  }
+
+  @override
+  Future<void> downloadFile({
+    required String url,
+    required String filePath,
+  }) async {
+    try {
+      await _dio.download(url, filePath);
+    } on DioException catch (e) {
+      debugPrint(
+        '[ChatServiceImpl] Download file Dio error: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+      throw Exception(
+        'Failed to download file: status=${e.response?.statusCode}, data=${e.response?.data}',
+      );
+    } catch (e) {
+      debugPrint('[ChatServiceImpl] Download file error: $e');
+      throw Exception('Failed to download file: $e');
     }
   }
 

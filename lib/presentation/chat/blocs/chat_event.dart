@@ -394,3 +394,105 @@ final class ClearJumpHighlightEvent extends ChatEvent {
   @override
   List<Object> get props => [];
 }
+
+final class LoadPollsEvent extends ChatEvent {
+  final String conversationId;
+
+  const LoadPollsEvent(this.conversationId);
+
+  @override
+  List<Object> get props => [conversationId];
+}
+
+final class VotePollEvent extends ChatEvent {
+  final String conversationId;
+  final String pollId;
+  final List<String> optionIds;
+
+  const VotePollEvent({
+    required this.conversationId,
+    required this.pollId,
+    required this.optionIds,
+  });
+
+  @override
+  List<Object> get props => [conversationId, pollId, optionIds];
+}
+
+final class ClosePollEvent extends ChatEvent {
+  final String conversationId;
+  final String pollId;
+
+  const ClosePollEvent({
+    required this.conversationId,
+    required this.pollId,
+  });
+
+  @override
+  List<Object> get props => [conversationId, pollId];
+}
+
+final class SendFriendRequestEvent extends ChatEvent {
+  final String targetUserId;
+
+  const SendFriendRequestEvent(this.targetUserId);
+
+  @override
+  List<Object> get props => [targetUserId];
+}
+
+final class AcceptFriendRequestEvent extends ChatEvent {
+  final String targetUserId;
+
+  const AcceptFriendRequestEvent(this.targetUserId);
+
+  @override
+  List<Object> get props => [targetUserId];
+}
+
+final class CancelFriendRequestEvent extends ChatEvent {
+  final String targetUserId;
+
+  const CancelFriendRequestEvent(this.targetUserId);
+
+  @override
+  List<Object> get props => [targetUserId];
+}
+
+final class BlockUserEvent extends ChatEvent {
+  final String targetUserId;
+
+  const BlockUserEvent(this.targetUserId);
+
+  @override
+  List<Object> get props => [targetUserId];
+}
+
+final class UnblockUserEvent extends ChatEvent {
+  final String targetUserId;
+
+  const UnblockUserEvent(this.targetUserId);
+
+  @override
+  List<Object> get props => [targetUserId];
+}
+
+final class FetchMediaUrlEvent extends ChatEvent {
+  final String mediaId;
+  final String? conversationId;
+
+  const FetchMediaUrlEvent({
+    required this.mediaId,
+    this.conversationId,
+  });
+
+  @override
+  List<Object?> get props => [mediaId, conversationId];
+}
+
+final class ConsumeFriendshipActionFeedbackEvent extends ChatEvent {
+  const ConsumeFriendshipActionFeedbackEvent();
+
+  @override
+  List<Object> get props => [];
+}

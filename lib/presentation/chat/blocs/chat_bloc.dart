@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:bloc/bloc.dart';
 import 'package:dartz/dartz.dart';
-import 'package:dio/dio.dart';
 import 'package:equatable/equatable.dart';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/ffprobe_kit.dart';
@@ -15,11 +14,16 @@ import 'package:flutter_chat/features/chat/domain/entities/messages/message_medi
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/file_media.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/image_media.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/video_media.dart';
-import 'package:flutter_chat/features/chat/domain/usecases/get_conversation_usecase.dart';
 import 'package:flutter_chat/features/chat/export.dart';
+import 'package:flutter_chat/features/friendship/export.dart';
 import 'package:flutter_chat/features/upload_media/domain/usecases/upload_multipart_usecase.dart';
 import 'package:flutter_chat/features/upload_media/export.dart';
+import 'package:flutter_chat/features/group_manager/domain/usecase/close_poll_usecase.dart';
+import 'package:flutter_chat/features/group_manager/domain/usecase/list_conversation_polls_usecase.dart';
+import 'package:flutter_chat/features/group_manager/domain/usecase/vote_poll_usecase.dart';
 import 'package:flutter_chat/presentation/chat/chat_image_cache_manager.dart';
+import 'package:flutter_chat/presentation/chat/mappers/poll_chat_message_ui_mapper.dart';
+import 'package:flutter_chat/presentation/chat/models/chat_message.dart';
 import 'package:mime/mime.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as p;
@@ -55,10 +59,22 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final UploadMultipartUseCase uploadMultipartUseCase;
   final FetchMessagesAroundUseCase fetchMessagesAroundUseCase;
   final AudioCacheDao audioCacheDao;
+  final ListConversationPollsUseCase listConversationPollsUseCase;
+  final VotePollUseCase votePollUseCase;
+  final ClosePollUseCase closePollUseCase;
+  final SendFriendRequestUseCase sendFriendRequestUseCase;
+  final AcceptFriendRequestUseCase acceptFriendRequestUseCase;
+  final RejectFriendRequestUseCase rejectFriendRequestUseCase;
+  final BlockUserUseCase blockUserUseCase;
+  final UnblockUserUseCase unblockUserUseCase;
+  final DownloadFileUseCase downloadFileUseCase;
 
   String? _currentUserId;
   String? _currentConversationId;
   Conversation? _currentConversation;
+
+  final PollChatMessageUIMapper _pollMapper = PollChatMessageUIMapper();
+  List<PollChatMessage> _currentPollMessages = const [];
 
   StreamSubscription<Either<Failure, List<Message>>>? _localSubscription;
   StreamSubscription<Either<Failure, List<Conversation>>>?
@@ -84,6 +100,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final Set<String> _resolvingImageMediaIds = <String>{};
   final Set<String> _resolvingAudioMediaIds = <String>{};
   final Set<String> _resolvingVideoMediaIds = <String>{};
+  final Set<String> _friendshipActionInProgressUserIds = <String>{};
+  FriendshipActionFeedback? _friendshipActionFeedback;
 
   ChatBloc({
     required this.fetchMessagesUseCase,
@@ -110,6 +128,15 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     required this.emitTypingUseCase,
     required this.fetchMessagesAroundUseCase,
     required this.audioCacheDao,
+    required this.listConversationPollsUseCase,
+    required this.votePollUseCase,
+    required this.closePollUseCase,
+    required this.sendFriendRequestUseCase,
+    required this.acceptFriendRequestUseCase,
+    required this.rejectFriendRequestUseCase,
+    required this.blockUserUseCase,
+    required this.unblockUserUseCase,
+    required this.downloadFileUseCase,
   }) : super(ChatInitial()) {
     on<ChatInitialLoadEvent>(_onChatInitialLoad);
     on<SendTextEvent>(_onSendText);
@@ -137,6 +164,16 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<JumpToMessageEvent>(_onJumpToMessage);
     on<ReturnToLiveEvent>(_onReturnToLive);
     on<LoadMoreAfterEvent>(_onLoadMoreAfter);
+    on<LoadPollsEvent>(_onLoadPolls);
+    on<VotePollEvent>(_onVotePoll);
+    on<ClosePollEvent>(_onClosePoll);
+    on<SendFriendRequestEvent>(_onSendFriendRequest);
+    on<AcceptFriendRequestEvent>(_onAcceptFriendRequest);
+    on<CancelFriendRequestEvent>(_onCancelFriendRequest);
+    on<BlockUserEvent>(_onBlockUser);
+    on<UnblockUserEvent>(_onUnblockUser);
+    on<FetchMediaUrlEvent>(_onFetchMediaUrl);
+    on<ConsumeFriendshipActionFeedbackEvent>(_onConsumeFriendshipFeedback);
     on<ClearJumpHighlightEvent>((event, emit) {
       final current = state;
       if (current is ChatLoaded) {
@@ -194,22 +231,37 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   ChatLoaded _buildChatLoaded(List<Message> messages) {
     return ChatLoaded(
-      messages,
-      uploadingImagePaths: Set<String>.from(_uploadingImagePaths),
-      uploadingVideoPaths: Set<String>.from(_uploadingVideoPaths),
-      imageUrlsByMediaId: Map<String, String>.from(_imageUrlsByMediaId),
-      audioUrlsByMediaId: Map<String, String>.from(_audioUrlsByMediaId),
-      videoUrlsByMediaId: Map<String, String>.from(_videoUrlsByMediaId),
-      resolvingImageMediaIds: Set<String>.from(_resolvingImageMediaIds),
-      resolvingAudioMediaIds: Set<String>.from(_resolvingAudioMediaIds),
-      resolvingVideoMediaIds: Set<String>.from(_resolvingVideoMediaIds),
-      conversation: _currentConversation,
-      currentUserId: _currentUserId,
-      pinnedMessages: _currentPinnedMessages,
-      isJumped: _isJumped,
-      hasMoreAfter: _hasMoreAfter,
-      jumpHighlightMessageId: _jumpHighlightMessageId,
-      pendingCount: _pendingCount,
+      messageState: ChatMessageState(
+        messages: messages,
+        pinnedMessages: _currentPinnedMessages,
+      ),
+      mediaState: ChatMediaState(
+        uploadingImagePaths: Set<String>.from(_uploadingImagePaths),
+        uploadingFilePaths: Set<String>.from(_uploadingFilePaths),
+        uploadingVideoPaths: Set<String>.from(_uploadingVideoPaths),
+        imageUrlsByMediaId: Map<String, String>.from(_imageUrlsByMediaId),
+        audioUrlsByMediaId: Map<String, String>.from(_audioUrlsByMediaId),
+        videoUrlsByMediaId: Map<String, String>.from(_videoUrlsByMediaId),
+        fileUrlsByMediaId: Map<String, String>.from(_fileUrlsByMediaId),
+        resolvingImageMediaIds: Set<String>.from(_resolvingImageMediaIds),
+        resolvingAudioMediaIds: Set<String>.from(_resolvingAudioMediaIds),
+        resolvingVideoMediaIds: Set<String>.from(_resolvingVideoMediaIds),
+      ),
+      conversationState: ChatConversationState(
+        conversation: _currentConversation,
+        currentUserId: _currentUserId,
+        friendshipActionInProgressUserIds: Set<String>.from(
+          _friendshipActionInProgressUserIds,
+        ),
+        friendshipActionFeedback: _friendshipActionFeedback,
+      ),
+      jumpState: ChatJumpState(
+        isJumped: _isJumped,
+        hasMoreAfter: _hasMoreAfter,
+        jumpHighlightMessageId: _jumpHighlightMessageId,
+        pendingCount: _pendingCount,
+      ),
+      pollState: ChatPollState(pollMessages: _currentPollMessages),
     );
   }
 
@@ -1155,14 +1207,13 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           }
 
           ///download
-          final dio = Dio();
-
-          await dio.download(
-            mediaUrl,
-            filePath,
-            onReceiveProgress: (received, total) {
-              /// nếu muốn update progress thì emit state ở đây
-            },
+          final downloadResult = await downloadFileUseCase(
+            url: mediaUrl,
+            filePath: filePath,
+          );
+          downloadResult.fold(
+            (failure) => throw Exception(failure.message),
+            (_) {},
           );
 
           _fileUrlsByMediaId[mediaId] = filePath;
@@ -1778,6 +1829,239 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     await controller.dispose();
 
     return controller.value.duration.inMilliseconds;
+  }
+
+  Future<void> _onLoadPolls(
+    LoadPollsEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final result = await listConversationPollsUseCase(
+      conversationId: event.conversationId,
+      includeClosed: false,
+    );
+    result.fold(
+      (failure) => debugPrint('[ChatBloc] LoadPolls failed: ${failure.message}'),
+      (polls) {
+        final conversation = _currentConversation;
+        final participants = conversation?.participants ?? const [];
+        final isGroup =
+            conversation?.type.trim().toLowerCase() == 'group';
+        _currentPollMessages = _pollMapper.mapPolls(
+          polls: polls,
+          participants: participants,
+          currentUserId: _currentUserId,
+          conversationAvatarUrl: conversation?.avatarUrl,
+          isGroupConversation: isGroup,
+        );
+        final currentState = state;
+        if (currentState is ChatLoaded) {
+          emit(currentState.copyWith(pollMessages: _currentPollMessages));
+        }
+      },
+    );
+  }
+
+  Future<void> _onVotePoll(
+    VotePollEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final result = await votePollUseCase(
+      conversationId: event.conversationId,
+      pollId: event.pollId,
+      optionIds: event.optionIds,
+    );
+    result.fold(
+      (failure) {
+        final currentState = state;
+        if (currentState is ChatLoaded) {
+          emit(ChatError(failure.message));
+          emit(currentState);
+        }
+      },
+      (_) => add(LoadPollsEvent(event.conversationId)),
+    );
+  }
+
+  Future<void> _onClosePoll(
+    ClosePollEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final result = await closePollUseCase(
+      conversationId: event.conversationId,
+      pollId: event.pollId,
+    );
+    result.fold(
+      (failure) {
+        final currentState = state;
+        if (currentState is ChatLoaded) {
+          emit(ChatError(failure.message));
+          emit(currentState);
+        }
+      },
+      (_) => add(LoadPollsEvent(event.conversationId)),
+    );
+  }
+
+  Future<void> _onSendFriendRequest(
+    SendFriendRequestEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    await _runFriendshipAction(
+      targetUserId: event.targetUserId,
+      actionType: FriendshipActionType.sendRequest,
+      emit: emit,
+      action: (targetUserId) => sendFriendRequestUseCase(targetUserId),
+    );
+  }
+
+  Future<void> _onAcceptFriendRequest(
+    AcceptFriendRequestEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    await _runFriendshipAction(
+      targetUserId: event.targetUserId,
+      actionType: FriendshipActionType.acceptRequest,
+      emit: emit,
+      action: (targetUserId) => acceptFriendRequestUseCase(targetUserId),
+    );
+  }
+
+  Future<void> _onCancelFriendRequest(
+    CancelFriendRequestEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    await _runFriendshipAction(
+      targetUserId: event.targetUserId,
+      actionType: FriendshipActionType.cancelRequest,
+      emit: emit,
+      action: (targetUserId) => rejectFriendRequestUseCase(targetUserId),
+    );
+  }
+
+  Future<void> _onUnblockUser(
+    UnblockUserEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    await _runFriendshipAction(
+      targetUserId: event.targetUserId,
+      actionType: FriendshipActionType.unblock,
+      emit: emit,
+      action: (targetUserId) => unblockUserUseCase(targetUserId),
+    );
+  }
+
+  Future<void> _runFriendshipAction({
+    required String targetUserId,
+    required FriendshipActionType actionType,
+    required Emitter<ChatState> emit,
+    required Future<Either<Failure, dynamic>> Function(String targetUserId)
+    action,
+  }) async {
+    final normalizedTargetUserId = targetUserId.trim();
+    if (normalizedTargetUserId.isEmpty) {
+      return;
+    }
+
+    _friendshipActionFeedback = null;
+    _friendshipActionInProgressUserIds.add(normalizedTargetUserId);
+    emit(_buildChatLoaded(_currentMessages));
+
+    final result = await action(normalizedTargetUserId);
+    result.fold(
+      (failure) {
+        _friendshipActionFeedback = FriendshipActionFeedback(
+          targetUserId: normalizedTargetUserId,
+          actionType: actionType,
+          isSuccess: false,
+          failureMessage: failure.message,
+        );
+      },
+      (_) {
+        _friendshipActionFeedback = FriendshipActionFeedback(
+          targetUserId: normalizedTargetUserId,
+          actionType: actionType,
+          isSuccess: true,
+        );
+      },
+    );
+
+    _friendshipActionInProgressUserIds.remove(normalizedTargetUserId);
+    emit(_buildChatLoaded(_currentMessages));
+  }
+
+  void _onConsumeFriendshipFeedback(
+    ConsumeFriendshipActionFeedbackEvent event,
+    Emitter<ChatState> emit,
+  ) {
+    _friendshipActionFeedback = null;
+    final current = state;
+    if (current is ChatLoaded) {
+      emit(current.copyWith(friendshipActionFeedback: null));
+    }
+  }
+
+  Future<void> _onBlockUser(
+    BlockUserEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    await _runFriendshipAction(
+      targetUserId: event.targetUserId,
+      actionType: FriendshipActionType.block,
+      emit: emit,
+      action: (targetUserId) => blockUserUseCase(targetUserId),
+    );
+  }
+
+  Future<void> _onFetchMediaUrl(
+    FetchMediaUrlEvent event,
+    Emitter<ChatState> emit,
+  ) async {
+    final current = state;
+    if (current is! ChatLoaded) {
+      return;
+    }
+
+    final mediaId = event.mediaId.trim();
+    if (mediaId.isEmpty) {
+      return;
+    }
+
+    // Check if URL is already cached
+    if (current.mediaState.imageUrlsByMediaId.containsKey(mediaId) ||
+        current.mediaState.audioUrlsByMediaId.containsKey(mediaId) ||
+        current.mediaState.videoUrlsByMediaId.containsKey(mediaId) ||
+        current.mediaState.fileUrlsByMediaId.containsKey(mediaId)) {
+      return;
+    }
+
+    // Fetch the URL
+    final result = await getMediaUrlByMediaIdUseCase(
+      mediaId,
+      conversationId: event.conversationId,
+    );
+
+    result.fold(
+      (failure) {
+        // Handle error silently for media URLs
+      },
+      (url) {
+        if (url.trim().isNotEmpty) {
+          final trimmedUrl = url.trim();
+          final mediaState = current.mediaState;
+          
+          // Determine media type and update appropriate cache
+          // For simplicity, we'll add to all maps and let the UI filter
+          final updatedImageUrls = Map<String, String>.from(mediaState.imageUrlsByMediaId)
+            ..putIfAbsent(mediaId, () => trimmedUrl);
+          
+          emit(current.copyWith(
+            mediaState: mediaState.copyWith(
+              imageUrlsByMediaId: updatedImageUrls,
+            ),
+          ));
+        }
+      },
+    );
   }
 
   Future<File?> _generateVideoThumbnail(File videoFile) async {

@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/features/chat/chat_providers.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/l10n/app_localizations.dart';
+import 'package:flutter_chat/presentation/chat/blocs/forward_conversation_search_cubit.dart';
 import 'package:flutter_chat/presentation/home/blocs/home_bloc.dart';
 import 'package:flutter_chat/presentation/home/home_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,14 +30,10 @@ class ForwardMessageDialog extends ConsumerStatefulWidget {
 class _ForwardMessageDialogState extends ConsumerState<ForwardMessageDialog>{
   static const int _maxTargets = 10;
 
-  List<Conversation> _allConversations = [];
-  List<Conversation> _conversations = [];
+  late final ForwardConversationSearchCubit _searchCubit;
   final Set<String> _selectedIds = {};
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounce;
-  bool _isLoading = true;
-  String _query = '';
-  int _requestSeq = 0;
 
   void _toggleSelection(String id) {
     setState(() {
@@ -63,131 +61,37 @@ class _ForwardMessageDialogState extends ConsumerState<ForwardMessageDialog>{
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => _loadAllConversations());
-  }
+    _searchCubit = ForwardConversationSearchCubit(
+      searchConversationsUseCase: ref.read(searchConversationsUseCaseProvider),
+      sourceConversationId: widget.sourceConversationId,
+    );
 
-  Future<void> _loadAllConversations() async {
     final homeState = ref.read(homeBlocProvider).state;
-    if (homeState is HomeLoaded) {
-      final localConversations = homeState.conversations
-          .where((c) => c.id != widget.sourceConversationId)
-          .toList(growable: false);
-      if (mounted) {
-        setState(() {
-          _allConversations = localConversations;
-          _conversations = localConversations;
-          _isLoading = false;
-        });
-      }
-      return;
-    }
-
-    try {
-      final useCase = ref.read(searchConversationsUseCaseProvider);
-
-      final data = await useCase(
-        query: null,
-        page: 1,
-        limit: 100,
-      );
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _allConversations = data.fold(
-          (_) => [],
-          (convos) => convos
-              .where((c) => c.id != widget.sourceConversationId)
-              .toList(),
-        );
-        _conversations = _allConversations;
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) {
-        return;
-      }
-      setState(() => _isLoading = false);
-    }
+    final localConversations = homeState is HomeLoaded
+        ? homeState.conversations
+        : const <Conversation>[];
+    Future.microtask(
+      () => _searchCubit.initialize(localConversations: localConversations),
+    );
   }
 
   @override
   void dispose() {
     _searchDebounce?.cancel();
     _searchController.dispose();
+    _searchCubit.close();
     super.dispose();
   }
 
   void _onSearchChanged(String value) {
     final normalizedQuery = value.trim();
-    _applyLocalFilter(normalizedQuery);
+    _searchCubit.applyLocalFilter(normalizedQuery);
 
     _searchDebounce?.cancel();
     if (normalizedQuery.isNotEmpty) {
       _searchDebounce = Timer(const Duration(milliseconds: 300), () {
-        _fetchConversations(query: normalizedQuery);
+        _searchCubit.fetchRemote(normalizedQuery);
       });
-    }
-  }
-
-  void _applyLocalFilter(String normalizedQuery) {
-    if (!mounted) return;
-    
-    setState(() {
-      _query = normalizedQuery;
-      
-      if (normalizedQuery.isEmpty) {
-        _conversations = _allConversations;
-      } else {
-        // Immediately filter from all conversations
-        _conversations = _allConversations
-            .where((conversation) {
-              final name = conversation.name.trim().toLowerCase();
-              final q = normalizedQuery.toLowerCase();
-              return name.contains(q);
-            })
-            .toList();
-      }
-    });
-  }
-
-  Future<void> _fetchConversations({String? query}) async {
-    final reqId = ++_requestSeq;
-    final normalizedQuery = query?.trim() ?? '';
-
-    try {
-      final useCase = ref.read(searchConversationsUseCaseProvider);
-
-      final data = await useCase(
-        query: normalizedQuery.isEmpty ? null : normalizedQuery,
-        page: 1,
-        limit: 30,
-      );
-
-      if (!mounted || reqId != _requestSeq) {
-        return;
-      }
-
-      setState(() {
-        final apiResults = data.fold(
-          (_) => <Conversation>[],
-          (convos) => convos
-              .where((c) => c.id != widget.sourceConversationId)
-              .toList(),
-        );
-        
-        // Only update if API returned non-empty results
-        if (apiResults.isNotEmpty) {
-          _conversations = apiResults;
-        }
-        // If API returned empty, keep local filtered results
-      });
-    } catch (e) {
-      if (!mounted || reqId != _requestSeq) {
-        return;
-      }
     }
   }
 
@@ -208,78 +112,89 @@ class _ForwardMessageDialogState extends ConsumerState<ForwardMessageDialog>{
                 ),
               ),
 
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: _onSearchChanged,
-                  decoration: InputDecoration(
-                    hintText: l10n.search,
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _query.isEmpty
-                        ? null
-                        : IconButton(
-                            onPressed: () {
-                              _searchController.clear();
-                              _onSearchChanged('');
-                            },
-                            icon: const Icon(Icons.close),
-                          ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
+              BlocBuilder<ForwardConversationSearchCubit, ForwardConversationSearchState>(
+                bloc: _searchCubit,
+                builder: (context, searchState) {
+                  final conversations = searchState.conversations;
+                  final isLoading = searchState.isLoading;
+                  final query = searchState.query;
 
-              const Divider(height: 1),
-
-              //List of conversations
-              Expanded(
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _conversations.isEmpty
-                    ? const Center(child: Text('No conversations found'))
-                    : ListView.builder(
-                        itemCount: _conversations.length,
-                        itemBuilder: (context, index) {
-                          final convo = _conversations[index];
-                          final isSelected = _selectedIds.contains(convo.id);
-
-                          return ListTile(
-                            onTap: () => _toggleSelection(convo.id),
-                            leading: CircleAvatar(
-                              backgroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHighest,
-                              child: convo.avatarUrl.trim().isEmpty
-                                  ? const Icon(Icons.groups_rounded)
-                                  : ClipOval(
-                                      child: CachedNetworkImage(
-                                        imageUrl: convo.avatarUrl,
-                                        width: 40,
-                                        height: 40,
-                                        fit: BoxFit.cover,
-                                        errorWidget: (_, __, ___) =>
-                                            const Icon(Icons.groups_rounded),
-                                      ),
+                  return Expanded(
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                          child: TextField(
+                            controller: _searchController,
+                            onChanged: _onSearchChanged,
+                            decoration: InputDecoration(
+                              hintText: l10n.search,
+                              prefixIcon: const Icon(Icons.search),
+                              suffixIcon: query.isEmpty
+                                  ? null
+                                  : IconButton(
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        _onSearchChanged('');
+                                      },
+                                      icon: const Icon(Icons.close),
                                     ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
-                            title: Text(convo.name),
+                          ),
+                        ),
+                        const Divider(height: 1),
+                        Expanded(
+                          child: isLoading
+                              ? const Center(child: CircularProgressIndicator())
+                              : conversations.isEmpty
+                                  ? const Center(
+                                      child: Text('No conversations found'),
+                                    )
+                                  : ListView.builder(
+                                      itemCount: conversations.length,
+                                      itemBuilder: (context, index) {
+                                        final convo = conversations[index];
+                                        final isSelected = _selectedIds.contains(convo.id);
 
-                            /// Checkbox
-                            trailing: Checkbox(
-                              value: isSelected,
-                              onChanged: (_) => _toggleSelection(convo.id),
-                            ),
-                          );
-                        },
-                      ),
+                                        return ListTile(
+                                          onTap: () => _toggleSelection(convo.id),
+                                          leading: CircleAvatar(
+                                            backgroundColor: Theme.of(context)
+                                                .colorScheme
+                                                .surfaceContainerHighest,
+                                            child: convo.avatarUrl.trim().isEmpty
+                                                ? const Icon(Icons.groups_rounded)
+                                                : ClipOval(
+                                                    child: CachedNetworkImage(
+                                                      imageUrl: convo.avatarUrl,
+                                                      width: 40,
+                                                      height: 40,
+                                                      fit: BoxFit.cover,
+                                                      errorWidget: (_, __, ___) =>
+                                                          const Icon(Icons.groups_rounded),
+                                                    ),
+                                                  ),
+                                          ),
+                                          title: Text(convo.name),
+                                          trailing: Checkbox(
+                                            value: isSelected,
+                                            onChanged: (_) => _toggleSelection(convo.id),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
 
               const Divider(height: 1),
 
-              /// ACTIONS
               Padding(
                 padding: const EdgeInsets.all(12),
                 child: Row(

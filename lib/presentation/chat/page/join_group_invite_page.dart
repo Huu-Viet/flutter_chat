@@ -5,6 +5,7 @@ import 'package:flutter_chat/features/chat/chat_providers.dart';
 import 'package:flutter_chat/features/chat/domain/entities/conversation.dart';
 import 'package:flutter_chat/features/group_manager/domain/entities/join_group_invite_result.dart';
 import 'package:flutter_chat/features/group_manager/group_management_provider.dart';
+import 'package:flutter_chat/presentation/chat/blocs/chat_ui_actions_cubit.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -20,6 +21,7 @@ class JoinGroupInvitePage extends ConsumerStatefulWidget {
 
 class _JoinGroupInvitePageState extends ConsumerState<JoinGroupInvitePage> {
   final TextEditingController _messageController = TextEditingController();
+  late final ChatUiActionsCubit _chatUiActionsCubit;
 
   bool _isSubmitting = false;
   bool _isCheckingMembership = true;
@@ -29,6 +31,21 @@ class _JoinGroupInvitePageState extends ConsumerState<JoinGroupInvitePage> {
   @override
   void initState() {
     super.initState();
+    _chatUiActionsCubit = ChatUiActionsCubit(
+      joinConversationAction: (conversationId) =>
+          ref.read(joinConversationUseCaseProvider)(conversationId),
+      searchConversationsAction: ({query, page = 1, limit = 20}) => ref
+          .read(searchConversationsUseCaseProvider)(
+            query: query,
+            page: page,
+            limit: limit,
+          ),
+      joinGroupViaInviteAction: ({required token, requestMessage}) =>
+          ref.read(joinGroupViaInviteUseCaseProvider)(
+            token: token,
+            requestMessage: requestMessage,
+          ),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkExistingMembership();
     });
@@ -36,6 +53,7 @@ class _JoinGroupInvitePageState extends ConsumerState<JoinGroupInvitePage> {
 
   @override
   void dispose() {
+    _chatUiActionsCubit.close();
     _messageController.dispose();
     super.dispose();
   }
@@ -57,7 +75,7 @@ class _JoinGroupInvitePageState extends ConsumerState<JoinGroupInvitePage> {
     existingConversation ??= await _searchExistingConversation(hint);
 
     if (existingConversation != null) {
-      await ref.read(joinConversationUseCaseProvider)(existingConversation!.id);
+      await _chatUiActionsCubit.joinConversation(existingConversation!.id);
       if (!mounted) {
         return;
       }
@@ -78,7 +96,7 @@ class _JoinGroupInvitePageState extends ConsumerState<JoinGroupInvitePage> {
       return null;
     }
 
-    final result = await ref.read(searchConversationsUseCaseProvider)(
+    final result = await _chatUiActionsCubit.searchConversations(
       query: query,
       page: 1,
       limit: 20,
@@ -217,7 +235,7 @@ class _JoinGroupInvitePageState extends ConsumerState<JoinGroupInvitePage> {
       _errorMessage = null;
     });
 
-    final result = await ref.read(joinGroupViaInviteUseCaseProvider)(
+    final result = await _chatUiActionsCubit.joinGroupViaInvite(
       token: widget.token,
       requestMessage: _messageController.text.trim().isEmpty
           ? null
