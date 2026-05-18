@@ -16,6 +16,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
   final EndCallUseCase _endCallUseCase;
   final CallRepository _callRepository;
   final GetCurrentUserIdUseCase _getCurrentUserIdUseCase;
+  final GetUserByIdUseCase _getUserByIdUseCase;
 
   EventsListener<RoomEvent>? _roomListener;
   VoidCallback? _roomRefreshListener;
@@ -26,10 +27,12 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     required EndCallUseCase endCallUseCase,
     required CallRepository callRepository,
     required GetCurrentUserIdUseCase getCurrentUserIdUseCase,
+    required GetUserByIdUseCase getUserByIdUseCase,
   }) : _acceptIncomingCallUseCase = acceptIncomingCallUseCase,
        _endCallUseCase = endCallUseCase,
        _callRepository = callRepository,
        _getCurrentUserIdUseCase = getCurrentUserIdUseCase,
+       _getUserByIdUseCase = getUserByIdUseCase,
        super(InCallState.initial()) {
     on<InCallOutgoingStarted>(_onOutgoingStarted);
     on<InCallIncomingAccepted>(_onIncomingAccepted);
@@ -45,6 +48,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     on<InCallToggleSpeakerRequested>(_onToggleSpeakerRequested);
     on<InCallErrorCleared>(_onErrorCleared);
     on<InCallEndStatusConsumed>(_onEndStatusConsumed);
+    on<InCallParticipantProfilesRequested>(_onParticipantProfilesRequested);
     on<_InCallRoomChanged>(_onRoomChanged);
     on<_InCallRemoteParticipantLeft>(_onRemoteParticipantLeft);
   }
@@ -72,6 +76,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
         clearEndedCallId: true,
       ),
     );
+    add(const InCallParticipantProfilesRequested());
   }
 
   Future<void> _onIncomingAccepted(
@@ -139,6 +144,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
             clearMediaError: true,
           ),
         );
+        add(const InCallParticipantProfilesRequested());
         await _connectLiveKitRoom(session, emit);
       },
     );
@@ -255,6 +261,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
             clearMediaError: true,
           ),
         );
+        add(const InCallParticipantProfilesRequested());
         await _connectLiveKitRoom(session, emit);
       },
     );
@@ -336,6 +343,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
             clearMediaError: true,
           ),
         );
+        add(const InCallParticipantProfilesRequested());
         await _connectLiveKitRoom(session, emit);
       },
     );
@@ -594,6 +602,46 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     emit(
       state.copyWith(endStatus: InCallEndStatus.idle, clearEndedCallId: true),
     );
+  }
+
+  Future<void> _onParticipantProfilesRequested(
+    InCallParticipantProfilesRequested event,
+    Emitter<InCallState> emit,
+  ) async {
+    final session = state.session;
+    if (session == null) return;
+
+    final currentUserId = await _getCurrentUserIdUseCase().then(
+      (result) => result.fold((_) => null, (userId) => userId.trim()),
+    );
+    final userIds = <String>{
+      session.call.callerId.trim(),
+      for (final participant in session.call.participants)
+        participant.userId.trim(),
+    }..removeWhere((userId) => userId.isEmpty || userId == currentUserId);
+
+    if (userIds.isEmpty) return;
+
+    final profiles = Map<String, InCallParticipantProfile>.from(
+      state.participantProfiles,
+    );
+
+    for (final userId in userIds) {
+      if (profiles.containsKey(userId)) continue;
+      final result = await _getUserByIdUseCase(userId);
+      result.fold((_) {}, (user) {
+        final displayName = user.displayName.trim().isNotEmpty
+            ? user.displayName.trim()
+            : user.username.trim();
+        profiles[userId] = InCallParticipantProfile(
+          userId: user.id.trim().isNotEmpty ? user.id.trim() : userId,
+          displayName: displayName.isNotEmpty ? displayName : 'Participant',
+          avatarUrl: user.avatarUrl?.trim(),
+        );
+      });
+    }
+
+    emit(state.copyWith(participantProfiles: profiles));
   }
 
   void _onRoomChanged(_InCallRoomChanged event, Emitter<InCallState> emit) {

@@ -140,6 +140,7 @@ class InCallPage extends ConsumerWidget {
                         builder: (context, videoState) => _LiveKitCallStage(
                           room: videoState.room,
                           session: activeSession,
+                          participantProfiles: videoState.participantProfiles,
                           isConnecting:
                               videoState.isConnectingRoom ||
                               videoState.isAcceptingCall,
@@ -147,8 +148,8 @@ class InCallPage extends ConsumerWidget {
                           peerName: initialRoomName.isNotEmpty
                               ? initialRoomName
                               : (activeSession.call.callerName.isNotEmpty
-                                  ? activeSession.call.callerName
-                                  : 'Participant'),
+                                    ? activeSession.call.callerName
+                                    : 'Participant'),
                           peerAvatar: activeSession.call.callerAvatar.isNotEmpty
                               ? activeSession.call.callerAvatar
                               : null,
@@ -242,9 +243,7 @@ class InCallPage extends ConsumerWidget {
                           child: IconButton(
                             onPressed: () => Navigator.of(context).maybePop(),
                             color: Colors.white,
-                            icon: const Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                            ),
+                            icon: const Icon(Icons.keyboard_arrow_down_rounded),
                           ),
                         ),
                       ),
@@ -254,8 +253,8 @@ class InCallPage extends ConsumerWidget {
                         name: initialRoomName.isNotEmpty
                             ? initialRoomName
                             : (activeSession.call.callerName.isNotEmpty
-                                ? activeSession.call.callerName
-                                : '?'),
+                                  ? activeSession.call.callerName
+                                  : '?'),
                         avatarUrl: activeSession.call.callerAvatar.isNotEmpty
                             ? activeSession.call.callerAvatar
                             : null,

@@ -101,6 +101,10 @@ final class InCallEndStatusConsumed extends InCallEvent {
   const InCallEndStatusConsumed();
 }
 
+final class InCallParticipantProfilesRequested extends InCallEvent {
+  const InCallParticipantProfilesRequested();
+}
+
 final class _InCallRoomChanged extends InCallEvent {
   /// True when the change was caused by a track or participant event that
   /// requires the video stage to re-render. False for local mic/camera or

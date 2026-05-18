@@ -23,6 +23,7 @@ final inCallBlocProvider = Provider<InCallBloc>((ref) {
     endCallUseCase: ref.read(endCallUseCaseProvider),
     callRepository: ref.read(callRepositoryProvider),
     getCurrentUserIdUseCase: ref.read(getCurrentUserIdUseCaseProvider),
+    getUserByIdUseCase: ref.read(getUserByIdUseCaseProvider),
   );
 
   ref.onDispose(bloc.close);
