@@ -2,6 +2,21 @@ part of 'in_call_bloc.dart';
 
 enum InCallEndStatus { idle, success }
 
+final class InCallParticipantProfile extends Equatable {
+  final String userId;
+  final String displayName;
+  final String? avatarUrl;
+
+  const InCallParticipantProfile({
+    required this.userId,
+    required this.displayName,
+    this.avatarUrl,
+  });
+
+  @override
+  List<Object?> get props => [userId, displayName, avatarUrl];
+}
+
 final class InCallState extends Equatable {
   final CallSession? session;
   final Room? room;
@@ -18,11 +33,13 @@ final class InCallState extends Equatable {
   final InCallEndStatus endStatus;
   final String? endedCallId;
   final int mediaRevision;
+
   /// Incremented only when video tracks actually change (subscribe/unsubscribe/
   /// publish/unpublish/mute/unmute, participant join/leave). Does NOT bump for
   /// speaker-activity events to avoid recreating VideoTrackRenderer on every
   /// speaking state change.
   final int videoRevision;
+  final Map<String, InCallParticipantProfile> participantProfiles;
 
   const InCallState({
     required this.session,
@@ -41,6 +58,7 @@ final class InCallState extends Equatable {
     this.endedCallId,
     this.mediaRevision = 0,
     this.videoRevision = 0,
+    this.participantProfiles = const <String, InCallParticipantProfile>{},
   });
 
   factory InCallState.initial() => const InCallState(session: null);
@@ -71,6 +89,7 @@ final class InCallState extends Equatable {
     bool bumpMediaRevision = false,
     int? videoRevision,
     bool bumpVideoRevision = false,
+    Map<String, InCallParticipantProfile>? participantProfiles,
   }) {
     return InCallState(
       session: clearSession ? null : (session ?? this.session),
@@ -95,6 +114,7 @@ final class InCallState extends Equatable {
       videoRevision: bumpVideoRevision
           ? this.videoRevision + 1
           : (videoRevision ?? this.videoRevision),
+      participantProfiles: participantProfiles ?? this.participantProfiles,
     );
   }
 
@@ -116,6 +136,7 @@ final class InCallState extends Equatable {
     endedCallId,
     mediaRevision,
     videoRevision,
+    participantProfiles,
   ];
 }
 
@@ -135,5 +156,6 @@ final class InCallEnded extends InCallState {
         errorMessage: null,
         mediaErrorMessage: null,
         endStatus: InCallEndStatus.success,
+        participantProfiles: const <String, InCallParticipantProfile>{},
       );
 }

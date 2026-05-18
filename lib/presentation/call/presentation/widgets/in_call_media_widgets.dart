@@ -3,6 +3,7 @@ part of '../in_call_page.dart';
 class _LiveKitCallStage extends StatelessWidget {
   final Room? room;
   final CallSession session;
+  final Map<String, InCallParticipantProfile> participantProfiles;
   final bool isConnecting;
   final String? errorMessage;
   final String peerName;
@@ -11,6 +12,7 @@ class _LiveKitCallStage extends StatelessWidget {
   const _LiveKitCallStage({
     required this.room,
     required this.session,
+    required this.participantProfiles,
     required this.isConnecting,
     required this.errorMessage,
     required this.peerName,
@@ -46,7 +48,12 @@ class _LiveKitCallStage extends StatelessWidget {
     }
 
     final remoteTiles = activeRoom.remoteParticipants.values
-        .map(_VideoTileData.fromParticipant)
+        .map(
+          (participant) => _VideoTileData.fromParticipant(
+            participant,
+            profiles: participantProfiles,
+          ),
+        )
         .where((tile) => tile.hasCameraTrack)
         .toList();
     final localTile = _localTile(activeRoom.localParticipant);
@@ -56,7 +63,13 @@ class _LiveKitCallStage extends StatelessWidget {
       return Stack(
         fit: StackFit.expand,
         children: [
-          _AudioOnlyCallView(room: activeRoom, session: session, peerName: peerName, peerAvatar: peerAvatar),
+          _AudioOnlyCallView(
+            room: activeRoom,
+            session: session,
+            participantProfiles: participantProfiles,
+            peerName: peerName,
+            peerAvatar: peerAvatar,
+          ),
           if (localVideoTile != null)
             Positioned(
               right: 20,
@@ -91,7 +104,11 @@ class _LiveKitCallStage extends StatelessWidget {
 
   _VideoTileData? _localTile(LocalParticipant? participant) {
     if (participant == null) return null;
-    return _VideoTileData.fromParticipant(participant, isLocal: true);
+    return _VideoTileData.fromParticipant(
+      participant,
+      isLocal: true,
+      profiles: participantProfiles,
+    );
   }
 }
 
@@ -100,17 +117,20 @@ class _VideoTileData {
   final VideoTrack? track;
   final bool isLocal;
   final bool hasCameraTrack;
+  final InCallParticipantProfile? profile;
 
   const _VideoTileData({
     required this.participant,
     required this.track,
     required this.isLocal,
     required this.hasCameraTrack,
+    required this.profile,
   });
 
   factory _VideoTileData.fromParticipant(
     Participant participant, {
     bool isLocal = false,
+    Map<String, InCallParticipantProfile> profiles = const {},
   }) {
     final track = _activeCameraTrack(participant);
     return _VideoTileData(
@@ -118,16 +138,21 @@ class _VideoTileData {
       track: track,
       isLocal: isLocal,
       hasCameraTrack: track != null,
+      profile: profiles[participant.identity.trim()],
     );
   }
 
   String get title {
+    final profileName = profile?.displayName.trim() ?? '';
+    if (profileName.isNotEmpty) return isLocal ? 'You' : profileName;
     final displayName = participant.name.trim().isNotEmpty
         ? participant.name.trim()
         : participant.identity.trim();
     if (displayName.isEmpty) return isLocal ? 'You' : 'Participant';
     return isLocal ? 'You' : displayName;
   }
+
+  String? get avatarUrl => profile?.avatarUrl;
 
   static VideoTrack? _activeCameraTrack(Participant participant) {
     for (final publication in participant.videoTrackPublications) {
@@ -164,6 +189,7 @@ class _VideoTile extends StatelessWidget {
             _ParticipantAvatar(
               title: tile.title,
               isSpeaking: false,
+              avatarUrl: tile.avatarUrl,
             ),
           Positioned(
             left: 12,
@@ -246,12 +272,14 @@ class _VideoGrid extends StatelessWidget {
 class _AudioOnlyCallView extends StatelessWidget {
   final Room room;
   final CallSession session;
+  final Map<String, InCallParticipantProfile> participantProfiles;
   final String peerName;
   final String? peerAvatar;
 
   const _AudioOnlyCallView({
     required this.room,
     required this.session,
+    required this.participantProfiles,
     required this.peerName,
     this.peerAvatar,
   });
@@ -311,6 +339,7 @@ class _AudioOnlyCallView extends StatelessWidget {
                     (participant) => _AudioParticipantChip(
                       participant: participant,
                       isLocal: participant is LocalParticipant,
+                      profile: participantProfiles[participant.identity.trim()],
                     ),
                   )
                   .toList(),
@@ -325,19 +354,20 @@ class _AudioOnlyCallView extends StatelessWidget {
 class _AudioParticipantChip extends StatelessWidget {
   final Participant participant;
   final bool isLocal;
+  final InCallParticipantProfile? profile;
 
   const _AudioParticipantChip({
     required this.participant,
     required this.isLocal,
+    required this.profile,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Use display name; identity is typically a UUID so never show it raw
-    final raw = participant.name.trim().isNotEmpty
-        ? participant.name.trim()
-        : '';
-    final title = raw.isNotEmpty ? raw : (isLocal ? 'You' : 'Participant');
+    final profileName = profile?.displayName.trim() ?? '';
+    final raw = profileName.isNotEmpty ? profileName : participant.name.trim();
+    final title = isLocal ? 'You' : (raw.isNotEmpty ? raw : 'Participant');
+    final avatarUrl = profile?.avatarUrl?.trim();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -352,16 +382,22 @@ class _AudioParticipantChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            participant.isSpeaking ? Icons.graphic_eq : Icons.person,
-            color: Colors.white,
-            size: 16,
+          CircleAvatar(
+            radius: 10,
+            backgroundColor: Colors.white12,
+            backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+                ? NetworkImage(avatarUrl)
+                : null,
+            child: avatarUrl == null || avatarUrl.isEmpty
+                ? Icon(
+                    participant.isSpeaking ? Icons.graphic_eq : Icons.person,
+                    color: Colors.white,
+                    size: 14,
+                  )
+                : null,
           ),
           const SizedBox(width: 8),
-          Text(
-            isLocal ? 'You' : (title.isEmpty ? 'Participant' : title),
-            style: const TextStyle(color: Colors.white),
-          ),
+          Text(title, style: const TextStyle(color: Colors.white)),
         ],
       ),
     );
