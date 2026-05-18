@@ -139,77 +139,39 @@ class _VideoTileData {
   }
 }
 
-class _VideoTile extends StatefulWidget {
+class _VideoTile extends StatelessWidget {
   final _VideoTileData tile;
   final bool fill;
 
   const _VideoTile({required this.tile, this.fill = false});
 
   @override
-  State<_VideoTile> createState() => _VideoTileState();
-}
-
-class _VideoTileState extends State<_VideoTile> {
-  late Participant _participant;
-
-  @override
-  void initState() {
-    super.initState();
-    _participant = widget.tile.participant;
-    _participant.addListener(_onParticipantChanged);
-  }
-
-  @override
-  void didUpdateWidget(_VideoTile oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.tile.participant != _participant) {
-      _participant.removeListener(_onParticipantChanged);
-      _participant = widget.tile.participant;
-      _participant.addListener(_onParticipantChanged);
-    }
-  }
-
-  @override
-  void dispose() {
-    _participant.removeListener(_onParticipantChanged);
-    super.dispose();
-  }
-
-  void _onParticipantChanged() {
-    if (mounted) setState(() {});
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final track = widget.tile.track;
+    final participant = tile.participant;
+    final track = tile.track;
     return Container(
       color: Colors.black,
-      foregroundDecoration: _participant.isSpeaking
-          ? BoxDecoration(
-              border: Border.all(color: Colors.greenAccent, width: 3),
-            )
-          : null,
       child: Stack(
         fit: StackFit.expand,
         children: [
           if (track != null)
             VideoTrackRenderer(
               track,
-              fit: widget.fill ? VideoViewFit.cover : VideoViewFit.contain,
+              fit: fill ? VideoViewFit.cover : VideoViewFit.contain,
               renderMode: VideoRenderMode.auto,
             )
           else
             _ParticipantAvatar(
-              title: widget.tile.title,
-              isSpeaking: _participant.isSpeaking,
+              title: tile.title,
+              isSpeaking: false,
             ),
           Positioned(
             left: 12,
             right: 12,
             bottom: 12,
             child: _ParticipantLabel(
-              title: widget.tile.title,
-              isMuted: !_hasActiveAudio(_participant),
+              title: tile.title,
+              isMuted: !_hasActiveAudio(participant),
             ),
           ),
         ],

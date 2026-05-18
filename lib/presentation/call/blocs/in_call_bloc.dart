@@ -836,8 +836,24 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     if (listener != null) {
       await listener.dispose();
     }
+    await _disposeLocalMedia(room);
     await room.disconnect();
     await room.dispose();
+  }
+
+  Future<void> _disposeLocalMedia(Room room) async {
+    final localParticipant = room.localParticipant;
+    if (localParticipant != null) {
+      try {
+        await localParticipant.setMicrophoneEnabled(false);
+      } catch (_) {}
+      try {
+        await localParticipant.setCameraEnabled(false);
+      } catch (_) {}
+    }
+    try {
+      await Hardware.instance.setSpeakerphoneOn(false);
+    } catch (_) {}
   }
 
   void _attachParticipantListeners(Room room) {
