@@ -1,6 +1,9 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
 import 'package:flutter_chat/features/group_manager/domain/entities/join_group_invite_result.dart';
+import 'package:flutter_chat/features/group_manager/domain/entities/group_invite_link.dart';
+import 'package:flutter_chat/features/group_manager/domain/entities/group_join_request.dart';
+import 'package:flutter_chat/features/group_manager/domain/entities/add_group_members_result.dart';
 import 'package:flutter_chat/features/group_manager/domain/entities/poll_entity.dart';
 
 abstract class GroupManagementRepo {
@@ -17,6 +20,33 @@ abstract class GroupManagementRepo {
     required String allowMemberMessage,
     required bool isPublic,
     required bool joinApprovalRequired,
+  });
+
+  Future<Either<Failure, GroupInviteLink?>> getInviteLink({
+    required String conversationId,
+  });
+
+  Future<Either<Failure, GroupInviteLink>> createInviteLink({
+    required String conversationId,
+  });
+
+  Future<Either<Failure, void>> revokeInviteLink({
+    required String conversationId,
+  });
+
+  Future<Either<Failure, AddGroupMembersResult>> addMembers({
+    required String conversationId,
+    required List<String> userIds,
+  });
+
+  Future<Either<Failure, List<GroupJoinRequest>>> listJoinRequests({
+    required String conversationId,
+  });
+
+  Future<Either<Failure, void>> reviewJoinRequest({
+    required String conversationId,
+    required String requestId,
+    required bool approve,
   });
 
   Future<Either<Failure, JoinGroupInviteResult>> joinGroupViaInvite({

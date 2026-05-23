@@ -115,12 +115,87 @@ class ChatUiActionsCubit extends Cubit<int> {
     String query, {
     int page = 1,
     int limit = 20,
-  }) {
+  }) async {
     final action = searchUsersByUsernameAction;
     if (action == null) {
       throw StateError('searchUsersByUsernameAction is not configured');
     }
-    return action(query, page: page, limit: limit);
+    final either = await action(query, page: page, limit: limit);
+    return either.fold(
+      (failure) => Left(_normalizeSearchFailure(
+        failure,
+        fallback: 'Search failed. Please try again.',
+      )),
+      (users) => Right(users),
+    );
+  }
+
+  Failure _normalizeSearchFailure(Failure failure, {required String fallback}) {
+    final message = failure.message.trim();
+    if (message.isEmpty) {
+      return _copyFailureWithMessage(failure, fallback);
+    }
+
+    final lower = message.toLowerCase();
+    if (lower.contains('failed to search users') ||
+        lower.contains('search users failed') ||
+        lower.contains('search users') && lower.contains('failed')) {
+      return _copyFailureWithMessage(failure, fallback);
+    }
+
+    if (message.startsWith('{') && message.endsWith('}')) {
+      return _copyFailureWithMessage(failure, fallback);
+    }
+
+    if (message.startsWith('Exception:')) {
+      final normalized = message.substring('Exception:'.length).trim();
+      if (normalized.isEmpty || normalized.contains('DioException')) {
+        return _copyFailureWithMessage(
+          failure,
+          'Unable to search users right now. Please try again later.',
+        );
+      }
+      return _copyFailureWithMessage(failure, normalized);
+    }
+
+    if (lower.contains('dioexception') ||
+        lower.contains('socketexception') ||
+        lower.contains('connection timed out') ||
+        lower.contains('connection timeout') ||
+        lower.contains('connection failed')) {
+      return _copyFailureWithMessage(
+        failure,
+        'Unable to search users right now. Please check your internet connection and try again.',
+      );
+    }
+
+    if (message.length > 120) {
+      return _copyFailureWithMessage(failure, fallback);
+    }
+
+    return _copyFailureWithMessage(failure, message);
+  }
+
+  Failure _copyFailureWithMessage(Failure failure, String message) {
+    if (failure is ServerFailure) {
+      return ServerFailure(message, statusCode: failure.statusCode);
+    }
+    if (failure is NetworkFailure) {
+      return NetworkFailure(message, statusCode: failure.statusCode);
+    }
+    if (failure is CacheFailure) {
+      return CacheFailure(message, statusCode: failure.statusCode);
+    }
+    if (failure is DatabaseFailure) {
+      return DatabaseFailure(message, statusCode: failure.statusCode);
+    }
+    if (failure is ValidationFailure) {
+      return ValidationFailure(message, statusCode: failure.statusCode);
+    }
+    if (failure is AuthFailure) {
+      return AuthFailure(message, statusCode: failure.statusCode);
+    }
+    return ServerFailure(message, statusCode: failure.statusCode);
   }
 
   Future<Either<Failure, dynamic>> blockUser(String userId) {

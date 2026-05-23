@@ -10,6 +10,13 @@ import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/chat/domain/entities/conversation.dart';
 import 'package:flutter_chat/features/chat/domain/entities/conversation_participant.dart';
 import 'package:flutter_chat/features/group_manager/data/datasources/api/group_management_service.dart';
+import 'package:flutter_chat/features/group_manager/domain/entities/group_join_request.dart';
+import 'package:flutter_chat/features/group_manager/domain/usecase/add_group_members_usecase.dart';
+import 'package:flutter_chat/features/group_manager/domain/usecase/create_group_invite_link_usecase.dart';
+import 'package:flutter_chat/features/group_manager/domain/usecase/get_group_invite_link_usecase.dart';
+import 'package:flutter_chat/features/group_manager/domain/usecase/list_group_join_requests_usecase.dart';
+import 'package:flutter_chat/features/group_manager/domain/usecase/review_join_request_usecase.dart';
+import 'package:flutter_chat/features/group_manager/domain/usecase/revoke_group_invite_link_usecase.dart';
 import 'package:flutter_chat/presentation/chat/blocs/chat_ui_actions_cubit.dart';
 import 'package:flutter_chat/presentation/chat/widgets/share_invite_link_dialog.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -70,7 +77,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   String? _inviteExpiresAt;
   String _muteDuration = '1';
 
-  List<Map<String, dynamic>> _joinRequests = <Map<String, dynamic>>[];
+  List<GroupJoinRequest> _joinRequests = <GroupJoinRequest>[];
   List<Map<String, dynamic>> _polls = <Map<String, dynamic>>[];
   List<Map<String, dynamic>> _appointments = <Map<String, dynamic>>[];
   List<MyUser> _memberSearchResults = const <MyUser>[];
@@ -129,6 +136,18 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   Dio get _dio => ref.read(authDioProvider);
   GroupManagementService get _groupManagementService =>
       ref.read(groupManagementServiceProvider);
+  AddGroupMembersUseCase get _addGroupMembersUseCase =>
+      ref.read(addGroupMembersUseCaseProvider);
+  GetGroupInviteLinkUseCase get _getGroupInviteLinkUseCase =>
+      ref.read(getGroupInviteLinkUseCaseProvider);
+  CreateGroupInviteLinkUseCase get _createGroupInviteLinkUseCase =>
+      ref.read(createGroupInviteLinkUseCaseProvider);
+  RevokeGroupInviteLinkUseCase get _revokeGroupInviteLinkUseCase =>
+      ref.read(revokeGroupInviteLinkUseCaseProvider);
+  ListGroupJoinRequestsUseCase get _listGroupJoinRequestsUseCase =>
+      ref.read(listGroupJoinRequestsUseCaseProvider);
+  ReviewJoinRequestUseCase get _reviewJoinRequestUseCase =>
+      ref.read(reviewJoinRequestUseCaseProvider);
   static String get _baseUrl => dotenv.get('NEST_API_BASE_URL');
 
   String _url(String path) {
@@ -175,7 +194,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     if (_isAdminOrOwner) {
       return const <String>['Info', 'Member', 'Settings', 'Invite', 'Request'];
     }
-    return const <String>['Info', 'Member', 'Settings'];
+    return const <String>['Info', 'Member', 'Settings', 'Invite'];
   }
 
   dynamic _unwrap(dynamic payload) {
@@ -363,30 +382,22 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
 
     setState(() => _busyRequests = true);
     try {
-      final response = await _dio.get(
-        _url('/conversations/${widget.conversation.id}/join-requests'),
+      final result = await _listGroupJoinRequestsUseCase(
+        conversationId: widget.conversation.id,
       );
-      final data = _unwrap(response.data);
-
-      List<dynamic> raw = <dynamic>[];
-      if (data is List) {
-        raw = data;
-      } else if (data is Map<String, dynamic> && data['requests'] is List) {
-        raw = data['requests'] as List<dynamic>;
-      }
-
-      final mapped = raw
-          .whereType<Map>()
-          .map((item) => item.map((key, value) => MapEntry('$key', value)))
-          .toList(growable: false);
-
-      if (!mounted) return;
-      setState(() {
-        _joinRequests = mapped;
-      });
+      result.fold(
+        (failure) {
+          _toast(failure.message.isNotEmpty ? failure.message : 'Failed to load join requests');
+        },
+        (requests) {
+          if (!mounted) return;
+          setState(() {
+            _joinRequests = requests;
+          });
+        },
+      );
     } catch (error, stackTrace) {
       _logDebugError('loadJoinRequests', error, stackTrace);
-      // Ignore toast here to avoid noisy startup UX.
     } finally {
       if (mounted) {
         setState(() => _busyRequests = false);
@@ -398,13 +409,31 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     if (!_isAdminOrOwner) return;
 
     try {
-      final response = await _dio.get(
-        _url('/conversations/${widget.conversation.id}/invite-link'),
-        options: _requestOptions,
+      final result = await _getGroupInviteLinkUseCase(
+        conversationId: widget.conversation.id,
       );
-      final data = _unwrap(response.data);
-      if (!mounted) return;
-      setState(() => _applyInviteLinkPayload(data));
+
+      result.fold(
+        (failure) {
+          _toast(failure.message.isNotEmpty ? failure.message : 'Failed to load invite link.');
+        },
+        (inviteLink) {
+          if (!mounted) return;
+          setState(() {
+            if (inviteLink != null) {
+              _applyInviteLinkPayload(
+                {
+                  'url': inviteLink.url,
+                  'expiresAt': inviteLink.expiresAt,
+                },
+              );
+            } else {
+              _inviteUrl = null;
+              _inviteExpiresAt = null;
+            }
+          });
+        },
+      );
     } catch (e, st) {
       _logDebugError('loadInviteLink', e, st);
     }
@@ -757,8 +786,6 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   }
 
   Future<void> _searchUsersForMemberAdd() async {
-    if (!_isAdminOrOwner) return;
-
     final query = _memberSearchController.text.trim();
     if (query.isEmpty) {
       setState(() {
@@ -784,7 +811,9 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
       result.fold(
         (failure) {
           _toast(
-            failure.message.isNotEmpty ? failure.message : 'Search failed',
+            failure.message.isNotEmpty
+                ? failure.message
+                : 'Search failed. Please try again.',
           );
           setState(() {
             _memberSearchResults = const <MyUser>[];
@@ -815,8 +844,6 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   }
 
   Future<void> _addMember(MyUser user) async {
-    if (!_isAdminOrOwner) return;
-
     final userId = user.id.trim();
     if (userId.isEmpty) {
       _toast('Invalid user');
@@ -829,24 +856,32 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
 
     setState(() => _busyAddMember = true);
     try {
-      await _dio.post(
-        _url('/conversations/${widget.conversation.id}/members'),
-        data: {
-          'userIds': <String>[userId],
-        },
+      final result = await _addGroupMembersUseCase(
+        conversationId: widget.conversation.id,
+        userIds: <String>[userId],
       );
 
-      if (!mounted) return;
+      result.fold(
+        (failure) {
+          _toast(failure.message.isNotEmpty ? failure.message : 'Failed to add member.');
+        },
+        (addResult) {
+          if (!mounted) return;
 
-      setState(() {
-        _memberSearchResults = _memberSearchResults
-            .where((item) => item.id.trim() != userId)
-            .toList(growable: false);
-      });
+          setState(() {
+            _memberSearchResults = _memberSearchResults
+                .where((item) => item.id.trim() != userId)
+                .toList(growable: false);
+          });
 
-      await _syncParticipantsFromServer();
-
-      _toast('Member added');
+          _syncParticipantsFromServer();
+          if (addResult.requiresApproval) {
+            _toast('Invite sent. Waiting for admin/owner approval.');
+          } else {
+            _toast('Member added');
+          }
+        },
+      );
     } catch (e) {
       _toast(_errorMessageFor(e, fallback: 'Failed to add member.'));
     } finally {
@@ -958,27 +993,28 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     if (!_isAdminOrOwner) return;
 
     setState(() => _busyInvite = true);
-    var regenerated = (_inviteUrl ?? '').isNotEmpty;
     try {
-      final inviteLinkUrl = _url(
-        '/conversations/${widget.conversation.id}/invite-link',
+      final result = await _createGroupInviteLinkUseCase(
+        conversationId: widget.conversation.id,
       );
-      Response<dynamic> response;
-      if (regenerated) {
-        response = await _dio.put(inviteLinkUrl, options: _requestOptions);
-      } else {
-        try {
-          response = await _dio.post(inviteLinkUrl, options: _requestOptions);
-        } on DioException catch (e) {
-          if (e.response?.statusCode != 409) rethrow;
-          regenerated = true;
-          response = await _dio.put(inviteLinkUrl, options: _requestOptions);
-        }
-      }
-      final data = _unwrap(response.data);
-      if (!mounted) return;
-      setState(() => _applyInviteLinkPayload(data));
-      _toast(regenerated ? 'Invite link regenerated' : 'Invite link generated');
+
+      result.fold(
+        (failure) {
+          _toast(failure.message.isNotEmpty ? failure.message : 'Failed to generate invite link.');
+        },
+        (inviteLink) {
+          if (!mounted) return;
+          setState(() => _applyInviteLinkPayload(
+                {
+                  'url': inviteLink.url,
+                  'expiresAt': inviteLink.expiresAt,
+                },
+              ));
+          _toast((_inviteUrl ?? '').isNotEmpty
+              ? 'Invite link regenerated'
+              : 'Invite link generated');
+        },
+      );
     } catch (e) {
       _toast(_errorMessageFor(e, fallback: 'Failed to generate invite link.'));
     } finally {
@@ -993,16 +1029,22 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
 
     setState(() => _busyInvite = true);
     try {
-      await _dio.delete(
-        _url('/conversations/${widget.conversation.id}/invite-link'),
-        options: _requestOptions,
+      final result = await _revokeGroupInviteLinkUseCase(
+        conversationId: widget.conversation.id,
       );
-      if (!mounted) return;
-      setState(() {
-        _inviteUrl = null;
-        _inviteExpiresAt = null;
-      });
-      _toast('Invite link revoked');
+      result.fold(
+        (failure) {
+          _toast(failure.message.isNotEmpty ? failure.message : 'Failed to revoke invite link.');
+        },
+        (_) {
+          if (!mounted) return;
+          setState(() {
+            _inviteUrl = null;
+            _inviteExpiresAt = null;
+          });
+          _toast('Invite link revoked');
+        },
+      );
     } catch (e) {
       _toast(_errorMessageFor(e, fallback: 'Failed to revoke invite link.'));
     } finally {
@@ -1122,19 +1164,22 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
       return;
     }
 
-    final action = approve ? 'approve' : 'reject';
     try {
-      final response = await _dio.patch(
-        _url(
-          '/conversations/${widget.conversation.id}/join-requests/$normalizedRequestId',
-        ),
-        data: {'action': action},
+      final result = await _reviewJoinRequestUseCase(
+        conversationId: widget.conversation.id,
+        requestId: normalizedRequestId,
+        approve: approve,
       );
-      debugPrint(
-        '[GroupManagementPage] reviewJoinRequest success -> requestId=$normalizedRequestId, action=$action, data=${response.data}',
+
+      result.fold(
+        (failure) {
+          _toast(failure.message.isNotEmpty ? failure.message : 'Failed to review join request.');
+        },
+        (_) {
+          _toast(approve ? 'Request approved' : 'Request rejected');
+          _loadJoinRequests();
+        },
       );
-      _toast(approve ? 'Request approved' : 'Request rejected');
-      await _loadJoinRequests();
     } catch (e) {
       _toast(_errorMessageFor(e, fallback: 'Failed to review join request.'));
     }
@@ -1538,7 +1583,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
       _buildInfoTab(context),
       _buildMemberTab(context),
       _buildSettingsTab(context),
-      if (_isAdminOrOwner) _buildInviteTab(context),
+      _buildInviteTab(context),
       if (_isAdminOrOwner) _buildRequestTab(context),
     ];
 
@@ -2033,94 +2078,93 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        if (_isAdminOrOwner)
-          _buildSectionCard(
-            context,
-            title: 'Add Member',
-            subtitle: 'Search users by username and add them to this group.',
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _memberSearchController,
-                        textInputAction: TextInputAction.search,
-                        onSubmitted: (_) => _searchUsersForMemberAdd(),
-                        decoration: const InputDecoration(
-                          labelText: 'Search users by username',
-                          prefixIcon: Icon(Icons.search),
-                        ),
+        _buildSectionCard(
+          context,
+          title: 'Add Member',
+          subtitle: 'Search users by username and add them to this group.',
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _memberSearchController,
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: (_) => _searchUsersForMemberAdd(),
+                      decoration: const InputDecoration(
+                        labelText: 'Search users by username',
+                        prefixIcon: Icon(Icons.search),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    FilledButton.icon(
-                      onPressed: _busyMemberSearch
-                          ? null
-                          : _searchUsersForMemberAdd,
-                      icon: const Icon(Icons.search),
-                      label: const Text('Search'),
-                    ),
-                  ],
-                ),
-                if (_busyMemberSearch) ...[
-                  const SizedBox(height: 10),
-                  const LinearProgressIndicator(),
-                ],
-                if (_memberSearchResults.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  ..._memberSearchResults.map((user) {
-                    final displayName = user.displayName.trim();
-                    final nameToShow = displayName.isNotEmpty
-                        ? displayName
-                        : user.username;
-                    final userId = user.id.trim();
-                    final isAlreadyMember = _participantIds.contains(userId);
-                    final hasValidId = userId.isNotEmpty;
-                    final canAdd =
-                        !_busyAddMember && hasValidId && !isAlreadyMember;
-                    final statusText = isAlreadyMember
-                        ? 'Already a member'
-                        : !hasValidId
-                        ? 'Invalid user id'
-                        : '@${user.username}';
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(
-                        child: Text(
-                          nameToShow.isNotEmpty
-                              ? nameToShow[0].toUpperCase()
-                              : '?',
-                        ),
-                      ),
-                      title: Text(nameToShow),
-                      subtitle: Text(statusText),
-                      trailing: isAlreadyMember
-                          ? const Icon(
-                              Icons.check_circle_outline,
-                              color: Colors.green,
-                            )
-                          : FilledButton.tonalIcon(
-                              onPressed: canAdd ? () => _addMember(user) : null,
-                              icon: const Icon(Icons.person_add_alt_1_outlined),
-                              label: const Text('Add'),
-                            ),
-                    );
-                  }),
-                ],
-                if (_hasSearchedMember &&
-                    !_busyMemberSearch &&
-                    _memberSearchResults.isEmpty) ...[
-                  const SizedBox(height: 10),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text('No users found.'),
+                  ),
+                  const SizedBox(width: 10),
+                  FilledButton.icon(
+                    onPressed: _busyMemberSearch
+                        ? null
+                        : _searchUsersForMemberAdd,
+                    icon: const Icon(Icons.search),
+                    label: const Text('Search'),
                   ),
                 ],
+              ),
+              if (_busyMemberSearch) ...[
+                const SizedBox(height: 10),
+                const LinearProgressIndicator(),
               ],
-            ),
+              if (_memberSearchResults.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                ..._memberSearchResults.map((user) {
+                  final displayName = user.displayName.trim();
+                  final nameToShow = displayName.isNotEmpty
+                      ? displayName
+                      : user.username;
+                  final userId = user.id.trim();
+                  final isAlreadyMember = _participantIds.contains(userId);
+                  final hasValidId = userId.isNotEmpty;
+                  final canAdd =
+                      !_busyAddMember && hasValidId && !isAlreadyMember;
+                  final statusText = isAlreadyMember
+                      ? 'Already a member'
+                      : !hasValidId
+                      ? 'Invalid user id'
+                      : '@${user.username}';
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(
+                      child: Text(
+                        nameToShow.isNotEmpty
+                            ? nameToShow[0].toUpperCase()
+                            : '?',
+                      ),
+                    ),
+                    title: Text(nameToShow),
+                    subtitle: Text(statusText),
+                    trailing: isAlreadyMember
+                        ? const Icon(
+                            Icons.check_circle_outline,
+                            color: Colors.green,
+                          )
+                        : FilledButton.tonalIcon(
+                            onPressed: canAdd ? () => _addMember(user) : null,
+                            icon: const Icon(Icons.person_add_alt_1_outlined),
+                            label: const Text('Add'),
+                          ),
+                  );
+                }),
+              ],
+              if (_hasSearchedMember &&
+                  !_busyMemberSearch &&
+                  _memberSearchResults.isEmpty) ...[
+                const SizedBox(height: 10),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('No users found.'),
+                ),
+              ],
+            ],
           ),
-        if (_isAdminOrOwner) const SizedBox(height: 14),
+        ),
+        const SizedBox(height: 14),
         _buildSectionCard(
           context,
           title: 'Member Role Management',
@@ -2312,7 +2356,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
           title: 'Invite Links',
           subtitle: _isAdminOrOwner
               ? 'Owner/Admin can generate, regenerate, and revoke invite links.'
-              : 'Only Owner/Admin can manage invite links.',
+              : 'Invite links are visible here. Only Owner/Admin can generate, regenerate, or revoke them.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -2340,7 +2384,11 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
               ),
               if (!_busyInvite && _inviteUrl == null) ...[
                 const SizedBox(height: 12),
-                const Text('No active invite link. Generate one to share.'),
+                Text(
+                  _isAdminOrOwner
+                      ? 'No active invite link. Generate one to share.'
+                      : 'No active invite link. Only Owner/Admin can generate one.',
+                ),
               ],
               if (_busyInvite) ...[
                 const SizedBox(height: 10),
@@ -2431,9 +2479,9 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
               ],
               const SizedBox(height: 8),
               ..._joinRequests.map((request) {
-                final requestId = request['id']?.toString() ?? '';
-                final userId = request['userId']?.toString() ?? '';
-                final message = request['requestMessage']?.toString() ?? '';
+                final requestId = request.requestId;
+                final userId = request.userId;
+                final message = request.requestMessage ?? '';
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(userId.isEmpty ? 'Unknown user' : userId),

@@ -2,6 +2,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat/core/network/realtime_gateway.dart';
 import 'package:flutter_chat/features/group_manager/domain/entities/join_group_invite_result.dart';
+import 'package:flutter_chat/features/group_manager/domain/entities/group_invite_link.dart';
+import 'package:flutter_chat/features/group_manager/domain/entities/group_join_request.dart';
+import 'package:flutter_chat/features/group_manager/domain/entities/add_group_members_result.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 abstract class GroupManagementService {
@@ -11,6 +14,25 @@ abstract class GroupManagementService {
     bool isPublic,
     bool joinApprovalRequired,
   );
+
+  Future<GroupInviteLink?> getInviteLink(String conversationId);
+
+  Future<GroupInviteLink> createInviteLink(String conversationId);
+
+  Future<void> revokeInviteLink(String conversationId);
+
+  Future<AddGroupMembersResult> addMembers({
+    required String conversationId,
+    required List<String> userIds,
+  });
+
+  Future<List<GroupJoinRequest>> listJoinRequests(String conversationId);
+
+  Future<void> reviewJoinRequest({
+    required String conversationId,
+    required String requestId,
+    required bool approve,
+  });
 
   Future<void> createGroup(
     String type,
@@ -192,6 +214,160 @@ class GroupManagementServiceImpl implements GroupManagementService {
       );
       throw Exception('$e');
     }
+  }
+
+  @override
+  Future<GroupInviteLink?> getInviteLink(String conversationId) async {
+    final cid = conversationId.trim();
+    final url = '$_baseUrl/conversations/$cid/invite-link';
+
+    try {
+      final response = await _dio.get(url, options: _requestOptions);
+      final data = _unwrap(response.data);
+      if (data is Map<String, dynamic>) {
+        return _toGroupInviteLink(data);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('[GroupManagementService] Failed to load invite link: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<GroupInviteLink> createInviteLink(String conversationId) async {
+    final cid = conversationId.trim();
+    final url = '$_baseUrl/conversations/$cid/invite-link';
+    try {
+      Response<dynamic> response;
+      try {
+        response = await _dio.post(url, options: _requestOptions);
+      } on DioException catch (e) {
+        if (e.response?.statusCode == 409) {
+          response = await _dio.put(url, options: _requestOptions);
+        } else {
+          rethrow;
+        }
+      }
+      final data = _unwrap(response.data);
+      if (data is Map<String, dynamic>) {
+        return _toGroupInviteLink(data);
+      }
+      throw Exception('Invalid invite link payload');
+    } catch (e) {
+      debugPrint('[GroupManagementService] Failed to create invite link: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> revokeInviteLink(String conversationId) async {
+    final cid = conversationId.trim();
+    final url = '$_baseUrl/conversations/$cid/invite-link';
+    try {
+      await _dio.delete(url, options: _requestOptions);
+    } catch (e) {
+      debugPrint('[GroupManagementService] Failed to revoke invite link: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<AddGroupMembersResult> addMembers({
+    required String conversationId,
+    required List<String> userIds,
+  }) async {
+    final cid = conversationId.trim();
+    final url = '$_baseUrl/conversations/$cid/members';
+    final body = <String, dynamic>{
+      'userIds': userIds,
+    };
+
+    try {
+      final response = await _dio.post(url, data: body, options: _requestOptions);
+      final data = _unwrap(response.data);
+      if (data is Map<String, dynamic>) {
+        return AddGroupMembersResult(
+          success: data['success'] == true,
+          requiresApproval: data['requiresApproval'] == true,
+        );
+      }
+      return const AddGroupMembersResult(success: true, requiresApproval: false);
+    } catch (e) {
+      debugPrint('[GroupManagementService] Failed to add members: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<GroupJoinRequest>> listJoinRequests(String conversationId) async {
+    final cid = conversationId.trim();
+    final url = '$_baseUrl/conversations/$cid/join-requests';
+
+    try {
+      final response = await _dio.get(url, options: _requestOptions);
+      final data = _unwrap(response.data);
+      final raw = <dynamic>[];
+      if (data is List) {
+        raw.addAll(data);
+      } else if (data is Map<String, dynamic> && data['requests'] is List) {
+        raw.addAll(data['requests'] as List<dynamic>);
+      }
+      return raw
+          .whereType<Map>()
+          .map((item) => item.map((key, value) => MapEntry('$key', value)))
+          .map(_toGroupJoinRequest)
+          .toList(growable: false);
+    } catch (e) {
+      debugPrint('[GroupManagementService] Failed to load join requests: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> reviewJoinRequest({
+    required String conversationId,
+    required String requestId,
+    required bool approve,
+  }) async {
+    final cid = conversationId.trim();
+    final normalizedRequestId = requestId.trim();
+    final action = approve ? 'approve' : 'reject';
+    final url = '$_baseUrl/conversations/$cid/join-requests/$normalizedRequestId';
+    final body = <String, dynamic>{'action': action};
+
+    try {
+      await _dio.patch(url, data: body, options: _requestOptions);
+    } catch (e) {
+      debugPrint('[GroupManagementService] Failed to review join request: $e');
+      rethrow;
+    }
+  }
+
+  GroupInviteLink _toGroupInviteLink(Map<String, dynamic> payload) {
+    final normalized = payload.map((key, value) => MapEntry('$key', value));
+    final url = _readString(normalized['url']) ?? '';
+    final expiresAt = _readString(normalized['expiresAt']);
+    return GroupInviteLink(url: url, expiresAt: expiresAt);
+  }
+
+  GroupJoinRequest _toGroupJoinRequest(Map<String, dynamic> payload) {
+    final normalized = payload.map((key, value) => MapEntry('$key', value));
+    return GroupJoinRequest(
+      requestId: _readString(normalized['id']) ?? '',
+      userId: _readString(normalized['userId']) ?? '',
+      userName: _readString(normalized['userName']),
+      source: _readString(normalized['source']) ?? 'request',
+      invitedBy: _readString(normalized['invitedBy']),
+      invitedByName: _readString(normalized['invitedByName']),
+      requestMessage: _readString(normalized['requestMessage']),
+      timestamp: _readString(normalized['timestamp']),
+    );
+  }
+
+  String? _readString(dynamic value) {
+    if (value == null) return null;
+    return value.toString();
   }
 
   @override

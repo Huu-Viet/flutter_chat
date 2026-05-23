@@ -3,10 +3,16 @@ import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/group_manager/data/datasources/api/group_management_service.dart';
 import 'package:flutter_chat/features/group_manager/data/repo_impl/group_management_repo_impl.dart';
 import 'package:flutter_chat/features/group_manager/domain/repositories/group_management_repo.dart';
+import 'package:flutter_chat/features/group_manager/domain/usecase/add_group_members_usecase.dart';
 import 'package:flutter_chat/features/group_manager/domain/usecase/close_poll_usecase.dart';
+import 'package:flutter_chat/features/group_manager/domain/usecase/create_group_invite_link_usecase.dart';
 import 'package:flutter_chat/features/group_manager/domain/usecase/create_group_usecase.dart';
+import 'package:flutter_chat/features/group_manager/domain/usecase/get_group_invite_link_usecase.dart';
 import 'package:flutter_chat/features/group_manager/domain/usecase/join_group_via_invite_usecase.dart';
 import 'package:flutter_chat/features/group_manager/domain/usecase/list_conversation_polls_usecase.dart';
+import 'package:flutter_chat/features/group_manager/domain/usecase/revoke_group_invite_link_usecase.dart';
+import 'package:flutter_chat/features/group_manager/domain/usecase/list_group_join_requests_usecase.dart';
+import 'package:flutter_chat/features/group_manager/domain/usecase/review_join_request_usecase.dart';
 import 'package:flutter_chat/features/group_manager/domain/usecase/vote_poll_usecase.dart';
 import 'package:riverpod/riverpod.dart';
 
@@ -41,6 +47,42 @@ final listConversationPollsUseCaseProvider =
       final repo = ref.watch(groupManagementRepositoryProvider);
       return ListConversationPollsUseCase(repo);
     });
+
+final getGroupInviteLinkUseCaseProvider =
+    Provider<GetGroupInviteLinkUseCase>((ref) {
+  final repo = ref.watch(groupManagementRepositoryProvider);
+  return GetGroupInviteLinkUseCase(repo);
+});
+
+final createGroupInviteLinkUseCaseProvider =
+    Provider<CreateGroupInviteLinkUseCase>((ref) {
+  final repo = ref.watch(groupManagementRepositoryProvider);
+  return CreateGroupInviteLinkUseCase(repo);
+});
+
+final revokeGroupInviteLinkUseCaseProvider =
+    Provider<RevokeGroupInviteLinkUseCase>((ref) {
+  final repo = ref.watch(groupManagementRepositoryProvider);
+  return RevokeGroupInviteLinkUseCase(repo);
+});
+
+final addGroupMembersUseCaseProvider =
+    Provider<AddGroupMembersUseCase>((ref) {
+  final repo = ref.watch(groupManagementRepositoryProvider);
+  return AddGroupMembersUseCase(repo);
+});
+
+final listGroupJoinRequestsUseCaseProvider =
+    Provider<ListGroupJoinRequestsUseCase>((ref) {
+  final repo = ref.watch(groupManagementRepositoryProvider);
+  return ListGroupJoinRequestsUseCase(repo);
+});
+
+final reviewJoinRequestUseCaseProvider =
+    Provider<ReviewJoinRequestUseCase>((ref) {
+  final repo = ref.watch(groupManagementRepositoryProvider);
+  return ReviewJoinRequestUseCase(repo);
+});
 
 final votePollUseCaseProvider = Provider<VotePollUseCase>((ref) {
   final repo = ref.watch(groupManagementRepositoryProvider);

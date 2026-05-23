@@ -1,6 +1,9 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
 import 'package:flutter_chat/features/group_manager/data/datasources/api/group_management_service.dart';
+import 'package:flutter_chat/features/group_manager/domain/entities/add_group_members_result.dart';
+import 'package:flutter_chat/features/group_manager/domain/entities/group_invite_link.dart';
+import 'package:flutter_chat/features/group_manager/domain/entities/group_join_request.dart';
 import 'package:flutter_chat/features/group_manager/domain/entities/join_group_invite_result.dart';
 import 'package:flutter_chat/features/group_manager/domain/entities/poll_entity.dart';
 import 'package:flutter_chat/features/group_manager/domain/repositories/group_management_repo.dart';
@@ -45,6 +48,88 @@ class GroupManagementRepoImpl extends GroupManagementRepo {
         allowMemberMessage,
         isPublic,
         joinApprovalRequired,
+      );
+      return const Right(null);
+    } catch (e) {
+      return Left(ServerFailure('$e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, GroupInviteLink?>> getInviteLink({
+    required String conversationId,
+  }) async {
+    try {
+      final result = await _service.getInviteLink(conversationId);
+      return Right(result);
+    } catch (e) {
+      return Left(ServerFailure('$e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, GroupInviteLink>> createInviteLink({
+    required String conversationId,
+  }) async {
+    try {
+      final result = await _service.createInviteLink(conversationId);
+      return Right(result);
+    } catch (e) {
+      return Left(ServerFailure('$e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> revokeInviteLink({
+    required String conversationId,
+  }) async {
+    try {
+      await _service.revokeInviteLink(conversationId);
+      return const Right(null);
+    } catch (e) {
+      return Left(ServerFailure('$e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, AddGroupMembersResult>> addMembers({
+    required String conversationId,
+    required List<String> userIds,
+  }) async {
+    try {
+      final result = await _service.addMembers(
+        conversationId: conversationId,
+        userIds: userIds,
+      );
+      return Right(result);
+    } catch (e) {
+      return Left(ServerFailure('$e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<GroupJoinRequest>>> listJoinRequests({
+    required String conversationId,
+  }) async {
+    try {
+      final result = await _service.listJoinRequests(conversationId);
+      return Right(result);
+    } catch (e) {
+      return Left(ServerFailure('$e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> reviewJoinRequest({
+    required String conversationId,
+    required String requestId,
+    required bool approve,
+  }) async {
+    try {
+      await _service.reviewJoinRequest(
+        conversationId: conversationId,
+        requestId: requestId,
+        approve: approve,
       );
       return const Right(null);
     } catch (e) {
