@@ -34,7 +34,7 @@ class MessageBubble extends StatefulWidget {
   final VoidCallback? onOpenFile;
   final ValueChanged<String>? onReplyPreviewTap;
   final bool showReactAction;
-  final String? conversationId;
+  final String conversationId;
 
   /// Called when the user votes on a poll. Receives the pollId and selected optionIds.
   final void Function(String pollId, List<String> optionIds)? onVotePoll;
@@ -52,7 +52,7 @@ class MessageBubble extends StatefulWidget {
     this.showReactAction = false,
     this.onOpenFile,
     this.onReplyPreviewTap,
-    this.conversationId,
+    required this.conversationId,
     this.onVotePoll,
     this.onClosePoll,
   });
@@ -369,7 +369,7 @@ class _MessageBubbleState extends State<MessageBubble> {
           onOpen: onOpenFile ?? () {},
         ),
 
-      ContactCardChatMessage() => _ContactCardBubble(message: message),
+      ContactCardChatMessage() => _ContactCardBubble(message: message, conversationId: widget.conversationId),
 
       PollChatMessage() => _buildPollContent(context, message),
 
@@ -2036,8 +2036,9 @@ class _MessageBubbleState extends State<MessageBubble> {
 
 class _ContactCardBubble extends ConsumerWidget {
   final ContactCardChatMessage message;
+  final String conversationId;
 
-  const _ContactCardBubble({required this.message});
+  const _ContactCardBubble({required this.message, required this.conversationId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -2072,7 +2073,7 @@ class _ContactCardBubble extends ConsumerWidget {
           ),
           if (!isSelf) ...[
             const SizedBox(height: 10),
-            _buildActionRow(context, ref, statusAsync),
+            _buildActionRow(context, ref, statusAsync, conversationId),
           ],
         ],
       ),
@@ -2095,6 +2096,7 @@ class _ContactCardBubble extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     AsyncValue<FriendshipStatus?> statusAsync,
+    String conversationId,
   ) {
     return Row(
       children: [
@@ -2130,7 +2132,7 @@ class _ContactCardBubble extends ConsumerWidget {
               ),
             ),
             error: (_, __) => const SizedBox.shrink(),
-            data: (status) => _buildFriendshipButton(context, ref, status),
+            data: (status) => _buildFriendshipButton(context, ref, status, conversationId),
           ),
         ),
       ],
@@ -2141,13 +2143,14 @@ class _ContactCardBubble extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     FriendshipStatus? status,
+    String conversationId,
   ) {
     final targetId = message.contactUserId;
 
     if (status == null || status.isNone) {
       return OutlinedButton.icon(
         onPressed: () =>
-            ref.read(chatBlocProvider).add(SendFriendRequestEvent(targetId)),
+            ref.read(chatBlocProvider(conversationId)).add(SendFriendRequestEvent(targetId)),
         icon: const Icon(Icons.person_add_outlined, size: 16),
         label: const Text('Add friend'),
         style: _friendBtnStyle(context),
@@ -2157,7 +2160,7 @@ class _ContactCardBubble extends ConsumerWidget {
     if (status.isPendingOut) {
       return OutlinedButton.icon(
         onPressed: () =>
-            ref.read(chatBlocProvider).add(CancelFriendRequestEvent(targetId)),
+            ref.read(chatBlocProvider(conversationId)).add(CancelFriendRequestEvent(targetId)),
         icon: const Icon(Icons.cancel_outlined, size: 16),
         label: const Text('Pending...'),
         style: _friendBtnStyle(context),
@@ -2167,7 +2170,7 @@ class _ContactCardBubble extends ConsumerWidget {
     if (status.isPendingIn) {
       return OutlinedButton.icon(
         onPressed: () =>
-            ref.read(chatBlocProvider).add(AcceptFriendRequestEvent(targetId)),
+            ref.read(chatBlocProvider(conversationId)).add(AcceptFriendRequestEvent(targetId)),
         icon: const Icon(Icons.check_circle_outline, size: 16),
         label: const Text('Accept'),
         style: _friendBtnStyle(context),
@@ -2186,7 +2189,7 @@ class _ContactCardBubble extends ConsumerWidget {
     if (status.isBlocked) {
       return OutlinedButton.icon(
         onPressed: () =>
-            ref.read(chatBlocProvider).add(UnblockUserEvent(targetId)),
+            ref.read(chatBlocProvider(conversationId)).add(UnblockUserEvent(targetId)),
         icon: const Icon(Icons.block_outlined, size: 16),
         label: const Text('Unblock'),
         style: _friendBtnStyle(context),

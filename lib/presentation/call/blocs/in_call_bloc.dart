@@ -382,9 +382,6 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
         add(const InCallLeaveRequested());
         return;
       }
-    } else if (!await _isCurrentUserCaller(session)) {
-      add(const InCallLeaveRequested());
-      return;
     }
 
     emit(

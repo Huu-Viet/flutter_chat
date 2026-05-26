@@ -56,41 +56,73 @@ final realtimeGatewayServiceProvider = Provider<RealtimeGateway>((ref) {
   return service;
 });
 
-final chatAppEventSubscriberProvider = Provider<AppEventSubscriber>((ref) {
-  final chatBloc = ref.read(chatBlocProvider);
+
+final currentChatBlocProvider =
+StateProvider<ChatBloc?>((ref) => null);
+
+final chatAppEventSubscriberProvider =
+Provider<AppEventSubscriber>((ref) {
   return ChatAppEventSubscriber(
-    fetchConversationUseCase: ref.watch(fetchConversationUseCaseProvider),
+    fetchConversationUseCase:
+    ref.watch(fetchConversationUseCaseProvider),
+
     fetchConversationDetailUseCase: ref.watch(
       fetchConversationDetailUseCaseProvider,
     ),
-    fetchMessagesUseCase: ref.watch(fetchMessagesUseCaseProvider),
+
+    fetchMessagesUseCase:
+    ref.watch(fetchMessagesUseCaseProvider),
+
     deleteLocalConversationUseCase: ref.watch(
       deleteLocalConversationUseCaseProvider,
     ),
+
     markMessageDeletedLocalUseCase: ref.watch(
       markMessageDeletedLocalUseCaseProvider,
     ),
+
     markMessageReactionsLocalUseCase: ref.watch(
       markMessageReactionsLocalUseCaseProvider,
     ),
+
     updateUserPresenceLocalUseCase: ref.watch(
       updateUserPresenceLocalUseCaseProvider,
     ),
 
     onTyping: (event) {
+      final chatBloc =
+      ref.read(currentChatBlocProvider);
+
+      if (chatBloc == null) {
+        debugPrint(
+          '[TYPING] ignored: no active chat bloc',
+        );
+        return;
+      }
+
       final state = chatBloc.state;
-      debugPrint('[TYPING] incoming: ${event.conversationId}, ${event.userId}');
+
       debugPrint(
-        '[TYPING] current: ${state is ChatLoaded ? state.conversation?.id : 'no state'}',
+        '[TYPING] incoming: ${event.conversationId}, ${event.userId}',
+      );
+
+      debugPrint(
+        '[TYPING] current: '
+            '${state is ChatLoaded ? state.conversation?.id : 'no state'}',
       );
 
       if (state is! ChatLoaded) return;
 
-      // different conversation → ignore
-      if (event.conversationId != state.conversation?.id) return;
+      // different conversation -> ignore
+      if (event.conversationId !=
+          state.conversation?.id) {
+        return;
+      }
 
-      // owner → ignore
-      if (event.userId == state.currentUserId) return;
+      // current owner -> ignore
+      if (event.userId == state.currentUserId) {
+        return;
+      }
 
       chatBloc.add(event);
     },

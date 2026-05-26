@@ -8,6 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_chat/app/app_providers.dart';
 import 'package:flutter_chat/core/platform_services/export.dart';
 import 'package:flutter_chat/core/network/realtime_gateway.dart';
+import 'package:flutter_chat/features/auth/user_providers.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/features/friendship/domain/entities/friendship_status.dart';
 import 'package:flutter_chat/features/friendship/friendship_providers.dart';
@@ -81,15 +82,26 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   final Set<String> _verifyingActiveGroupCallIds = <String>{};
   final Set<String> _activeGroupCallCheckedConversationIds = <String>{};
 
+  late final ChatBloc _chatBloc;
+
   @override
   void initState() {
     super.initState();
-    ref.read(chatBlocProvider).add(ChatInitialLoadEvent(widget.conversationId));
-    ref.read(chatBlocProvider).add(LoadPollsEvent(widget.conversationId));
+    _chatBloc = ref.read(
+      chatBlocProvider(widget.conversationId),
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref
+          .read(currentChatBlocProvider.notifier)
+          .state = _chatBloc;
+    });
+    ref.read(chatBlocProvider(widget.conversationId)).add(ChatInitialLoadEvent(widget.conversationId));
+    ref.read(chatBlocProvider(widget.conversationId)).add(LoadPollsEvent(widget.conversationId));
     _subscribeChatRealtimeEvents();
     _messageController.addListener(_onComposerTextChanged);
     _scrollController.addListener(() {
-      _onScroll(ref.read(chatBlocProvider));
+      _onScroll(ref.read(chatBlocProvider(widget.conversationId)));
     });
   }
 
@@ -99,6 +111,15 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     _messageController.removeListener(_onComposerTextChanged);
     _messageController.dispose();
     _scrollController.dispose();
+    final current =
+    ref.read(currentChatBlocProvider);
+
+    if (identical(current, _chatBloc)) {
+      ref
+          .read(currentChatBlocProvider.notifier)
+          .state = null;
+    }
+
     super.dispose();
   }
 
@@ -109,13 +130,28 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         return;
       }
 
+      if (event.event == 'typing') {
+        final chatBloc = ref.read(
+          chatBlocProvider(widget.conversationId),
+        );
+        final userAsync = ref.watch(userByIdProvider(event.payload['userId']?.toString() ?? ''));
+        chatBloc.add(
+          TypingChangedEvent(
+            conversationId: widget.conversationId,
+            userId: event.payload['userId']?.toString() ?? '',
+            username: userAsync.value?.displayName ?? userAsync.value?.username ?? '',
+            isTyping: event.payload['isTyping'] == true,
+          ),
+        );
+      }
+
       final payload = event.payload;
 
       if (_isFriendshipStateEvent(event.event)) {
         debugPrint(
           '[ChatPage][FriendshipRealtime] Received ${event.event} payload=$payload',
         );
-        final chatState = ref.read(chatBlocProvider).state;
+        final chatState = ref.read(chatBlocProvider(widget.conversationId)).state;
         if (chatState is! ChatLoaded) {
           debugPrint(
             '[ChatPage][FriendshipRealtime] Ignored ${event.event}: chat state is not ChatLoaded',
@@ -180,7 +216,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             });
           }
           ref
-              .read(chatBlocProvider)
+              .read(chatBlocProvider(widget.conversationId))
               .add(ChatInitialLoadEvent(widget.conversationId));
         }
         return;
@@ -194,7 +230,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       if (event.event == 'message:pinned' ||
           event.event == 'message:unpinned') {
         ref
-            .read(chatBlocProvider)
+            .read(chatBlocProvider(widget.conversationId))
             .add(RefreshPinnedMessagesEvent(widget.conversationId));
         return;
       }
@@ -205,7 +241,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         return;
       }
 
-      ref.read(chatBlocProvider).add(LoadPollsEvent(widget.conversationId));
+      ref.read(chatBlocProvider(widget.conversationId)).add(LoadPollsEvent(widget.conversationId));
     });
   }
 
@@ -694,9 +730,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       }
 
       ref
-          .read(chatBlocProvider)
+          .read(chatBlocProvider(widget.conversationId))
           .add(ChatInitialLoadEvent(widget.conversationId));
-      ref.read(chatBlocProvider).add(LoadPollsEvent(widget.conversationId));
+      ref.read(chatBlocProvider(widget.conversationId)).add(LoadPollsEvent(widget.conversationId));
       return;
     }
 
@@ -745,13 +781,13 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       return;
     }
 
-    ref.read(chatBlocProvider).add(ChatInitialLoadEvent(widget.conversationId));
+    ref.read(chatBlocProvider(widget.conversationId)).add(ChatInitialLoadEvent(widget.conversationId));
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final chatBloc = ref.read(chatBlocProvider);
+    final chatBloc = ref.read(chatBlocProvider(widget.conversationId));
     final outgoingCallBloc = ref.watch(outgoingCallBlocProvider);
 
     return SafeArea(
@@ -829,7 +865,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                 Future.delayed(const Duration(seconds: 2), () {
                   if (mounted) {
                     ref
-                        .read(chatBlocProvider)
+                        .read(chatBlocProvider(widget.conversationId))
                         .add(const ClearJumpHighlightEvent());
                   }
                 });
@@ -857,7 +893,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                 }
 
                 ref
-                    .read(chatBlocProvider)
+                    .read(chatBlocProvider(widget.conversationId))
                     .add(const ConsumeFriendshipActionFeedbackEvent());
               }
             },
@@ -998,7 +1034,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                         pinnedMessages: state.pinnedMessages,
                         onTapItem: (pinMessage) {
                           ref
-                              .read(chatBlocProvider)
+                              .read(chatBlocProvider(widget.conversationId))
                               .add(
                                 JumpToMessageEvent(
                                   conversationId: widget.conversationId,
@@ -1008,7 +1044,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                         },
                         onUnpin: (pinMessage) {
                           ref
-                              .read(chatBlocProvider)
+                              .read(chatBlocProvider(widget.conversationId))
                               .add(
                                 UnpinMessageEvent(
                                   messageId: pinMessage.messageId,
@@ -1050,7 +1086,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                         ),
                     ],
 
-                    if (state is ChatLoaded)
+                    if (state is ChatLoaded && isGroupConversation)
                       OpenPollPanel(pollMessages: state.pollMessages),
                     if (isGroupConversation &&
                         activeGroupCall != null &&
@@ -1495,7 +1531,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         : const <String>[];
 
     ref
-        .read(chatBlocProvider)
+        .read(chatBlocProvider(widget.conversationId))
         .add(
           SendTextEvent(
             conversationId: widget.conversationId,
@@ -1765,7 +1801,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
 
     ref
-        .read(chatBlocProvider)
+        .read(chatBlocProvider(widget.conversationId))
         .add(
           SendStickerEvent(
             conversationId: widget.conversationId,
@@ -1781,7 +1817,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
 
     ref
-        .read(chatBlocProvider)
+        .read(chatBlocProvider(widget.conversationId))
         .add(
           SendAudioEvent(
             conversationId: widget.conversationId,
@@ -1817,7 +1853,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         }
 
         ref
-            .read(chatBlocProvider)
+            .read(chatBlocProvider(widget.conversationId))
             .add(
               SendImageEvent(
                 conversationId: widget.conversationId,
@@ -1853,7 +1889,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
 
     ref
-        .read(chatBlocProvider)
+        .read(chatBlocProvider(widget.conversationId))
         .add(
           SendFileEvent(
             conversationId: widget.conversationId,
@@ -1874,7 +1910,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         if (!mounted) return;
 
         ref
-            .read(chatBlocProvider)
+            .read(chatBlocProvider(widget.conversationId))
             .add(
               SendVideoEvent(
                 conversationId: widget.conversationId,
@@ -1912,7 +1948,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       }
 
       ref
-          .read(chatBlocProvider)
+          .read(chatBlocProvider(widget.conversationId))
           .add(
             SendMultipleImagesEvent(
               conversationId: widget.conversationId,
@@ -1940,7 +1976,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     final canReact = _canReactToMessage(message);
     final canReply = !message.isDeleted;
     final pinMessageId = _resolveMessageIdForAction(message)?.trim();
-    final chatState = ref.read(chatBlocProvider).state;
+    final chatState = ref.read(chatBlocProvider(widget.conversationId)).state;
     final canPin =
         !message.isDeleted && pinMessageId != null && pinMessageId.isNotEmpty;
     final isPinned =
@@ -2050,7 +2086,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             sourceConversationId: widget.conversationId,
             onSend: (List<String> targetConversationIds) {
               ref
-                  .read(chatBlocProvider)
+                  .read(chatBlocProvider(widget.conversationId))
                   .add(
                     ForwardMessageEvent(
                       messageId: message.serverId ?? message.localId ?? '',
@@ -2069,7 +2105,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         if (messageId == null || messageId.isEmpty) return;
 
         ref
-            .read(chatBlocProvider)
+            .read(chatBlocProvider(widget.conversationId))
             .add(
               RevokeMessageEvent(
                 localId: localId,
@@ -2084,7 +2120,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         if (messageId == null || messageId.isEmpty) return;
 
         ref
-            .read(chatBlocProvider)
+            .read(chatBlocProvider(widget.conversationId))
             .add(
               HiddenMessageEvent(
                 localId: localId,
@@ -2096,7 +2132,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         final messageId = _resolveMessageIdForAction(message)?.trim();
         if (messageId == null || messageId.isEmpty) return;
         ref
-            .read(chatBlocProvider)
+            .read(chatBlocProvider(widget.conversationId))
             .add(
               PinMessageEvent(
                 messageId: messageId,
@@ -2107,7 +2143,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         final messageId = _resolveMessageIdForAction(message)?.trim();
         if (messageId == null || messageId.isEmpty) return;
         ref
-            .read(chatBlocProvider)
+            .read(chatBlocProvider(widget.conversationId))
             .add(
               UnpinMessageEvent(
                 messageId: messageId,
@@ -2139,7 +2175,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
 
     ref
-        .read(chatBlocProvider)
+        .read(chatBlocProvider(widget.conversationId))
         .add(
           UpdateMessageReactionEvent(
             messageId: messageId,
@@ -2172,7 +2208,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     }
 
     ref
-        .read(chatBlocProvider)
+        .read(chatBlocProvider(widget.conversationId))
         .add(
           UpdateMessageReactionEvent(
             messageId: messageId,
@@ -2224,7 +2260,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     if (localId == null || localId.trim().isEmpty) return;
 
     ref
-        .read(chatBlocProvider)
+        .read(chatBlocProvider(widget.conversationId))
         .add(
           EditMessageEvent(
             localId: localId,

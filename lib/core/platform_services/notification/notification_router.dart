@@ -11,6 +11,7 @@ class NotificationRouter {
 
   Future<void> route(Map<String, dynamic> data) async {
     // Handle incoming call push — show callkit with caller info
+    debugPrint('$_tag: routing notification with data=$data');
     if (_isIncomingCallPush(data)) {
       debugPrint('$_tag: incoming call push, showing callkit data=$data');
       await _handleIncomingCallPush(data);

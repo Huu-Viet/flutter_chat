@@ -153,7 +153,7 @@ class AuthRemoteServiceImpl implements AuthRemoteService {
     String refreshToken, {
     bool skipAuthRefresh = false,
   }) async {
-    final url = '$_baseAuthUrl/realms/$_realm/protocol/openid-connect/token';
+    final url = '$_baseApiUrl/auth/refresh';
 
     try {
       final response = await _dio.post(
@@ -166,14 +166,11 @@ class AuthRemoteServiceImpl implements AuthRemoteService {
           },
         ),
         data: {
-          'client_id': _clientId,
-          'client_secret': _clientSecret,
-          'grant_type': 'refresh_token',
-          'refresh_token': refreshToken,
+          'refreshToken': refreshToken,
         },
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         return AuthTokenResponse.fromJson(response.data);
       } else {
         throw Exception(response.statusCode);

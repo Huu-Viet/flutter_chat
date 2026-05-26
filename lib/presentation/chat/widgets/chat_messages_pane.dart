@@ -141,7 +141,7 @@ class ChatMessagesPane extends ConsumerWidget {
           onReplyPreviewTap: (replyMessageId) =>
               onReplyPreviewTap(replyMessageId, combinedMessages),
           onVotePoll: (pollId, optionIds) => ref
-              .read(chatBlocProvider)
+              .read(chatBlocProvider(conversationId))
               .add(
                 VotePollEvent(
                   conversationId: conversationId,
@@ -151,7 +151,7 @@ class ChatMessagesPane extends ConsumerWidget {
               ),
           onClosePoll: canManagePoll
               ? (pollId) => ref
-                    .read(chatBlocProvider)
+                    .read(chatBlocProvider(conversationId))
                     .add(
                       ClosePollEvent(
                         conversationId: conversationId,

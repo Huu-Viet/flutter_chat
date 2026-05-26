@@ -524,7 +524,8 @@ class ChatServiceImpl implements ChatService {
     required String filePath,
   }) async {
     try {
-      await _dio.download(url, filePath);
+      final dio = Dio();
+      await dio.download(url, filePath);
     } on DioException catch (e) {
       debugPrint(
         '[ChatServiceImpl] Download file Dio error: status=${e.response?.statusCode}, data=${e.response?.data}',

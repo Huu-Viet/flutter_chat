@@ -7,6 +7,7 @@ import 'package:flutter_chat/core/platform_services/export.dart';
 import 'package:flutter_chat/core/utils/file_utils.dart';
 import 'package:flutter_chat/features/auth/domain/entities/user.dart';
 import 'package:flutter_chat/features/auth/auth_providers.dart';
+import 'package:flutter_chat/features/auth/user_providers.dart';
 import 'package:flutter_chat/features/chat/domain/entities/conversation.dart';
 import 'package:flutter_chat/features/chat/domain/entities/conversation_participant.dart';
 import 'package:flutter_chat/features/group_manager/data/datasources/api/group_management_service.dart';
@@ -18,6 +19,7 @@ import 'package:flutter_chat/features/group_manager/domain/usecase/list_group_jo
 import 'package:flutter_chat/features/group_manager/domain/usecase/review_join_request_usecase.dart';
 import 'package:flutter_chat/features/group_manager/domain/usecase/revoke_group_invite_link_usecase.dart';
 import 'package:flutter_chat/presentation/chat/blocs/chat_ui_actions_cubit.dart';
+import 'package:flutter_chat/presentation/chat/chat_providers.dart';
 import 'package:flutter_chat/presentation/chat/widgets/share_invite_link_dialog.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter_chat/features/group_manager/group_management_provider.dart';
@@ -1584,7 +1586,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
       _buildMemberTab(context),
       _buildSettingsTab(context),
       _buildInviteTab(context),
-      if (_isAdminOrOwner) _buildRequestTab(context),
+      if (_isAdminOrOwner) _buildRequestTab(context, ref),
     ];
 
     return Scaffold(
@@ -2081,7 +2083,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
         _buildSectionCard(
           context,
           title: 'Add Member',
-          subtitle: 'Search users by username and add them to this group.',
+          subtitle: 'Search users by gmail',
           child: Column(
             children: [
               Row(
@@ -2092,8 +2094,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
                       textInputAction: TextInputAction.search,
                       onSubmitted: (_) => _searchUsersForMemberAdd(),
                       decoration: const InputDecoration(
-                        labelText: 'Search users by username',
-                        prefixIcon: Icon(Icons.search),
+                        labelText: 'Search users by gmail',
                       ),
                     ),
                   ),
@@ -2301,7 +2302,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               DropdownButtonFormField<String>(
-                value: _muteDuration,
+                initialValue: _muteDuration,
                 decoration: const InputDecoration(
                   labelText: 'Mute duration',
                   border: OutlineInputBorder(),
@@ -2446,7 +2447,7 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
     );
   }
 
-  Widget _buildRequestTab(BuildContext context) {
+  Widget _buildRequestTab(BuildContext context, WidgetRef ref) {
     if (!_isAdminOrOwner) {
       return const Center(
         child: Padding(
@@ -2482,27 +2483,87 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
                 final requestId = request.requestId;
                 final userId = request.userId;
                 final message = request.requestMessage ?? '';
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(userId.isEmpty ? 'Unknown user' : userId),
-                  subtitle: Text(message.isEmpty ? 'No message' : message),
-                  trailing: requestId.isEmpty
-                      ? null
-                      : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            TextButton(
-                              onPressed: () =>
-                                  _reviewJoinRequest(requestId, true),
-                              child: const Text('Approve'),
-                            ),
-                            TextButton(
-                              onPressed: () =>
-                                  _reviewJoinRequest(requestId, false),
-                              child: const Text('Reject'),
-                            ),
-                          ],
-                        ),
+
+                final userAsync = ref.watch(
+                  userByIdProvider(userId),
+                );
+
+                return userAsync.when(
+                  loading: () => const ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(
+                      child: Icon(Icons.person),
+                    ),
+                    title: Text('Loading user...'),
+                  ),
+
+                  error: (_, __) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.error),
+                    ),
+                    title: Text(
+                      userId.isEmpty ? 'Unknown user' : userId,
+                    ),
+                    subtitle: const Text('Failed to load user'),
+                  ),
+
+                  data: (user) {
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+
+                      leading: CircleAvatar(
+                        backgroundImage:
+                        user?.avatarUrl != null &&
+                            user!.avatarUrl!.isNotEmpty
+                            ? NetworkImage(user.avatarUrl!)
+                            : null,
+                        child:
+                        user?.avatarUrl == null ||
+                            user!.avatarUrl!.isEmpty
+                            ? const Icon(Icons.person)
+                            : null,
+                      ),
+
+                      title: Text(
+                        user?.displayName.isNotEmpty == true
+                            ? user!.displayName
+                            : (userId.isEmpty
+                            ? 'Unknown user'
+                            : userId),
+                      ),
+
+                      subtitle: Text(
+                        message.isEmpty
+                            ? 'No message'
+                            : message,
+                      ),
+
+                      trailing: requestId.isEmpty
+                          ? null
+                          : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TextButton(
+                            onPressed: () =>
+                                _reviewJoinRequest(
+                                  requestId,
+                                  true,
+                                ),
+                            child: const Text('Approve'),
+                          ),
+                          TextButton(
+                            onPressed: () =>
+                                _reviewJoinRequest(
+                                  requestId,
+                                  false,
+                                ),
+                            child: const Text('Reject'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 );
               }),
               if (_joinRequests.isEmpty && !_busyRequests)

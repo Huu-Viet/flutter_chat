@@ -1,5 +1,6 @@
 import 'package:flutter_chat/application/realtime/subscribers/chat_app_event_subscriber.dart';
 import 'package:flutter_chat/features/auth/auth_providers.dart';
+import 'package:flutter_chat/features/auth/domain/entities/user.dart';
 import 'package:flutter_chat/features/chat/chat_providers.dart';
 import 'package:flutter_chat/features/friendship/friendship_providers.dart';
 import 'package:flutter_chat/features/group_manager/group_management_provider.dart';
@@ -7,7 +8,7 @@ import 'package:flutter_chat/features/upload_media/upload_media_providers.dart';
 import 'package:flutter_chat/presentation/chat/blocs/chat_bloc.dart';
 import 'package:riverpod/riverpod.dart';
 
-final chatBlocProvider = Provider<ChatBloc>((ref) {
+final chatBlocProvider = Provider.family<ChatBloc, String>((ref, conversationId) {
   late final ChatBloc bloc;
 
   ChatAppEventSubscriber(

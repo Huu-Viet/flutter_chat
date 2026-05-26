@@ -85,13 +85,13 @@ class _DirectChatInfoPageState extends ConsumerState<DirectChatInfoPage> {
         ? UnblockUserEvent(widget.targetUserId)
         : BlockUserEvent(widget.targetUserId);
 
-    ref.read(chatBlocProvider).add(event);
+    ref.read(chatBlocProvider(widget.conversation.id)).add(event);
 
     // Listen for feedback from BLoC
     if (!mounted) return;
 
     ref.listen<ChatState>(
-      chatBlocProvider.select((bloc) => bloc.state),
+      chatBlocProvider(widget.conversation.id).select((bloc) => bloc.state),
       (previous, current) {
         if (current is ChatLoaded) {
           final feedback = current.conversationState.friendshipActionFeedback;
@@ -157,7 +157,7 @@ class _DirectChatInfoPageState extends ConsumerState<DirectChatInfoPage> {
     final friendshipStatusAsync = ref.watch(
       friendshipStatusProvider(widget.targetUserId),
     );
-    final chatState = ref.watch(chatBlocProvider).state;
+    final chatState = ref.watch(chatBlocProvider(widget.conversation.id)).state;
     final theme = Theme.of(context);
 
     // Track if a friendship action is in progress for this user

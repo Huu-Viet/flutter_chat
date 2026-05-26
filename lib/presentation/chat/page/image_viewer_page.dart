@@ -10,14 +10,14 @@ class ImageViewerPage extends ConsumerStatefulWidget {
   final List<String> previewImagePaths;
   final List<String> mediaIds;
   final int initialIndex;
-  final String? conversationId;
+  final String conversationId;
 
   const ImageViewerPage({
     super.key,
     required this.previewImagePaths,
     required this.mediaIds,
     required this.initialIndex,
-    this.conversationId,
+    required this.conversationId,
   });
 
   @override
@@ -51,7 +51,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage> {
       return;
     }
 
-    ref.read(chatBlocProvider).add(
+    ref.read(chatBlocProvider(widget.conversationId)).add(
       FetchMediaUrlEvent(
         mediaId: mediaId,
         conversationId: widget.conversationId,
@@ -84,7 +84,7 @@ class _ImageViewerPageState extends ConsumerState<ImageViewerPage> {
 
   @override
   Widget build(BuildContext context) {
-    final chatState = ref.watch(chatBlocProvider).state;
+    final chatState = ref.watch(chatBlocProvider(widget.conversationId)).state;
 
     return SafeArea(
       child: Scaffold(
