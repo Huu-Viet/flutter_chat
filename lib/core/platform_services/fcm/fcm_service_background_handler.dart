@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_chat/core/platform_services/export.dart';
+import 'package:flutter_chat/features/call/data/local/pending_call_storage.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 @pragma('vm:entry-point')
@@ -10,7 +11,8 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   final plugin = FlutterLocalNotificationsPlugin();
   final notificationService = NotificationService(plugin);
-  final router = NotificationRouter(notificationService);
+  final pendingCallStorage = PendingCallStorageImpl();
+  final router = NotificationRouter(notificationService, pendingCallStorage);
   final data = Map<String, dynamic>.from(message.data);
   final title = message.notification?.title;
   final body = message.notification?.body;

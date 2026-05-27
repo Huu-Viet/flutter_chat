@@ -1,5 +1,6 @@
 // call services providers
 import 'package:flutter_chat/app/app_providers.dart';
+import 'package:flutter_chat/core/platform_services/platform_service_providers.dart';
 import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/call/data/mappers/api_call_accept_mapper.dart';
 import 'package:flutter_chat/features/call/data/mappers/api_call_mapper.dart';
@@ -33,6 +34,7 @@ final callRepositoryProvider = Provider<CallRepository>((ref) {
     apiCallMapper: ref.read(apiCallMapperProvider),
     apiCallAcceptMapper: ref.read(apiCallAcceptMapperProvider),
     apiCallTokenMapper: ref.read(apiCallTokenMapperProvider),
+    pendingCallStorage: ref.read(pendingCallStorageProvider),
   );
 });
 

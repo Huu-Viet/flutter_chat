@@ -3,11 +3,17 @@ import 'package:flutter_chat/core/platform_services/export.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
 
+import 'package:flutter_chat/features/call/data/local/pending_call_storage.dart';
+
 class NotificationRouter {
   static const String _tag = 'NotificationRouter';
   final NotificationService _notificationService;
+  final PendingCallStorage _pendingCallStorage;
 
-  NotificationRouter(this._notificationService);
+  NotificationRouter(
+      this._notificationService,
+      this._pendingCallStorage,
+  );
 
   Future<void> route(Map<String, dynamic> data) async {
     // Handle incoming call push — show callkit with caller info
@@ -109,6 +115,14 @@ class NotificationRouter {
       callerId: callerId.isNotEmpty ? callerId : null,
       conversationType: conversationType.isNotEmpty ? conversationType : null,
     );
+    await _pendingCallStorage.saveAcceptedCall({
+      'callId': callId,
+      'conversationId': conversationId,
+      'callerId': callerId,
+      'callerName': callerName,
+      'callerAvatar': callerAvatar,
+      'conversationType': conversationType,
+    });
   }
 
   bool _isFriendRequest(Map<String, dynamic> data) {

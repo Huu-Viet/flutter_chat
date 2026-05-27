@@ -5,6 +5,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/app/app_permission.dart';
 import 'package:flutter_chat/features/auth/export.dart';
+import 'package:flutter_chat/features/call/data/local/pending_call_storage.dart';
 import 'package:flutter_chat/features/call/export.dart';
 import 'package:livekit_client/livekit_client.dart';
 
@@ -17,6 +18,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
   final CallRepository _callRepository;
   final GetCurrentUserIdUseCase _getCurrentUserIdUseCase;
   final GetUserByIdUseCase _getUserByIdUseCase;
+  final PendingCallStorage _pendingCallStorage = PendingCallStorageImpl();
 
   EventsListener<RoomEvent>? _roomListener;
   VoidCallback? _roomRefreshListener;
@@ -373,6 +375,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     InCallEndRequested event,
     Emitter<InCallState> emit,
   ) async {
+    await _pendingCallStorage.clearAcceptedCall();
     final session = state.session;
     if (session == null || state.isEndingCall) return;
     if (session.isGroupCall && !_isRingingSession(session)) {
@@ -679,6 +682,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     String callId,
     Emitter<InCallState> emit,
   ) async {
+    await _pendingCallStorage.clearAcceptedCall();
     final normalizedCallId = callId.trim();
     if (normalizedCallId.isEmpty) return;
 

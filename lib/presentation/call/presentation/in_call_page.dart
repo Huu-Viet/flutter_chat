@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_chat/core/platform_services/platform_service_providers.dart';
 import 'package:flutter_chat/features/call/call_providers.dart';
 import 'package:flutter_chat/features/call/export.dart';
@@ -34,9 +35,13 @@ class InCallPage extends ConsumerWidget {
             previous.errorMessage != current.errorMessage ||
             previous.mediaErrorMessage != current.mediaErrorMessage ||
             previous.endStatus != current.endStatus,
-        listener: (context, state) {
+        listener: (context, state) async {
           if (state is InCallEnded) {
             ref.read(notiServiceProvider).endCallKit(state.endedCallId);
+            final calls =
+                await FlutterCallkitIncoming.activeCalls();
+
+            debugPrint('[AFTER END] $calls');
             debugPrint('[InCallPage]Check conversation: $conversationId');
             if ((state.endedCallId ?? '').trim().isEmpty &&
                 conversationId.trim().isNotEmpty) {

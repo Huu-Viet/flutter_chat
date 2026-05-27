@@ -46,6 +46,7 @@ class _MyAppState extends ConsumerState<MyApp> {
     _appLinks = AppLinks();
     _initDeepLinks();
     _initCallKitEvents();
+    _recoverAcceptedCall();
     _bindInCallPanel();
     _bindRouteChangeListener();
   }
@@ -130,7 +131,7 @@ class _MyAppState extends ConsumerState<MyApp> {
   }
 
   void _initCallKitEvents() {
-    _callKitEventSubscription = FlutterCallkitIncoming.onEvent.listen((event) {
+    _callKitEventSubscription = FlutterCallkitIncoming.onEvent.listen((event) async {
       if (event == null) {
         return;
       }
@@ -184,6 +185,16 @@ class _MyAppState extends ConsumerState<MyApp> {
             debugPrint('[MyApp] CallKit accept: navigating to $destination');
             router.go(destination);
           });
+          await ref.read(pendingCallStorageProvider)
+              .saveAcceptedCall({
+            'callId': call.id,
+            'conversationId': call.conversationId,
+            'callerId': call.callerId,
+            'callerName': call.callerName,
+            'callerAvatar': call.callerAvatar,
+            'conversationType':
+            isGroupCall ? 'group' : 'direct',
+          });
           break;
 
         case Event.actionCallDecline:
@@ -203,6 +214,47 @@ class _MyAppState extends ConsumerState<MyApp> {
           break;
       }
     });
+  }
+
+  Future<void> _recoverAcceptedCall() async {
+    final pending =
+    await ref.read(pendingCallStorageProvider)
+        .getAcceptedCall();
+
+    debugPrint('[RECOVER] pending=$pending');
+
+    if (pending == null) {
+      return;
+    }
+
+    await ref
+        .read(pendingCallStorageProvider)
+        .clearAcceptedCall();
+
+    final call = CallInfo(
+      id: pending['callId'] ?? '',
+      conversationId: pending['conversationId'] ?? '',
+      callerId: pending['callerId'] ?? '',
+      callerName: pending['callerName'] ?? '',
+      callerAvatar: pending['callerAvatar'] ?? '',
+      participants: const [],
+      status: 'ACCEPTED',
+      createdAt: DateTime.now(),
+      startedAt: DateTime.now(),
+      endedAt: DateTime.now(),
+    );
+
+    ref.read(inCallBlocProvider).add(
+      InCallIncomingAccepted(
+        call,
+        isGroupCall:
+        pending['conversationType'] == 'group',
+      ),
+    );
+
+    ref.read(routerProvider).go(
+      '/in-call?conversationId=${Uri.encodeComponent(call.conversationId)}',
+    );
   }
 
   String? _extractCallIdFromCallKitEvent(CallEvent event) {

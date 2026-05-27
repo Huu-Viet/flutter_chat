@@ -1,3 +1,4 @@
+import 'package:flutter_chat/features/call/data/local/pending_call_storage.dart';
 import 'package:flutter_chat/features/call/domain/repositories/call_repository.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
@@ -15,16 +16,19 @@ class CallRepoImpl extends CallRepository {
   final ApiCallMapper _apiCallMapper;
   final ApiCallAcceptMapper _apiCallAcceptMapper;
   final ApiCallTokenMapper _apiCallTokenMapper;
+  final PendingCallStorage _pendingCallStorage;
 
   CallRepoImpl({
     required CallRemoteDataSource callRemoteDataSource,
     required ApiCallMapper apiCallMapper,
     required ApiCallAcceptMapper apiCallAcceptMapper,
     required ApiCallTokenMapper apiCallTokenMapper,
+    required PendingCallStorage pendingCallStorage,
   }) : _callRemoteDataSource = callRemoteDataSource,
        _apiCallMapper = apiCallMapper,
        _apiCallAcceptMapper = apiCallAcceptMapper,
-       _apiCallTokenMapper = apiCallTokenMapper;
+       _apiCallTokenMapper = apiCallTokenMapper,
+       _pendingCallStorage = pendingCallStorage;
 
   @override
   Future<Either<Failure, CallInfo>> startCall(
@@ -71,6 +75,7 @@ class CallRepoImpl extends CallRepository {
   @override
   Future<Either<Failure, CallInfo>> endCall(String callId) async {
     try {
+      await _pendingCallStorage.clearAcceptedCall();
       final response = await _callRemoteDataSource.endCall(callId);
       return Right(_apiCallMapper.toDomain(response));
     } catch (e) {
