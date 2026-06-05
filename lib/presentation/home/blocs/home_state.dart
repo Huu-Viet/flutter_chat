@@ -20,6 +20,7 @@ final class HomeLoaded extends HomeState {
   final int limit;
   final bool hasMore;
   final bool isLoadingMore;
+  final bool isUpdateOffsetSuccess;
 
   const HomeLoaded({
     required this.conversations,
@@ -27,6 +28,7 @@ final class HomeLoaded extends HomeState {
     required this.limit,
     required this.hasMore,
     this.isLoadingMore = false,
+    this.isUpdateOffsetSuccess = false,
   });
 
   HomeLoaded copyWith({
@@ -35,6 +37,7 @@ final class HomeLoaded extends HomeState {
     int? limit,
     bool? hasMore,
     bool? isLoadingMore,
+    bool? isUpdateOffsetSuccess,
   }) {
     return HomeLoaded(
       conversations: conversations ?? this.conversations,
@@ -42,11 +45,12 @@ final class HomeLoaded extends HomeState {
       limit: limit ?? this.limit,
       hasMore: hasMore ?? this.hasMore,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      isUpdateOffsetSuccess: isUpdateOffsetSuccess ?? this.isUpdateOffsetSuccess,
     );
   }
 
   @override
-  List<Object?> get props => [conversations, page, limit, hasMore, isLoadingMore];
+  List<Object?> get props => [conversations, page, limit, hasMore, isLoadingMore, isUpdateOffsetSuccess];
 }
 
 final class HomeFailure extends HomeState {

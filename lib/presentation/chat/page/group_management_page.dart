@@ -757,6 +757,18 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
   ) async {
     if (!_isAdminOrOwner) return;
 
+    // Validation 1: Cannot set role for self
+    if (member.userId.trim() == widget.currentUserId.trim()) {
+      _toast('You cannot change your own role');
+      return;
+    }
+
+    // Validation 2: Admin cannot set owner role
+    if (_myRole == 'admin' && newRole.toLowerCase() == 'owner') {
+      _toast('Only the owner can assign owner role');
+      return;
+    }
+
     try {
       await _dio.patch(
         _url(
@@ -2196,29 +2208,41 @@ class _GroupManagementPageState extends ConsumerState<GroupManagementPage>
                         : Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              PopupMenuButton<String>(
-                                tooltip: 'Change role',
-                                onSelected: (role) =>
-                                    _updateMemberRole(member, role),
-                                itemBuilder: (_) => const [
-                                  PopupMenuItem(
-                                    value: 'member',
-                                    child: Text('Set MEMBER'),
+                              // Hide role button if it's self
+                              if (!isMe)
+                                PopupMenuButton<String>(
+                                  tooltip: 'Change role',
+                                  onSelected: (role) =>
+                                      _updateMemberRole(member, role),
+                                  itemBuilder: (_) {
+                                    final items = <PopupMenuItem<String>>[
+                                      const PopupMenuItem(
+                                        value: 'member',
+                                        child: Text('Set MEMBER'),
+                                      ),
+                                      const PopupMenuItem(
+                                        value: 'admin',
+                                        child: Text('Set ADMIN'),
+                                      ),
+                                    ];
+                                    
+                                    // Only owner can set owner role
+                                    if (_myRole == 'owner') {
+                                      items.add(
+                                        const PopupMenuItem(
+                                          value: 'owner',
+                                          child: Text('Set OWNER'),
+                                        ),
+                                      );
+                                    }
+                                    
+                                    return items;
+                                  },
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(8.0),
+                                    child: Icon(Icons.manage_accounts_outlined),
                                   ),
-                                  PopupMenuItem(
-                                    value: 'admin',
-                                    child: Text('Set ADMIN'),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'owner',
-                                    child: Text('Set OWNER'),
-                                  ),
-                                ],
-                                child: const Padding(
-                                  padding: EdgeInsets.all(8.0),
-                                  child: Icon(Icons.manage_accounts_outlined),
                                 ),
-                              ),
                               IconButton(
                                 tooltip: 'Remove',
                                 onPressed: isMe

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_chat/app/app_providers.dart';
 import 'package:flutter_chat/application/realtime/call_action.dart';
 import 'package:flutter_callkit_incoming/entities/call_event.dart';
@@ -31,6 +32,8 @@ class _MyAppState extends ConsumerState<MyApp> {
     'zolo.chat',
     'zolo-smoky.vercel.app',
   };
+  static const MethodChannel _callChannel =
+      MethodChannel('com.example.flutter_chat/call');
 
   late final AppLinks _appLinks;
   StreamSubscription<Uri>? _deepLinkSubscription;
@@ -46,6 +49,7 @@ class _MyAppState extends ConsumerState<MyApp> {
     _appLinks = AppLinks();
     _initDeepLinks();
     _initCallKitEvents();
+    _initializeSocketIfAcceptedCall();
     _recoverAcceptedCall();
     _bindInCallPanel();
     _bindRouteChangeListener();
@@ -59,6 +63,34 @@ class _MyAppState extends ConsumerState<MyApp> {
       final router = ref.read(routerProvider);
       router.routerDelegate.addListener(_onRouteChanged);
     });
+  }
+
+  /// Initialize socket connection early if this is an accepted call from native
+  /// When user accepts call from notification while app is terminated,
+  /// socket needs to connect ASAP to avoid missing call events
+  Future<void> _initializeSocketIfAcceptedCall() async {
+    try {
+      final callData = await _callChannel.invokeMethod<Map<dynamic, dynamic>>(
+        'getAcceptedCallData',
+      );
+      
+      if (callData != null && mounted) {
+        final callId = callData['callId']?.toString();
+        final action = callData['action']?.toString();
+        
+        if (action == 'accept_call' && callId != null && callId.isNotEmpty) {
+          debugPrint('[MyApp] Detected accepted call from native: callId=$callId');
+          // Initialize ONLY call socket connection immediately
+          // This ensures we don't miss call:join_room and other call events
+          await ref.read(realtimeGatewayServiceProvider).reconnectCallOnly();
+          debugPrint('[MyApp] Call socket reconnected for accepted call: callId=$callId');
+        }
+      }
+    } on PlatformException catch (e) {
+      debugPrint('[MyApp] PlatformException while getting accepted call: ${e.message}');
+    } catch (e) {
+      debugPrint('[MyApp] Error initializing socket for accepted call: $e');
+    }
   }
 
   void _onRouteChanged() {
@@ -392,6 +424,12 @@ class _MyAppState extends ConsumerState<MyApp> {
   }
 
   void _handleDeepLink(Uri uri) {
+    // Check for chat notification deeplink: flutter_chat://chat/{conversationId}
+    if (_isChatDeepLink(uri)) {
+      _handleChatDeepLink(uri);
+      return;
+    }
+
     if (!_isJoinInviteDeepLink(uri)) {
       return;
     }
@@ -414,6 +452,48 @@ class _MyAppState extends ConsumerState<MyApp> {
         return;
       }
 
+      router.go(targetPath);
+    });
+  }
+
+  bool _isChatDeepLink(Uri uri) {
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme != 'flutter_chat') {
+      return false;
+    }
+
+    final pathSegments = uri.pathSegments;
+    return pathSegments.isNotEmpty && pathSegments.first == 'chat';
+  }
+
+  void _handleChatDeepLink(Uri uri) {
+    final pathSegments = uri.pathSegments;
+    if (pathSegments.length < 2) {
+      debugPrint('[MyApp] Invalid chat deeplink: missing conversationId');
+      return;
+    }
+
+    final conversationId = pathSegments[1].trim();
+    if (conversationId.isEmpty) {
+      debugPrint('[MyApp] Invalid chat deeplink: empty conversationId');
+      return;
+    }
+
+    debugPrint('[MyApp] Handling chat deeplink: conversationId=$conversationId');
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      final router = ref.read(routerProvider);
+      final targetPath = '/chat/$conversationId';
+      final currentPath = router.routeInformationProvider.value.uri.path;
+      if (currentPath == targetPath) {
+        return;
+      }
+
+      debugPrint('[MyApp] Navigating to chat deeplink: $targetPath');
       router.go(targetPath);
     });
   }

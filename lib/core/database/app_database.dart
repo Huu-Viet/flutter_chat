@@ -157,6 +157,19 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  Future<void> updateConversationMyOffset({
+    required String conversationId,
+    required int offset,
+  }) async {
+    await (update(
+      chatConversations,
+    )..where((tbl) => tbl.id.equals(conversationId))).write(
+      ChatConversationsCompanion(
+        myOffset: Value(offset),
+      ),
+    );
+  }
+
   Future<List<ChatConversationEntity>> getAllChatConversations() {
     return (select(
       chatConversations,

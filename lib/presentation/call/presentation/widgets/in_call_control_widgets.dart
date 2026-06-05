@@ -187,12 +187,12 @@ class _ActiveCallControls extends StatelessWidget {
                 isActive: isMicEnabled,
                 onTap: onToggleMic,
               ),
-              _CallActionButton(
-                icon: isSpeakerOn ? Icons.volume_up : Icons.volume_off,
-                label: 'Speaker',
-                isActive: isSpeakerOn,
-                onTap: onToggleSpeaker,
-              ),
+              // _CallActionButton(
+              //   icon: isSpeakerOn ? Icons.volume_up : Icons.volume_off,
+              //   label: 'Speaker',
+              //   isActive: isSpeakerOn,
+              //   onTap: onToggleSpeaker,
+              // ),
               _CallActionButton(
                 icon: isCameraEnabled ? Icons.videocam : Icons.videocam_off,
                 label: isCameraUpdating

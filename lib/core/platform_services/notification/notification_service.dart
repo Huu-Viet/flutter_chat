@@ -7,20 +7,26 @@ import 'package:flutter_callkit_incoming/entities/ios_params.dart';
 import 'package:flutter_callkit_incoming/entities/notification_params.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_chat/core/constants/app_constants.dart';
+import 'package:flutter_chat/features/call/export.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class NotificationService {
   static const String _tag = "CreateNotification";
 
   final FlutterLocalNotificationsPlugin _localNotiPlugin;
+  final CallRepository _callRepository;
+  final _deeplinkKey = 'deeplink';
   bool _initialized = false;
 
-  NotificationService(this._localNotiPlugin);
+  NotificationService(this._localNotiPlugin, this._callRepository);
 
   Future<void> ensureInitialized() async {
     if (_initialized) {
+      debugPrint('[NOTI] already initialized');
       return;
     }
+    debugPrint('[NOTI] doing initialization');
 
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings();
@@ -29,7 +35,39 @@ class NotificationService {
       iOS: iosSettings,
     );
 
-    await _localNotiPlugin.initialize(settings: initializationSettings);
+    await _localNotiPlugin.initialize(
+        settings: initializationSettings,
+        onDidReceiveBackgroundNotificationResponse: (notificationResponse) async {
+          debugPrint('[NOTI]: notification tapped in background');
+          final prefs = await SharedPreferences.getInstance();
+          final data = notificationResponse.payload != null
+              ? jsonDecode(notificationResponse.payload!)
+              : null;
+          final String? title = data[AppConstants.title];
+          final String? chatId = data[AppConstants.chatId];
+
+          debugPrint('$_tag: createChatNotification title=$title chatId=$chatId data=$data');
+          await prefs.setString(_deeplinkKey, jsonEncode({
+            'chat_id': chatId,
+            'title': title,
+          }));
+        },
+        onDidReceiveNotificationResponse: (notificationResponse) async {
+          debugPrint('[NOTI]: notification tapped in foreground');
+          final prefs = await SharedPreferences.getInstance();
+          final data = notificationResponse.payload != null
+              ? jsonDecode(notificationResponse.payload!)
+              : null;
+          final String? title = data[AppConstants.title];
+          final String? chatId = data[AppConstants.chatId];
+
+          debugPrint('$_tag: createChatNotification title=$title chatId=$chatId data=$data');
+          await prefs.setString(_deeplinkKey, jsonEncode({
+            'chat_id': chatId,
+            'title': title,
+          }));
+        }
+    );
     _initialized = true;
     debugPrint('$_tag: local notification plugin initialized');
   }
@@ -124,9 +162,10 @@ class NotificationService {
   }
 
   Future<void> endCallKit(String? callId) async {
-    final normalizedCallId = callId?.trim() ?? '';
+    final normalizedCallId = callId ?? '';
     try {
       if (normalizedCallId.isNotEmpty) {
+        await _callRepository.endCall(normalizedCallId);
         await FlutterCallkitIncoming.endCall(normalizedCallId);
         debugPrint('$_tag: endCallKit id=$normalizedCallId');
         return;
@@ -139,13 +178,12 @@ class NotificationService {
     }
   }
 
-  Future<void> createChatNotification(Map<String, dynamic> data) async {
+  Future<void> createChatNotification(Map<String, dynamic> data, {String? deepLink}) async {
     await ensureInitialized();
 
     int notificationId = 1;
     final String? title = data[AppConstants.title];
     final String? bodyMessage = data[AppConstants.bodyMessage];
-    final String? deepLink = data[AppConstants.clickAction];
     final String? chatId = data[AppConstants.chatId];
 
     //for each user have only 1 notification id.
@@ -154,8 +192,6 @@ class NotificationService {
       notificationId = chatId.hashCode;
       debugPrint("$_tag: notificationId: $notificationId");
     }
-
-    debugPrint('$_tag: createChatNotification title=$title chatId=$chatId deepLink=$deepLink data=$data');
 
     const AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
         AppConstants.chatChannelId,
@@ -192,7 +228,7 @@ class NotificationService {
       notificationDetails: notificationDetails,
       payload: jsonEncode({
         'chat_id': chatId,
-        'deeplink': deepLink,
+        'title': title,
       }),
     );
     debugPrint('$_tag: chat notification shown id=$notificationId');
@@ -206,6 +242,11 @@ class NotificationService {
     final String? deepLink = data[AppConstants.clickAction];
 
     debugPrint('$_tag: createGenericNotification title=$title deepLink=$deepLink data=$data');
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_deeplinkKey, jsonEncode({
+      'chat_id': data['conversationId']?.toString(),
+      'title': title,
+    }));
 
     const AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
       AppConstants.systemChannelId,

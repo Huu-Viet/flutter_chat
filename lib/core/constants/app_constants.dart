@@ -30,7 +30,7 @@ class AppConstants {
   static const String systemChannelId = 'system_notifications';
   static const String systemChannelName = 'System Notifications';
   //chat
-  static const String chatId = 'chat_id';
+  static const String chatId = 'conversationId';
   //for firestore collection
   static const String usersCollection = 'users';
   static const String deviceTokensCollection = 'deviceTokens';

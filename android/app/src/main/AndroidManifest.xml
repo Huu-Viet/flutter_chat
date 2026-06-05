@@ -5,6 +5,11 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+    
+    <!-- Permissions for call notifications and services -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
         android:label="flutter_chat"
         android:name="${applicationName}"
@@ -48,6 +53,35 @@
                     android:pathPrefix="/join/" />
             </intent-filter>
         </activity>
+
+        <!-- FCM BroadcastReceiver for handling FCM messages when app is not running -->
+        <receiver
+            android:name=".fcm.FCMBroadcastReceiver"
+            android:exported="true"
+            android:permission="com.google.android.c2dm.permission.SEND">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+            </intent-filter>
+        </receiver>
+
+        <!-- Call Decline Action Receiver -->
+        <receiver
+            android:name=".fcm.CallDeclineReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.example.flutter_chat.DECLINE_CALL"/>
+            </intent-filter>
+        </receiver>
+
+        <!-- CustomCallService for showing incoming call notifications -->
+        <service
+            android:name=".fcm.CustomCallService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.example.flutter_chat.INCOMING_CALL" />
+            </intent-filter>
+        </service>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

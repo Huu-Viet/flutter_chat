@@ -4,6 +4,7 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/app/app_permission.dart';
+import 'package:flutter_chat/core/network/realtime_gateway.dart';
 import 'package:flutter_chat/features/auth/export.dart';
 import 'package:flutter_chat/features/call/data/local/pending_call_storage.dart';
 import 'package:flutter_chat/features/call/export.dart';
@@ -19,6 +20,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
   final GetCurrentUserIdUseCase _getCurrentUserIdUseCase;
   final GetUserByIdUseCase _getUserByIdUseCase;
   final PendingCallStorage _pendingCallStorage = PendingCallStorageImpl();
+  final RealtimeGateway _realtimeGateway;
 
   EventsListener<RoomEvent>? _roomListener;
   VoidCallback? _roomRefreshListener;
@@ -30,11 +32,13 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     required CallRepository callRepository,
     required GetCurrentUserIdUseCase getCurrentUserIdUseCase,
     required GetUserByIdUseCase getUserByIdUseCase,
+    required RealtimeGateway realtimeGateway,
   }) : _acceptIncomingCallUseCase = acceptIncomingCallUseCase,
        _endCallUseCase = endCallUseCase,
        _callRepository = callRepository,
        _getCurrentUserIdUseCase = getCurrentUserIdUseCase,
        _getUserByIdUseCase = getUserByIdUseCase,
+       _realtimeGateway = realtimeGateway,
        super(InCallState.initial()) {
     on<InCallOutgoingStarted>(_onOutgoingStarted);
     on<InCallIncomingAccepted>(_onIncomingAccepted);
@@ -126,7 +130,13 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
       (failure) async {
         final errorMsg = 'Accept call failed: ${failure.message}';
         debugPrint('[InCallBloc] _onIncomingAccepted: FAILED -> $errorMsg');
+        //TODO: retry connect call socket
+        await _realtimeGateway.reconnectCallOnly();
+        //add again to update UI after attempting to fix transient socket issue
+        //change state accepting to false to allow user to try accepting again if needed, since the socket reconnect may not succeed in fixing the issue
         emit(state.copyWith(isAcceptingCall: false, errorMessage: errorMsg));
+        add(InCallIncomingAccepted(event.call, isGroupCall: event.isGroupCall));
+        // emit(state.copyWith(isAcceptingCall: false, errorMessage: errorMsg));
       },
       (acceptedCall) async {
         debugPrint(
@@ -273,6 +283,7 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
     InCallRejoinRequested event,
     Emitter<InCallState> emit,
   ) async {
+    debugPrint('[REJOIN] START');
     final callId = event.call.id.trim();
     if (callId.isEmpty || state.isAcceptingCall) return;
 
@@ -384,6 +395,8 @@ class InCallBloc extends Bloc<InCallEvent, InCallState> {
       if (_activeCallParticipantCount(session) > 2) {
         add(const InCallLeaveRequested());
         return;
+      } else {
+
       }
     }
 

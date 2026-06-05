@@ -78,6 +78,7 @@ final chatBlocProvider = Provider.family<ChatBloc, String>((ref, conversationId)
     blockUserUseCase: ref.read(blockUserUseCaseProvider),
     unblockUserUseCase: ref.read(unblockUserUseCaseProvider),
     downloadFileUseCase: ref.read(downloadFileUseCaseProvider),
+    updateMyOffsetUseCase: ref.read(updateMyOffsetUseCaseProvider),
   );
   ref.onDispose(bloc.close);
   return bloc;

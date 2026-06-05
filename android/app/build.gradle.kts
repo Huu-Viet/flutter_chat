@@ -45,6 +45,10 @@ android {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    
+    // OkHttp for FCM background handler
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
+    implementation("com.google.firebase:firebase-messaging")
 }
 
 flutter {

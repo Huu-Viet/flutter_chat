@@ -141,6 +141,43 @@ class RealtimeGatewayService implements RealtimeGateway {
     }
   }
 
+  @override
+  Future<void> reconnectCallOnly() async {
+    if (_isConnecting) return;
+    _isConnecting = true;
+
+    if (_enableRealtimeLogs) {
+      debugPrint('[RealtimeGatewayService] reconnectCallOnly requested');
+    }
+
+    try {
+      final accessToken = await _resolveAccessToken();
+      if (accessToken == null || accessToken.isEmpty) {
+        debugPrint(
+          '[RealtimeGatewayService] Skip connect: missing access token',
+        );
+        return;
+      }
+
+      if (_enableRealtimeLogs) {
+        debugPrint(
+          '[RealtimeGatewayService] access token ready for call connect (${accessToken.length} chars)',
+        );
+      }
+
+      // Dispose only call socket, keep chat socket intact
+      _callSocket?.disconnect();
+      _callSocket = null;
+      _callAuthenticated = false;
+
+      await _connectCallNamespace(accessToken: accessToken);
+    } catch (e) {
+      debugPrint('[RealtimeGatewayService] reconnectCallOnly failed: $e');
+    } finally {
+      _isConnecting = false;
+    }
+  }
+
   Future<void> _connectChatNamespace({
     required String accessToken,
     required String deviceToken,

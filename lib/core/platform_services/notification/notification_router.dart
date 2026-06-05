@@ -7,6 +7,8 @@ import 'package:flutter_chat/features/call/data/local/pending_call_storage.dart'
 
 class NotificationRouter {
   static const String _tag = 'NotificationRouter';
+  static const String _deepLinkScheme = 'flutter_chat';
+  
   final NotificationService _notificationService;
   final PendingCallStorage _pendingCallStorage;
 
@@ -47,9 +49,6 @@ class NotificationRouter {
       await _notificationService.createFriendRequestNotification(data);
       return;
     }
-
-    debugPrint('$_tag: routing generic notification data=$data');
-    await _notificationService.createGenericNotification(data);
   }
 
   bool _isIncomingCallPush(Map<String, dynamic> data) {
@@ -155,5 +154,11 @@ class NotificationRouter {
 
     return type.startsWith('call_') ||
         type.startsWith('call:');
+  }
+
+  /// Build deeplink to navigate directly to conversation
+  /// Pattern: flutter_chat://chat/{conversationId}
+  String _buildDeepLinkForConversation(String conversationId) {
+    return '$_deepLinkScheme://chat/$conversationId';
   }
 }

@@ -1,16 +1,11 @@
+import 'package:flutter_chat/app/app_providers.dart';
 import 'package:flutter_chat/features/call/call_providers.dart';
 import 'package:flutter_chat/features/auth/auth_providers.dart';
-import 'package:flutter_chat/presentation/call/blocs/call_bloc.dart';
 import 'package:flutter_chat/presentation/call/blocs/in_call_bloc.dart';
 import 'package:flutter_chat/presentation/call/blocs/outgoing_call_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 //incoming call provider
-
-final callBlocProvider = Provider<CallBloc>((ref) {
-  // final sendCallRequest = ref.watch(sendCallRequestUseCaseProvider);
-  return CallBloc();
-});
 
 final inCallStateProvider = StreamProvider<InCallState>((ref) {
   final bloc = ref.watch(inCallBlocProvider);
@@ -24,6 +19,7 @@ final inCallBlocProvider = Provider<InCallBloc>((ref) {
     callRepository: ref.read(callRepositoryProvider),
     getCurrentUserIdUseCase: ref.read(getCurrentUserIdUseCaseProvider),
     getUserByIdUseCase: ref.read(getUserByIdUseCaseProvider),
+    realtimeGateway: ref.read(realtimeGatewayServiceProvider),
   );
 
   ref.onDispose(bloc.close);

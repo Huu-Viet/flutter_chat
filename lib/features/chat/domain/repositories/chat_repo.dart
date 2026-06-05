@@ -17,6 +17,11 @@ abstract class ChatRepository {
 
   Future<Either<Failure, List<Conversation>>> getConversations();
 
+  Future<Either<Failure, void>> updateConversationMyOffset({
+    required String conversationId,
+    required int offset,
+  });
+
   Future<Either<Failure, void>> joinConversation(String conversationId);
 
   Future<Either<Failure, List<Message>>> fetchMessages(

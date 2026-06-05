@@ -14,6 +14,7 @@ import 'package:flutter_chat/features/chat/domain/entities/messages/message_medi
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/file_media.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/image_media.dart';
 import 'package:flutter_chat/features/chat/domain/entities/messages/message_media_info/video_media.dart';
+import 'package:flutter_chat/features/chat/domain/usecases/update_my_offset_usecase.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/features/friendship/export.dart';
 import 'package:flutter_chat/features/upload_media/domain/usecases/upload_multipart_usecase.dart';
@@ -68,6 +69,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final BlockUserUseCase blockUserUseCase;
   final UnblockUserUseCase unblockUserUseCase;
   final DownloadFileUseCase downloadFileUseCase;
+  final UpdateMyOffsetUseCase updateMyOffsetUseCase;
 
   String? _currentUserId;
   String? _currentConversationId;
@@ -137,6 +139,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     required this.blockUserUseCase,
     required this.unblockUserUseCase,
     required this.downloadFileUseCase,
+    required this.updateMyOffsetUseCase,
   }) : super(ChatInitial()) {
     on<ChatInitialLoadEvent>(_onChatInitialLoad);
     on<SendTextEvent>(_onSendText);

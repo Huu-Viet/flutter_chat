@@ -22,6 +22,7 @@ final homeBlocProvider = Provider<HomeBloc>((ref) {
       updateConversationLastMessageLocalUseCaseProvider,
     ),
     realtimeGateway: ref.read(realtimeGatewayServiceProvider),
+    updateMyOffsetUseCase: ref.read(updateMyOffsetUseCaseProvider),
   );
   ref.onDispose(bloc.close);
 

@@ -6,6 +6,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat/core/network/realtime_gateway.dart';
 import 'package:flutter_chat/core/errors/failure.dart';
+import 'package:flutter_chat/features/chat/domain/usecases/update_my_offset_usecase.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:flutter_chat/features/friendship/export.dart';
 import 'package:flutter_chat/features/group_manager/domain/usecase/create_group_usecase.dart';
@@ -14,6 +15,7 @@ part 'home_event.dart';
 part 'home_state.dart';
 
 class HomeBloc extends Bloc<HomeEvent, HomeState> {
+  final String _tag = 'HOME_BLOC';
   final FetchConversationUseCase fetchConversationUseCase;
   final WatchConversationsLocalUseCase watchConversationsLocalUseCase;
   final SyncFriendshipsToLocalUseCase syncFriendshipsToLocalUseCase;
@@ -22,6 +24,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   final UpdateConversationLastMessageLocalUseCase
   updateConversationLastMessageLocalUseCase;
   final RealtimeGateway realtimeGateway;
+  final UpdateMyOffsetUseCase updateMyOffsetUseCase;
 
   StreamSubscription<Either<Failure, List<Conversation>>>? _localSubscription;
   StreamSubscription<RealtimeGatewayEvent>? _realtimeSubscription;
@@ -38,6 +41,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     required this.createGroupUseCase,
     required this.updateConversationLastMessageLocalUseCase,
     required this.realtimeGateway,
+    required this.updateMyOffsetUseCase,
   }) : super(HomeInitial()) {
     on<InitialLoadHomeEvent>(_onInitialLoadHome);
     on<LoadHomeEvent>(_onLoadHome);
@@ -47,6 +51,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     on<_LocalConversationsErrorEvent>(_onLocalConversationsError);
     on<_RealtimeMessageNewEvent>(_onRealtimeMessageNew);
     on<CreateGroupEvent>(_createGroup);
+    on<UpdateMyOffsetEvent>(_onUpdateMyOffset);
   }
 
   Future<void> _onInitialLoadHome(
@@ -71,8 +76,8 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     final syncResult = await syncFriendshipsToLocalUseCase();
     syncResult.fold(
       (failure) =>
-          debugPrint('[HomeBloc] sync friendships failed: ${failure.message}'),
-      (_) => debugPrint('[HomeBloc] synced friendships to local'),
+          debugPrint('$_tag: sync friendships failed: ${failure.message}'),
+      (_) => debugPrint('$_tag: synced friendships to local'),
     );
   }
 
@@ -127,7 +132,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
 
     result.fold(
       (failure) {
-        debugPrint('[HomeBloc] load more failed: ${failure.message}');
+        debugPrint('$_tag: load more failed: ${failure.message}');
         _isLoadingMore = false;
         if (state is HomeLoaded) {
           emit((state as HomeLoaded).copyWith(isLoadingMore: false));
@@ -194,6 +199,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         limit: _limit,
         hasMore: _hasMore,
         isLoadingMore: _isLoadingMore,
+        isUpdateOffsetSuccess: false,
       ),
     );
   }
@@ -266,11 +272,32 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     );
     result.fold(
       (failure) => debugPrint(
-        '[HomeBloc] failed to update realtime last message: ${failure.message}',
+        '$_tag: failed to update realtime last message: ${failure.message}',
       ),
       (_) => debugPrint(
-        '[HomeBloc] updated realtime last message: conversationId=$conversationId',
+        '$_tag: updated realtime last message: conversationId=$conversationId',
       ),
+    );
+  }
+  
+  Future<void> _onUpdateMyOffset(
+    UpdateMyOffsetEvent event,
+    Emitter<HomeState> emit,
+  ) async {
+    final result = await updateMyOffsetUseCase(
+      conversationId: event.conversationId,
+      offset: event.offset,
+    );
+    result.fold(
+      (failure) => debugPrint(
+        '$_tag: failed to update my offset: ${failure.message}',
+      ),
+      (_) {
+        debugPrint('$_tag: updated my offset: conversationId=${event.conversationId}, offset=${event.offset}');
+        emit((state as HomeLoaded).copyWith(
+          isUpdateOffsetSuccess: true
+        ));
+      },
     );
   }
 
@@ -357,9 +384,9 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     final result = await joinConversationUseCase(event.conversationId);
     result.fold(
       (failure) => debugPrint(
-        '[HomeBloc] failed to join conversation: ${failure.message}',
+        '$_tag: failed to join conversation: ${failure.message}',
       ),
-      (_) => debugPrint('[HomeBloc] joined conversation'),
+      (_) => debugPrint('$_tag: joined conversation'),
     );
   }
 
@@ -377,7 +404,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
 
     await createResult.fold(
       (failure) async {
-        debugPrint('[HomeBloc] failed to create group: ${failure.message}');
+        debugPrint('$_tag: failed to create group: ${failure.message}');
         if (state is! HomeLoaded) {
           emit(HomeFailure(failure));
         }
@@ -404,6 +431,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
                   limit: _limit,
                   hasMore: _hasMore,
                   isLoadingMore: false,
+                  isUpdateOffsetSuccess: false,
                 ),
               );
             }

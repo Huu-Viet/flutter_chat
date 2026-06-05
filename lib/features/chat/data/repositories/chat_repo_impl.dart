@@ -87,9 +87,23 @@ class ChatRepoImpl implements ChatRepository {
           item.id.trim(): _localConversationMapper.toDomain(item).lastMessage,
       };
 
-      final conversations = response.conversations
-          .map((dto) {
+      final conversations = await Future.wait(response.conversations
+          .map((dto) async {
             var mapped = _apiConversationMapper.toDomain(dto);
+
+            final existingItems = await _conversationDao.getAllConversations();
+            ChatConversationEntity? existing;
+            for (final item in existingItems) {
+              if (item.id.trim() == (dto.id ?? '').trim()) {
+                existing = item;
+                break;
+              }
+            }
+
+            mapped = _withMyOffset(
+              mapped,
+              existing?.myOffset ?? 0,
+            );
             final id = (dto.id ?? '').trim();
             if (id.isNotEmpty &&
                 dto.allowMemberMessage == null &&
@@ -106,7 +120,7 @@ class ChatRepoImpl implements ChatRepository {
             }
             return mapped;
           })
-          .toList(growable: false);
+          .toList(growable: false));
       debugPrint(
         '[ChatRepoImpl] fetchConversations mapped: count=${conversations.length}',
       );
@@ -201,6 +215,12 @@ class ChatRepoImpl implements ChatRepository {
           );
         }
       }
+      // preserve myOffset from local so mapper won't override it with 0 when dto.myOffset is null
+
+        conversation = _withMyOffset(
+          conversation,
+          existing?.myOffset ?? 0,
+        );
       await _conversationDao.saveConversation(
         _localConversationMapper.toEntity(conversation),
       );
@@ -222,6 +242,18 @@ class ChatRepoImpl implements ChatRepository {
     } catch (e) {
       return Left(
         CacheFailure('Failed to get conversations from local DB: $e'),
+      );
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> updateConversationMyOffset({required String conversationId, required int offset}) async {
+    try {
+      await _conversationDao.updateConversationMyOffset(conversationId: conversationId, offset: offset);
+      return const Right(null);
+    } catch (e) {
+      return Left(
+        CacheFailure('Failed to update conversation offset: $e'),
       );
     }
   }
@@ -1155,5 +1187,29 @@ class ChatRepoImpl implements ChatRepository {
       debugPrint('[ChatRepoImpl] createDirectConversation error: $e');
       return Left(ServerFailure('Failed to create direct conversation: $e'));
     }
+  }
+
+  Conversation _withMyOffset(Conversation conversation, int i) {
+    return Conversation(
+      id: conversation.id,
+      orgId: conversation.orgId,
+      type: conversation.type,
+      name: conversation.name,
+      description: conversation.description,
+      avatarMediaId: conversation.avatarMediaId,
+      memberCount: conversation.memberCount,
+      maxOffset: conversation.maxOffset,
+      myOffset: i,
+      createBy: conversation.createBy,
+      isPublic: conversation.isPublic,
+      joinApprovalRequired: conversation.joinApprovalRequired,
+      allowMemberMessage: conversation.allowMemberMessage,
+      linkVersion: conversation.linkVersion,
+      createdAt: conversation.createdAt,
+      updatedAt: conversation.updatedAt,
+      avatarUrl: conversation.avatarUrl,
+      participants: conversation.participants,
+      lastMessage: conversation.lastMessage,
+    );
   }
 }

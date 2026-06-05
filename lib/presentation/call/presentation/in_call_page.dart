@@ -38,10 +38,6 @@ class InCallPage extends ConsumerWidget {
         listener: (context, state) async {
           if (state is InCallEnded) {
             ref.read(notiServiceProvider).endCallKit(state.endedCallId);
-            final calls =
-                await FlutterCallkitIncoming.activeCalls();
-
-            debugPrint('[AFTER END] $calls');
             debugPrint('[InCallPage]Check conversation: $conversationId');
             if ((state.endedCallId ?? '').trim().isEmpty &&
                 conversationId.trim().isNotEmpty) {
@@ -126,12 +122,6 @@ class InCallPage extends ConsumerWidget {
                 body: Stack(
                   children: [
                     Positioned.fill(
-                      // Use a nested BlocBuilder with buildWhen so the video
-                      // stage only rebuilds when tracks/participants actually
-                      // change (videoRevision bump). This prevents
-                      // VideoTrackRenderer from being recreated on every
-                      // ActiveSpeakersChanged event, which is the main cause
-                      // of the partner video flickering.
                       child: BlocBuilder<InCallBloc, InCallState>(
                         buildWhen: (previous, current) =>
                             previous.room != current.room ||

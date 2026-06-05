@@ -80,3 +80,16 @@ final class CreateGroupEvent extends HomeEvent {
   @override
   List<Object> get props => [name, description, memberIds, mediaId ?? ''];
 }
+
+final class UpdateMyOffsetEvent extends HomeEvent {
+  final String conversationId;
+  final int offset;
+
+  const UpdateMyOffsetEvent({
+    required this.conversationId,
+    required this.offset,
+  });
+
+  @override
+  List<Object> get props => [conversationId, offset];
+}

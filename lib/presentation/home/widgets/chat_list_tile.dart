@@ -10,6 +10,7 @@ class ChatListTile extends StatelessWidget {
   final String lastMessage;
   final DateTime time;
   final int unreadCount;
+  final int maxOffset;
   final String? avatarUrl;
   final HomeBloc homeBloc;
 
@@ -20,6 +21,7 @@ class ChatListTile extends StatelessWidget {
     required this.lastMessage,
     required this.time,
     required this.unreadCount,
+    required this.maxOffset,
     this.avatarUrl,
     required this.homeBloc,
   });
@@ -48,8 +50,7 @@ class ChatListTile extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          color: unreadCount > 0 ? Colors.black87 : Colors.grey.shade600,
-          fontWeight: unreadCount > 0 ? FontWeight.w500 : FontWeight.normal,
+          color: unreadCount > 0 ? Theme.of(context).textTheme.bodyMedium?.color : Colors.grey,
         ),
       ),
       trailing: Column(
@@ -81,6 +82,7 @@ class ChatListTile extends StatelessWidget {
         ],
       ),
       onTap: () async {
+        await homeBloc.updateMyOffsetUseCase(conversationId: conversationId, offset: maxOffset);
         await homeBloc.joinConversationUseCase(id);
 
         if (!context.mounted) return;

@@ -3,6 +3,7 @@ import 'package:flutter_chat/features/auth/auth_providers.dart';
 import 'package:flutter_chat/features/auth/user_providers.dart';
 import 'package:flutter_chat/features/chat/data/datasource/api/chat_service_impl.dart';
 import 'package:flutter_chat/features/chat/data/repositories/chat_repo_impl.dart';
+import 'package:flutter_chat/features/chat/domain/usecases/update_my_offset_usecase.dart';
 import 'package:flutter_chat/features/chat/export.dart';
 import 'package:riverpod/riverpod.dart';
 
@@ -273,6 +274,10 @@ final updateConversationLastMessageLocalUseCaseProvider =
         ref.read(chatRepoProvider),
       );
     });
+
+final updateMyOffsetUseCaseProvider = Provider<UpdateMyOffsetUseCase>((ref) {
+  return UpdateMyOffsetUseCase(ref.read(chatRepoProvider));
+});
 
 final createDirectConversationUseCaseProvider =
     Provider<CreateDirectConversationUseCase>((ref) {

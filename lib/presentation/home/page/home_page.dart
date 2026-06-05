@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_chat/app/app_permission.dart';
@@ -14,6 +15,7 @@ import 'package:flutter_chat/presentation/home/pages/qr_scanner_page.dart';
 import 'package:flutter_chat/presentation/home/widgets/friend_status_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/chat_list_tile.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -29,9 +31,36 @@ class _HomePageState extends ConsumerState<HomePage> {
     AppPermission.requestNotificationPermission();
     super.initState();
     if (mounted) {
+      _recoverPendingNavigation();
       ref.read(homeBlocProvider).add(const InitialLoadHomeEvent());
       ref.read(homeBlocProvider).add(const LoadHomeEvent());
     }
+  }
+
+  Future<void> _recoverPendingNavigation() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('deeplink');
+    if (raw == null || raw.isEmpty) {
+      return;
+    }
+    final deeplink = jsonDecode(raw) as Map<String, dynamic>;
+    final chatId = deeplink['chat_id'].toString();
+    final title = deeplink['title']?.toString() ?? 'Chat';
+
+    if (chatId.isEmpty) {
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    debugPrint('[HomePage] Found pending deeplink: $deeplink, navigating now');
+    prefs.remove('deeplink');
+    context.push(
+        '/chat/$chatId/$title',
+        extra: {'conversationId': chatId, 'friendName': title},
+    );
   }
 
   Future<void> _showAddFriendDialog(BuildContext context) async {
@@ -242,10 +271,10 @@ class _HomePageContentState extends ConsumerState<HomePageContent> {
           error: (_, __) => const SizedBox.shrink(),
         ),
 
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-          child: FriendStatusBar(onlineFriends: onlineFriends),
-        ),
+        // Padding(
+        //   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+        //   child: FriendStatusBar(onlineFriends: onlineFriends),
+        // ),
 
         // Search Bar
         Padding(
@@ -334,7 +363,8 @@ class _HomePageContentState extends ConsumerState<HomePageContent> {
                             name: c.name,
                             lastMessage: _conversationPreview(c),
                             time: c.updatedAt,
-                            unreadCount: 0,
+                            unreadCount: (c.maxOffset - (c.myOffset)),
+                            maxOffset: c.maxOffset,
                             avatarUrl: c.avatarUrl.isEmpty ? null : c.avatarUrl,
                             homeBloc: homeBloc,
                           );
@@ -366,12 +396,14 @@ class _HomePageContentState extends ConsumerState<HomePageContent> {
             itemCount: _searchResults.length,
             itemBuilder: (context, index) {
               final c = _searchResults[index];
+              debugPrint('[HomePage] max offset and my offset: ${c.maxOffset}, ${c.myOffset}');
               return ChatListTile(
                 conversationId: c.id,
                 name: c.name,
                 lastMessage: _conversationPreview(c),
                 time: c.updatedAt,
-                unreadCount: 0,
+                unreadCount: (c.maxOffset - (c.myOffset)),
+                maxOffset: c.maxOffset,
                 avatarUrl: c.avatarUrl.isEmpty ? null : c.avatarUrl,
                 homeBloc: homeBloc,
               );

@@ -1,5 +1,6 @@
 import 'dart:developer';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat/core/database/app_database.dart';
 import 'package:drift/drift.dart';
 
@@ -33,6 +34,10 @@ abstract class ConversationDao {
     required bool isDeleted,
     required bool isRevoked,
     required DateTime createdAt,
+  });
+  Future<void> updateConversationMyOffset({
+    required String conversationId,
+    required int offset,
   });
   Future<List<ChatConversationEntity>> getAllConversations();
   Stream<List<ChatConversationEntity>> watchAllConversations();
@@ -92,6 +97,16 @@ class DriftConversationDaoImpl implements ConversationDao {
       );
     } catch (e) {
       log(e.toString());
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> updateConversationMyOffset({required String conversationId, required int offset}) async {
+    try {
+      await _database.updateConversationMyOffset(conversationId: conversationId, offset: offset);
+    } catch (e) {
+      debugPrint(e.toString());
       rethrow;
     }
   }

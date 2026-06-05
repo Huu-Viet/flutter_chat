@@ -111,13 +111,14 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     _messageController.removeListener(_onComposerTextChanged);
     _messageController.dispose();
     _scrollController.dispose();
-    final current =
-    ref.read(currentChatBlocProvider);
-
-    if (identical(current, _chatBloc)) {
-      ref
-          .read(currentChatBlocProvider.notifier)
-          .state = null;
+    if (mounted) {
+      final current =
+      ref.read(currentChatBlocProvider);
+      if (identical(current, _chatBloc)) {
+        ref
+            .read(currentChatBlocProvider.notifier)
+            .state = null;
+      }
     }
 
     super.dispose();
@@ -789,6 +790,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     final l10n = AppLocalizations.of(context)!;
     final chatBloc = ref.read(chatBlocProvider(widget.conversationId));
     final outgoingCallBloc = ref.watch(outgoingCallBlocProvider);
+    final inCallBloc = ref.watch(inCallBlocProvider);
 
     return SafeArea(
       top: false,
@@ -1099,7 +1101,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                         roomName: appBarTitle,
                         onRejoin: () {
                           final call = activeGroupCall.call;
-                          context.read<InCallBloc>().add(
+                          inCallBloc.add(
                             InCallRejoinRequested(call, roomName: appBarTitle),
                           );
                           final route = Uri(
@@ -1139,7 +1141,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                                     FilledButton.icon(
                                       onPressed: () => chatBloc.add(
                                         ChatInitialLoadEvent(
-                                          widget.conversationId,
+                                          widget.conversationId
                                         ),
                                       ),
                                       icon: const Icon(Icons.refresh),

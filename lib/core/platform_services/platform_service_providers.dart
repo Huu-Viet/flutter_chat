@@ -4,6 +4,7 @@ import 'package:flutter_chat/application/notification/current_user_notification_
 import 'package:flutter_chat/application/notification/notification_device_repository.dart';
 import 'package:flutter_chat/application/notification/sync_device_token_usecase.dart';
 import 'package:flutter_chat/features/auth/auth_providers.dart';
+import 'package:flutter_chat/features/call/call_providers.dart';
 import 'package:flutter_chat/features/call/data/local/pending_call_storage.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,7 +14,10 @@ final pendingCallStorageProvider = Provider<PendingCallStorage>((ref) {
 });
 
 final notiServiceProvider = Provider<NotificationService>((ref) {
-  return NotificationService(FlutterLocalNotificationsPlugin());
+  return NotificationService(
+    FlutterLocalNotificationsPlugin(),
+    ref.watch(callRepositoryProvider),
+  );
 });
 
 final notiRouterProvider = Provider<NotificationRouter>((ref) {
